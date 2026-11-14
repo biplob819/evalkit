@@ -16,23 +16,20 @@ import yaml
 from evalkit import cli
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = [
-    ROOT / "README.md",
-    *(
-        ROOT / "docs" / n
-        for n in (
-            "quickstart.md",
-            "writing-a-task.md",
-            "cost.md",
-            "plugins.md",
-            "versioning.md",
-            "calibrate-your-task.md",
-        )
-    ),
-    ROOT / "CONTRIBUTING.md",
-    ROOT / "SECURITY.md",
-    ROOT / "PRIVACY.md",
-]
+NOT_DOCS = {"decisions.md", "lessons.md", "changelog.md"}  # build records, not user docs
+DOCS = sorted(
+    p
+    for p in [
+        *ROOT.glob("*.md"),
+        *(ROOT / "docs").glob("*.md"),
+        *(ROOT / ".github").rglob("*.md"),
+        *(ROOT / ".github" / "ISSUE_TEMPLATE").glob("*.yml"),
+    ]
+    if p.name not in NOT_DOCS
+    and "PRD" not in p.name
+    and "Tech Spec" not in p.name
+    and "Portfolio" not in p.name
+)
 FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)  # every fence, whatever its language
 INLINE = re.compile(r"`(evalkit [^`\n]+)`")
 ACTION = ROOT / "examples" / "github-action" / "evalkit.yml"
@@ -162,11 +159,7 @@ def project(tmp_path, monkeypatch):
     monkeypatch.setattr(R, "load_scifact", lambda: _many(sci, 250))
     fake = ScriptedBatchAdapter(_scripted_reply)
     monkeypatch.setattr(R, "make_adapters", lambda c, p: {"anthropic": fake, "openai": fake})
-    assert cli.main(["init"]) == 0
-    jl = tmp_path / "tasks" / "my_task.jsonl"
-    rows = [json.loads(line) for line in jl.read_text("utf-8").splitlines() if line.strip()]
-    extra = [{**r, "id": f"{r['id']}-{k}"} for k in range(20) for r in rows]
-    jl.write_text("".join(json.dumps(r) + "\n" for r in rows + extra), encoding="utf-8")
+    assert cli.main(["init"]) == 0  # the real scaffold, three sample cases, as a reader has it
     return tmp_path
 
 
@@ -183,6 +176,7 @@ def test_every_documented_command_runs(project, capsys):
     todo = [c for _, c in PARSEABLE] + action_commands()
     todo.sort(key=lambda c: "calibrate" in c)  # calibration works on a finished run
     ran = []
+    calibration_run: list[bool] = []
     for cmd in todo:
         if cmd in seen:
             continue
@@ -191,6 +185,13 @@ def test_every_documented_command_runs(project, capsys):
             continue
         argv = shlex.split(cmd)[1:]
         if "RUN_DIR" in argv:
+            if not calibration_run:  # the calibration doc's step 1: a run of 100+ answers
+                assert cli.main(["run", "evalkit.yaml", "--task", "pubmedqa", "--n", "30"]) in (
+                    0,
+                    1,
+                )
+                capsys.readouterr()
+                calibration_run.append(True)
             argv = [_biggest_run(project) if a == "RUN_DIR" else a for a in argv]
         code = cli.main(argv)
         out = capsys.readouterr()
@@ -201,7 +202,16 @@ def test_every_documented_command_runs(project, capsys):
     assert (project / "evalkit-example" / "report.html").is_file()
     assert any("calibrate export" in c for c in ran)
     assert any("scifact" in c for c in ran) and any("pubmedqa" in c for c in ran)
-    assert len(ran) >= 12
+    for needed in (
+        "evalkit init",
+        "evalkit doctor --offline",
+        "evalkit report --example",
+        "evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3 --dry-run",
+        "evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3",
+        "evalkit run evalkit.yaml --task scifact --n 20 --dry-run",
+        "evalkit calibrate export RUN_DIR",
+    ):
+        assert needed in ran, needed
     assert time.perf_counter() - t0 < 120  # the quickstart is minutes, not hours
 
 
@@ -227,9 +237,35 @@ NETWORK_MODULES = {
     "openai",
     "psycopg",
     "streamlit",
+    "duckdb",  # can read https:// URLs; the agent sandbox switches that off
+    "multiprocessing.connection",
+    "xmlrpc",
+    "telnetlib",
+    "poplib",
+    "imaplib",
 }
 HARMLESS = {"urllib.parse", "urllib.error", "http.HTTPStatus"}  # no I/O
-NETWORK_CALLS = {"open_connection", "start_server", "create_connection", "create_server"}
+NETWORK_CALLS = {
+    "open_connection",
+    "start_server",
+    "create_connection",
+    "create_server",
+    "sock_connect",
+}
+SHELL_CALLS = ("system", "popen", "exec", "spawn", "posix_spawn")
+
+
+def _dotted(node: ast.AST) -> str:
+    """`a.b.c` for an attribute chain rooted at a plain name, else ""."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return ""
+    return ".".join([node.id, *reversed(parts)])
+
+
 ALLOWED = {
     "evalkit/adapters/anthropic.py": "provider SDK",
     "evalkit/adapters/openai.py": "provider SDK",
@@ -240,6 +276,10 @@ ALLOWED = {
     "evalkit/demo/pubmed.py": "demo PubMed lookup",
     "evalkit/demo/page.py": "demo: visitor-key provider clients",
     "evalkit/demo/guard.py": "demo: daily spend database",
+    # DuckDB reaches the network only if a query asks it to:
+    "evalkit/agents/db.py": "builds the local agent database with fixed SQL",
+    "evalkit/agents/tasks.py": "checks gold answers with fixed SQL on the local database",
+    "evalkit/agents/sandbox.py": "runs agent SQL with enable_external_access off",
 }
 DYNAMIC_IMPORT_OK = {"evalkit/runtime/versions.py"}  # walks evalkit's own modules to hash them
 
@@ -255,9 +295,21 @@ def _network_uses(path: Path) -> set[str]:
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
             names.add(node.module)
             names |= {f"{node.module}.{a.name}" for a in node.names}
-        elif isinstance(node, ast.Call):
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+            chain = _dotted(node)
+            if chain:
+                names.add(chain)  # e.g. urllib.request.urlopen reached via `import urllib.error`
+        if isinstance(node, ast.Call):
             f = node.func
             fname = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+            if _dotted(f).startswith("os.") and fname.startswith(SHELL_CALLS):
+                names.add(f"call:os.{fname}")
+            if fname in ("exec", "eval") and isinstance(f, ast.Name):
+                names.add("call:exec")
+            if fname == "getattr" and len(node.args) > 1:
+                arg = node.args[1]
+                if isinstance(arg, ast.Constant) and arg.value in ("import_module", "__import__"):
+                    names.add("dynamic-import")
             if fname in NETWORK_CALLS:
                 names.add(f"call:{fname}")
             if fname in ("import_module", "__import__") and node.args:
@@ -302,6 +354,14 @@ def test_only_the_modules_in_privacy_md_can_reach_the_network():
         "import asyncio\nasyncio.open_connection('h', 1)",
         "import ssl",
         "import urllib3",
+        "import urllib.error\nurllib.request.urlopen('https://x')",
+        "import os\nos.system('curl https://x')",
+        "import os\nos.popen('curl https://x')",
+        "import importlib\ngetattr(importlib, 'import_module')('socket')",
+        "exec('import socket')",
+        "import asyncio\nasyncio.get_event_loop().sock_connect(None, None)",
+        "import duckdb",
+        "from multiprocessing.connection import Client",
     ],
 )
 def test_the_privacy_scan_catches_each_way_to_reach_the_network(tmp_path, code):
@@ -363,7 +423,9 @@ def test_the_action_example_fails_on_a_threshold_and_always_uploads_the_report()
     assert save.get("if") == "always()"  # a failed or pending run still saves its cache
     for step in (restore, save):
         assert ".evalkit/store" in step["with"]["path"] and "runs" in step["with"]["path"]
-    assert "github.run_id" in save["with"]["key"]  # a new key each run, so each one is saved
+    # a new key for every run AND every re-run attempt, so each one is saved
+    assert save["with"]["key"].endswith("${{ github.run_id }}-${{ github.run_attempt }}")
+    assert restore["with"]["key"] == save["with"]["key"]
     upload = next(s for s in steps if "upload-artifact" in s.get("uses", ""))
     assert upload.get("if") == "always()"
     paths = upload["with"]["path"].split()

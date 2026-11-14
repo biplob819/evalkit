@@ -61,18 +61,34 @@ def test_exit_codes_are_documented_and_stable():
         assert f"  {code}  " in EXIT_CODES
 
 
-def test_the_cli_keeps_its_subcommands_and_options():
-    import argparse
+def test_the_cli_keeps_its_subcommands_options_and_exit_codes():
+    assert _api.cli_missing() == []
 
+
+def test_the_cli_contract_lists_every_subcommand():
     from evalkit.cli import build_parser
 
-    parser = build_parser()
-    sub = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
-    assert set(sub.choices) == set(CLI)
-    for name, options in CLI.items():
-        have = {s for a in sub.choices[name]._actions for s in a.option_strings}
-        assert options <= have, f"evalkit {name} lost {sorted(options - have)}"
+    top = set(_api._subparsers(build_parser()))
+    assert top == {path.split()[0] for path in CLI}
+
+
+def test_the_cli_contract_would_catch_a_removed_option(monkeypatch):
+    monkeypatch.setitem(_api.CLI, "report", {*CLI["report"], "--no-such-flag"})
+    assert _api.cli_missing() == ["evalkit report --no-such-flag"]
+
+
+def test_ctrl_c_exits_130(monkeypatch, capsys):
+    from evalkit import cli
+
+    def interrupt(args):
+        raise KeyboardInterrupt
+
+    parser = cli.build_parser()
+    _api._subparsers(parser)["init"].set_defaults(func=interrupt)
+    monkeypatch.setattr(cli, "build_parser", lambda: parser)
+    assert cli.main(["init"]) == 130
+    assert "rerun the same command" in capsys.readouterr().err
 
 
 def test_the_check_script_passes_on_the_source_tree():
-    assert _api.missing() == []
+    assert _api.missing() == [] and _api.cli_missing() == []

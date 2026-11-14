@@ -79,9 +79,10 @@ Operators: `>=` and `<=`.
 ## Run it
 
 ```bash
-evalkit run evalkit.yaml --task tasks/my_task.yaml --n 50 --dry-run
-evalkit run evalkit.yaml --task tasks/my_task.yaml --n 50
+evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3 --dry-run
+evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3
 ```
 
-`--n` draws a seeded sample stratified by label, so reruns with the same seed use the same
-cases. To use every case, set `--n` to the number of cases in the file.
+`--n` is how many cases to evaluate, at most the number in the file (the sample task has
+three; raise it for your own data). It draws a seeded sample stratified by label, so reruns
+with the same seed use the same cases.

@@ -201,3 +201,10 @@ def test_a_long_document_in_one_cell_loads(tmp_path):
     path.write_text(f'id,question,context\n1,Q?,"{long}"\n', encoding="utf-8")
     (case,) = load_csv_cases(path, _task())
     assert len(case.context) == 10_000
+
+
+def test_an_unclosed_quote_is_an_error_not_a_swallowed_row(tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_text('id,question,context\nc1,Q?,"unterminated\nc2,Q?,B.\n', encoding="utf-8")
+    with pytest.raises(DatasetFileError, match=r"d\.csv:2: not valid CSV"):
+        load_csv_cases(path, _task())

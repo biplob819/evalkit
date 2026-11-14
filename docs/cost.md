@@ -6,8 +6,11 @@ starts.
 ## Estimate first
 
 ```bash
-evalkit run evalkit.yaml --task tasks/my_task.yaml --n 50 --dry-run
+evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3 --dry-run
 ```
+
+(The sample task from `evalkit init` has three cases; with your own data, set `--n` to the
+number of cases you want.)
 
 The dry run prints the estimated cost from `prices.yaml` (list prices, dated; `evalkit
 doctor` warns when they are older than 90 days) and makes no API calls. Cost grows with

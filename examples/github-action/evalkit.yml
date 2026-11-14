@@ -37,7 +37,7 @@ jobs:
           path: |
             .evalkit/store
             runs
-          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-${{ github.run_id }}
+          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-
             evalkit-
@@ -54,7 +54,7 @@ jobs:
           path: |
             .evalkit/store
             runs
-          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-${{ github.run_id }}
+          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-${{ github.run_id }}-${{ github.run_attempt }}
       # The report and summary only: run folders also hold your questions and sources, and
       # artifacts are readable by anyone who can read the repository.
       - name: Upload the report

@@ -28,8 +28,8 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise DatasetFileError(
-            f"{path}: not UTF-8 text (byte {exc.start}); save it as UTF-8 "
-            "(in Excel: Save As > CSV UTF-8)"
+            f"{path}: not UTF-8 text (byte {exc.start}); save it as UTF-8"
+            + (" (in Excel: Save As > CSV UTF-8)" if path.suffix == ".csv" else "")
         ) from None
 
 
@@ -56,7 +56,7 @@ def load_csv_cases(path: Path, task: TaskConfig) -> list[Case]:
         raise DatasetFileError(f"dataset file not found: {path}")
     text = _read_text(path)
     csv.field_size_limit(max(csv.field_size_limit(), MAX_CELL_CHARS))
-    reader = csv.reader(io.StringIO(text, newline=""))
+    reader = csv.reader(io.StringIO(text, newline=""), strict=True)  # a stray quote is an error
     try:
         header = [h.strip().casefold() for h in next(reader, [])]
     except csv.Error as exc:
