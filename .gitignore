@@ -15,3 +15,4 @@ build/
 Portfolio notes.md
 .venv-py*/
 runs/
+heldout/

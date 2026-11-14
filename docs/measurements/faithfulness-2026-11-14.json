@@ -1,0 +1,231 @@
+{
+  "results": [
+    {
+      "id": "triage",
+      "judge": "claude-opus-5-5",
+      "n_claims": 2,
+      "supported": 2,
+      "expected_supported": 2,
+      "claims": [
+        {
+          "text": "Median waiting time fell from 52 to 31 minutes.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "supported",
+            "gpt-6.1-sol": "supported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [
+              2
+            ],
+            "gpt-6.1-sol": [
+              2
+            ]
+          }
+        },
+        {
+          "text": "Nurse-led triage was introduced in March.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "supported",
+            "gpt-6.1-sol": "supported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [
+              1
+            ],
+            "gpt-6.1-sol": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "triage",
+      "judge": "gpt-6.1-sol",
+      "n_claims": 2,
+      "supported": 2,
+      "expected_supported": 2,
+      "claims": [
+        {
+          "text": "Median waiting time fell from 52 to 31 minutes.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "supported",
+            "gpt-6.1-sol": "supported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [
+              2
+            ],
+            "gpt-6.1-sol": [
+              2
+            ]
+          }
+        },
+        {
+          "text": "Nurse-led triage was introduced in March.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "supported",
+            "gpt-6.1-sol": "supported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [
+              1
+            ],
+            "gpt-6.1-sol": [
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "reminders",
+      "judge": "claude-opus-5-5",
+      "n_claims": 2,
+      "supported": 1,
+      "expected_supported": 1,
+      "claims": [
+        {
+          "text": "Uptake was 41 percent with reminders.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "supported",
+            "gpt-6.1-sol": "supported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [
+              1
+            ],
+            "gpt-6.1-sol": [
+              1
+            ]
+          }
+        },
+        {
+          "text": "Reminders also halved hospital admissions.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "unsupported",
+            "gpt-6.1-sol": "unsupported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [],
+            "gpt-6.1-sol": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "reminders",
+      "judge": "gpt-6.1-sol",
+      "n_claims": 2,
+      "supported": 1,
+      "expected_supported": 1,
+      "claims": [
+        {
+          "text": "Uptake was 41 percent with reminders.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "supported",
+            "gpt-6.1-sol": "supported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [
+              1
+            ],
+            "gpt-6.1-sol": [
+              1
+            ]
+          }
+        },
+        {
+          "text": "Reminders also halved hospital admissions.",
+          "cited": [
+            1,
+            2
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "unsupported",
+            "gpt-6.1-sol": "unsupported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [],
+            "gpt-6.1-sol": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "outside",
+      "judge": "claude-opus-5-5",
+      "n_claims": 1,
+      "supported": 0,
+      "expected_supported": 0,
+      "claims": [
+        {
+          "text": "Aspirin reduces the risk of heart attack.",
+          "cited": [
+            1
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "unsupported",
+            "gpt-6.1-sol": "unsupported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [],
+            "gpt-6.1-sol": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "outside",
+      "judge": "gpt-6.1-sol",
+      "n_claims": 1,
+      "supported": 0,
+      "expected_supported": 0,
+      "claims": [
+        {
+          "text": "Aspirin reduces the risk of heart attack.",
+          "cited": [
+            1
+          ],
+          "verdicts": {
+            "claude-opus-5-5": "unsupported",
+            "gpt-6.1-sol": "unsupported"
+          },
+          "evidence": {
+            "claude-opus-5-5": [],
+            "gpt-6.1-sol": []
+          }
+        }
+      ]
+    }
+  ],
+  "problems": []
+}

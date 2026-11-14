@@ -1,0 +1,23 @@
+[
+  {
+    "id": "triage",
+    "question": "Did the triage process shorten waiting times?",
+    "explanation": "Median waiting time fell from 52 to 31 minutes. Nurse-led triage was introduced in March.",
+    "evidence": ["The clinic introduced nurse-led triage in March.", "Median waiting time fell from 52 to 31 minutes over six months."],
+    "expected": {"supported": 2, "unsupported": 0}
+  },
+  {
+    "id": "reminders",
+    "question": "Did reminder letters raise screening uptake?",
+    "explanation": "Uptake was 41 percent with reminders. Reminders also halved hospital admissions.",
+    "evidence": ["Uptake was 41 percent with reminders and 40 percent without.", "The difference was not significant."],
+    "expected": {"supported": 1, "unsupported": 1}
+  },
+  {
+    "id": "outside",
+    "question": "Does aspirin prevent heart attacks?",
+    "explanation": "Aspirin reduces the risk of heart attack.",
+    "evidence": ["Participants received aspirin for twelve weeks."],
+    "expected": {"supported": 0, "unsupported": 1}
+  }
+]

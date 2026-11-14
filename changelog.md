@@ -3,6 +3,8 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FIX] [S2.4] — judge every claim against all evidence (not the extractor's citations); pending claims reported separately; live check re-run: PASS
+- [FEAT] [S2.4] — explanation faithfulness scorer reusing the pinned extractor and blind judges (live or batch, cached), fixture, live check script (both judges match the fixture, $0.027)
 - [FIX] [B2.4] — never overwrite user files (example output, task templates); doctor and run check SDKs and the keys the config needs; README installs the provider extras
 - [FEAT] [B2.4] — onboarding: `evalkit init` (config, .env.example, task template, .gitignore; never overwrites), `evalkit doctor` (Python, SDKs, key names, network, prices age, cache), `evalkit report --example` (bundled example run, no keys or network), caveats in every run/report output; shared outputs written 0644
 - [FEAT] [B2.3] — README headline chart and generated sentences (`evalkit.report.readme`), `scripts/publish_results.py`, GitHub Pages workflow (OWNER D-47)

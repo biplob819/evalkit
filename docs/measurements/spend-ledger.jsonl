@@ -3,3 +3,5 @@
 {"at": "2026-11-14T13:51:34+00:00", "judges": ["claude-opus-5-5", "gpt-6.1-sol"], "kind": "planted_check", "spent_usd": 0.077152}
 {"at": "2026-11-14T15:31:37+00:00", "kind": "real_run_capped", "n_cases": 12, "note": "stopped at cap: batch hold too high", "run_id": "r-da401a6e9bcb", "spent_usd": 0.074711}
 {"at": "2026-11-14T15:31:37+00:00", "judges": "live", "kind": "real_run_live_judges", "n_cases": 12, "run_id": "r-da401a6e9bcb", "spent_usd": 1.477624}
+{"at": "2026-11-14T15:55:08+00:00", "items": 3, "kind": "faithfulness_check", "spent_usd": 0.026712}
+{"at": "2026-11-14T16:01:11+00:00", "items": 3, "kind": "faithfulness_check", "spent_usd": 0.026612}
