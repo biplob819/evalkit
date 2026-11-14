@@ -53,6 +53,11 @@ class Node(ABC, Generic[In, Out]):
             }
         )
 
+    def pool(self, inp: In) -> str | None:
+        """Concurrency pool for this call; defaults to the class `provider`. A node that fans
+        out across providers (Generate) overrides this per input."""
+        return self.provider
+
     def estimate_cost(self, inp: In, ctx: RunContext) -> float:
         """Upper-bound cost of one call, used by the spend cap. Free nodes return 0."""
         return 0.0

@@ -1,0 +1,16 @@
+# Reference run configuration for the flagship PubMedQA benchmark.
+# Model ids are provider ids; prices live in src/evalkit/prices.yaml (D-27).
+models: [claude-sonnet-5-5, claude-haiku-5-5, gpt-6.1-sol, gpt-6-luna]
+judges: [claude-opus-5-5, gpt-6.1-sol]
+extractor: claude-haiku-5-5
+thresholds:
+  - {metric: headline, op: ">=", value: 0.6}
+  - {metric: cost_per_correct_usd, op: "<=", value: 0.01}
+structured_output: true
+max_output_tokens: 2048   # reasoning tokens count toward this cap
+concurrency: {anthropic: 8, openai: 8}
+seed: 7
+max_cost_usd: 12
+default_effort: medium    # every generator at the same nominal effort (D-24)
+judge_effort: low         # OWNER D-28
+extractor_effort: low

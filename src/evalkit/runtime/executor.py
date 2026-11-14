@@ -142,7 +142,7 @@ class Executor:
         self, node: Node[In, Out], inp: In, ctx: RunContext, key: str, parents: Sequence[str]
     ) -> Out:
         estimate = _check_amount(node.estimate_cost(inp, ctx), "estimate_cost", node.name)
-        async with self._sem(node.provider):
+        async with self._sem(node.pool(inp)):
             try:
                 await self._reserve(estimate)
             except BudgetExceeded:
@@ -202,6 +202,32 @@ class Executor:
         batch_id = await submit()
         self.store.put_meta(key, "batch", {"batch_id": batch_id, "provider": provider})
         return batch_id
+
+    async def map_settled(
+        self,
+        node: Node[In, Out],
+        inputs: Sequence[In],
+        ctx: RunContext | Callable[[In], RunContext],
+        *,
+        parents: Callable[[In], Sequence[str]] | None = None,
+    ) -> list[Out | Exception]:
+        """Like `map`, but returns every item's result or exception in input order and never
+        raises for a failed item, so one bad call cannot stop a run (NFR5, GEN-03)."""
+
+        def ctx_for(item: In) -> RunContext:
+            return ctx(item) if callable(ctx) else ctx
+
+        results = await asyncio.gather(
+            *(
+                self.run_node(node, item, ctx_for(item), parents=parents(item) if parents else ())
+                for item in inputs
+            ),
+            return_exceptions=True,
+        )
+        for r in results:
+            if isinstance(r, BaseException) and not isinstance(r, Exception):
+                raise r  # cancellation and interrupts still propagate
+        return list(results)  # type: ignore[arg-type]
 
     async def map(
         self,

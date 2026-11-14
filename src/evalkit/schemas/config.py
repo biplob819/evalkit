@@ -38,6 +38,14 @@ class RunConfig(Model):
     seed: StrictInt = 7
     max_cost_usd: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
     endpoints: FrozenMap[Name] = Field(default_factory=dict)
+    # Effort is always explicit (D-24): per-model overrides, else the default.
+    efforts: FrozenMap[Name] = Field(default_factory=dict)
+    default_effort: Name = "medium"
+    judge_effort: Name = "low"  # OWNER D-28
+    extractor_effort: Name = "low"
+
+    def effort_for(self, model: str) -> str:
+        return self.efforts.get(model, self.default_effort)
 
     @field_validator("models", "judges")
     @classmethod

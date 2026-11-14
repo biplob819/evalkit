@@ -23,3 +23,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FIX] [A2.2] — Verifier findings: built-in scorers can never be replaced by plugins, duplicate and mismatched plugin names warn, failed plugins load once, Unicode-normalised labels, strict finite scores, picklable scorers.
 - [FEAT] [A2.1] — Generate and Validate nodes: provider routing, per-provider pools, structured answers with a strict parser, error taxonomy (transport not cached, refusal, schema never retried), `Executor.map_settled`, per-model effort in RunConfig, reference `configs/pubmedqa.yaml`, smoke-run module and script.
 - [FEAT] [A2.2] — Green.
+- [FEAT] [S2.1] — `sql_match`: result-set comparison (column reordering by name, multiset rows, ordered option, numeric tolerance, strict booleans/None/strings) with 21 golden cases.
+- [FIX] [A2.1] — Verifier findings: budget exhaustion and configuration errors stop the run (only transient provider errors are 'transport'), answers must be one JSON object (validate v2), .env parsing, smoke exit codes and labels, tighter OpenAI routing.
+- [FEAT] [S2.2] — Retrieval metrics: recall@k, MRR, nDCG@k (binary or graded), positions as returned, duplicates earn no credit.
+- [FEAT] [A2.1] — Green (real smoke run pending API keys).

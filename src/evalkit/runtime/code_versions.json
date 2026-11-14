@@ -1,1 +1,10 @@
-{}
+{
+  "generate": {
+    "code_version": "1",
+    "hash": "647e152ff61767f294e32c765a4139c4d3fa5a4bd05a47aaa73ed666e4952361"
+  },
+  "validate": {
+    "code_version": "2",
+    "hash": "911f86e68a8eca9657b706b8a3cf158a996d6b7bbac9bda0227250c6a498a060"
+  }
+}
