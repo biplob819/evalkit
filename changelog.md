@@ -14,3 +14,5 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FEAT] [N1.4] — PubMedQA PQA-L loader (pinned checksum, 1,000 rows, cached, `long_answer` dropped), rule-based sentence splitter checked on all 1,000 abstracts, seeded label-stratified sampler, built-in `pubmedqa` task and prompt rendering, `DATA_CARD.md` with the contamination probe spec.
 - [FIX] [N1.3] — Verifier findings: money values must be finite and non-negative, budget reserved inside the concurrency slot, identical in-flight work coalesced, batch ids reused via `submit_once`, corrupt cache entries recomputed, version manifest keyed by node name and hashing MRO plus schemas, writer refuses NaN and late writes.
 - [FEAT] [N1.3] — Green.
+- [FIX] [N1.4] — Verifier findings: splitter recovers 41 wrong merges (initials, units, unclosed brackets, spaced decimals), download verified before an atomic write, network failures raise DatasetError, duplicate ids rejected, data card claims made true or dated, probe spec fully pinned, PubMedQA credited in the README.
+- [FEAT] [N1.4] — Green.

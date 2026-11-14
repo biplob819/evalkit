@@ -16,3 +16,5 @@ The package is published as `evalkit-harness` (the name `evalkit` on PyPI belong
 - Build status: `uv run python scripts/status.py`
 
 Research benchmark, not medical advice. MIT licence.
+
+The flagship task uses [PubMedQA](https://pubmedqa.github.io/) (Jin et al., 2019, MIT licence); see [DATA_CARD.md](DATA_CARD.md).

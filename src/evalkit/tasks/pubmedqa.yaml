@@ -1,0 +1,25 @@
+# PubMedQA (PQA-L, 1,000 expert-labelled questions). See DATA_CARD.md.
+name: pubmedqa
+dataset: qiaojin/PubMedQA
+split: pqa_labeled
+labels: ["yes", "no", "maybe"]
+output_schema: answer_v1
+scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency]
+thresholds:
+  - {metric: headline, op: ">=", value: 0.6}
+prompt_template: |
+  You are answering a research question using only the numbered sentences from a
+  scientific abstract below. This is a research benchmark, not medical advice.
+
+  Question: {question}
+
+  Abstract sentences:
+  {numbered_context}
+
+  Reply with JSON only, in this shape:
+  {{"label": one of {labels}, "answer": "two to four sentences", "citations": [sentence numbers]}}
+
+  Rules:
+  - Base every statement on the sentences above, not on outside knowledge.
+  - Cite the sentence numbers (1 to {n_sentences}) that support your answer.
+  - Choose "maybe" when the sentences do not settle the question.
