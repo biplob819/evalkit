@@ -1,0 +1,489 @@
+{
+  "calibration_status": "uncalibrated",
+  "comparisons": [
+    {
+      "diff": {
+        "hi": 0.16,
+        "lo": 0.05,
+        "point": 0.105
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "claude-haiku-5-5",
+      "p_value": 0.0005999400059994001,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.185,
+        "lo": 0.05,
+        "point": 0.12
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.0005999400059994001,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.275,
+        "lo": 0.125,
+        "point": 0.2
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.08,
+        "lo": -0.05,
+        "point": 0.015
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-haiku-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.6997300269973002,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": 0.165,
+        "lo": 0.025,
+        "point": 0.095
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-haiku-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.009599040095990401,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.13,
+        "lo": 0.03,
+        "point": 0.08
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "gpt-6.1-sol",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.0031996800319968005,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.155,
+        "lo": -0.005,
+        "point": 0.075
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "claude-haiku-5-5",
+      "p_value": 0.0735926407359264,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": -0.115,
+        "lo": -0.265,
+        "point": -0.19
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.03,
+        "lo": -0.145,
+        "point": -0.055
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.23177682231776822,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": -0.19,
+        "lo": -0.34,
+        "point": -0.265
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-haiku-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": -0.055,
+        "lo": -0.205,
+        "point": -0.13
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-haiku-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.0013998600139986002,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.2,
+        "lo": 0.07,
+        "point": 0.135
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "gpt-6.1-sol",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.1,
+        "lo": -0.04,
+        "point": 0.03
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "claude-haiku-5-5",
+      "p_value": 0.44175582441755823,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": -0.16,
+        "lo": -0.315,
+        "point": -0.235
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.01,
+        "lo": -0.14,
+        "point": -0.065
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.09199080091990801,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": -0.19,
+        "lo": -0.34,
+        "point": -0.265
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-haiku-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": -0.025,
+        "lo": -0.165,
+        "point": -0.095
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-haiku-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.0103989601039896,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.245,
+        "lo": 0.1,
+        "point": 0.17
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "gpt-6.1-sol",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.00019998000199980003,
+      "separated": true
+    }
+  ],
+  "config_hash": "08b51f835a35229d",
+  "extraction_error_rate": null,
+  "finished_at": "2026-11-14T18:22:09.290564Z",
+  "judge_mode": "dual",
+  "judges": [],
+  "judging_status": "complete",
+  "models": [
+    {
+      "accuracy": {
+        "hi": 0.825,
+        "lo": 0.71,
+        "point": 0.77
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 1.0,
+        "point": 1.0
+      },
+      "cost_per_100_usd": 0.36059599999999997,
+      "cost_per_correct_usd": 0.004683064935064935,
+      "coverage": {
+        "hi": 0.8558876488095238,
+        "lo": 0.7829998511904761,
+        "point": 0.8198809523809524
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0.225)"
+      ],
+      "family": "anthropic",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.8526254464285715,
+          "lo": 0.7797541666666667,
+          "point": 0.8170416666666667
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.7375123511904762,
+          "lo": 0.6587553571428572,
+          "point": 0.6986488095238096
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.45,
+          "lo": 0.32,
+          "point": 0.385
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.285,
+          "lo": 0.17,
+          "point": 0.225
+        }
+      },
+      "latency_p50_ms": 2295,
+      "latency_p95_ms": 2891,
+      "model": "claude-sonnet-5-5",
+      "n": 200,
+      "n_errors": {},
+      "passes_threshold": false
+    },
+    {
+      "accuracy": {
+        "hi": 0.73,
+        "lo": 0.6,
+        "point": 0.665
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 1.0,
+        "point": 1.0
+      },
+      "cost_per_100_usd": 0.0204848,
+      "cost_per_correct_usd": 0.0003080421052631579,
+      "coverage": {
+        "hi": 0.8939773809523809,
+        "lo": 0.8269699404761905,
+        "point": 0.861625
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0.195)"
+      ],
+      "family": "anthropic",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.8421627976190476,
+          "lo": 0.7751179067460318,
+          "point": 0.8102817460317461
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.7749074404761903,
+          "lo": 0.7063788194444444,
+          "point": 0.7414662698412698
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.375,
+          "lo": 0.245,
+          "point": 0.31
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.25,
+          "lo": 0.14,
+          "point": 0.195
+        }
+      },
+      "latency_p50_ms": 1731,
+      "latency_p95_ms": 3070,
+      "model": "claude-haiku-5-5",
+      "n": 200,
+      "n_errors": {},
+      "passes_threshold": false
+    },
+    {
+      "accuracy": {
+        "hi": 0.715,
+        "lo": 0.585,
+        "point": 0.65
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 1.0,
+        "point": 1.0
+      },
+      "cost_per_100_usd": 0.23081500000000002,
+      "cost_per_correct_usd": 0.003551,
+      "coverage": {
+        "hi": 0.9363458333333334,
+        "lo": 0.8867482142857143,
+        "point": 0.9125
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0.46)"
+      ],
+      "family": "openai",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.9514896825396825,
+          "lo": 0.9067495535714285,
+          "point": 0.9304543650793652
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.8819166666666667,
+          "lo": 0.8191778273809524,
+          "point": 0.8518988095238095
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.64,
+          "lo": 0.505,
+          "point": 0.575
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.53,
+          "lo": 0.39,
+          "point": 0.46
+        }
+      },
+      "latency_p50_ms": 3219,
+      "latency_p95_ms": 6559,
+      "model": "gpt-6.1-sol",
+      "n": 200,
+      "n_errors": {},
+      "passes_threshold": false
+    },
+    {
+      "accuracy": {
+        "hi": 0.635,
+        "lo": 0.5,
+        "point": 0.57
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 1.0,
+        "point": 1.0
+      },
+      "cost_per_100_usd": 0.013408500000000002,
+      "cost_per_correct_usd": 0.00023523684210526318,
+      "coverage": {
+        "hi": 0.9438238095238094,
+        "lo": 0.885702380952381,
+        "point": 0.9161190476190477
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0.29)"
+      ],
+      "family": "openai",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.8783691964285715,
+          "lo": 0.8101063988095238,
+          "point": 0.8452857142857142
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.8054604166666667,
+          "lo": 0.7255822916666667,
+          "point": 0.7667916666666666
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.51,
+          "lo": 0.37,
+          "point": 0.44
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.355,
+          "lo": 0.23,
+          "point": 0.29
+        }
+      },
+      "latency_p50_ms": 2514,
+      "latency_p95_ms": 3740,
+      "model": "gpt-6-luna",
+      "n": 200,
+      "n_errors": {},
+      "passes_threshold": false
+    }
+  ],
+  "run_id": "r-e8dac378d2d3",
+  "schema_version": "1.0",
+  "self_preference": {
+    "claude-opus-5-5": {
+      "anthropic": {
+        "hi": 0.8390491567460318,
+        "lo": 0.7863074900793652,
+        "point": 0.8136617063492063
+      },
+      "openai": {
+        "hi": 0.9096435515873015,
+        "lo": 0.8641059771825396,
+        "point": 0.8878700396825397
+      }
+    },
+    "gpt-6.1-sol": {
+      "anthropic": {
+        "hi": 0.7480375992063493,
+        "lo": 0.6910603174603175,
+        "point": 0.7200575396825397
+      },
+      "openai": {
+        "hi": 0.8368280505952381,
+        "lo": 0.7799040922619047,
+        "point": 0.8093452380952381
+      }
+    }
+  },
+  "started_at": "2026-11-14T15:34:15.307856Z",
+  "task": "pubmedqa"
+}

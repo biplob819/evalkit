@@ -1,3 +1,3 @@
 # B2.3 run state
 
-**Now:** spec written; waiting for B2.2 green and a real run
+**Now:** real 200-case run published (re-judged after D-52); converging

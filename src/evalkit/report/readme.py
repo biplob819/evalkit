@@ -128,7 +128,7 @@ def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
     else:
         best = max(summary.models, key=lambda m: min(iv.point for iv in m.headline.values()))
         ivs = ", ".join(
-            f"{iv.point:.0%} (95% CI {iv.lo:.0%}–{iv.hi:.0%}) by {j}"
+            f"{iv.point:.1%} (95% CI {iv.lo:.1%}–{iv.hi:.1%}) by {j}"
             for j, iv in sorted(best.headline.items())
         )
         ties = [
@@ -144,8 +144,21 @@ def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
         )
         s2 = (
             f"The most grounded model was {best.model}, correct and fully grounded on "
-            f"{ivs}{tie_text}."
+            f"{ivs}{tie_text}"
         )
+        others = [j for j in best.headline if j != best.model]
+        if best.model in best.headline:  # it also judged its own answers: say so
+            s2 += f" ({best.model} also judged its own answers" + (
+                f"; {', '.join(others)} agrees)" if others else ")"
+            )
+        most_accurate = max(summary.models, key=lambda m: m.accuracy.point)
+        if most_accurate.model != best.model:
+            s2 += (
+                f"; the most accurate model was {most_accurate.model} "
+                f"({most_accurate.accuracy.point:.1%} correct labels); the headline also "
+                "requires every claim to be supported by the sentences the answer cites"
+            )
+        s2 += "."
     stamps = stamp_lines(summary)
     if stamps:
         s3 = "Caveats: " + "; ".join(stamps) + ". Treat these numbers as provisional."
@@ -165,9 +178,11 @@ def readme_block(summary: RunSummary, n_cases: int, report_url: str) -> str:
         f"[Full report]({report_url}) · results in [`docs/results/`](docs/results/)\n\n"
         "```bash\n"
         "pip install 'evalkit-harness[anthropic,openai]'\n"
-        "evalkit run evalkit.yaml --dry-run   # estimate first, no API calls\n"
-        "evalkit run evalkit.yaml             # needs ANTHROPIC_API_KEY and OPENAI_API_KEY\n"
-        "```\n"
+        "evalkit init && evalkit run evalkit.yaml --dry-run  # scaffold, then estimate\n"
+        "evalkit run evalkit.yaml                            # needs both API keys in .env\n"
+        "```\n\n"
+        "Questions from [PubMedQA](https://pubmedqa.github.io/) (Jin et al., 2019, MIT licence); "
+        "see [DATA_CARD.md](DATA_CARD.md). Research benchmark, not medical advice.\n"
         f"{END}"
     )
 

@@ -3,6 +3,8 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-15
+- [FEAT] [D3.1] — see commit 20c2fbc
+- [FEAT] [B2.3] — README headline chart and sentences generated from the published 200-case run (re-judged, D-52); report deployed to GitHub Pages by workflow (D-47, D-57)
 - [FIX] [C3.4] — first full agent run (300 trials, $3.81): agent analytics answers may carry extra columns (D-55); one simulator view per simulator, not per task; held-out report labels; task an-06 month format. Result: Sonnet 81% vs Sol 82–83% public success, 75% each held-out, no separated gap; agents rarely asked clarifying questions (6 and 16 of 60 ambiguous trials)
 - [FEAT] [D3.1] — demo backend: `compare()` answer cards (live single-judge path with per-model stage timeouts, replay), PubMed fetch by PMID, in-memory store for visitor data, guard (passcode, session rate limit, per-request cap) and a Postgres daily spend counter with atomic reservation (D-53, D-54)
 - [FIX] [C3.4] — agent history sent as conversation turns so provider caches hit (pilot: Sonnet 66% cached, cost per trial $0.040 → $0.018); estimate uses measured pilot tokens (full run $6.16, was $31.52 on placeholders)

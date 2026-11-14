@@ -6,9 +6,9 @@
 A visitor understands the headline result in under a minute (US5): the README opens with one chart drawn from a real run's `summary.json`, three sentences, and a three-line install-and-run snippet; the full report is one click away on a public page.
 
 ## Outputs
-- `evalkit.report.readme_chart(summary) -> str`: a standalone SVG (light and dark readable, no external fonts) of the headline per model and judge with CIs, carrying the judge-mode and calibration stamps in the chart itself so the image cannot be shared without its caveats (REL-01). `scripts/readme_chart.py RUN_DIR` writes `docs/assets/headline.svg`.
+- `evalkit.report.readme_chart(summary) -> str`: a standalone SVG (light and dark readable, no external fonts) of the headline per model and judge with CIs, carrying the judge-mode and calibration stamps in the chart itself so the image cannot be shared without its caveats (REL-01). `scripts/publish_results.py RUN_DIR` writes `docs/assets/headline.svg`, copies the run into `docs/results/` and regenerates the README block.
 - README opening (REL-02): the chart, three sentences (what was measured, the result with intervals, the caveats), `pip install evalkit-harness` / `evalkit run ...` snippet, PubMedQA credit and licence line, link to the public report.
-- Public report (REL-03): the run's `report.html` published as a static page (host per owner decision), with the deploy reproducible from a script or workflow.
+- Public report (REL-03): the run's `report.html` published as a static page on GitHub Pages (OWNER D-47), deployed by `.github/workflows/pages.yml` from `docs/results/`, with the deploy reproducible from a script or workflow.
 
 ## Rules
 - The chart and sentences are generated from `summary.json`, never typed by hand; a test regenerates them and compares.
