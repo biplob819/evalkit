@@ -1,0 +1,12 @@
+models: [sonnet, haiku, sol, luna]
+judges: [claude-opus-5-5, gpt-6.1-sol]
+extractor: claude-haiku-5-5
+thresholds:
+  - {metric: headline, op: ">=", value: 0.6}
+  - {metric: cost_per_correct_usd, op: "<=", value: 0.01}
+structured_output: true
+max_output_tokens: 1024
+concurrency: {anthropic: 8, openai: 8}
+seed: 7
+max_cost_usd: 12
+endpoints: {}

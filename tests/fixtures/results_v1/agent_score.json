@@ -1,0 +1,1 @@
+{"task_id": "agt-analytics-07", "agent": "claude-sonnet-5-5-agent", "trial": 1, "success": true, "valid_tool_calls": 1.0, "policy_violations": 0, "steps_over_gold": 0, "recovered_from_error": null, "cost_usd": 0.004, "error": null}

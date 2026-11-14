@@ -1,0 +1,9 @@
+name: pubmedqa
+dataset: qiaojin/PubMedQA
+split: pqa_labeled
+labels: ["yes", "no", "maybe"]
+prompt_template: "Question: {question}\n\nSentences:\n{numbered_context}"
+output_schema: answer_v1
+scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency]
+thresholds:
+  - {metric: headline, op: ">=", value: 0.6}

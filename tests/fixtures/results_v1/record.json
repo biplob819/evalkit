@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-2026-11-14-a",
+  "task": "pubmedqa",
+  "case_id": "pqa-00042",
+  "timestamp": "2026-11-14T16:00:00Z",
+  "completion": {
+    "model": "sonnet",
+    "model_snapshot": "claude-sonnet-5-5",
+    "params": {"temperature": 0, "max_tokens": 1024},
+    "raw_text": "{\"label\": \"yes\", \"answer\": \"Readmissions fell.\", \"citations\": [4]}",
+    "answer": {"label": "yes", "answer": "Readmissions fell.", "citations": [4]},
+    "tokens_in": 612,
+    "tokens_out": 48,
+    "tokens_reasoning": 0,
+    "tokens_cached": 0,
+    "latency_ms": 1830,
+    "cost_usd": 0.0025,
+    "request_id": "req_123",
+    "error": null
+  },
+  "claims": [
+    {"id": "pqa-00042:sonnet:0", "text": "Readmissions fell in the intervention group.", "cited": [4], "extractor_version": "ext-1"}
+  ],
+  "verdicts": [
+    {"claim_id": "pqa-00042:sonnet:0", "judge": "claude-opus-5-5", "verdict": "supported", "evidence": [4], "quote": null, "rationale": "Sentence 4 reports the lower readmission rate.", "judge_prompt_hash": "jh-1"},
+    {"claim_id": "pqa-00042:sonnet:0", "judge": "gpt-6.1-sol", "verdict": "supported", "evidence": [4], "quote": null, "rationale": "Sentence 4 states it.", "judge_prompt_hash": "jh-2"}
+  ],
+  "scores": {
+    "label_correct": true,
+    "citation_valid": 1.0,
+    "groundedness": {"claude-opus-5-5": 1.0, "gpt-6.1-sol": 1.0},
+    "fully_grounded": {"claude-opus-5-5": true, "gpt-6.1-sol": true},
+    "coverage": 1.0,
+    "correct_and_grounded": {"claude-opus-5-5": true, "gpt-6.1-sol": true}
+  },
+  "seed": 7,
+  "git_sha": "ba8ded3",
+  "prompt_hash": "ph-1"
+}
