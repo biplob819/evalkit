@@ -13,3 +13,4 @@ build/
 
 # personal notes, not for the public repo
 Portfolio notes.md
+.venv-py*/

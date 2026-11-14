@@ -30,6 +30,7 @@ import ast
 import datetime as dt
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -230,8 +231,37 @@ def gate_pytest(ctx: Ctx) -> Result:
     return _pytest(ctx.root, PYTEST_UNIT_MARKERS, "unit")
 
 
+MIN_PYTHON = "3.11"  # requires-python floor; float and stdlib behaviour can differ (L-27)
+
+
 def gate_golden(ctx: Ctx) -> Result:
-    return _pytest(ctx.root, "golden", "golden")
+    """Golden runs compare bytes, so run them on this interpreter and on the minimum
+    supported Python (a separate .venv-py311), when uv can provide it."""
+    here = _pytest(ctx.root, "golden", "golden")
+    if here.status != "PASS" or os.environ.get("EVALKIT_SKIP_MIN_PYTHON") or not shutil.which("uv"):
+        return here
+    env = {
+        **os.environ,
+        "UV_PROJECT_ENVIRONMENT": str(ctx.root / f".venv-py{MIN_PYTHON.replace('.', '')}"),
+    }
+    cmd = [
+        "uv",
+        "run",
+        "--python",
+        MIN_PYTHON,
+        "--all-extras",
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "-m",
+        "golden",
+    ]
+    proc = subprocess.run(cmd, cwd=ctx.root, env=env, capture_output=True, text=True, timeout=900)
+    out = (proc.stdout + proc.stderr).strip()
+    if proc.returncode != 0:
+        return Result("FAIL", f"golden on Python {MIN_PYTHON}: " + _tail(out))
+    return Result("PASS", f"{here.detail}; also on Python {MIN_PYTHON}")
 
 
 def gate_judge(ctx: Ctx) -> Result:

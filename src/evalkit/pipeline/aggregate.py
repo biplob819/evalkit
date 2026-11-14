@@ -9,6 +9,7 @@ model pairs of that metric and judge (OWNER D-36).
 from __future__ import annotations
 
 import json
+import math
 import os
 import tempfile
 from collections import Counter
@@ -218,7 +219,8 @@ def aggregate(
     for m in models:
         rows = [by_model[m][c] for c in case_ids]
         n = len(rows)
-        total_cost = sum(r.completion.cost_usd for r in rows)
+        # fsum: exact, so totals are identical on every Python (3.12 changed float sum()).
+        total_cost = math.fsum(r.completion.cost_usd for r in rows)
         n_correct = sum(acc[m])
         # Latency of calls that reached the provider: schema failures and refusals took real
         # time; transport failures have no meaningful latency.
@@ -289,7 +291,7 @@ def aggregate(
             for fam in sorted({family_of(m) for m in models}):
                 members = [m for m in models if family_of(m) == fam]
                 per_case = [
-                    sum(ground[m, j][i] for m in members) / len(members)
+                    math.fsum(ground[m, j][i] for m in members) / len(members)
                     for i in range(len(case_ids))
                 ]
                 self_pref[j][fam] = interval(per_case, rs)
