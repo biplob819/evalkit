@@ -385,6 +385,7 @@ Every command takes `--json` for machine-readable output. Exit codes:
 | 1 | Run finished, and one or more thresholds failed (for CI gates) |
 | 2 | Configuration or runtime error |
 | 3 | Stopped at the cost cap. The completed work is cached, and the message shows how to resume |
+| 4 | Judging pending: batches are still running. The summary and report are written in the pending state; rerun the same command to collect (OWNER D-44) |
 
 ---
 

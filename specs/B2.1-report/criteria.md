@@ -1,6 +1,6 @@
 # B2.1 acceptance criteria
 
-**DSH-01** `write_report` produces `report.html` with no external URLs in `src`/`href` and no network requests, plus a valid `charts.vl.json`; identical inputs give identical bytes.
+**DSH-01** `write_report` produces `report.html` that loads no external resource (no remote `src`/`href`, stylesheet link or `@import`, one inline script only), plus a valid `charts.vl.json`; identical inputs give identical bytes.
 **DSH-02** The scatter places each model and judge at (cost per 100, headline) with whiskers at the CI bounds (checked numerically from the SVG), shows the threshold line when a headline threshold exists, and has a data table with the same numbers.
 **DSH-03** The model table shows every ModelSummary figure and a PASS/FAIL badge with text, the failed thresholds verbatim, and the pairwise table shows separated/tie with "unadjusted" on the intervals.
 **DSH-04** The failure explorer lists exactly the answers that are not correct-and-grounded for each judge, with claims, both verdicts and cited sentences, and escapes every piece of model text (an injected `<script>` stays inert).

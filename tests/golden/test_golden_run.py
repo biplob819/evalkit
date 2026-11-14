@@ -196,3 +196,22 @@ def test_golden_calibration_end_to_end(tmp_path):
     calibrated, *_ = asyncio.run(_run(tmp_path / "store", adapter, agreements=usable))
     assert calibrated.calibration_status == "calibrated"
     cal.publish_guard(calibrated)  # dual, calibrated, complete
+
+
+GOLDEN_REPORT = ROOT / "tests" / "fixtures" / "golden" / "report_pubmedqa_mini.html"
+
+
+@pytest.mark.golden
+def test_golden_report_matches(tmp_path):
+    """The run report from the golden run, byte for byte (B2.1, D-42)."""
+    from evalkit.report import write_report
+
+    summary, records, _judging, cases = asyncio.run(
+        _run(tmp_path / "store", ScriptedBatchAdapter(reply))
+    )
+    path = write_report(
+        tmp_path / "report", summary, records, cases, thresholds=builtin_task("pubmedqa").thresholds
+    )
+    if os.environ.get("EVALKIT_UPDATE_GOLDEN") == "1":
+        GOLDEN_REPORT.write_text(path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+    assert path.read_text(encoding="utf-8") == GOLDEN_REPORT.read_text(encoding="utf-8")

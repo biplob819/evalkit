@@ -16,3 +16,4 @@
 ## Rules
 - All text from answers, claims and sentences is HTML-escaped; the report never executes model output.
 - The report is a pure function of its inputs: the same inputs give byte-identical HTML.
+- Display rules (L-28): kappa is shown as a coefficient (0.71 (0.60 to 0.80)), never a percent; a model whose only failed bars are "(judging pending)" shows a PENDING badge, not FAIL; costs never use scientific notation and p-values below 0.001 show as <0.001; the cost axis is linear whenever any model is free; models sharing a cost column are drawn side by side; long names are truncated with the full name in a tooltip; the strictest headline bar is drawn; details open for printing.
