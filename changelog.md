@@ -10,3 +10,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FEAT] [N1.1] — `evalkit.schemas` (results format v1: benchmark, summary, calibration, config, agent), `evalkit.config` YAML loaders with file-and-field errors, v1 fixtures and round-trip contract tests.
 - [FIX] [N1.1] — Verifier findings: finite floats, required well-formed schema_version, honest RunSummary stamps, deep immutability, strict ints, linked claims and verdicts, loader errors that name the file, duplicate-key YAML rejected.
 - [FEAT] [N1.1] — Green.
+- [FEAT] [N1.3] — `evalkit.runtime`: typed Node contract, canonical-JSON cache keys, content-addressed store with lineage and batch-id meta, async executor (per-provider concurrency, fan-out in order, resume from cache, spend cap counting in-flight estimates), single-writer JSONL, code-version manifest check.
+- [FEAT] [N1.4] — PubMedQA PQA-L loader (pinned checksum, 1,000 rows, cached, `long_answer` dropped), rule-based sentence splitter checked on all 1,000 abstracts, seeded label-stratified sampler, built-in `pubmedqa` task and prompt rendering, `DATA_CARD.md` with the contamination probe spec.
+- [FIX] [N1.3] — Verifier findings: money values must be finite and non-negative, budget reserved inside the concurrency slot, identical in-flight work coalesced, batch ids reused via `submit_once`, corrupt cache entries recomputed, version manifest keyed by node name and hashing MRO plus schemas, writer refuses NaN and late writes.
+- [FEAT] [N1.3] — Green.
