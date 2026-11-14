@@ -61,8 +61,12 @@ def shared_guard() -> Guard | None:
     env = secret_env()
     if P.live_problem(env):
         return None
+    return P.make_guard(env)  # a failure raises, and Streamlit does not cache it: retried
+
+
+def live_guard() -> Guard | None:
     try:
-        return P.make_guard(env)
+        return shared_guard()
     except Exception as exc:  # never show the store's message: it can quote the URL
         logging.getLogger("evalkit.demo").warning("guard unavailable (%s)", type(exc).__name__)
         return None
@@ -114,7 +118,7 @@ def live_view(config) -> None:
     if problem := P.live_problem(env):
         st.warning(problem)
         return
-    guard = shared_guard()
+    guard = live_guard()
     if guard is None:
         st.warning(STORE_DOWN)
         return

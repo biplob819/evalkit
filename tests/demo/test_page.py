@@ -761,3 +761,23 @@ def test_a_broken_spend_store_leaves_the_page_readable(app_env, tmp_path):
     at.button[0].click().run()
     assert not at.exception and any("unavailable" in e.value for e in at.error)
     assert "hunter2" not in page_html(at)
+
+
+def test_a_failed_guard_build_is_retried_on_the_next_run(app_env, tmp_path):
+    configure_live(app_env, tmp_path)
+    _, _, mp = app_env
+    attempts: list[int] = []
+
+    def flaky(env, connect=None):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise ImportError("psycopg missing")
+        return guard(tmp_path)
+
+    mp.setattr(P, "make_guard", flaky)
+    at = app()
+    at.radio[0].set_value("Live").run()
+    assert any("unavailable" in w.value for w in at.warning) and not at.exception
+    at.run()
+    assert not at.warning and any("budget left: $3.00" in c.value for c in at.caption)
+    assert len(attempts) == 2
