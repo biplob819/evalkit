@@ -77,6 +77,9 @@ class JudgeAgreement(Model):
     judge: NonBlank
     task: NonBlank
     judge_prompt_hash: NonBlank
+    split: Literal["heldout", "tuning"] = "heldout"  # only held-out agreement certifies
+    n_claims: NonNegInt  # labelled claims compared (extraction errors excluded)
+    coverage: Fraction  # share of eligible labelled claims the judge ruled on
     kappa: Interval
     agreement: Fraction
     confusion: tuple[tuple[NonNegInt, ...], ...]  # [[TP, FN], [FP, TN]], "supported" positive
@@ -131,6 +134,8 @@ class RunSummary(Versioned):
     def _stamps_are_honest(self) -> RunSummary:
         n_judges = 2 if self.judge_mode == "dual" else 1
         names = [j.judge for j in self.judges]
+        if any(j.split != "heldout" for j in self.judges):
+            raise ValueError("only held-out agreement can be reported as calibration")
         if any(j.task != self.task for j in self.judges):
             raise ValueError("judge agreement must come from this run's task")
         if len(names) != len(set(names)):

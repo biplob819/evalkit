@@ -1,0 +1,2573 @@
+{
+ "baseline_kappa": {
+  "claude-opus-5-5": 0.70604,
+  "gpt-6.1-sol": 0.654562
+ },
+ "claims": {
+  "pqa-0:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 0."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 0."
+  },
+  "pqa-0:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 0."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 0."
+  },
+  "pqa-0:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 0."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 0."
+  },
+  "pqa-10:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 10."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 10."
+  },
+  "pqa-10:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 10."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 10."
+  },
+  "pqa-10:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 10."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 10."
+  },
+  "pqa-11:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 11."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 11."
+  },
+  "pqa-11:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 11."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 11."
+  },
+  "pqa-11:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 11."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 11."
+  },
+  "pqa-12:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 12."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 12."
+  },
+  "pqa-12:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 12."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 12."
+  },
+  "pqa-12:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 12."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 12."
+  },
+  "pqa-13:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 13."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 13."
+  },
+  "pqa-13:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 13."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 13."
+  },
+  "pqa-13:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 13."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 13."
+  },
+  "pqa-14:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 14."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 14."
+  },
+  "pqa-14:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 14."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 14."
+  },
+  "pqa-14:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 14."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 14."
+  },
+  "pqa-15:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 15."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 15."
+  },
+  "pqa-15:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 15."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 15."
+  },
+  "pqa-15:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 15."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 15."
+  },
+  "pqa-16:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 16."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 16."
+  },
+  "pqa-16:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 16."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 16."
+  },
+  "pqa-16:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 16."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 16."
+  },
+  "pqa-17:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 17."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 17."
+  },
+  "pqa-17:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 17."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 17."
+  },
+  "pqa-17:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 17."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 17."
+  },
+  "pqa-18:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 18."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 18."
+  },
+  "pqa-18:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 18."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 18."
+  },
+  "pqa-18:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 18."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 18."
+  },
+  "pqa-19:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 19."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 19."
+  },
+  "pqa-19:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 19."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 19."
+  },
+  "pqa-19:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 19."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 19."
+  },
+  "pqa-1:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 1."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 1."
+  },
+  "pqa-1:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 1."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 1."
+  },
+  "pqa-1:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 1."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 1."
+  },
+  "pqa-20:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 20."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 20."
+  },
+  "pqa-20:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 20."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 20."
+  },
+  "pqa-20:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 20."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 20."
+  },
+  "pqa-21:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 21."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 21."
+  },
+  "pqa-21:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 21."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 21."
+  },
+  "pqa-21:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 21."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 21."
+  },
+  "pqa-22:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 22."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 22."
+  },
+  "pqa-22:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 22."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 22."
+  },
+  "pqa-22:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 22."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 22."
+  },
+  "pqa-23:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 23."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 23."
+  },
+  "pqa-23:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 23."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 23."
+  },
+  "pqa-23:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 23."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 23."
+  },
+  "pqa-24:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 24."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 24."
+  },
+  "pqa-24:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 24."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 24."
+  },
+  "pqa-24:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 24."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 24."
+  },
+  "pqa-25:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 25."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 25."
+  },
+  "pqa-25:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 25."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 25."
+  },
+  "pqa-25:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 25."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 25."
+  },
+  "pqa-26:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 26."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 26."
+  },
+  "pqa-26:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 26."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 26."
+  },
+  "pqa-26:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 26."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 26."
+  },
+  "pqa-27:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 27."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 27."
+  },
+  "pqa-27:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 27."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 27."
+  },
+  "pqa-27:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 27."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 27."
+  },
+  "pqa-28:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 28."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 28."
+  },
+  "pqa-28:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 28."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 28."
+  },
+  "pqa-28:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 28."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 28."
+  },
+  "pqa-29:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 29."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 29."
+  },
+  "pqa-29:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 29."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 29."
+  },
+  "pqa-29:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 29."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 29."
+  },
+  "pqa-2:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 2."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 2."
+  },
+  "pqa-2:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 2."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 2."
+  },
+  "pqa-2:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 2."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 2."
+  },
+  "pqa-30:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 30."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 30."
+  },
+  "pqa-30:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 30."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 30."
+  },
+  "pqa-30:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 30."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 30."
+  },
+  "pqa-31:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 31."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 31."
+  },
+  "pqa-31:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 31."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 31."
+  },
+  "pqa-31:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 31."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 31."
+  },
+  "pqa-32:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 32."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 32."
+  },
+  "pqa-32:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 32."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 32."
+  },
+  "pqa-32:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 32."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 32."
+  },
+  "pqa-33:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 33."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 33."
+  },
+  "pqa-33:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 33."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 33."
+  },
+  "pqa-33:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 33."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 33."
+  },
+  "pqa-34:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 34."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 34."
+  },
+  "pqa-34:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 34."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 34."
+  },
+  "pqa-34:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 34."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 34."
+  },
+  "pqa-35:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 35."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 35."
+  },
+  "pqa-35:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 35."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 35."
+  },
+  "pqa-35:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 35."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 35."
+  },
+  "pqa-36:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 36."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 36."
+  },
+  "pqa-36:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 36."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 36."
+  },
+  "pqa-36:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 36."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 36."
+  },
+  "pqa-37:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 37."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 37."
+  },
+  "pqa-37:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 37."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 37."
+  },
+  "pqa-37:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 37."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 37."
+  },
+  "pqa-38:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 38."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 38."
+  },
+  "pqa-38:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 38."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 38."
+  },
+  "pqa-38:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 38."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 38."
+  },
+  "pqa-39:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 39."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 39."
+  },
+  "pqa-39:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 39."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 39."
+  },
+  "pqa-39:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 39."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 39."
+  },
+  "pqa-3:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 3."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 3."
+  },
+  "pqa-3:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 3."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 3."
+  },
+  "pqa-3:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 3."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 3."
+  },
+  "pqa-40:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 40."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 40."
+  },
+  "pqa-40:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 40."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 40."
+  },
+  "pqa-40:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 40."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 40."
+  },
+  "pqa-41:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 41."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 41."
+  },
+  "pqa-41:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 41."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 41."
+  },
+  "pqa-41:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 41."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 41."
+  },
+  "pqa-42:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 42."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 42."
+  },
+  "pqa-42:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 42."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 42."
+  },
+  "pqa-42:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 42."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 42."
+  },
+  "pqa-43:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 43."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 43."
+  },
+  "pqa-43:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 43."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 43."
+  },
+  "pqa-43:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 43."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 43."
+  },
+  "pqa-44:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 44."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 44."
+  },
+  "pqa-44:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 44."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 44."
+  },
+  "pqa-44:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 44."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 44."
+  },
+  "pqa-45:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 45."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 45."
+  },
+  "pqa-45:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 45."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 45."
+  },
+  "pqa-45:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 45."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 45."
+  },
+  "pqa-46:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 46."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 46."
+  },
+  "pqa-46:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 46."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 46."
+  },
+  "pqa-46:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 46."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 46."
+  },
+  "pqa-47:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 47."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 47."
+  },
+  "pqa-47:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 47."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 47."
+  },
+  "pqa-47:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 47."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 47."
+  },
+  "pqa-48:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 48."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 48."
+  },
+  "pqa-48:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 48."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 48."
+  },
+  "pqa-48:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 48."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 48."
+  },
+  "pqa-49:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 49."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 49."
+  },
+  "pqa-49:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 49."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 49."
+  },
+  "pqa-49:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 49."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 49."
+  },
+  "pqa-4:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 4."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 4."
+  },
+  "pqa-4:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 4."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 4."
+  },
+  "pqa-4:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 4."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 4."
+  },
+  "pqa-5:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 5."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 5."
+  },
+  "pqa-5:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 5."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 5."
+  },
+  "pqa-5:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 5."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 5."
+  },
+  "pqa-6:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 6."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 6."
+  },
+  "pqa-6:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 6."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 6."
+  },
+  "pqa-6:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 6."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 6."
+  },
+  "pqa-7:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 7."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 7."
+  },
+  "pqa-7:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 7."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 7."
+  },
+  "pqa-7:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 7."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 7."
+  },
+  "pqa-8:claude-sonnet-5-5:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 8."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 8."
+  },
+  "pqa-8:claude-sonnet-5-5:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 8."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 8."
+  },
+  "pqa-8:claude-sonnet-5-5:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 8."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 8."
+  },
+  "pqa-9:gpt-6.1-sol:0": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 9."
+    ]
+   ],
+   "text": "Synthetic claim 0 of answer 9."
+  },
+  "pqa-9:gpt-6.1-sol:1": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 9."
+    ]
+   ],
+   "text": "Synthetic claim 1 of answer 9."
+  },
+  "pqa-9:gpt-6.1-sol:2": {
+   "cited": [
+    [
+     1,
+     "Synthetic sentence for answer 9."
+    ]
+   ],
+   "text": "Synthetic claim 2 of answer 9."
+  }
+ },
+ "judge_prompt_hash": "9a3a8246049f6f85",
+ "judge_snapshots": {
+  "claude-opus-5-5": "claude-opus-5-5",
+  "gpt-6.1-sol": "gpt-6.1-sol"
+ },
+ "labels": [
+  {
+   "claim_id": "pqa-0:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-0:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-0:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-1:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-1:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-1:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-2:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-2:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-2:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-3:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-3:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-3:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-4:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-4:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-4:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-5:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-5:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-5:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-6:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-6:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-6:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-7:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-7:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-7:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-8:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-8:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-8:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-9:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-9:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-9:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-10:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-10:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-10:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-11:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-11:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-11:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-12:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-12:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-12:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-13:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-13:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-13:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-14:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-14:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-14:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-15:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-15:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-15:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-16:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-16:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-16:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-17:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-17:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-17:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-18:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-18:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-18:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-19:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-19:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-19:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-20:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-20:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-20:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-21:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-21:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-21:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-22:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-22:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-22:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-23:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-23:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-23:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-24:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-24:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-24:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-25:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-25:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-25:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-26:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-26:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-26:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-27:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-27:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-27:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-28:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-28:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-28:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-29:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-29:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-29:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-30:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-30:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-30:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-31:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-31:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-31:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-32:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-32:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-32:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-33:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-33:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-33:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-34:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-34:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-34:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-35:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-35:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-35:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-36:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-36:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-36:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-37:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-37:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-37:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-38:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-38:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-38:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-39:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-39:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-39:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-40:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-40:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-40:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-41:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-41:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-41:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-42:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-42:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-42:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-43:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-43:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-43:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-44:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-44:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-44:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-45:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-45:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-45:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-46:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-46:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-46:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-47:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-47:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-47:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-48:claude-sonnet-5-5:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-48:claude-sonnet-5-5:1",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-48:claude-sonnet-5-5:2",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-49:gpt-6.1-sol:0",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-49:gpt-6.1-sol:1",
+   "extraction_error": false,
+   "label": "supported",
+   "split": "heldout"
+  },
+  {
+   "claim_id": "pqa-49:gpt-6.1-sol:2",
+   "extraction_error": false,
+   "label": "unsupported",
+   "split": "heldout"
+  }
+ ],
+ "note": "Synthetic placeholder: replace with the owner's held-out labels, the claims shown to the judges and their recorded verdicts after the first real calibration (Tech Spec \u00a75 item 9). Re-record whenever the rubric or a judge model changes: re-judge these claims, check the kappa drop is within 0.05, then update.",
+ "task": "pubmedqa",
+ "verdicts": {
+  "claude-opus-5-5": {
+   "pqa-0:claude-sonnet-5-5:0": "supported",
+   "pqa-0:claude-sonnet-5-5:1": "supported",
+   "pqa-0:claude-sonnet-5-5:2": "supported",
+   "pqa-10:claude-sonnet-5-5:0": "supported",
+   "pqa-10:claude-sonnet-5-5:1": "supported",
+   "pqa-10:claude-sonnet-5-5:2": "supported",
+   "pqa-11:gpt-6.1-sol:0": "unsupported",
+   "pqa-11:gpt-6.1-sol:1": "unsupported",
+   "pqa-11:gpt-6.1-sol:2": "unsupported",
+   "pqa-12:claude-sonnet-5-5:0": "unsupported",
+   "pqa-12:claude-sonnet-5-5:1": "supported",
+   "pqa-12:claude-sonnet-5-5:2": "unsupported",
+   "pqa-13:gpt-6.1-sol:0": "unsupported",
+   "pqa-13:gpt-6.1-sol:1": "unsupported",
+   "pqa-13:gpt-6.1-sol:2": "unsupported",
+   "pqa-14:claude-sonnet-5-5:0": "supported",
+   "pqa-14:claude-sonnet-5-5:1": "unsupported",
+   "pqa-14:claude-sonnet-5-5:2": "supported",
+   "pqa-15:gpt-6.1-sol:0": "unsupported",
+   "pqa-15:gpt-6.1-sol:1": "supported",
+   "pqa-15:gpt-6.1-sol:2": "supported",
+   "pqa-16:claude-sonnet-5-5:0": "supported",
+   "pqa-16:claude-sonnet-5-5:1": "supported",
+   "pqa-16:claude-sonnet-5-5:2": "unsupported",
+   "pqa-17:gpt-6.1-sol:0": "supported",
+   "pqa-17:gpt-6.1-sol:1": "supported",
+   "pqa-17:gpt-6.1-sol:2": "unsupported",
+   "pqa-18:claude-sonnet-5-5:0": "unsupported",
+   "pqa-18:claude-sonnet-5-5:1": "supported",
+   "pqa-18:claude-sonnet-5-5:2": "unsupported",
+   "pqa-19:gpt-6.1-sol:0": "unsupported",
+   "pqa-19:gpt-6.1-sol:1": "unsupported",
+   "pqa-19:gpt-6.1-sol:2": "unsupported",
+   "pqa-1:gpt-6.1-sol:0": "unsupported",
+   "pqa-1:gpt-6.1-sol:1": "supported",
+   "pqa-1:gpt-6.1-sol:2": "unsupported",
+   "pqa-20:claude-sonnet-5-5:0": "unsupported",
+   "pqa-20:claude-sonnet-5-5:1": "unsupported",
+   "pqa-20:claude-sonnet-5-5:2": "unsupported",
+   "pqa-21:gpt-6.1-sol:0": "supported",
+   "pqa-21:gpt-6.1-sol:1": "supported",
+   "pqa-21:gpt-6.1-sol:2": "unsupported",
+   "pqa-22:claude-sonnet-5-5:0": "supported",
+   "pqa-22:claude-sonnet-5-5:1": "supported",
+   "pqa-22:claude-sonnet-5-5:2": "supported",
+   "pqa-23:gpt-6.1-sol:0": "unsupported",
+   "pqa-23:gpt-6.1-sol:1": "unsupported",
+   "pqa-23:gpt-6.1-sol:2": "unsupported",
+   "pqa-24:claude-sonnet-5-5:0": "supported",
+   "pqa-24:claude-sonnet-5-5:1": "supported",
+   "pqa-24:claude-sonnet-5-5:2": "supported",
+   "pqa-25:gpt-6.1-sol:0": "supported",
+   "pqa-25:gpt-6.1-sol:1": "supported",
+   "pqa-25:gpt-6.1-sol:2": "supported",
+   "pqa-26:claude-sonnet-5-5:0": "supported",
+   "pqa-26:claude-sonnet-5-5:1": "supported",
+   "pqa-26:claude-sonnet-5-5:2": "unsupported",
+   "pqa-27:gpt-6.1-sol:0": "supported",
+   "pqa-27:gpt-6.1-sol:1": "unsupported",
+   "pqa-27:gpt-6.1-sol:2": "unsupported",
+   "pqa-28:claude-sonnet-5-5:0": "supported",
+   "pqa-28:claude-sonnet-5-5:1": "supported",
+   "pqa-28:claude-sonnet-5-5:2": "unsupported",
+   "pqa-29:gpt-6.1-sol:0": "unsupported",
+   "pqa-29:gpt-6.1-sol:1": "unsupported",
+   "pqa-29:gpt-6.1-sol:2": "supported",
+   "pqa-2:claude-sonnet-5-5:0": "unsupported",
+   "pqa-2:claude-sonnet-5-5:1": "supported",
+   "pqa-2:claude-sonnet-5-5:2": "supported",
+   "pqa-30:claude-sonnet-5-5:0": "unsupported",
+   "pqa-30:claude-sonnet-5-5:1": "supported",
+   "pqa-30:claude-sonnet-5-5:2": "unsupported",
+   "pqa-31:gpt-6.1-sol:0": "supported",
+   "pqa-31:gpt-6.1-sol:1": "unsupported",
+   "pqa-31:gpt-6.1-sol:2": "supported",
+   "pqa-32:claude-sonnet-5-5:0": "supported",
+   "pqa-32:claude-sonnet-5-5:1": "supported",
+   "pqa-32:claude-sonnet-5-5:2": "unsupported",
+   "pqa-33:gpt-6.1-sol:0": "unsupported",
+   "pqa-33:gpt-6.1-sol:1": "unsupported",
+   "pqa-33:gpt-6.1-sol:2": "unsupported",
+   "pqa-34:claude-sonnet-5-5:0": "unsupported",
+   "pqa-34:claude-sonnet-5-5:1": "supported",
+   "pqa-34:claude-sonnet-5-5:2": "supported",
+   "pqa-35:gpt-6.1-sol:0": "supported",
+   "pqa-35:gpt-6.1-sol:1": "unsupported",
+   "pqa-35:gpt-6.1-sol:2": "unsupported",
+   "pqa-36:claude-sonnet-5-5:0": "supported",
+   "pqa-36:claude-sonnet-5-5:1": "supported",
+   "pqa-36:claude-sonnet-5-5:2": "unsupported",
+   "pqa-37:gpt-6.1-sol:0": "supported",
+   "pqa-37:gpt-6.1-sol:1": "unsupported",
+   "pqa-37:gpt-6.1-sol:2": "supported",
+   "pqa-38:claude-sonnet-5-5:0": "supported",
+   "pqa-38:claude-sonnet-5-5:1": "supported",
+   "pqa-38:claude-sonnet-5-5:2": "supported",
+   "pqa-39:gpt-6.1-sol:0": "supported",
+   "pqa-39:gpt-6.1-sol:1": "unsupported",
+   "pqa-39:gpt-6.1-sol:2": "unsupported",
+   "pqa-3:gpt-6.1-sol:0": "supported",
+   "pqa-3:gpt-6.1-sol:1": "supported",
+   "pqa-3:gpt-6.1-sol:2": "unsupported",
+   "pqa-40:claude-sonnet-5-5:0": "unsupported",
+   "pqa-40:claude-sonnet-5-5:1": "unsupported",
+   "pqa-40:claude-sonnet-5-5:2": "supported",
+   "pqa-41:gpt-6.1-sol:0": "supported",
+   "pqa-41:gpt-6.1-sol:1": "supported",
+   "pqa-41:gpt-6.1-sol:2": "supported",
+   "pqa-42:claude-sonnet-5-5:0": "unsupported",
+   "pqa-42:claude-sonnet-5-5:1": "supported",
+   "pqa-42:claude-sonnet-5-5:2": "supported",
+   "pqa-43:gpt-6.1-sol:0": "unsupported",
+   "pqa-43:gpt-6.1-sol:1": "supported",
+   "pqa-43:gpt-6.1-sol:2": "supported",
+   "pqa-44:claude-sonnet-5-5:0": "supported",
+   "pqa-44:claude-sonnet-5-5:1": "unsupported",
+   "pqa-44:claude-sonnet-5-5:2": "unsupported",
+   "pqa-45:gpt-6.1-sol:0": "supported",
+   "pqa-45:gpt-6.1-sol:1": "unsupported",
+   "pqa-45:gpt-6.1-sol:2": "unsupported",
+   "pqa-46:claude-sonnet-5-5:0": "unsupported",
+   "pqa-46:claude-sonnet-5-5:1": "unsupported",
+   "pqa-46:claude-sonnet-5-5:2": "unsupported",
+   "pqa-47:gpt-6.1-sol:0": "supported",
+   "pqa-47:gpt-6.1-sol:1": "supported",
+   "pqa-47:gpt-6.1-sol:2": "supported",
+   "pqa-48:claude-sonnet-5-5:0": "supported",
+   "pqa-48:claude-sonnet-5-5:1": "unsupported",
+   "pqa-48:claude-sonnet-5-5:2": "supported",
+   "pqa-49:gpt-6.1-sol:0": "supported",
+   "pqa-49:gpt-6.1-sol:1": "supported",
+   "pqa-49:gpt-6.1-sol:2": "supported",
+   "pqa-4:claude-sonnet-5-5:0": "supported",
+   "pqa-4:claude-sonnet-5-5:1": "unsupported",
+   "pqa-4:claude-sonnet-5-5:2": "supported",
+   "pqa-5:gpt-6.1-sol:0": "supported",
+   "pqa-5:gpt-6.1-sol:1": "unsupported",
+   "pqa-5:gpt-6.1-sol:2": "unsupported",
+   "pqa-6:claude-sonnet-5-5:0": "unsupported",
+   "pqa-6:claude-sonnet-5-5:1": "unsupported",
+   "pqa-6:claude-sonnet-5-5:2": "supported",
+   "pqa-7:gpt-6.1-sol:0": "unsupported",
+   "pqa-7:gpt-6.1-sol:1": "supported",
+   "pqa-7:gpt-6.1-sol:2": "supported",
+   "pqa-8:claude-sonnet-5-5:0": "supported",
+   "pqa-8:claude-sonnet-5-5:1": "unsupported",
+   "pqa-8:claude-sonnet-5-5:2": "supported",
+   "pqa-9:gpt-6.1-sol:0": "unsupported",
+   "pqa-9:gpt-6.1-sol:1": "supported",
+   "pqa-9:gpt-6.1-sol:2": "unsupported"
+  },
+  "gpt-6.1-sol": {
+   "pqa-0:claude-sonnet-5-5:0": "unsupported",
+   "pqa-0:claude-sonnet-5-5:1": "supported",
+   "pqa-0:claude-sonnet-5-5:2": "supported",
+   "pqa-10:claude-sonnet-5-5:0": "supported",
+   "pqa-10:claude-sonnet-5-5:1": "supported",
+   "pqa-10:claude-sonnet-5-5:2": "supported",
+   "pqa-11:gpt-6.1-sol:0": "unsupported",
+   "pqa-11:gpt-6.1-sol:1": "unsupported",
+   "pqa-11:gpt-6.1-sol:2": "unsupported",
+   "pqa-12:claude-sonnet-5-5:0": "unsupported",
+   "pqa-12:claude-sonnet-5-5:1": "unsupported",
+   "pqa-12:claude-sonnet-5-5:2": "unsupported",
+   "pqa-13:gpt-6.1-sol:0": "unsupported",
+   "pqa-13:gpt-6.1-sol:1": "supported",
+   "pqa-13:gpt-6.1-sol:2": "unsupported",
+   "pqa-14:claude-sonnet-5-5:0": "supported",
+   "pqa-14:claude-sonnet-5-5:1": "unsupported",
+   "pqa-14:claude-sonnet-5-5:2": "supported",
+   "pqa-15:gpt-6.1-sol:0": "supported",
+   "pqa-15:gpt-6.1-sol:1": "supported",
+   "pqa-15:gpt-6.1-sol:2": "supported",
+   "pqa-16:claude-sonnet-5-5:0": "supported",
+   "pqa-16:claude-sonnet-5-5:1": "unsupported",
+   "pqa-16:claude-sonnet-5-5:2": "unsupported",
+   "pqa-17:gpt-6.1-sol:0": "unsupported",
+   "pqa-17:gpt-6.1-sol:1": "unsupported",
+   "pqa-17:gpt-6.1-sol:2": "unsupported",
+   "pqa-18:claude-sonnet-5-5:0": "supported",
+   "pqa-18:claude-sonnet-5-5:1": "unsupported",
+   "pqa-18:claude-sonnet-5-5:2": "unsupported",
+   "pqa-19:gpt-6.1-sol:0": "unsupported",
+   "pqa-19:gpt-6.1-sol:1": "unsupported",
+   "pqa-19:gpt-6.1-sol:2": "unsupported",
+   "pqa-1:gpt-6.1-sol:0": "unsupported",
+   "pqa-1:gpt-6.1-sol:1": "supported",
+   "pqa-1:gpt-6.1-sol:2": "unsupported",
+   "pqa-20:claude-sonnet-5-5:0": "unsupported",
+   "pqa-20:claude-sonnet-5-5:1": "unsupported",
+   "pqa-20:claude-sonnet-5-5:2": "unsupported",
+   "pqa-21:gpt-6.1-sol:0": "supported",
+   "pqa-21:gpt-6.1-sol:1": "supported",
+   "pqa-21:gpt-6.1-sol:2": "unsupported",
+   "pqa-22:claude-sonnet-5-5:0": "supported",
+   "pqa-22:claude-sonnet-5-5:1": "unsupported",
+   "pqa-22:claude-sonnet-5-5:2": "supported",
+   "pqa-23:gpt-6.1-sol:0": "unsupported",
+   "pqa-23:gpt-6.1-sol:1": "unsupported",
+   "pqa-23:gpt-6.1-sol:2": "unsupported",
+   "pqa-24:claude-sonnet-5-5:0": "supported",
+   "pqa-24:claude-sonnet-5-5:1": "unsupported",
+   "pqa-24:claude-sonnet-5-5:2": "supported",
+   "pqa-25:gpt-6.1-sol:0": "unsupported",
+   "pqa-25:gpt-6.1-sol:1": "unsupported",
+   "pqa-25:gpt-6.1-sol:2": "supported",
+   "pqa-26:claude-sonnet-5-5:0": "supported",
+   "pqa-26:claude-sonnet-5-5:1": "supported",
+   "pqa-26:claude-sonnet-5-5:2": "unsupported",
+   "pqa-27:gpt-6.1-sol:0": "supported",
+   "pqa-27:gpt-6.1-sol:1": "unsupported",
+   "pqa-27:gpt-6.1-sol:2": "unsupported",
+   "pqa-28:claude-sonnet-5-5:0": "supported",
+   "pqa-28:claude-sonnet-5-5:1": "supported",
+   "pqa-28:claude-sonnet-5-5:2": "unsupported",
+   "pqa-29:gpt-6.1-sol:0": "supported",
+   "pqa-29:gpt-6.1-sol:1": "unsupported",
+   "pqa-29:gpt-6.1-sol:2": "supported",
+   "pqa-2:claude-sonnet-5-5:0": "unsupported",
+   "pqa-2:claude-sonnet-5-5:1": "supported",
+   "pqa-2:claude-sonnet-5-5:2": "supported",
+   "pqa-30:claude-sonnet-5-5:0": "unsupported",
+   "pqa-30:claude-sonnet-5-5:1": "supported",
+   "pqa-30:claude-sonnet-5-5:2": "unsupported",
+   "pqa-31:gpt-6.1-sol:0": "unsupported",
+   "pqa-31:gpt-6.1-sol:1": "unsupported",
+   "pqa-31:gpt-6.1-sol:2": "unsupported",
+   "pqa-32:claude-sonnet-5-5:0": "unsupported",
+   "pqa-32:claude-sonnet-5-5:1": "unsupported",
+   "pqa-32:claude-sonnet-5-5:2": "unsupported",
+   "pqa-33:gpt-6.1-sol:0": "unsupported",
+   "pqa-33:gpt-6.1-sol:1": "unsupported",
+   "pqa-33:gpt-6.1-sol:2": "unsupported",
+   "pqa-34:claude-sonnet-5-5:0": "unsupported",
+   "pqa-34:claude-sonnet-5-5:1": "supported",
+   "pqa-34:claude-sonnet-5-5:2": "supported",
+   "pqa-35:gpt-6.1-sol:0": "supported",
+   "pqa-35:gpt-6.1-sol:1": "unsupported",
+   "pqa-35:gpt-6.1-sol:2": "unsupported",
+   "pqa-36:claude-sonnet-5-5:0": "supported",
+   "pqa-36:claude-sonnet-5-5:1": "unsupported",
+   "pqa-36:claude-sonnet-5-5:2": "unsupported",
+   "pqa-37:gpt-6.1-sol:0": "supported",
+   "pqa-37:gpt-6.1-sol:1": "supported",
+   "pqa-37:gpt-6.1-sol:2": "supported",
+   "pqa-38:claude-sonnet-5-5:0": "unsupported",
+   "pqa-38:claude-sonnet-5-5:1": "unsupported",
+   "pqa-38:claude-sonnet-5-5:2": "supported",
+   "pqa-39:gpt-6.1-sol:0": "supported",
+   "pqa-39:gpt-6.1-sol:1": "unsupported",
+   "pqa-39:gpt-6.1-sol:2": "unsupported",
+   "pqa-3:gpt-6.1-sol:0": "unsupported",
+   "pqa-3:gpt-6.1-sol:1": "supported",
+   "pqa-3:gpt-6.1-sol:2": "unsupported",
+   "pqa-40:claude-sonnet-5-5:0": "unsupported",
+   "pqa-40:claude-sonnet-5-5:1": "unsupported",
+   "pqa-40:claude-sonnet-5-5:2": "supported",
+   "pqa-41:gpt-6.1-sol:0": "unsupported",
+   "pqa-41:gpt-6.1-sol:1": "supported",
+   "pqa-41:gpt-6.1-sol:2": "unsupported",
+   "pqa-42:claude-sonnet-5-5:0": "unsupported",
+   "pqa-42:claude-sonnet-5-5:1": "supported",
+   "pqa-42:claude-sonnet-5-5:2": "supported",
+   "pqa-43:gpt-6.1-sol:0": "unsupported",
+   "pqa-43:gpt-6.1-sol:1": "supported",
+   "pqa-43:gpt-6.1-sol:2": "supported",
+   "pqa-44:claude-sonnet-5-5:0": "supported",
+   "pqa-44:claude-sonnet-5-5:1": "unsupported",
+   "pqa-44:claude-sonnet-5-5:2": "supported",
+   "pqa-45:gpt-6.1-sol:0": "supported",
+   "pqa-45:gpt-6.1-sol:1": "unsupported",
+   "pqa-45:gpt-6.1-sol:2": "supported",
+   "pqa-46:claude-sonnet-5-5:0": "unsupported",
+   "pqa-46:claude-sonnet-5-5:1": "unsupported",
+   "pqa-46:claude-sonnet-5-5:2": "unsupported",
+   "pqa-47:gpt-6.1-sol:0": "supported",
+   "pqa-47:gpt-6.1-sol:1": "supported",
+   "pqa-47:gpt-6.1-sol:2": "unsupported",
+   "pqa-48:claude-sonnet-5-5:0": "supported",
+   "pqa-48:claude-sonnet-5-5:1": "unsupported",
+   "pqa-48:claude-sonnet-5-5:2": "supported",
+   "pqa-49:gpt-6.1-sol:0": "supported",
+   "pqa-49:gpt-6.1-sol:1": "unsupported",
+   "pqa-49:gpt-6.1-sol:2": "unsupported",
+   "pqa-4:claude-sonnet-5-5:0": "supported",
+   "pqa-4:claude-sonnet-5-5:1": "unsupported",
+   "pqa-4:claude-sonnet-5-5:2": "supported",
+   "pqa-5:gpt-6.1-sol:0": "supported",
+   "pqa-5:gpt-6.1-sol:1": "unsupported",
+   "pqa-5:gpt-6.1-sol:2": "supported",
+   "pqa-6:claude-sonnet-5-5:0": "unsupported",
+   "pqa-6:claude-sonnet-5-5:1": "unsupported",
+   "pqa-6:claude-sonnet-5-5:2": "unsupported",
+   "pqa-7:gpt-6.1-sol:0": "unsupported",
+   "pqa-7:gpt-6.1-sol:1": "supported",
+   "pqa-7:gpt-6.1-sol:2": "supported",
+   "pqa-8:claude-sonnet-5-5:0": "supported",
+   "pqa-8:claude-sonnet-5-5:1": "unsupported",
+   "pqa-8:claude-sonnet-5-5:2": "unsupported",
+   "pqa-9:gpt-6.1-sol:0": "supported",
+   "pqa-9:gpt-6.1-sol:1": "unsupported",
+   "pqa-9:gpt-6.1-sol:2": "supported"
+  }
+ }
+}

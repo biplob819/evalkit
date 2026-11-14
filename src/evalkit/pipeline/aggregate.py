@@ -305,7 +305,10 @@ def aggregate(
         judges=tuple(
             a
             for a in agreements
-            if a.judge in judges and a.task == task and a.judge_prompt_hash == JUDGE_PROMPT_HASH
+            if a.judge in judges
+            and a.task == task
+            and a.judge_prompt_hash == JUDGE_PROMPT_HASH
+            and a.split == "heldout"
         )
         if calibration_status == "calibrated"
         else (),
@@ -340,7 +343,11 @@ def calibration_status_of(
 ) -> Literal["calibrated", "uncalibrated"]:
     """Calibrated only with held-out agreement for every selected judge, scored on this task
     under the current rubric (Tech Spec §5, CAL-05)."""
-    have = {a.judge for a in agreements if a.task == task and a.judge_prompt_hash == rubric_hash}
+    have = {
+        a.judge
+        for a in agreements
+        if a.task == task and a.judge_prompt_hash == rubric_hash and a.split == "heldout"
+    }
     return "calibrated" if judges and all(j in have for j in judges) else "uncalibrated"
 
 

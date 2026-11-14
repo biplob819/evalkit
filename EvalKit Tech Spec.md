@@ -767,7 +767,7 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 
 | Cap | Capability | Trace |
 | --- | --- | --- |
-| DSH-01 | Static HTML per run (Jinja and Vega-Lite) | FR11 |
+| DSH-01 | Static self-contained HTML per run (inline SVG, stdlib templates, Vega-Lite spec JSON alongside; D-42) | FR11 |
 | DSH-02 | Quality-versus-cost scatter with CI whiskers | FR11 |
 | DSH-03 | Model table with threshold badges | US7 |
 | DSH-04 | Failure explorer: claims, both verdicts, cited sentences | US2 |

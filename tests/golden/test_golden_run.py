@@ -82,7 +82,9 @@ def reply(req):
     return json.dumps({"label": label, "answer": first_text, "citations": [int(n)]})
 
 
-async def _run(store_dir: Path, adapter: ScriptedBatchAdapter) -> RunSummary:
+async def _run(
+    store_dir: Path, adapter: ScriptedBatchAdapter, agreements=()
+) -> tuple[RunSummary, list, list, dict]:
     cases = parse_pqa_l(json.loads(MINI.read_text(encoding="utf-8")))
     task = builtin_task("pubmedqa")
     prices = load_prices()
@@ -107,7 +109,7 @@ async def _run(store_dir: Path, adapter: ScriptedBatchAdapter) -> RunSummary:
         prompt_hash=hashlib.sha256(task.prompt_template.encode()).hexdigest()[:16],
         timestamp=T0,
     )
-    return aggregate(
+    summary = aggregate(
         records,
         run_id="g",
         task=task.name,
@@ -121,13 +123,15 @@ async def _run(store_dir: Path, adapter: ScriptedBatchAdapter) -> RunSummary:
         started_at=T0,
         finished_at=T1,
         n_resamples=10_000,  # the published default
+        agreements=agreements,
     )
+    return summary, records, judging, {c.id: c for c in cases}
 
 
 @pytest.mark.golden
 def test_golden_run_matches_and_reruns_from_cache(tmp_path):
     adapter = ScriptedBatchAdapter(reply)
-    summary = asyncio.run(_run(tmp_path / "store", adapter))
+    summary, *_ = asyncio.run(_run(tmp_path / "store", adapter))
     out = tmp_path / "summary.json"
     write_summary(summary, out)
     if os.environ.get("EVALKIT_UPDATE_GOLDEN") == "1":
@@ -144,6 +148,51 @@ def test_golden_run_matches_and_reruns_from_cache(tmp_path):
     # Rerun: every call is served from the cache, and the summary is identical.
     calls = len(adapter.requests)
     batches = len(adapter.submitted)
-    again = asyncio.run(_run(tmp_path / "store", adapter))
+    again, *_ = asyncio.run(_run(tmp_path / "store", adapter))
     assert len(adapter.requests) == calls and len(adapter.submitted) == batches
     assert summary_json(again) == summary_json(summary)
+
+
+@pytest.mark.golden
+def test_golden_calibration_end_to_end(tmp_path):
+    """Export -> blind sheet -> labels -> held-out report -> calibrated summary -> publish."""
+    from evalkit.pipeline import calibrate as cal
+
+    adapter = ScriptedBatchAdapter(reply)
+    summary, records, judging, cases = asyncio.run(_run(tmp_path / "store", adapter))
+    assert summary.calibration_status == "uncalibrated"
+    with pytest.raises(cal.PublishRefused):
+        cal.publish_guard(summary)
+
+    sample = cal.export_sample(records, cases, seed=CFG.seed, n=20, n_relabel=4)
+    rows = cal.build_sheet(sample, records, cases, seed=CFG.seed)
+    verdicts = {r.judge: r.verdicts for r in judging}
+    # Scripted owner: agrees with the first judge except on every fifth claim.
+    opus = verdicts["claude-opus-5-5"]
+    first = {
+        r.key: cal.LabelEntry(
+            label=(
+                opus[r.claim_id].verdict
+                if i % 5
+                else ("unsupported" if opus[r.claim_id].verdict == "supported" else "supported")
+            )
+        )
+        for i, r in enumerate(rows)
+    }
+    labels = cal.import_labels(
+        rows, cal.LabelFile(sheet_id=rows[0].sheet_id, round="first", labels=first)
+    )
+    report = cal.calibration_report(
+        labels,
+        verdicts,
+        task="pubmedqa",
+        family_of=lambda m: family_for(m, CFG.endpoints),
+        seed=CFG.seed,
+        scored_at=T1,
+        n_resamples=1000,
+    )
+    usable = cal.usable_agreements(report, "pubmedqa")
+    assert len(usable) == 2
+    calibrated, *_ = asyncio.run(_run(tmp_path / "store", adapter, agreements=usable))
+    assert calibrated.calibration_status == "calibrated"
+    cal.publish_guard(calibrated)  # dual, calibrated, complete

@@ -19,7 +19,7 @@ from evalkit.schemas.benchmark import (
     Record,
     Scores,
 )
-from evalkit.schemas.calibration import CalibrationLabel
+from evalkit.schemas.calibration import CalibrationLabel, CalibrationReport
 from evalkit.schemas.config import RunConfig, TaskConfig, Threshold
 from evalkit.schemas.summary import (
     Interval,
@@ -36,6 +36,7 @@ __all__ = [
     "Answer",
     "AttackBlocked",
     "CalibrationLabel",
+    "CalibrationReport",
     "Case",
     "Claim",
     "ClaimVerdict",

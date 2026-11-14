@@ -328,6 +328,8 @@ def test_calibrated_only_with_agreement_for_every_judge_on_this_task_and_rubric(
             judge=j,
             task=task,
             judge_prompt_hash=h,
+            n_claims=100,
+            coverage=1.0,
             kappa=iv,
             agreement=0.9,
             confusion=((40, 5), (5, 50)),

@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvalKit labelling</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a64;--card:#fff;--line:#e3e0d8;--accent:#2f5d50}
+@media (prefers-color-scheme:dark){:root{--bg:#161614;--fg:#ecebe6;--muted:#a3a29b;--card:#1f1f1c;--line:#34332e;--accent:#8cc4b0}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin:16px 0}
+.claim{font-size:1.25rem;font-weight:600}
+.sent{margin:8px 0;color:var(--fg)} .n{color:var(--muted);margin-right:6px}
+.bar{height:6px;background:var(--line);border-radius:3px}
+.bar>div{height:6px;background:var(--accent);border-radius:3px}
+kbd{border:1px solid var(--line);border-radius:4px;padding:1px 6px;font:13px ui-monospace,monospace}
+.muted{color:var(--muted)} .err{color:#b3261e}
+</style></head><body><main>
+<h1>Label claims</h1>
+<p class="muted">Is the claim established by the cited sentences alone? Ignore outside
+knowledge. <kbd>S</kbd> supported, <kbd>U</kbd> unsupported, <kbd>E</kbd> extraction error
+(the claim misstates the answer; saved with the label), <kbd>Backspace</kbd> back.</p>
+<div class="bar"><div id="bar" style="width:0"></div></div>
+<p id="progress" class="muted"></p>
+<div id="item"></div>
+<p id="msg" class="err"></p>
+<script>
+let cur=null, extErr=false;
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function load(index){
+  const r=await fetch(index==null?'/api/item':'/api/item?index='+index); cur=await r.json();
+  extErr=!!cur.extraction_error; render();
+}
+function render(){
+  document.getElementById('bar').style.width=(100*cur.labelled/Math.max(cur.total,1))+'%';
+  document.getElementById('progress').textContent=cur.labelled+' of '+cur.total+' labelled';
+  if(cur.done){document.getElementById('item').innerHTML='<div class="card">All done. You can close this tab.</div>';return}
+  const sents=cur.cited.map(s=>'<div class="sent"><span class="n">['+s.n+']</span>'+esc(s.text)+'</div>').join('')||'<div class="muted">(cites no sentence)</div>';
+  document.getElementById('item').innerHTML='<div class="card"><div class="muted">Claim '+(cur.index+1)+'</div><div class="claim">'+esc(cur.claim)+'</div></div><div class="card"><div class="muted">Cited sentences</div>'+sents+'</div><p class="muted">Current: '+(cur.label||'none')+(extErr?' · extraction error (press E to clear)':'')+'</p>';
+}
+async function save(label, advance=true){
+  const r=await fetch('/api/label',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:cur.key,label:label,extraction_error:extErr})});
+  if(!r.ok){document.getElementById('msg').textContent='Save failed: '+r.status;return}
+  document.getElementById('msg').textContent=''; load(advance?null:cur.index);
+}
+document.addEventListener('keydown',e=>{
+  if(!cur)return;
+  if(cur.done){if(e.key==='Backspace'){e.preventDefault();load(Math.max(0,cur.total-1))}return}
+  const k=e.key.toLowerCase();
+  if(k==='s')save('supported'); else if(k==='u')save('unsupported');
+  else if(k==='e'){extErr=!extErr; if(cur.label){save(cur.label,false)} else {render()}}
+  else if(e.key==='Backspace'){e.preventDefault();load(Math.max(0,cur.index-1))}
+});
+load(null);
+</script></main></body></html>

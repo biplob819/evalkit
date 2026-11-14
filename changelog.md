@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FEAT] [A2.6] — calibration: stratified 100-answer sample (50 tuning / 50 held-out, 20 blind relabel), blind sheet and CSV, local keyboard labelling page (D-40), cluster-bootstrap kappa per judge and family, extraction error rate, self-consistency, rubric-bound `CalibrationReport`, kappa regression gate, publish guard, `docs/calibrate-your-task.md`
 - [FEAT] [A2.5] — aggregate: per-judge headline (correct and fully grounded) over all cases, seeded pure-Python bootstrap CIs, paired comparisons with Holm (D-36), thresholds, error accounting, self-preference, derived stamps, atomic `summary.json`; golden end-to-end run
 - [FEAT] [A2.4] — dual-judge batch: blind rubric with `judge_prompt_hash`, per-claim batch bookkeeping (resume never pays twice, expired items resubmitted), budget holds across resume, verdict/evidence/quote consistency, one live retry, cross-family dual mode
 - [FIX] [A2.4] — four verifier passes; judge blinding per D-38 (no clinical false positives on PQA-L), collect bound covers downloads, per-judge lock
