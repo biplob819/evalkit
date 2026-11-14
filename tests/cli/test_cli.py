@@ -33,7 +33,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(
         R, "make_adapters", lambda config, prices: {"anthropic": fake, "openai": fake}
     )
-    (tmp_path / "evalkit.yaml").write_text(CONFIG)
+    (tmp_path / "evalkit.yaml").write_text(CONFIG, encoding="utf-8")
     return tmp_path, fake
 
 
@@ -94,7 +94,7 @@ def test_pending_judges_exit_4_and_resume_collects(env, capsys, monkeypatch):
     assert run("--wait", "0", "--json") == 4
     out = json.loads(capsys.readouterr().out)
     assert out["judging_status"] == "pending"
-    summary = json.loads((tmp / out["run_dir"] / "summary.json").read_text())
+    summary = json.loads((tmp / out["run_dir"] / "summary.json").read_text(encoding="utf-8"))
     assert summary["judging_status"] == "pending"
     slow.pending_polls = 0  # batches finish
     assert run("--json") in (0, 1)
@@ -136,7 +136,7 @@ def test_live_judges_share_the_batch_cache(env, capsys):
 def test_invalid_inputs_exit_2_before_any_call(env, capsys, setup, argv, needle):
     tmp, fake = env
     if setup is not None:
-        (tmp / "evalkit.yaml").write_text(setup)
+        (tmp / "evalkit.yaml").write_text(setup, encoding="utf-8")
     assert cli.main(argv) == 2
     err = capsys.readouterr().err
     assert needle in err and FAKE_KEY not in err
@@ -157,7 +157,8 @@ def test_one_judge_key_runs_single_judge(env, capsys, monkeypatch):
     (tmp / "evalkit.yaml").write_text(
         CONFIG.replace("[claude-opus-5-5, gpt-6.1-sol]", "[claude-opus-5-5, gpt-6-luna]").replace(
             "models: [claude-sonnet-5-5, gpt-6.1-sol]", "models: [claude-sonnet-5-5]"
-        )
+        ),
+        encoding="utf-8",
     )
     monkeypatch.delenv("OPENAI_API_KEY")
     assert run("--json") in (0, 1)
@@ -204,12 +205,12 @@ def write_user_task(tmp, n=60):
             )
         )
     (tmp / "data").mkdir()
-    (tmp / "data" / "cases.jsonl").write_text("\n".join(lines) + "\n")
+    (tmp / "data" / "cases.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     task = builtin_task("pubmedqa").model_dump()
     task.update({"name": "my-task", "dataset": "data/cases.jsonl", "split": "local"})
     import yaml
 
-    (tmp / "my_task.yaml").write_text(yaml.safe_dump(task, sort_keys=False))
+    (tmp / "my_task.yaml").write_text(yaml.safe_dump(task, sort_keys=False), encoding="utf-8")
     return tmp / "my_task.yaml"
 
 
@@ -221,7 +222,7 @@ def test_user_yaml_task_runs_end_to_end(env, capsys):
     )
     out = json.loads(capsys.readouterr().out)
     assert code in (0, 1)
-    summary = json.loads((tmp / out["run_dir"] / "summary.json").read_text())
+    summary = json.loads((tmp / out["run_dir"] / "summary.json").read_text(encoding="utf-8"))
     assert summary["task"] == "my-task" and all(m["n"] == 60 for m in summary["models"])
 
 
@@ -272,18 +273,18 @@ def test_calibrate_export_label_score_then_report_is_calibrated(env, capsys):
     assert cli.main(["calibrate", "score", str(run_dir), "--json"]) == 0
     kappa = json.loads(capsys.readouterr().out)["kappa"]
     assert set(kappa) == {"claude-opus-5-5", "gpt-6.1-sol"}
-    summary = json.loads((run_dir / "summary.json").read_text())
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["calibration_status"] == "calibrated"
-    assert "Judges not calibrated" not in (run_dir / "report.html").read_text()
+    assert "Judges not calibrated" not in (run_dir / "report.html").read_text(encoding="utf-8")
     assert cli.main(["report", str(run_dir), "--publish"]) == 0
     # A rubric change must not reuse this held-out set.
-    cal = json.loads((run_dir / "calibration" / "calibration.json").read_text())
+    cal = json.loads((run_dir / "calibration" / "calibration.json").read_text(encoding="utf-8"))
     for entry in cal["history"]:
         entry["judge_prompt_hash"] = "0" * 16
         for a in entry["agreements"]:
             a["judge_prompt_hash"] = "0" * 16
     cal["current"] = cal["history"][-1]
-    (run_dir / "calibration" / "calibration.json").write_text(json.dumps(cal))
+    (run_dir / "calibration" / "calibration.json").write_text(json.dumps(cal), encoding="utf-8")
     assert cli.main(["calibrate", "score", str(run_dir)]) == 2
     assert "fresh held-out" in capsys.readouterr().err
 
@@ -328,7 +329,8 @@ def test_bad_endpoint_url_exits_2(env, capsys):
     tmp, _ = env
     (tmp / "evalkit.yaml").write_text(
         CONFIG.replace("claude-sonnet-5-5, gpt-6.1-sol]", "claude-sonnet-5-5, my-llama]")
-        + "endpoints: {my-llama: localhost:8000}\n"
+        + "endpoints: {my-llama: localhost:8000}\n",
+        encoding="utf-8",
     )
     assert run() == 2 and "http(s) URL" in capsys.readouterr().err
 
@@ -373,7 +375,7 @@ def test_rerun_with_a_missing_judge_key_refuses_to_downgrade(env, capsys, monkey
     anthropic_models = CONFIG.replace(
         "models: [claude-sonnet-5-5, gpt-6.1-sol]", "models: [claude-sonnet-5-5]"
     )
-    (tmp / "evalkit.yaml").write_text(anthropic_models)
+    (tmp / "evalkit.yaml").write_text(anthropic_models, encoding="utf-8")
     assert run("--json") in (0, 1)
     assert json.loads(capsys.readouterr().out)["judge_mode"] == "dual"
     monkeypatch.delenv("OPENAI_API_KEY")  # the second judge is no longer usable
@@ -393,7 +395,7 @@ def test_export_force_refuses_while_labels_exist_and_import_refuses_overwrite(en
     import csv as _csv
     import io
 
-    rows = list(_csv.DictReader(io.StringIO(csv_path.read_text())))
+    rows = list(_csv.DictReader(io.StringIO(csv_path.read_text(encoding="utf-8"))))
     for r in rows:
         r["label"] = "S"
     buf = io.StringIO()
@@ -401,7 +403,7 @@ def test_export_force_refuses_while_labels_exist_and_import_refuses_overwrite(en
     w.writeheader()
     w.writerows(rows)
     filled = tmp / "filled.csv"
-    filled.write_text(buf.getvalue())
+    filled.write_text(buf.getvalue(), encoding="utf-8")
     assert cli.main(["calibrate", "import", str(run_dir), str(filled)]) == 0
     assert cli.main(["calibrate", "import", str(run_dir), str(filled)]) == 2  # no overwrite
     assert cli.main(["calibrate", "export", str(run_dir), "--force"]) == 2  # labels exist
@@ -422,14 +424,14 @@ def test_export_refuses_while_judging_is_pending(env, capsys, monkeypatch):
 def test_dotenv_is_read_from_the_current_folder(env, capsys, monkeypatch):
     tmp, _ = env
     monkeypatch.delenv("OPENAI_API_KEY")
-    (tmp / ".env").write_text(f"OPENAI_API_KEY={FAKE_KEY}\n")
+    (tmp / ".env").write_text(f"OPENAI_API_KEY={FAKE_KEY}\n", encoding="utf-8")
     assert run("--json") in (0, 1)
     assert FAKE_KEY not in capsys.readouterr().out
 
 
 def test_config_thresholds_override_task_thresholds(env, capsys):
     tmp, _ = env
-    (tmp / "evalkit.yaml").write_text(CONFIG.replace("value: 0.6", "value: 0.0"))
+    (tmp / "evalkit.yaml").write_text(CONFIG.replace("value: 0.6", "value: 0.0"), encoding="utf-8")
     assert run("--json") == 0  # a 0% bar from the config replaces the task's 60%
 
 
@@ -438,7 +440,7 @@ def test_task_dataset_path_is_relative_to_the_task_file(env, capsys, monkeypatch
     write_user_task(tmp)
     other = tmp / "elsewhere"
     other.mkdir()
-    (other / "evalkit.yaml").write_text(CONFIG)
+    (other / "evalkit.yaml").write_text(CONFIG, encoding="utf-8")
     monkeypatch.chdir(other)
     code = cli.main(
         [
@@ -472,12 +474,12 @@ def test_local_dataset_rows_are_validated(tmp_path, row, needle):
     from evalkit.tasks import builtin_task as bt
 
     path = tmp_path / "d.jsonl"
-    path.write_text(json.dumps(row) + "\n")
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
     with pytest.raises(DatasetFileError, match=needle):
         load_jsonl_cases(path, bt("pubmedqa"))
     dup = tmp_path / "dup.jsonl"
     ok = {"id": "x", "question": "q", "context": ["s"]}
-    dup.write_text(json.dumps(ok) + "\n" + json.dumps(ok) + "\n")
+    dup.write_text(json.dumps(ok) + "\n" + json.dumps(ok) + "\n", encoding="utf-8")
     with pytest.raises(DatasetFileError, match="duplicate id"):
         load_jsonl_cases(dup, bt("pubmedqa"))
 
@@ -486,7 +488,9 @@ def test_live_judging_respects_concurrency_and_retries_parse_failures(env, capsy
     import asyncio
 
     tmp, _ = env
-    (tmp / "evalkit.yaml").write_text(CONFIG + "concurrency: {anthropic: 2, openai: 2}\n")
+    (tmp / "evalkit.yaml").write_text(
+        CONFIG + "concurrency: {anthropic: 2, openai: 2}\n", encoding="utf-8"
+    )
     state = {"garbage_left": 3}
     live: dict[str, int] = {}
     peak: dict[str, int] = {}

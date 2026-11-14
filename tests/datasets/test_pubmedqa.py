@@ -295,6 +295,6 @@ def test_changed_upstream_data_is_never_cached(tmp_path, monkeypatch):
 
 
 def test_damaged_cache_file_is_a_dataset_error(tmp_path):
-    (tmp_path / "pqa.json").write_text("{half a file")
+    (tmp_path / "pqa.json").write_text("{half a file", encoding="utf-8")
     with pytest.raises(DatasetError, match="not valid JSON"):
         load_pqa_l(path=tmp_path / "pqa.json", verify=False)

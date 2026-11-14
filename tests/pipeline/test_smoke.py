@@ -47,7 +47,7 @@ def test_smoke_run_writes_measurements_that_feed_the_cost_model(tmp_path):
     )
     assert stats["claude-haiku-5-5"]["errors"] == {"schema": 3}
     assert stats["gpt-6.1-sol"]["avg_tokens_reasoning"] == 200.0
-    meta = json.loads(out.read_text())["meta"]
+    meta = json.loads(out.read_text(encoding="utf-8"))["meta"]
     assert meta["n_cases"] == 3 and meta["structured_output"] is True
     a = assumptions_from(out)
     assert isinstance(a, TokenAssumptions) and (a.t_in, a.t_out, a.t_reason) == (600, 60, 200)

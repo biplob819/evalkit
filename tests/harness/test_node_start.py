@@ -107,8 +107,8 @@ def test_check_only_writes_nothing(tmp_path):
 def test_mark_building_records_base_and_flips_rows(tmp_path):
     kw = _repo(tmp_path)
     assert node_start.start("W0.1", mark_building=True, **kw) == 0
-    assert (kw["specs"] / "W0.1-x" / ".base").read_text().strip() == _head(tmp_path)
-    assert "HAR-01\tW0.1\tbuilding\t\tnote one" in kw["catalog_path"].read_text()
+    assert (kw["specs"] / "W0.1-x" / ".base").read_text(encoding="utf-8").strip() == _head(tmp_path)
+    assert "HAR-01\tW0.1\tbuilding\t\tnote one" in kw["catalog_path"].read_text(encoding="utf-8")
 
 
 def test_existing_base_is_kept_unless_reset(tmp_path):
@@ -116,6 +116,6 @@ def test_existing_base_is_kept_unless_reset(tmp_path):
     base = kw["specs"] / "W0.1-x" / ".base"
     base.write_text("0123abcd\n", encoding="utf-8")
     node_start.start("W0.1", mark_building=True, **kw)
-    assert base.read_text().strip() == "0123abcd"
+    assert base.read_text(encoding="utf-8").strip() == "0123abcd"
     node_start.start("W0.1", mark_building=True, reset_base=True, **kw)
-    assert base.read_text().strip() == _head(tmp_path)
+    assert base.read_text(encoding="utf-8").strip() == _head(tmp_path)

@@ -55,7 +55,7 @@ def reply(req):
 
 
 def items():
-    raw = json.loads(FIX.read_text())
+    raw = json.loads(FIX.read_text(encoding="utf-8"))
     return [FaithfulnessItem(**{k: v for k, v in r.items() if k != "expected"}) for r in raw], raw
 
 

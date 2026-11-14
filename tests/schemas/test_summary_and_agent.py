@@ -19,7 +19,7 @@ FIX = Path(__file__).resolve().parent.parent / "fixtures" / "results_v1"
 
 
 def summary_data():
-    return json.loads((FIX / "run_summary.json").read_text())
+    return json.loads((FIX / "run_summary.json").read_text(encoding="utf-8"))
 
 
 def test_interval_must_be_ordered():
@@ -71,7 +71,9 @@ def test_bad_stamp_values_are_rejected():
 
 
 def test_calibration_label_values():
-    lab = CalibrationLabel.model_validate_json((FIX / "calibration_label.json").read_text())
+    lab = CalibrationLabel.model_validate_json(
+        (FIX / "calibration_label.json").read_text(encoding="utf-8")
+    )
     assert lab.split == "heldout" and not lab.extraction_error
     with pytest.raises(ValidationError):
         CalibrationLabel(claim_id="c", split="train", label="supported")  # type: ignore[arg-type]

@@ -101,11 +101,15 @@ def main(argv: list[str] | None = None) -> int:
                     f"{res.id}/{judge}: {got} supported, fixture expects {exp['supported']}"
                 )
     out = ROOT / "docs" / "measurements" / f"faithfulness-{date.today().isoformat()}.json"
-    out.write_text(json.dumps({"results": rows, "problems": problems}, indent=2) + "\n")
+    out.write_text(
+        json.dumps({"results": rows, "problems": problems}, indent=2) + "\n", encoding="utf-8"
+    )
     from evalkit.smoke import LEDGER
 
     total = sum(
-        json.loads(line)["spent_usd"] for line in LEDGER.read_text().splitlines() if line.strip()
+        json.loads(line)["spent_usd"]
+        for line in LEDGER.read_text(encoding="utf-8").splitlines()
+        if line.strip()
     )
     print("PASS" if not problems else "FAIL")
     for p in sorted(set(problems)):

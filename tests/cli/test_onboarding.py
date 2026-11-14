@@ -31,22 +31,22 @@ def test_init_scaffolds_a_runnable_project_and_never_overwrites(project, capsys)
     assert cli.main(["init"]) == 0
     for f in ("evalkit.yaml", ".env.example", "tasks/my_task.yaml", "tasks/my_task.jsonl"):
         assert (project / f).is_file(), f
-    gi = (project / ".gitignore").read_text()
+    gi = (project / ".gitignore").read_text(encoding="utf-8")
     assert all(line in gi.splitlines() for line in GITIGNORE_LINES)
-    assert "ANTHROPIC_API_KEY=" in (project / ".env.example").read_text()
+    assert "ANTHROPIC_API_KEY=" in (project / ".env.example").read_text(encoding="utf-8")
     capsys.readouterr()
     code = cli.main(
         ["run", "evalkit.yaml", "--task", "tasks/my_task.yaml", "--n", "3", "--dry-run"]
     )
     assert code == 0 and "no API calls" in capsys.readouterr().out
-    (project / "evalkit.yaml").write_text("models: [mine]\n")
+    (project / "evalkit.yaml").write_text("models: [mine]\n", encoding="utf-8")
     assert cli.main(["init", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert (
         "evalkit.yaml" in out["skipped"]
-        and (project / "evalkit.yaml").read_text() == "models: [mine]\n"
+        and (project / "evalkit.yaml").read_text(encoding="utf-8") == "models: [mine]\n"
     )
-    assert (project / ".gitignore").read_text() == gi  # no duplicate lines
+    assert (project / ".gitignore").read_text(encoding="utf-8") == gi  # no duplicate lines
 
 
 # ---- ONB-02 doctor ----------------------------------------------------------------------------
@@ -98,7 +98,11 @@ def test_report_example_needs_no_keys_and_no_network(project, capsys, monkeypatc
     assert cli.main(["report", "--example", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
     report = project / "evalkit-example" / "report.html"
-    assert out["example"] and report.is_file() and "Failure explorer" in report.read_text()
+    assert (
+        out["example"]
+        and report.is_file()
+        and "Failure explorer" in report.read_text(encoding="utf-8")
+    )
     assert out["caveats"]  # the example is uncalibrated and says so
 
 
@@ -166,10 +170,10 @@ def test_run_output_carries_caveats(project, capsys, monkeypatch):
 def test_example_never_overwrites_a_real_run_folder(project, capsys):
     real = project / "runs" / "r-mine"
     real.mkdir(parents=True)
-    (real / "run.json").write_text('{"run_id": "r-mine", "spent_usd": 0.057}')
+    (real / "run.json").write_text('{"run_id": "r-mine", "spent_usd": 0.057}', encoding="utf-8")
     assert cli.main(["report", "--example", "--out", str(real)]) == 2
     assert "not empty" in capsys.readouterr().err
-    assert json.loads((real / "run.json").read_text())["spent_usd"] == 0.057
+    assert json.loads((real / "run.json").read_text(encoding="utf-8"))["spent_usd"] == 0.057
     assert cli.main(["report", "--example"]) == 0  # the default folder
     assert cli.main(["report", "--example"]) == 0  # and again: it holds the example
 
@@ -178,20 +182,20 @@ def test_init_force_never_touches_the_users_task_files(project, capsys):
     cli.main(["init"])
     capsys.readouterr()
     mine = '{"id": "my-1", "question": "q", "context": ["s"]}\n'
-    (project / "tasks" / "my_task.jsonl").write_text(mine)
-    (project / "evalkit.yaml").write_text("models: [old]\n")
+    (project / "tasks" / "my_task.jsonl").write_text(mine, encoding="utf-8")
+    (project / "evalkit.yaml").write_text("models: [old]\n", encoding="utf-8")
     assert cli.main(["init", "--force", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert (project / "tasks" / "my_task.jsonl").read_text() == mine
+    assert (project / "tasks" / "my_task.jsonl").read_text(encoding="utf-8") == mine
     assert "tasks/my_task.jsonl" in out["skipped"] and "evalkit.yaml" in out["written"]
 
 
 def test_init_writes_the_literal_ignores_and_handles_a_missing_newline(project):
-    (project / ".gitignore").write_text("node_modules")  # no trailing newline
+    (project / ".gitignore").write_text("node_modules", encoding="utf-8")  # no trailing newline
     cli.main(["init"])
-    lines = (project / ".gitignore").read_text().splitlines()
+    lines = (project / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert lines[0] == "node_modules" and {".env", "runs/", ".evalkit/"} <= set(lines)
-    env_example = (project / ".env.example").read_text()
+    env_example = (project / ".env.example").read_text(encoding="utf-8")
     assert all(
         line.endswith("=") for line in env_example.splitlines() if line and not line.startswith("#")
     )  # names only, never values
@@ -199,7 +203,9 @@ def test_init_writes_the_literal_ignores_and_handles_a_missing_newline(project):
 
 def test_init_in_another_folder_says_cd_first(project, capsys):
     assert cli.main(["init", "sub/proj"]) == 0
-    assert "cd sub/proj" in capsys.readouterr().out
+    from pathlib import Path
+
+    assert f"cd {Path('sub/proj')}" in capsys.readouterr().out  # platform separator
 
 
 def test_doctor_blocks_on_missing_sdk_or_key_the_config_needs(project, capsys, monkeypatch):
@@ -244,7 +250,7 @@ def test_run_refuses_before_spending_when_an_sdk_is_missing(project, capsys, mon
 
 
 def test_doctor_reads_dotenv_from_the_working_folder(project, capsys):
-    (project / ".env").write_text(f"ANTHROPIC_API_KEY={FAKE}\n")
+    (project / ".env").write_text(f"ANTHROPIC_API_KEY={FAKE}\n", encoding="utf-8")
     cli.main(["doctor", "--offline", "--json"])
     raw = capsys.readouterr().out
     checks = {c["name"]: c for c in json.loads(raw)["checks"]}
@@ -263,8 +269,8 @@ def test_prices_age_uses_the_stalest_model(monkeypatch, tmp_path):
     from evalkit import cost, onboarding
 
     f = tmp_path / "prices.yaml"
-    f.write_text("a: {checked_on: 2026-01-01}\nb: {checked_on: 2026-06-01}\n")
+    f.write_text("a: {checked_on: 2026-01-01}\nb: {checked_on: 2026-06-01}\n", encoding="utf-8")
     monkeypatch.setattr(cost, "PRICES_YAML", f)
     assert onboarding.prices_age_days(date(2026, 7, 1)) == 181
-    f.write_text("a: {checked_on: not-a-date}\n")
+    f.write_text("a: {checked_on: not-a-date}\n", encoding="utf-8")
     assert onboarding.prices_age_days(date(2026, 7, 1)) is None  # warns, never crashes

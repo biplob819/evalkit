@@ -40,7 +40,8 @@ def test_load_task_config_fixture():
 def test_config_error_names_file_and_field(tmp_path):
     bad = tmp_path / "evalkit.yaml"
     bad.write_text(
-        "models: [a]\njudges: [j]\nextractor: e\nthresholds:\n  - {metric: m, op: '>', value: 1}\n"
+        "models: [a]\njudges: [j]\nextractor: e\nthresholds:\n  - {metric: m, op: '>', value: 1}\n",
+        encoding="utf-8",
     )
     with pytest.raises(ConfigError) as exc:
         load_run_config(bad)
@@ -51,20 +52,24 @@ def test_config_error_names_file_and_field(tmp_path):
 def test_missing_and_malformed_files(tmp_path):
     with pytest.raises(ConfigError, match="file not found"):
         load_run_config(tmp_path / "nope.yaml")
-    (tmp_path / "list.yaml").write_text("- a\n- b\n")
+    (tmp_path / "list.yaml").write_text("- a\n- b\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="mapping"):
         load_run_config(tmp_path / "list.yaml")
-    (tmp_path / "broken.yaml").write_text("models: [a\n")
+    (tmp_path / "broken.yaml").write_text("models: [a\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="not valid YAML"):
         load_run_config(tmp_path / "broken.yaml")
 
 
 def test_task_labels_must_be_unique_and_non_empty(tmp_path):
-    base = (FIX / "task_config.yaml").read_text()
-    (tmp_path / "dup.yaml").write_text(base.replace('["yes", "no", "maybe"]', '["yes", "yes"]'))
+    base = (FIX / "task_config.yaml").read_text(encoding="utf-8")
+    (tmp_path / "dup.yaml").write_text(
+        base.replace('["yes", "no", "maybe"]', '["yes", "yes"]'), encoding="utf-8"
+    )
     with pytest.raises(ConfigError, match="labels"):
         load_task_config(tmp_path / "dup.yaml")
-    (tmp_path / "empty.yaml").write_text(base.replace('["yes", "no", "maybe"]', "[]"))
+    (tmp_path / "empty.yaml").write_text(
+        base.replace('["yes", "no", "maybe"]', "[]"), encoding="utf-8"
+    )
     with pytest.raises(ConfigError, match="labels"):
         load_task_config(tmp_path / "empty.yaml")
 
@@ -81,7 +86,7 @@ def test_schema_version_major_mismatch_is_rejected():
     assert SCHEMA_VERSION == "1.0"
     data = (
         (FIX / "record.json")
-        .read_text()
+        .read_text(encoding="utf-8")
         .replace('"schema_version": "1.0"', '"schema_version": "2.0"')
     )
     with pytest.raises(ValueError, match="not compatible"):
@@ -102,7 +107,7 @@ ROUND_TRIP = [
 @pytest.mark.contract
 @pytest.mark.parametrize(("model", "name"), ROUND_TRIP, ids=[n for _, n in ROUND_TRIP])
 def test_fixtures_round_trip_losslessly_and_stably(model, name):
-    first = model.model_validate_json((FIX / name).read_text())
+    first = model.model_validate_json((FIX / name).read_text(encoding="utf-8"))
     dumped = first.model_dump_json()
     second = model.model_validate_json(dumped)
     assert second == first

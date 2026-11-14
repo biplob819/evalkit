@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from evalkit.smoke import record_spend
 
-    meta = _json.loads(out.read_text())["meta"]
+    meta = _json.loads(out.read_text(encoding="utf-8"))["meta"]
     total = record_spend("smoke", meta["spent_usd"], {"run_id": meta["run_id"], "n_cases": args.n})
     print(f"\nthis run spent ${meta['spent_usd']:.4f}; all real API spend so far: ${total:.4f}")
     print(f"measurements written to {out.relative_to(ROOT)}")

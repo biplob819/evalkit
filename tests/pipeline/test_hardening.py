@@ -140,7 +140,7 @@ def test_models_with_only_schema_errors_still_feed_token_assumptions(tmp_path):
     )
     a = assumptions_from(path)
     assert (a.t_in, a.t_out, a.t_reason) == (500, 40, 100)
-    assert json.loads(path.read_text())["models"]["b"]["errors"] == {"transport": 2}
+    assert json.loads(path.read_text(encoding="utf-8"))["models"]["b"]["errors"] == {"transport": 2}
 
 
 @pytest.mark.parametrize("model", ["o1x", "gpt5", "oracle-7b", "opus"])

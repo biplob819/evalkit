@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -450,6 +451,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     global _JSON_MODE
+    # Windows pipes default to cp1252, which cannot print the report's symbols (⚠, ·, –).
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            with contextlib.suppress(ValueError, OSError):
+                reconfigure(encoding="utf-8", errors="replace")
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "func", None):

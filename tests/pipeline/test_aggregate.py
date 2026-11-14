@@ -287,7 +287,7 @@ def test_pending_summary_has_no_per_judge_figures_and_writes_atomically(tmp_path
     assert "judging pending" in " ".join(stamp_lines(s))
     out = tmp_path / "run" / "summary.json"
     write_summary(s, out)
-    assert RunSummary.model_validate_json(out.read_text()) == s
+    assert RunSummary.model_validate_json(out.read_text(encoding="utf-8")) == s
     assert [p.name for p in out.parent.iterdir()] == ["summary.json"]  # no temp files left
     with pytest.raises(ValidationError, match="per-judge"):
         RunSummary.model_validate(

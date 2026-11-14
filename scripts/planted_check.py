@@ -117,7 +117,10 @@ def main(argv: list[str] | None = None) -> int:
     results = asyncio.run(run_all())
     spent = sum(r["spent_usd"] for r in results)
     path = ROOT / "docs" / "measurements" / f"planted-{date.today().isoformat()}.json"
-    path.write_text(json.dumps({"judge_effort": config.judge_effort, "results": results}, indent=2))
+    path.write_text(
+        json.dumps({"judge_effort": config.judge_effort, "results": results}, indent=2),
+        encoding="utf-8",
+    )
     total = record_spend("planted_check", spent, {"judges": list(config.judges)})
     failed = False
     for r in results:

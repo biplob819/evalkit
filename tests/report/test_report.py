@@ -48,7 +48,7 @@ def test_report_and_specs_are_deterministic(run_inputs, tmp_path):
     a = write_report(tmp_path / "a", *run_inputs)
     b = write_report(tmp_path / "b", *run_inputs)
     assert a.read_bytes() == b.read_bytes()
-    spec = json.loads((tmp_path / "a" / "charts.vl.json").read_text())
+    spec = json.loads((tmp_path / "a" / "charts.vl.json").read_text(encoding="utf-8"))
     assert spec["headline"]["data"]["values"]
     assert sorted(p.name for p in (tmp_path / "a").iterdir()) == ["charts.vl.json", "report.html"]
 

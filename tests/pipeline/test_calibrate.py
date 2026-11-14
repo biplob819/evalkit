@@ -426,7 +426,9 @@ def _fixture():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    return json.loads((root / "fixtures" / "calibration" / "regression.json").read_text())
+    return json.loads(
+        (root / "fixtures" / "calibration" / "regression.json").read_text(encoding="utf-8")
+    )
 
 
 def _fixture_kappas(fx):
@@ -468,7 +470,7 @@ def test_publish_guard_needs_dual_calibrated_complete():
     base = RunSummary.model_validate_json(
         (
             Path(__file__).resolve().parents[1] / "fixtures" / "results_v1" / "run_summary.json"
-        ).read_text()
+        ).read_text(encoding="utf-8")
     )
     assert base.judge_mode == "dual" and base.calibration_status == "calibrated"
     cal.publish_guard(base)
@@ -699,7 +701,7 @@ def test_publish_guard_refuses_pending_judging():
     base = RunSummary.model_validate_json(
         (
             Path(__file__).resolve().parents[1] / "fixtures" / "results_v1" / "run_summary.json"
-        ).read_text()
+        ).read_text(encoding="utf-8")
     )
     pending = base.model_copy(update={"judging_status": "pending", "finished_at": None})
     with pytest.raises(cal.PublishRefused, match="finished judging"):

@@ -46,7 +46,8 @@ def load(tmp_path, *, version="1", step=1, base_step=0, cls="Inc", name="inc", e
                 name=name,
                 extra_field=extra_field,
             )
-        )
+        ),
+        encoding="utf-8",
     )
     modname = f"evk_test_mod_{tag}"
     spec = importlib.util.spec_from_file_location(modname, path)

@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FIX] [W0.1] — Windows CI: explicit UTF-8 on every text read/write (enforced by an AST test), UTF-8 console output, platform paths in tests (L-32)
 - [FIX] [S2.4] — judge every claim against all evidence (not the extractor's citations); pending claims reported separately; live check re-run: PASS
 - [FEAT] [S2.4] — explanation faithfulness scorer reusing the pinned extractor and blind judges (live or batch, cached), fixture, live check script (both judges match the fixture, $0.027)
 - [FIX] [B2.4] — never overwrite user files (example output, task templates); doctor and run check SDKs and the keys the config needs; README installs the provider extras

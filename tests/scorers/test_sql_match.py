@@ -7,7 +7,9 @@ from evalkit.schemas import ResultSet
 from evalkit.scorers import sql_match
 
 CASES = json.loads(
-    (Path(__file__).resolve().parents[1] / "fixtures" / "sql_match_cases.json").read_text()
+    (Path(__file__).resolve().parents[1] / "fixtures" / "sql_match_cases.json").read_text(
+        encoding="utf-8"
+    )
 )
 
 

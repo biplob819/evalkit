@@ -177,7 +177,7 @@ def test_single_writer_produces_whole_lines(tmp_path):
         return w.lines_written
 
     assert asyncio.run(go()) == 100
-    lines = path.read_text().splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 100
     assert sorted(json.loads(line)["i"] for line in lines) == list(range(100))
 
@@ -192,7 +192,7 @@ def test_run_log_records_cache_hits_and_costs(tmp_path):
             await ex.run_node(Spend(0.5), Num(x=1), CTX)
 
     asyncio.run(go())
-    entries = [json.loads(line) for line in log_path.read_text().splitlines()]
+    entries = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
     assert [e["cache_hit"] for e in entries] == [False, True]
     assert entries[0]["cost_usd"] == 0.5 and {"node", "key", "latency_ms"} <= set(entries[0])
 

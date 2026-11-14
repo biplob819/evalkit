@@ -29,11 +29,11 @@ FIX = Path(__file__).resolve().parent.parent / "fixtures" / "results_v1"
 
 
 def record_data() -> dict[str, Any]:
-    return json.loads((FIX / "record.json").read_text())
+    return json.loads((FIX / "record.json").read_text(encoding="utf-8"))
 
 
 def summary_data() -> dict[str, Any]:
-    return json.loads((FIX / "run_summary.json").read_text())
+    return json.loads((FIX / "run_summary.json").read_text(encoding="utf-8"))
 
 
 # ---- finding 1: no infinity or NaN anywhere --------------------------------------------
@@ -52,8 +52,12 @@ def test_non_finite_floats_are_rejected(bad):
 
 
 def test_yaml_infinity_cost_cap_is_rejected(tmp_path):
-    base = (FIX / "run_config.yaml").read_text().replace("max_cost_usd: 12", "max_cost_usd: .inf")
-    (tmp_path / "c.yaml").write_text(base)
+    base = (
+        (FIX / "run_config.yaml")
+        .read_text(encoding="utf-8")
+        .replace("max_cost_usd: 12", "max_cost_usd: .inf")
+    )
+    (tmp_path / "c.yaml").write_text(base, encoding="utf-8")
     with pytest.raises(ConfigError, match="max_cost_usd"):
         load_run_config(tmp_path / "c.yaml")
 
@@ -280,7 +284,7 @@ def test_directory_and_duplicate_keys(tmp_path):
     with pytest.raises(ConfigError, match="is a directory"):
         load_run_config(tmp_path)
     f = tmp_path / "dup.yaml"
-    f.write_text("models: [a]\nmodels: [b]\njudges: [j]\nextractor: e\n")
+    f.write_text("models: [a]\nmodels: [b]\njudges: [j]\nextractor: e\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="duplicate key 'models'"):
         load_run_config(f)
 
@@ -299,26 +303,30 @@ def test_run_config_rejects_blank_duplicate_or_coerced_values(tmp_path, fragment
     }
     base[key] = fragment
     f = tmp_path / "c.yaml"
-    f.write_text("\n".join(base.values()) + "\n")
+    f.write_text("\n".join(base.values()) + "\n", encoding="utf-8")
     with pytest.raises(ConfigError, match=key):
         load_run_config(f)
 
 
 @pytest.mark.parametrize("labels", ['["yes", "Yes"]', '[" yes", "no"]', '["yes", ""]'])
 def test_task_labels_reject_case_duplicates_and_edge_spaces(tmp_path, labels):
-    base = (FIX / "task_config.yaml").read_text().replace('["yes", "no", "maybe"]', labels)
-    (tmp_path / "t.yaml").write_text(base)
+    base = (
+        (FIX / "task_config.yaml")
+        .read_text(encoding="utf-8")
+        .replace('["yes", "no", "maybe"]', labels)
+    )
+    (tmp_path / "t.yaml").write_text(base, encoding="utf-8")
     with pytest.raises(ConfigError, match="labels"):
         load_task_config(tmp_path / "t.yaml")
 
 
 def test_scorers_cannot_be_blank(tmp_path):
-    base = (FIX / "task_config.yaml").read_text()
+    base = (FIX / "task_config.yaml").read_text(encoding="utf-8")
     base = base.replace(
         "scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency]",
         "scorers: ['']",
     )
-    (tmp_path / "t.yaml").write_text(base)
+    (tmp_path / "t.yaml").write_text(base, encoding="utf-8")
     with pytest.raises(ConfigError, match="scorers"):
         load_task_config(tmp_path / "t.yaml")
 
@@ -385,7 +393,7 @@ def test_every_tech_spec_schema_is_exported():
 
 @pytest.mark.contract
 def test_run_config_json_fixture_round_trips_stably():
-    first = RunConfig.model_validate_json((FIX / "run_config.json").read_text())
+    first = RunConfig.model_validate_json((FIX / "run_config.json").read_text(encoding="utf-8"))
     dumped = first.model_dump_json()
     assert RunConfig.model_validate_json(dumped) == first
     assert RunConfig.model_validate_json(dumped).model_dump_json() == dumped
@@ -393,7 +401,9 @@ def test_run_config_json_fixture_round_trips_stably():
 
 @pytest.mark.contract
 def test_calibration_label_contract():
-    lab = CalibrationLabel.model_validate_json((FIX / "calibration_label.json").read_text())
+    lab = CalibrationLabel.model_validate_json(
+        (FIX / "calibration_label.json").read_text(encoding="utf-8")
+    )
     assert CalibrationLabel.model_validate_json(lab.model_dump_json()) == lab
     assert set(CalibrationLabel.model_fields) == {"claim_id", "split", "label", "extraction_error"}
     with pytest.raises(ValidationError):

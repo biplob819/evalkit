@@ -45,7 +45,10 @@ def measure(generated: Sequence[Generated]) -> dict[str, dict[str, Any]]:
 
 def write_measurements(path: Path, stats: dict[str, dict[str, Any]], meta: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"meta": meta, "models": stats}, indent=2, sort_keys=True) + "\n")
+    path.write_text(
+        json.dumps({"meta": meta, "models": stats}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 LEDGER = Path(__file__).resolve().parents[2] / "docs" / "measurements" / "spend-ledger.jsonl"
@@ -65,7 +68,12 @@ def record_spend(
     with ledger.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, sort_keys=True) + "\n")
     return round(
-        sum(json.loads(line)["spent_usd"] for line in ledger.read_text().splitlines() if line), 6
+        sum(
+            json.loads(line)["spent_usd"]
+            for line in ledger.read_text(encoding="utf-8").splitlines()
+            if line
+        ),
+        6,
     )
 
 

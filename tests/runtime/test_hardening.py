@@ -156,7 +156,7 @@ def test_run_log_records_errors_and_budget_refusals(tmp_path):
                 await ex.run_node(Spend(1.0), Num(x=2), CTX)
 
     asyncio.run(go())
-    entries = [json.loads(line) for line in log_path.read_text().splitlines()]
+    entries = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
     assert "boom" in entries[0]["error"] and "latency_ms" in entries[0]
     assert entries[1]["error"] == "budget_exceeded"
 
@@ -202,7 +202,7 @@ def test_corrupt_or_stale_cache_entry_is_recomputed(tmp_path):
         node = Double()
         key = node.cache_key(Num(x=4), CTX)
         store.path(key).parent.mkdir(parents=True)
-        store.path(key).write_text('{"not": "a Num"}')
+        store.path(key).write_text('{"not": "a Num"}', encoding="utf-8")
         out = await Executor(store).run_node(node, Num(x=4), CTX)
         assert out == Num(x=8) and node.calls == 1
         assert store.get(key, Num) == Num(x=8)
@@ -252,9 +252,9 @@ def test_refused_replace_onto_an_existing_file_is_treated_as_lost_race(tmp_path,
     from evalkit.runtime import store as store_mod
 
     target = tmp_path / "x.json"
-    target.write_text("first")
+    target.write_text("first", encoding="utf-8")
     tmp = tmp_path / ".x.json.tmp"
-    tmp.write_text("second")
+    tmp.write_text("second", encoding="utf-8")
 
     def refuse(*_a, **_k):
         raise PermissionError(13, "Access is denied")
@@ -264,4 +264,4 @@ def test_refused_replace_onto_an_existing_file_is_treated_as_lost_race(tmp_path,
 
     monkeypatch.setattr(time, "sleep", lambda _s: None)
     store_mod._replace(str(tmp), target)
-    assert target.read_text() == "first" and not tmp.exists()
+    assert target.read_text(encoding="utf-8") == "first" and not tmp.exists()

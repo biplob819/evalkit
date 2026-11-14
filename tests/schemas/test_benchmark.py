@@ -27,14 +27,14 @@ def completion(**over: Any) -> Completion:
 
 
 def test_record_fixture_parses_with_all_fields():
-    rec = Record.model_validate_json((FIX / "record.json").read_text())
+    rec = Record.model_validate_json((FIX / "record.json").read_text(encoding="utf-8"))
     assert rec.completion.answer is not None and rec.completion.answer.citations == (4,)
     assert {v.judge for v in rec.verdicts} == {"claude-opus-5-5", "gpt-6.1-sol"}
     assert rec.scores is not None and rec.scores.correct_and_grounded["gpt-6.1-sol"]
 
 
 def test_unknown_fields_are_rejected():
-    data = json.loads((FIX / "record.json").read_text())
+    data = json.loads((FIX / "record.json").read_text(encoding="utf-8"))
     data["surprise"] = 1
     with pytest.raises(ValidationError, match="surprise"):
         Record.model_validate(data)

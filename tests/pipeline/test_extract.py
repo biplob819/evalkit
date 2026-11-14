@@ -286,7 +286,8 @@ def test_prompt_edits_are_caught_by_the_version_check(tmp_path):
                 Out = N
                 async def run(self, inp, ctx):
                     return inp
-        """)
+        """),
+            encoding="utf-8",
         )
         spec = importlib.util.spec_from_file_location(f"evk_prompt_{tag}", path)
         assert spec and spec.loader
