@@ -22,7 +22,14 @@ from typing import Any, Literal
 from evalkit.adapters import ModelAdapter
 from evalkit.config import ConfigError, load_run_config, load_task_config
 from evalkit.cost import CostEstimate, Price, estimate_for_config, load_prices
-from evalkit.datasets import DatasetFileError, load_jsonl_cases, load_pqa_l
+from evalkit.datasets import (
+    DatasetFileError,
+    load_csv_cases,
+    load_jsonl_cases,
+    load_pqa_l,
+    load_scifact,
+)
+from evalkit.datasets.scifact import DATASET as SCIFACT
 from evalkit.env import missing_keys
 from evalkit.pipeline.aggregate import aggregate, build_records, family_for, write_summary
 from evalkit.pipeline.calibrate import usable_agreements
@@ -109,15 +116,21 @@ def load_task(task_arg: str) -> tuple[TaskConfig, Path | None]:
 def load_cases(task: TaskConfig, base_dir: Path | None) -> list[Case]:
     if task.dataset == PUBMEDQA:
         return load_pqa_l()
-    if task.dataset.endswith(".jsonl"):
+    if task.dataset == SCIFACT:
+        return load_scifact()
+    if task.dataset.endswith((".jsonl", ".csv")):
         path = Path(task.dataset)
         if not path.is_absolute():
             path = (base_dir or Path.cwd()) / path
+        loader = load_csv_cases if path.suffix == ".csv" else load_jsonl_cases
         try:
-            return load_jsonl_cases(path, task)
+            return loader(path, task)
         except DatasetFileError as exc:
             raise RunError(str(exc)) from None
-    raise RunError(f"unknown dataset {task.dataset!r}: use {PUBMEDQA!r} or a path to a .jsonl file")
+    raise RunError(
+        f"unknown dataset {task.dataset!r}: use {PUBMEDQA!r}, {SCIFACT!r} "
+        "or a path to a .jsonl or .csv file"
+    )
 
 
 def plan_run(

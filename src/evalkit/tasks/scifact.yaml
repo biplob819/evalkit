@@ -1,0 +1,27 @@
+# SciFact dev (300 expert-annotated scientific claims). See DATA_CARD.md.
+name: scifact
+dataset: allenai/scifact
+split: dev
+labels: ["supports", "refutes", "not enough info"]
+output_schema: answer_v1
+scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency]
+thresholds:
+  - {metric: headline, op: ">=", value: 0.6}
+prompt_template: |
+  You are checking a scientific claim against the numbered sentences of one study
+  abstract below. This is a research benchmark, not medical advice.
+
+  Claim: {question}
+
+  Abstract sentences:
+  {numbered_context}
+
+  Reply with JSON only, in this shape:
+  {{"label": one of {labels}, "answer": "two to four sentences", "citations": [sentence numbers]}}
+
+  Rules:
+  - Judge the claim only by the sentences above, not by outside knowledge.
+  - "supports": the sentences establish the claim. "refutes": they contradict it.
+    "not enough info": they do neither.
+  - Cite the sentence numbers (1 to {n_sentences}) your judgement rests on; for
+    "not enough info", cite the sentences that come closest to the claim.

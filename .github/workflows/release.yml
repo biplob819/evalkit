@@ -20,3 +20,32 @@ jobs:
           test "v$version" = "${GITHUB_REF_NAME}"
       - run: uv build
       - run: uv publish --trusted-publishing always
+
+  smoke:
+    # OSS-02: install the version just published, on every OS, and run it with no keys.
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: astral-sh/setup-uv@v6
+      - name: Install the published package (PyPI can take a minute to serve it)
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            uvx --refresh --from "evalkit-harness==$v" evalkit --version && exit 0
+            sleep 30
+          done
+          exit 1
+      - name: Doctor, example report and imports
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          uvx --from "evalkit-harness==$v" evalkit doctor --offline
+          uvx --from "evalkit-harness==$v" evalkit report --example --out example
+          test -f example/report.html
+          uv run --no-project --with "evalkit-harness==$v" python -c "import evalkit, evalkit.scorers, evalkit.adapters, evalkit.schemas; assert evalkit.__version__ == '$v'"

@@ -18,7 +18,13 @@ Questions from [PubMedQA](https://pubmedqa.github.io/) (Jin et al., 2019, MIT li
 
 Evaluate **your own task** across Claude and OpenAI models: accuracy, groundedness, citation validity, cost and latency side by side, with confidence intervals and two cross-family judges whose error rate is measured against held-out hand labels.
 
-> **Status: pre-release.** The harness above is built and tested from source; the PyPI package (`evalkit-harness`) is published with v0.1.0. Until then, install from a clone with `uv sync --all-extras`.
+> **Status: v0.1.0.** Until the package is on PyPI, install from a clone with `uv sync --all-extras`.
+
+**Start here:** [Quickstart](docs/quickstart.md) (a first result in under five minutes) · [Write your own task](docs/writing-a-task.md) (JSONL or CSV) · [Control cost](docs/cost.md) · [Calibrate the judges](docs/calibrate-your-task.md) · [Scorers and adapters](docs/plugins.md) · [Run it in CI](examples/github-action/evalkit.yml) · [Versioning](docs/versioning.md)
+
+Built-in tasks: `pubmedqa` (yes / no / maybe research questions) and `scifact` (supports / refutes / not enough info for scientific claims); see [DATA_CARD.md](DATA_CARD.md).
+
+No telemetry: data goes only to the providers you configure ([PRIVACY.md](PRIVACY.md)). Security and key handling: [SECURITY.md](SECURITY.md). Contributions welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The package is published as `evalkit-harness` (the name `evalkit` on PyPI belongs to an unrelated project). The command and the import are both `evalkit`.
 

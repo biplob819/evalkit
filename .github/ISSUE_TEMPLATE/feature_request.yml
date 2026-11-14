@@ -1,0 +1,18 @@
+name: Feature or dataset request
+description: Suggest an improvement, a scorer, an adapter or a dataset
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to evaluate, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+  - type: textarea
+    id: dataset
+    attributes:
+      label: For a dataset, its licence and where it is published

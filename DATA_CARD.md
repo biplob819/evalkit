@@ -30,3 +30,41 @@ PubMedQA has been public since 2019 and is very likely in the training data of e
 
 ## What this data cannot tell you
 How models behave on questions written by patients or clinicians, on full-text papers, on sources other than abstracts, or in languages other than English. PQA-L questions come from article titles, so they are cleaner and more answerable than real questions.
+
+---
+
+# Data card: SciFact (dev) in EvalKit
+
+## Source
+SciFact (Wadden et al., 2020, "Fact or Fiction: Verifying Scientific Claims", EMNLP), from the
+Allen Institute for AI: https://github.com/allenai/scifact. EvalKit downloads the release
+archive `https://scifact.s3-us-west-2.amazonaws.com/release/latest/data.tar.gz` on first use,
+checks it against a pinned SHA-256, and reads only `claims_dev.jsonl` and `corpus.jsonl`, in
+memory.
+
+## Licence
+Claims and evidence annotations: CC BY 4.0. Abstracts: from S2ORC, ODC-By 1.0. Both allow
+redistribution and commercial use with attribution. Attribution: Wadden, Lin, Lo, Wang, van
+Zuylen, Cohan and Hajishirzi (2020). The test fixture in `tests/datasets/test_scifact.py` is
+synthetic and contains no SciFact text.
+
+## Subset and size
+The 300 dev claims (the test split's labels are not public): 124 supported, 64
+contradicted, 112 with no evidence. EvalKit maps SUPPORT to "supports", CONTRADICT to
+"refutes", and no evidence to "not enough info".
+
+## Fields used
+For each claim: the claim text (shown as the question) and one abstract as the context, split
+into sentences by the dataset itself. The abstract is the one carrying the evidence; for a
+claim with no evidence it is the first cited abstract (24 claims cite more than one). The gold
+rationale sentence numbers are kept in the cached data for later citation checks.
+
+## Sampling
+Seeded and stratified by label, like PubMedQA.
+
+## Caveats
+SciFact has been public since 2020 and is likely in models' training data. Claims were
+written by experts from citation sentences, so their style differs from questions people ask.
+"Not enough info" claims here come with an abstract the claim cites but that does not address
+it, which is easier than open-domain retrieval. This is a research benchmark, not medical
+advice.
