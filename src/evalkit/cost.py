@@ -131,18 +131,23 @@ def estimate_run_cost(
     judges: list[str] | tuple[str, ...],
     n_cases: int,
     assumptions: TokenAssumptions | None = None,
+    batch_judges: bool = True,
+    free: frozenset[str] = frozenset(),
 ) -> CostEstimate:
-    """generation + extraction + judging (batch), per node and model (Tech Spec §9)."""
+    """generation + extraction + judging (batch unless `batch_judges=False`), per node and
+    model (Tech Spec §9). Models in `free` (local endpoints) cost 0 unless priced."""
     a = assumptions or TokenAssumptions()
+
+    def pf(model: str) -> Price:
+        return price_for(prices, model, free_if_unknown=model in free)
+
     lines: list[CostLine] = []
     for m in models:
-        per = call_cost(
-            price_for(prices, m), tokens_in=a.t_in, tokens_out=a.t_out, tokens_reasoning=a.t_reason
-        )
+        per = call_cost(pf(m), tokens_in=a.t_in, tokens_out=a.t_out, tokens_reasoning=a.t_reason)
         lines.append(CostLine(node="generate", model=m, calls=n_cases, usd=per * n_cases))
     answers = len(models) * n_cases
     per = call_cost(
-        price_for(prices, extractor),
+        pf(extractor),
         tokens_in=a.t_ext_in,
         tokens_out=a.t_ext_out,
         tokens_reasoning=a.t_ext_reason,
@@ -150,11 +155,11 @@ def estimate_run_cost(
     lines.append(CostLine(node="extract_claims", model=extractor, calls=answers, usd=per * answers))
     for j in judges:
         per = call_cost(
-            price_for(prices, j),
+            pf(j),
             tokens_in=a.t_j_in,
             tokens_out=a.t_j_out,
             tokens_reasoning=a.t_j_reason,
-            batch=True,
+            batch=batch_judges,
         )
         lines.append(CostLine(node="judge", model=j, calls=answers, usd=per * answers))
     return CostEstimate(lines=tuple(lines), total_usd=sum(line.usd for line in lines))
@@ -188,6 +193,7 @@ def estimate_for_config(
     config: RunConfig,
     n_cases: int,
     assumptions: TokenAssumptions | None = None,
+    batch_judges: bool = True,
 ) -> CostEstimate:
     """The ADP-05 entry point: estimate a run straight from its RunConfig (model ids)."""
     return estimate_run_cost(
@@ -197,4 +203,6 @@ def estimate_for_config(
         judges=config.judges,
         n_cases=n_cases,
         assumptions=assumptions,
+        batch_judges=batch_judges,
+        free=frozenset(config.endpoints),
     )

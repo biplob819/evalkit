@@ -13,45 +13,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-KEYS = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+from evalkit.env import KEYS, load_dotenv, missing_keys, parse_dotenv_line  # noqa: E402
 
-
-def parse_dotenv_line(line: str) -> tuple[str, str] | None:
-    """KEY=VALUE, optional `export ` prefix, single or double quotes, inline # comments."""
-    line = line.strip()
-    if not line or line.startswith("#") or "=" not in line:
-        return None
-    if line.startswith("export "):
-        line = line[len("export ") :].lstrip()
-    key, value = line.split("=", 1)
-    key, value = key.strip(), value.strip()
-    if value[:1] in ("'", '"'):
-        quote = value[0]
-        end = value.find(quote, 1)
-        value = value[1:end] if end != -1 else value[1:]
-    else:
-        value = value.split(" #", 1)[0].strip()
-    return key, value
-
-
-def load_dotenv(path: Path) -> None:
-    """Minimal .env loader; existing environment variables win. Values are never printed."""
-    if not path.is_file():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        parsed = parse_dotenv_line(line)
-        if parsed:
-            os.environ.setdefault(*parsed)
-
-
-def missing_keys(providers: set[str]) -> list[str]:
-    return sorted(KEYS[p] for p in providers if p in KEYS and not os.environ.get(KEYS[p]))
+__all__ = ["KEYS", "ROOT", "load_dotenv", "missing_keys", "parse_dotenv_line"]
 
 
 def main(argv: list[str] | None = None) -> int:

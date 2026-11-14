@@ -1,26 +1,357 @@
-"""Command-line entry point.
+"""Command-line interface (B2.2): `evalkit run`, `evalkit calibrate`, `evalkit report`.
 
-W0.1 ships only `--version` so the package installs and runs. The full Typer CLI
-arrives in node B2.2 and the onboarding commands in B2.4.
+stdlib argparse keeps the install light. Exit codes (Tech Spec §4, OWNER D-44): 0 every
+threshold passed, 1 a threshold failed, 2 configuration or runtime error, 3 stopped at the
+cost cap, 4 judging pending. Every command takes --json for one machine-readable object.
+API keys are read from the environment or ./.env and never printed.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
+import json
 import sys
+from pathlib import Path
+from typing import Any
 
 from evalkit import __version__
 
+EXIT_ERROR = 2
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
+
+def _emit(args: argparse.Namespace, payload: dict[str, Any], text: str) -> None:
+    if getattr(args, "json", False):
+        print(json.dumps(payload, sort_keys=True, default=str))
+    else:
+        print(text)
+
+
+EXIT_CODES = """exit codes:
+  0  run finished and every threshold passed
+  1  run finished and a threshold failed
+  2  configuration or runtime error
+  3  stopped at the cost cap (completed work is cached; resume with the same command)
+  4  judging pending (rerun the same command to collect, at no extra cost)"""
+
+_JSON_MODE = False
+
+
+def _mask(text: str) -> str:
+    """Remove any provider key value that leaked into a message."""
+    import os
+
+    from evalkit.env import KEYS
+
+    for name in KEYS.values():
+        value = os.environ.get(name)
+        if value and len(value) >= 8:
+            text = text.replace(value, f"<{name}>")
+    return text
+
+
+def _err(msg: str) -> int:
+    msg = _mask(msg)
+    print(f"error: {msg}", file=sys.stderr)
+    if _JSON_MODE:  # --json: stdout always carries exactly one object
+        print(json.dumps({"exit_code": EXIT_ERROR, "error": msg}, sort_keys=True))
+    return EXIT_ERROR
+
+
+def _describe(exc: BaseException) -> str:
+    status = getattr(exc, "status_code", None)
+    if status in (401, 403) or type(exc).__name__ in (
+        "AuthenticationError",
+        "PermissionDeniedError",
+    ):
+        return (
+            f"the provider rejected the API key ({type(exc).__name__}); check the key and its "
+            "permissions, then rerun the same command (completed work is cached)"
+        )
+    return f"{type(exc).__name__}: {exc}"
+
+
+def _progress(args: argparse.Namespace):
+    if getattr(args, "json", False):
+        return None
+    return lambda stage, msg: print(f"[{stage}] {msg}", file=sys.stderr, flush=True)
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    from evalkit import run as R
+    from evalkit.env import load_dotenv
+    from evalkit.runtime import BudgetExceeded
+
+    load_dotenv(Path.cwd() / ".env")
+    try:
+        plan = R.plan_run(
+            Path(args.config),
+            task=args.task,
+            n=args.n,
+            out=Path(args.out),
+            store_dir=Path(args.store),
+        )
+    except R.RunError as exc:
+        return _err(str(exc))
+    prices = R.default_prices()
+    try:
+        est = R.estimate(plan, prices, live_judges=args.live_judges)
+    except KeyError as exc:  # unknown price surfaces with a clear message below
+        est = None
+        unknown = str(exc)
+    else:
+        unknown = ""
+    if args.dry_run:
+        problems = R.readiness_problems(plan, prices, include_keys=False)
+        if problems or est is None:
+            return _err("; ".join(problems) or unknown)
+        lines = [
+            f"{ln.node:<15} {ln.model:<22} {ln.calls:>6} calls  ${ln.usd:.4f}" for ln in est.lines
+        ]
+        _emit(
+            args,
+            {"dry_run": True, "run_id": plan.run_id, "n": plan.n, "estimate": est.model_dump()},
+            f"dry run for {plan.task.name}, {plan.n} cases → {plan.run_dir}\n"
+            + "\n".join(lines)
+            + f"\nestimated total ${est.total_usd:.2f} (no API calls made)",
+        )
+        return 0
+    problems = R.readiness_problems(plan, prices)
+    if problems:
+        return _err("; ".join(problems))
+    cap = args.max_cost if args.max_cost is not None else plan.config.max_cost_usd
+    if est is not None and cap is not None and est.total_usd > cap:
+        print(
+            f"note: estimate ${est.total_usd:.2f} exceeds the cap ${cap:.2f}; the run stops at the "
+            "cap and can be resumed with a higher --max-cost",
+            file=sys.stderr,
+        )
+    try:
+        adapters = R.make_adapters(plan.config, prices)
+        outcome = asyncio.run(
+            R.execute(
+                plan,
+                adapters,
+                prices,
+                available_providers=R.available_providers(plan.config),
+                max_cost_usd=args.max_cost,
+                wait_s=args.wait * 60,
+                live_judges=args.live_judges,
+                progress=_progress(args),
+            )
+        )
+    except BudgetExceeded as exc:
+        spent = (
+            R.read_manifest(plan.run_dir).spent_usd if (plan.run_dir / "run.json").is_file() else 0
+        )
+        msg = (
+            f"stopped at the cost cap ({exc}); ${spent:.4f} spent on this run so far, and the "
+            "cap counts all of it. Completed work is cached: resume with the same command and a "
+            f"higher --max-cost (run folder {plan.run_dir})"
+        )
+        _emit(
+            args,
+            {
+                "exit_code": 3,
+                "run_id": plan.run_id,
+                "run_dir": str(plan.run_dir),
+                "spent_usd_total": round(spent, 6),
+                "error": msg,
+            },
+            msg,
+        )
+        return 3
+    except R.RunError as exc:
+        return _err(str(exc))
+    s = outcome.summary
+    models = [
+        {
+            "model": m.model,
+            "passes_threshold": m.passes_threshold,
+            "failed_thresholds": list(m.failed_thresholds),
+            "headline": {j: iv.point for j, iv in m.headline.items()},
+            "accuracy": m.accuracy.point,
+        }
+        for m in s.models
+    ]
+    lines = [
+        f"{m['model']:<24} {'PASS' if m['passes_threshold'] else 'FAIL':<5} "
+        + " ".join(f"{j}={v:.1%}" for j, v in m["headline"].items())
+        + (f"  ({'; '.join(m['failed_thresholds'])})" if m["failed_thresholds"] else "")
+        for m in models
+    ]
+    tail = ""
+    if outcome.exit_code == 4:
+        tail = (
+            "judging pending: batches from an earlier run are still open; rerun without "
+            "--live-judges to collect them (never paid twice)"
+            if args.live_judges
+            else "judging pending: rerun the same command to collect the batches (no extra cost)"
+        )
+    _emit(
+        args,
+        {
+            "exit_code": outcome.exit_code,
+            "run_id": s.run_id,
+            "run_dir": str(outcome.run_dir),
+            "spent_usd": round(outcome.spent_usd, 6),
+            "judging_status": s.judging_status,
+            "judge_mode": s.judge_mode,
+            "calibration_status": s.calibration_status,
+            "models": models,
+        },
+        "\n".join(lines)
+        + f"\nspent ${outcome.spent_usd:.4f} · report {outcome.run_dir / 'report.html'}"
+        + (f"\n{tail}" if tail else ""),
+    )
+    return outcome.exit_code
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    from evalkit import run as R
+    from evalkit.pipeline.calibrate import PublishRefused, publish_guard
+    from evalkit.schemas import RunSummary
+
+    run_dir = Path(args.run_dir)
+    try:
+        path = R.render(run_dir)
+    except (R.RunError, FileNotFoundError) as exc:
+        return _err(str(exc))
+    if args.publish:
+        summary = RunSummary.model_validate_json((run_dir / "summary.json").read_text("utf-8"))
+        try:
+            publish_guard(summary)
+        except PublishRefused as exc:
+            return _err(str(exc))
+    _emit(args, {"report": str(path), "published": bool(args.publish)}, f"report {path}")
+    return 0
+
+
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    from evalkit import run as R
+
+    run_dir = Path(args.run_dir)
+    try:
+        if args.action == "export":
+            sheet, csv_path, n = R.cal_export(run_dir, force=args.force)
+            _emit(
+                args,
+                {"sheet": str(sheet), "csv": str(csv_path), "claims": n},
+                f"{n} claims to label. Label in the browser: evalkit calibrate label {run_dir}\n"
+                f"(or fill {csv_path} and run: evalkit calibrate import {run_dir} FILE.csv)",
+            )
+        elif args.action == "label":
+            server = R.cal_labeller(run_dir, relabel=args.relabel, port=args.port)
+            url = f"http://127.0.0.1:{server.server_address[1]}/"
+            _emit(args, {"url": url}, f"labelling page: {url}  (Ctrl-C to stop; labels autosave)")
+            sys.stdout.flush()
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                server.server_close()
+        elif args.action == "import":
+            n = R.cal_import(run_dir, Path(args.csv))
+            _emit(args, {"imported": n}, f"imported {n} labels")
+        else:
+            report = R.cal_score(run_dir)
+            kappas = {a.judge: a.kappa.point for a in report.agreements}
+            _emit(
+                args,
+                {"kappa": kappas, "judge_prompt_hash": report.judge_prompt_hash},
+                "held-out kappa: "
+                + ", ".join(f"{j} {k:.2f}" for j, k in kappas.items())
+                + f"\nreport {run_dir / 'report.html'}",
+            )
+    except (R.RunError, FileNotFoundError) as exc:
+        return _err(str(exc))
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
         prog="evalkit",
         description="Evaluate your own task across Claude and OpenAI models.",
+        epilog=EXIT_CODES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--version", action="version", version=f"evalkit {__version__}")
-    parser.parse_args(argv)
-    parser.print_help()
-    return 0
+    p.add_argument("--version", action="version", version=f"evalkit {__version__}")
+    sub = p.add_subparsers(dest="command")
+
+    r = sub.add_parser(
+        "run",
+        help="run (or resume) a benchmark",
+        epilog=EXIT_CODES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    r.add_argument("config", help="run config YAML")
+    r.add_argument("--task", default="pubmedqa", help="built-in task name or a task YAML path")
+    r.add_argument("--n", type=int, default=200, help="number of cases (default 200)")
+    r.add_argument("--out", default="runs", help="folder for run folders (default ./runs)")
+    r.add_argument(
+        "--store", default=".evalkit/store", help="cache folder (default .evalkit/store)"
+    )
+    r.add_argument(
+        "--max-cost",
+        type=float,
+        default=None,
+        help="total USD this run folder may spend, across resumes (default: config max_cost_usd)",
+    )
+    r.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
+    r.add_argument(
+        "--wait", type=float, default=30, help="minutes to wait for judge batches (default 30)"
+    )
+    r.add_argument("--live-judges", action="store_true", help="judge now at full price")
+    r.add_argument("--json", action="store_true", help="print one JSON object")
+    r.set_defaults(func=cmd_run)
+
+    c = sub.add_parser("calibrate", help="label claims and score the judges")
+    csub = c.add_subparsers(dest="action", required=True)
+    for name, helptext in (
+        ("export", "write the blind labelling sheet"),
+        ("label", "open the local labelling page"),
+        ("import", "import a filled CSV sheet"),
+        ("score", "score the held-out split"),
+    ):
+        a = csub.add_parser(name, help=helptext)
+        a.add_argument("run_dir", help="the run folder (runs/r-...)")
+        a.add_argument("--json", action="store_true", help="print one JSON object")
+        if name == "export":
+            a.add_argument("--force", action="store_true", help="replace an existing sheet")
+        if name == "label":
+            a.add_argument("--relabel", action="store_true", help="the blind relabel round")
+            a.add_argument("--port", type=int, default=0, help="port (default: any free port)")
+        if name == "import":
+            a.add_argument("csv", help="the filled sheet.csv")
+    c.set_defaults(func=cmd_calibrate)
+
+    rep = sub.add_parser("report", help="re-render a run's report")
+    rep.add_argument("run_dir")
+    rep.add_argument("--publish", action="store_true", help="refuse unless dual and calibrated")
+    rep.add_argument("--json", action="store_true")
+    rep.set_defaults(func=cmd_report)
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    global _JSON_MODE
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if not getattr(args, "func", None):
+        parser.print_help()
+        return 0
+    _JSON_MODE = bool(getattr(args, "json", False))
+    try:
+        return int(args.func(args))
+    except KeyboardInterrupt:
+        print(
+            "interrupted: completed work is cached; rerun the same command to resume",
+            file=sys.stderr,
+        )
+        return 130
+    except Exception as exc:  # anything unexpected is a runtime error (exit 2), never "1"
+        return _err(_describe(exc))
 
 
 if __name__ == "__main__":

@@ -616,6 +616,94 @@ async def _process_batch(
     return budget_stop
 
 
+async def judge_claims_live(
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    judge: str,
+    config: RunConfig,
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    *,
+    run_id: str,
+    concurrency: int = 8,
+) -> JudgingResult:
+    """Judge every claim through the normal API (OWNER D-44 `--live-judges`): full price, no
+    waiting. Same prompt, parsing, single retry and cache keys as batch judging, so verdicts
+    from either path are interchangeable and a later batch run never pays for them again."""
+    provider = provider_for(judge, config.endpoints)
+    adapter = adapters[adapter_key(provider, judge)]
+    price = price_for(prices, judge, free_if_unknown=provider == "openai_compatible")
+    result = JudgingResult(judge=judge)
+    sem = asyncio.Semaphore(max(1, config.concurrency.get(provider, concurrency)))
+
+    async def one(case: Case, claim: Claim) -> None:
+        pre = precheck(claim, case, judge)
+        if pre is not None:
+            result.verdicts[claim.id] = pre
+            return
+        inp = judge_input(claim, case, judge, config.judge_effort)
+        key = _cache_key(inp)
+        cached = executor.store.get(key, _Cached)
+        if cached is not None:
+            if cached.verdict is not None:
+                result.verdicts[claim.id] = cached.verdict
+            else:
+                result.n_errors += 1
+            return
+        if executor.store.get_meta(key, _META) is not None:
+            # Already in a submitted batch that the provider will bill: never pay twice.
+            # The claim stays pending until a batch run collects it.
+            result.status = "pending"
+            return
+        async with sem:
+            req = _request(inp)
+            estimate = _estimate(price, req, batch=False)
+            await executor.reserve(estimate)
+            cost = 0.0
+            try:
+                raw = await adapter.complete(req)
+                cost = raw.cost_usd
+            except Exception as exc:
+                if _is_fatal(exc):
+                    raise
+                result.n_errors += 1  # provider error: never cached, retried next run
+                return
+            finally:
+                await executor.settle(estimate, cost)
+            result.cost_usd += cost
+            if raw.refusal:
+                _store_verdict(executor, key, None, "refusal", cost)
+                result.n_errors += 1
+                return
+            try:
+                verdict, err = parse_verdict(raw.raw_text, inp), None
+            except SchemaError:
+                try:
+                    verdict, err, retry_cost = await _retry_live(executor, adapter, inp, price)
+                except Exception as exc:
+                    if _is_fatal(exc) or isinstance(exc, BudgetExceeded):
+                        raise
+                    result.n_errors += 1
+                    return
+                result.cost_usd += retry_cost
+                cost += retry_cost
+        _store_verdict(executor, key, verdict, err, cost)
+        if verdict is not None:
+            result.verdicts[claim.id] = verdict
+        else:
+            result.n_errors += 1
+
+    async with executor.named_lock(f"judge:{judge}"):
+        # Let every in-flight call finish and settle its spend, then surface the first stop.
+        outcomes = await asyncio.gather(
+            *(one(case, claim) for case, claim in items), return_exceptions=True
+        )
+    for o in outcomes:
+        if isinstance(o, BaseException):
+            raise o
+    return result
+
+
 def groundedness(
     claims: Sequence[Claim], verdicts: Mapping[str, ClaimVerdict]
 ) -> tuple[float, bool]:

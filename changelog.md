@@ -3,6 +3,9 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FIX] [B2.2] — run safety (D-45): total cost cap across resumes, judge-set lock per run folder, no live re-pay of open batches, dry run without keys, exit 2 with masked messages for every unexpected error
+- [FEAT] [B2.2] — CLI: `evalkit run` (resumable run folders, dry run, cost cap exit 3, judging-pending exit 4, `--live-judges` sharing the batch cache, `--json`), `evalkit calibrate export|label|import|score`, `evalkit report [--publish]`; validation before any call; user YAML tasks with local JSONL datasets
+- [FIX] [A2.5] — a pending run whose records carry no per-judge scores now aggregates (found by the CLI tests)
 - [FEAT] [B2.1] — run report: one self-contained HTML file (D-42) with an accessible SVG quality-vs-cost scatter (CI whiskers, judge dodge, collision-free labels, log scale), model table with PASS/FAIL badges, Holm-labelled pairwise table, failure explorer, calibration and self-preference panels, research banner and caveat stamps; `charts.vl.json` alongside; golden report
 - [FIX] [A2.5] — float totals use `math.fsum` so `summary.json` is identical on Python 3.11 and 3.12 (CI failure)
 - [HARNESS] [W0.1] — golden gate also runs on the minimum supported Python (L-27)

@@ -463,3 +463,15 @@ def test_inputs_from_another_run_or_duplicate_judging_are_refused():
             fixture(),
             judging=[JudgingResult(judge=J1), JudgingResult(judge=J1), JudgingResult(judge=J2)],
         )
+
+
+def test_pending_run_with_unjudged_records_aggregates():
+    """Records built while a judge is pending carry no per-judge scores (B2.2 found this)."""
+    rs = [
+        rec(m, f"c{i}", correct=i % 2 == 0, grounded=(), judges=())
+        for i in range(10)
+        for m in ("sonnet", "sol")
+    ]
+    s = run(rs, pending=True)
+    assert s.judging_status == "pending" and all(not m.headline for m in s.models)
+    assert {c.metric for c in s.comparisons} == {"accuracy"}

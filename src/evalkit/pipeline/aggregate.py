@@ -208,12 +208,11 @@ def aggregate(
         return r.scores
 
     acc = {m: vec(m, lambda r: float(sc(r).label_correct)) for m in models}
-    head = {
-        (m, j): vec(m, lambda r, j=j: float(sc(r).correct_and_grounded[j]))
-        for m in models
-        for j in judges
-    }
-    ground = {(m, j): vec(m, lambda r, j=j: sc(r).groundedness[j]) for m in models for j in judges}
+    # Per-judge vectors exist only once every judge has finished (D-37): pending records
+    # carry no per-judge scores at all.
+    pairs = [(m, j) for m in models for j in judges] if complete else []
+    head = {(m, j): vec(m, lambda r, j=j: float(sc(r).correct_and_grounded[j])) for m, j in pairs}
+    ground = {(m, j): vec(m, lambda r, j=j: sc(r).groundedness[j]) for m, j in pairs}
 
     summaries: list[ModelSummary] = []
     for m in models:
