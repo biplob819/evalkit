@@ -4,8 +4,9 @@
 
 `evalkit run` routes each model in `evalkit.yaml` by name: `claude-*` goes to Anthropic,
 OpenAI model ids (`gpt-*`, `o1`, `o3`, ...) go to OpenAI, and anything listed under `endpoints` goes to
-an OpenAI-compatible server. That covers most self-hosted and gateway setups (vLLM, Ollama,
-LiteLLM and similar) with no code:
+an OpenAI-compatible server. That covers self-hosted servers that need no API key (vLLM,
+Ollama, a local LiteLLM proxy and similar) with no code; endpoints that need a key are not
+supported from the config yet:
 
 ```yaml
 models: [claude-haiku-5-5, my-llama]
@@ -40,8 +41,8 @@ answer_length = "my_package.scorers:answer_length"
 ```
 
 `evalkit.scorers.discover()` then returns it next to the built-ins, and
-`get_scorer("answer_length")` finds it. Names are unique: a plugin cannot replace a built-in
-scorer, and a plugin that fails to import is skipped with a warning instead of breaking the
+`get_scorer("answer_length")` finds it. Names are unique: a plugin cannot replace a
+registered scorer (`label_correct`, `citation_valid`, `cost`, `latency`), and a plugin that fails to import is skipped with a warning instead of breaking the
 built-ins. Bump `version` whenever the scorer's output changes, so cached scores are not
 mixed with new ones.
 

@@ -31,8 +31,10 @@ q2,Is theft covered?,"Theft is covered up to $5,000.",yes
 ```
 
 Rules for both formats: ids are unique and contain no `:`; every label is one of the task's
-labels (case does not matter); every case has at least one sentence of context. A problem is
-reported with the file name and line number before anything is sent to a model.
+labels (case and surrounding spaces do not matter); every case has at least one sentence of
+context; the file is UTF-8 (in Excel, Save As > CSV UTF-8). CSV column names may be in any
+order and case, and other columns are ignored. A problem is reported with the file name and
+the line its row starts on, before anything is sent to a model.
 
 ## The task file
 
@@ -67,7 +69,9 @@ scorers read.
 ## Thresholds
 
 A model passes only if every threshold holds; `evalkit run` exits with code 1 when any model
-fails one, which is how a CI job fails on a regression. Metrics: `headline` (correct and
+fails one, which is how a CI job fails on a regression. Thresholds in `evalkit.yaml` take
+precedence over the task's: the config written by `evalkit init` sets one, so edit it there,
+or delete the `thresholds` block from `evalkit.yaml` to use the task file's. Metrics: `headline` (correct and
 every claim supported), `groundedness`, `accuracy`, `citation_validity`, `coverage`,
 `cost_per_100_usd`, `cost_per_correct_usd`, `latency_p50_ms` and `latency_p95_ms`.
 Operators: `>=` and `<=`.

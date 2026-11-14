@@ -168,21 +168,29 @@ def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
     return [s1, s2, s3]
 
 
+# Absolute links: the README is also the PyPI project page, where relative paths break.
+REPO = "https://github.com/biplob819/evalkit"
+REPO_RAW = "https://raw.githubusercontent.com/biplob819/evalkit/main"
+
+
 def readme_block(summary: RunSummary, n_cases: int, report_url: str) -> str:
     sentences = " ".join(readme_sentences(summary, n_cases))
     return (
         f"{START}\n"
-        f'<p align="center"><img src="docs/assets/headline.svg" alt="{escape(sentences)}" '
-        'width="760"></p>\n\n'
+        f'<p align="center"><img src="{REPO_RAW}/docs/assets/headline.svg" '
+        f'alt="{escape(sentences)}" width="760"></p>\n\n'
         f"{sentences}\n\n"
-        f"[Full report]({report_url}) · results in [`docs/results/`](docs/results/)\n\n"
+        f"[Full report]({report_url}) · results in [`docs/results/`]({REPO}/tree/main/docs/results)"
+        "\n\n"
         "```bash\n"
         "pip install 'evalkit-harness[anthropic,openai]'\n"
-        "evalkit init && evalkit run evalkit.yaml --dry-run  # scaffold, then estimate\n"
-        "evalkit run evalkit.yaml                            # needs both API keys in .env\n"
+        "evalkit init   # scaffold a project and a three-case sample task\n"
+        "evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3 --dry-run   # estimate\n"
+        "evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3   # needs keys in .env\n"
         "```\n\n"
         "Questions from [PubMedQA](https://pubmedqa.github.io/) (Jin et al., 2019, MIT licence); "
-        "see [DATA_CARD.md](DATA_CARD.md). Research benchmark, not medical advice.\n"
+        f"see [DATA_CARD.md]({REPO}/blob/main/DATA_CARD.md). Research benchmark, not medical "
+        "advice.\n"
         f"{END}"
     )
 

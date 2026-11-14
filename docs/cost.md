@@ -15,10 +15,14 @@ cases × models, plus one extraction per answer and one judge call per claim per
 
 ## Cap the spend
 
-`max_cost_usd` in `evalkit.yaml`, or `--max-cost` on the command line, is a hard cap on what
-a run folder may spend **in total, across resumes**. The executor reserves each call's
-maximum cost before sending it, so a run never passes the cap. When the next call would, the
-run stops with exit code 3; everything finished so far is cached.
+`max_cost_usd` in `evalkit.yaml`, or `--max-cost` on the command line, caps what a run
+folder may spend **in total, across resumes**. Before each live call the executor reserves
+that call's maximum possible cost, so live calls never pass the cap; when the next one would,
+the run stops with exit code 3 and everything finished so far is cached.
+
+Batch judging is the exception: a batch covers thousands of claims, so it holds 1.5 times
+the *expected* judge output rather than the maximum. An unusually verbose batch can therefore
+end slightly above the cap. Use `--live-judges` if the cap must be strict.
 
 ## Resume for free
 
@@ -54,3 +58,4 @@ same command to collect the results at no extra cost.
 | 2 | Configuration or runtime error (nothing is spent on a configuration error) |
 | 3 | Stopped at the cost cap; completed work is cached, resume with the same command |
 | 4 | Judging pending; rerun the same command to collect it at no extra cost |
+| 130 | Interrupted (Ctrl-C); completed work is cached, rerun the same command to resume |

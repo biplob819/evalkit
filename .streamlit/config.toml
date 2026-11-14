@@ -5,3 +5,6 @@ toolbarMode = "viewer"
 
 [server]
 headless = true
+
+[browser]
+gatherUsageStats = false  # no usage statistics from the demo (PRIVACY.md)

@@ -44,7 +44,9 @@ memory.
 
 ## Licence
 Claims and evidence annotations: CC BY 4.0. Abstracts: from S2ORC, ODC-By 1.0. Both allow
-redistribution and commercial use with attribution. Attribution: Wadden, Lin, Lo, Wang, van
+redistribution and commercial use with attribution. (The Hugging Face card for
+`allenai/scifact` states CC BY-NC 2.0; EvalKit follows the authors' own LICENSE.md in the
+GitHub repository and downloads from their release, not from Hugging Face.) Attribution: Wadden, Lin, Lo, Wang, van
 Zuylen, Cohan and Hajishirzi (2020). The test fixture in `tests/datasets/test_scifact.py` is
 synthetic and contains no SciFact text.
 
@@ -56,7 +58,8 @@ contradicted, 112 with no evidence. EvalKit maps SUPPORT to "supports", CONTRADI
 ## Fields used
 For each claim: the claim text (shown as the question) and one abstract as the context, split
 into sentences by the dataset itself. The abstract is the one carrying the evidence; for a
-claim with no evidence it is the first cited abstract (24 claims cite more than one). The gold
+claim with no evidence it is the first cited abstract (only 2 such claims cite more than
+one). The gold
 rationale sentence numbers are kept in the cached data for later citation checks.
 
 ## Sampling

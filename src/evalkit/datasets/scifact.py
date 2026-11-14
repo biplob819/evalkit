@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import http.client
 import io
 import json
 import tarfile
@@ -133,7 +134,7 @@ def load_scifact(
     if not path.is_file():
         try:
             blob = tarball if tarball is not None else _download()
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        except (urllib.error.URLError, http.client.HTTPException, TimeoutError, OSError) as exc:
             raise DatasetError(f"could not download SciFact: {exc}") from exc
         if verify:
             _check(blob, TARBALL_SHA256, "downloaded SciFact release")

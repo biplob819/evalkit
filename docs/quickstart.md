@@ -35,8 +35,9 @@ overwrites files that exist.
 ## 4. Add your keys and check your setup
 
 Copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`. `.env` is
-git-ignored and EvalKit never prints key values. One provider is enough to start: remove
-the other provider's models from `evalkit.yaml` and keep one judge.
+git-ignored and EvalKit never prints key values. One provider is enough to start: in
+`evalkit.yaml`, keep only that provider's models, one judge from it, and an `extractor` from
+it too (for OpenAI only, for example `extractor: gpt-6-luna`).
 
 ```bash
 evalkit doctor --offline

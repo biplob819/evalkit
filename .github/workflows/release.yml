@@ -5,7 +5,21 @@ on:
     tags: ["v*"]
 
 jobs:
+  checks:
+    # Nothing is published from a commit whose checks fail.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --all-extras
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run pytest -q
+      - run: uv run python scripts/secret_scan.py
+
   publish:
+    needs: checks
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -42,10 +56,27 @@ jobs:
             sleep 30
           done
           exit 1
-      - name: Doctor, example report and imports
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - name: Doctor (no keys here, so only the key checks may fail)
         run: |
           v="${GITHUB_REF_NAME#v}"
-          uvx --from "evalkit-harness==$v" evalkit doctor --offline
+          # installed as the docs say, with both provider SDKs
+          uvx --from "evalkit-harness[anthropic,openai]==$v" evalkit doctor --offline --json > doctor.json || true
+          cat doctor.json
+          uv run --no-project python -c "
+          import json
+          d = json.load(open('doctor.json', encoding='utf-8'))
+          bad = [c['name'] for c in d['checks'] if not c['ok'] and not c['name'].startswith('key')]
+          assert not bad, bad
+          "
+      - name: Example report
+        run: |
+          v="${GITHUB_REF_NAME#v}"
           uvx --from "evalkit-harness==$v" evalkit report --example --out example
           test -f example/report.html
-          uv run --no-project --with "evalkit-harness==$v" python -c "import evalkit, evalkit.scorers, evalkit.adapters, evalkit.schemas; assert evalkit.__version__ == '$v'"
+      - name: Public API of the published package
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          uv run --no-project --with "evalkit-harness==$v" python scripts/check_public_api.py

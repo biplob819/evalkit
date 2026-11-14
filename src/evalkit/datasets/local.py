@@ -8,6 +8,7 @@ must be one of the task's labels. Ids must be unique and cannot contain ":" (cla
 from __future__ import annotations
 
 import csv
+import io
 import json
 from pathlib import Path
 
@@ -19,11 +20,24 @@ class DatasetFileError(ValueError):
     pass
 
 
+MAX_CELL_CHARS = 10_000_000  # a long document in one CSV cell is fine; the csv default is 131k
+
+
+def _read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise DatasetFileError(
+            f"{path}: not UTF-8 text (byte {exc.start}); save it as UTF-8 "
+            "(in Excel: Save As > CSV UTF-8)"
+        ) from None
+
+
 def load_jsonl_cases(path: Path, task: TaskConfig) -> list[Case]:
     if not path.is_file():
         raise DatasetFileError(f"dataset file not found: {path}")
     rows: list[tuple[str, object]] = []
-    for i, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), start=1):
+    for i, line in enumerate(_read_text(path).splitlines(), start=1):
         if not line.strip():
             continue
         try:
@@ -34,26 +48,49 @@ def load_jsonl_cases(path: Path, task: TaskConfig) -> list[Case]:
 
 
 def load_csv_cases(path: Path, task: TaskConfig) -> list[Case]:
-    """A spreadsheet export: columns id, question, context and (optionally) label. The context
-    cell is the source text; it is split into sentences (each line break also ends one)."""
+    """A spreadsheet export: columns id, question, context and (optionally) label, in any
+    order and case; other columns are ignored. The context cell is the source text; it is
+    split into sentences (each line break also ends one). Errors name the line a row starts on.
+    """
     if not path.is_file():
         raise DatasetFileError(f"dataset file not found: {path}")
-    with path.open(encoding="utf-8-sig", newline="") as fh:
-        reader = csv.DictReader(fh)
-        header = [h.strip() for h in (reader.fieldnames or [])]
-        missing = [k for k in ("id", "question", "context") if k not in header]
-        if missing:
-            raise DatasetFileError(f"{path}: missing column(s) {', '.join(missing)}")
-        rows: list[tuple[str, object]] = []
-        for i, raw in enumerate(reader, start=2):  # line 1 is the header
-            row = {(k or "").strip(): (v or "") for k, v in raw.items()}
-            if not any(str(v).strip() for v in row.values()):
-                continue
-            text = str(row["context"])
-            row["context"] = list(number_sentences(text.splitlines())) if text.strip() else []
-            if not str(row.get("label", "")).strip():
-                row.pop("label", None)
-            rows.append((f"{path}:{i}", row))
+    text = _read_text(path)
+    csv.field_size_limit(max(csv.field_size_limit(), MAX_CELL_CHARS))
+    reader = csv.reader(io.StringIO(text, newline=""))
+    try:
+        header = [h.strip().casefold() for h in next(reader, [])]
+    except csv.Error as exc:
+        raise DatasetFileError(f"{path}:1: not valid CSV ({exc})") from None
+    dupes = sorted({h for h in header if h and header.count(h) > 1})
+    if dupes:
+        raise DatasetFileError(f"{path}:1: duplicate column(s) {', '.join(dupes)}")
+    missing = [k for k in ("id", "question", "context") if k not in header]
+    if missing:
+        raise DatasetFileError(f"{path}:1: missing column(s) {', '.join(missing)}")
+    col = {
+        name: header.index(name)
+        for name in ("id", "question", "context", "label")
+        if name in header
+    }
+    rows: list[tuple[str, object]] = []
+    while True:
+        start = reader.line_num + 1  # the physical line this record starts on
+        try:
+            cells = next(reader)
+        except StopIteration:
+            break
+        except csv.Error as exc:
+            raise DatasetFileError(f"{path}:{start}: not valid CSV ({exc})") from None
+        if not any(c.strip() for c in cells):
+            continue
+        row: dict[str, object] = {
+            name: cells[i] if i < len(cells) else "" for name, i in col.items()
+        }
+        cell = str(row["context"])
+        row["context"] = list(number_sentences(cell.splitlines())) if cell.strip() else []
+        if not str(row.get("label", "")).strip():
+            row.pop("label", None)
+        rows.append((f"{path}:{start}", row))
     return _cases(rows, task, path)
 
 
@@ -86,11 +123,12 @@ def _cases(rows: list[tuple[str, object]], task: TaskConfig, path: Path) -> list
             raise DatasetFileError(f"{where}: context must be a non-empty list of sentences")
         label = row.get("label")
         if label is not None:
-            if str(label).casefold() not in labels:
+            label = str(label).strip()
+            if label.casefold() not in labels:
                 raise DatasetFileError(
                     f"{where}: label {label!r} is not one of the task labels {list(task.labels)}"
                 )
-            label = labels[str(label).casefold()]
+            label = labels[label.casefold()]
         try:
             cases.append(
                 Case(

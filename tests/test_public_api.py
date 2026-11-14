@@ -4,66 +4,19 @@ a breaking change; this test makes it a deliberate one."""
 from __future__ import annotations
 
 import importlib
+import importlib.util
+from pathlib import Path
 
 import pytest
 
-PUBLIC = {
-    "evalkit": ["__version__"],
-    "evalkit.scorers": [
-        "ScoreResult",
-        "Scorer",
-        "attack_outcome",
-        "citation_valid",
-        "cost",
-        "discover",
-        "get_scorer",
-        "label_correct",
-        "latency",
-        "mrr",
-        "ndcg_at_k",
-        "recall_at_k",
-        "scorer",
-        "sql_match",
-    ],
-    "evalkit.adapters": [
-        "ALLOWED_PARAMS",
-        "BatchRequest",
-        "BatchResult",
-        "CompletionRequest",
-        "ModelAdapter",
-        "RawCompletion",
-        "discover",
-        "get_adapter",
-        "register",
-    ],
-    "evalkit.schemas": [
-        "SCHEMA_VERSION",
-        "AgentScore",
-        "AgentTask",
-        "Answer",
-        "AttackBlocked",
-        "CalibrationLabel",
-        "CalibrationReport",
-        "Case",
-        "Claim",
-        "ClaimVerdict",
-        "Completion",
-        "GoldOutcome",
-        "Interval",
-        "JudgeAgreement",
-        "ModelSummary",
-        "PairComparison",
-        "Record",
-        "ResultSet",
-        "RunConfig",
-        "RunSummary",
-        "Scores",
-        "Step",
-        "TaskConfig",
-        "Threshold",
-        "Trajectory",
-    ],
-}
+_spec = importlib.util.spec_from_file_location(
+    "check_public_api", Path(__file__).resolve().parents[1] / "scripts" / "check_public_api.py"
+)
+assert _spec and _spec.loader
+_api = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_api)
+PUBLIC: dict[str, list[str]] = _api.PUBLIC
+CLI: dict[str, set[str]] = _api.CLI
 
 
 @pytest.mark.parametrize("module", sorted(PUBLIC))
@@ -106,3 +59,20 @@ def test_exit_codes_are_documented_and_stable():
 
     for code in ("0", "1", "2", "3", "4"):
         assert f"  {code}  " in EXIT_CODES
+
+
+def test_the_cli_keeps_its_subcommands_and_options():
+    import argparse
+
+    from evalkit.cli import build_parser
+
+    parser = build_parser()
+    sub = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+    assert set(sub.choices) == set(CLI)
+    for name, options in CLI.items():
+        have = {s for a in sub.choices[name]._actions for s in a.option_strings}
+        assert options <= have, f"evalkit {name} lost {sorted(options - have)}"
+
+
+def test_the_check_script_passes_on_the_source_tree():
+    assert _api.missing() == []

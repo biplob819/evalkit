@@ -16,8 +16,6 @@ The result is tied to the exact judge rubric (`judge_prompt_hash`). If the rubri
 
 ## Steps
 
-> The `evalkit calibrate` commands ship with the CLI (node B2.2). Until then the same steps are available from Python in `evalkit.pipeline.calibrate` and `evalkit.pipeline.labeller`.
-
 1. **Run the benchmark once** with both judges (`evalkit run`) so there are answers, claims and verdicts to compare.
 2. **Export the sample**: `evalkit calibrate export RUN_DIR`. This picks 100 answers stratified by model and reference label, splits them 50 tuning and 50 held-out, and marks 20 for the blind relabel. It writes a blind sheet: opaque ids, claim text and cited sentences only. Model names are redacted and no judge verdicts are included.
 3. **Label**: `evalkit calibrate label RUN_DIR`. A page opens on `http://127.0.0.1:<port>`, reachable only from your machine.

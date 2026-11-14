@@ -1,12 +1,17 @@
 # Run an EvalKit task in CI and fail the job when a model misses a threshold.
 #
-# Copy to .github/workflows/evalkit.yml in your repository. It expects evalkit.yaml and
-# tasks/my_task.yaml (from `evalkit init`), and two repository secrets:
+# Copy to .github/workflows/evalkit.yml in your repository. It expects evalkit.yaml and a task
+# (from `evalkit init`: tasks/my_task.yaml, three sample cases), and two repository secrets:
 # ANTHROPIC_API_KEY and OPENAI_API_KEY (Settings > Secrets and variables > Actions).
+# Set N to the number of cases to evaluate (at most the number in your task file).
 #
-# Exit codes (docs/cost.md): 0 every threshold passed, 1 a threshold failed (the job fails),
-# 2 configuration error, 3 stopped at the cost cap, 4 judging still pending. Codes 3 and 4
-# fail the job too: rerun it to resume from the cache at no extra cost.
+# Exit codes (docs/cost.md): 0 every threshold passed; 1 a threshold failed (the job fails);
+# 2 configuration error; 3 stopped at the cost cap; 4 judging still pending. The model-call
+# cache and the run folder are saved even when the job fails, so re-running the workflow
+# resumes: finished calls and open judge batches are reused, not paid for again, and the
+# cost cap keeps counting across re-runs.
+#
+# Pull requests from forks get no secrets, so this job skips them.
 name: evalkit
 
 on:
@@ -15,30 +20,49 @@ on:
 
 jobs:
   evaluate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      TASK: tasks/my_task.yaml
+      N: "3"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Restore the EvalKit cache (reruns are free)
-        uses: actions/cache@v4
+      - name: Restore the cache and run folders
+        uses: actions/cache/restore@v4
         with:
-          path: .evalkit/store
-          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}
-          restore-keys: evalkit-
+          path: |
+            .evalkit/store
+            runs
+          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-${{ github.run_id }}
+          restore-keys: |
+            evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-
+            evalkit-
       - name: Install EvalKit
         run: uv tool install 'evalkit-harness[anthropic,openai]'
       - name: Estimate
-        run: evalkit run evalkit.yaml --task tasks/my_task.yaml --n 50 --dry-run
+        run: evalkit run evalkit.yaml --task "$TASK" --n "$N" --dry-run
       - name: Evaluate (fails the job when a threshold fails)
-        run: evalkit run evalkit.yaml --task tasks/my_task.yaml --n 50 --wait 45 --out runs
+        run: evalkit run evalkit.yaml --task "$TASK" --n "$N" --wait 45 --out runs
+      - name: Save the cache and run folders, pass or fail
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .evalkit/store
+            runs
+          key: evalkit-${{ hashFiles('evalkit.yaml', 'tasks/**') }}-${{ github.run_id }}
+      # The report and summary only: run folders also hold your questions and sources, and
+      # artifacts are readable by anyone who can read the repository.
       - name: Upload the report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: evalkit-report
-          path: runs/
+          path: |
+            runs/*/report.html
+            runs/*/summary.json
           if-no-files-found: ignore

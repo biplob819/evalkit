@@ -149,3 +149,55 @@ def test_csv_with_a_spreadsheet_bom_and_crlf_loads(tmp_path):
     path = tmp_path / "d.csv"
     path.write_bytes(("﻿" + CSV.replace("\n", "\r\n")).encode("utf-8"))
     assert len(load_csv_cases(path, _task())) == 3
+
+
+def test_csv_errors_name_the_line_the_row_starts_on(tmp_path):
+    text = (
+        "id,question,context,label\n"
+        'a,Q?,"Line one.\nLine two.\nLine three.",yes\n'
+        "\n"
+        "\n"
+        "b,Q?,Text.,perhaps\n"
+    )
+    path = tmp_path / "d.csv"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(DatasetFileError, match=r"d\.csv:7: label"):
+        load_csv_cases(path, _task())
+
+
+def test_a_non_utf8_file_is_a_clear_error(tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_bytes("id,question,context\nc1,Q?,It\u2019s here.\n".encode("cp1252"))
+    with pytest.raises(DatasetFileError, match=r"not UTF-8.*CSV UTF-8"):
+        load_csv_cases(path, _task())
+    jl = tmp_path / "d.jsonl"
+    jl.write_bytes(b'{"id": "a", "question": "Q?", "context": ["It\x92s."]}\n')
+    from evalkit.datasets import load_jsonl_cases
+
+    with pytest.raises(DatasetFileError, match="not UTF-8"):
+        load_jsonl_cases(jl, _task())
+
+
+def test_csv_headers_any_case_and_order_extra_columns_ignored_spaced_labels(tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_text(
+        "Notes,Label,Context,Question,ID\nignore me, Yes ,The sky is blue.,Is it blue?,7\n",
+        encoding="utf-8",
+    )
+    (case,) = load_csv_cases(path, _task())
+    assert (case.id, case.reference_label, case.context) == ("7", "yes", ("The sky is blue.",))
+
+
+def test_csv_duplicate_columns_are_refused(tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_text("id,question,context,context\n1,Q?,A.,B.\n", encoding="utf-8")
+    with pytest.raises(DatasetFileError, match="duplicate column"):
+        load_csv_cases(path, _task())
+
+
+def test_a_long_document_in_one_cell_loads(tmp_path):
+    long = " ".join(f"Sentence number {i} is here." for i in range(10_000))  # ~300k chars
+    path = tmp_path / "d.csv"
+    path.write_text(f'id,question,context\n1,Q?,"{long}"\n', encoding="utf-8")
+    (case,) = load_csv_cases(path, _task())
+    assert len(case.context) == 10_000
