@@ -62,8 +62,22 @@ class Step(Model):
     result_summary: str
     error: str | None = None
     tokens_in: NonNegInt
-    tokens_out: NonNegInt
+    tokens_out: NonNegInt  # visible output plus reasoning tokens (both billed as output)
     latency_ms: NonNegInt
+    # C3.2: "tool_call" is an action the agent took; "malformed" (unparseable output, kept
+    # whole in arguments["raw"] so it is still scanned for leaks) and "refusal" are not.
+    kind: Literal["tool_call", "malformed", "refusal"] = "tool_call"
+    # The sandbox refused the call (tool outside the allow-list, invalid arguments, a write
+    # or escape attempt) and it never ran. A failed query that did run is not a violation.
+    violation: bool = False
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Step:
+        if self.violation and (self.error is None or self.kind != "tool_call"):
+            raise ValueError("a violation is a refused tool call and carries its error")
+        if self.kind != "tool_call" and self.error is None:
+            raise ValueError(f"a {self.kind} step carries an error")
+        return self
 
 
 class Trajectory(Model):
@@ -76,11 +90,20 @@ class Trajectory(Model):
     final_answer: str
     sandbox_reset_ok: bool
     cost_usd: NonNegFloat
+    # Why the trial ended (C3.2): void = failed reset check (excluded from scores, counted);
+    # transport = provider failure after retries (rerun to resume from cached turns).
+    stop_reason: Literal["final_answer", "step_budget", "refusal", "transport", "void"] = (
+        "final_answer"
+    )
 
     @model_validator(mode="after")
     def _steps_in_order(self) -> Trajectory:
         if [s.index for s in self.steps] != list(range(len(self.steps))):
             raise ValueError("step indexes must be 0, 1, 2, ... in order")
+        if (self.stop_reason == "void") != (not self.sandbox_reset_ok):
+            raise ValueError("a trajectory is void exactly when its sandbox reset check failed")
+        if self.stop_reason == "void" and self.steps:
+            raise ValueError("a void trajectory has no steps")
         return self
 
 

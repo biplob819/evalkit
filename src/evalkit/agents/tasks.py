@@ -88,6 +88,8 @@ def load_agent_tasks(
                 raise TaskError(f"{task.id}: unknown tools {sorted(unknown)}")
             if FORBIDDEN_TOOLS & set(task.allowed_tools):
                 raise TaskError(f"{task.id}: forbidden tools cannot be allowed")
+            if "final_answer" not in task.allowed_tools:
+                raise TaskError(f"{task.id}: every task must allow final_answer")
             gold = task.gold_outcome
             if isinstance(gold, ResultSet) and not task.gold_sql:
                 raise TaskError(f"{task.id}: an analytics task needs gold_sql")

@@ -405,19 +405,62 @@ def build_database(path: Path) -> Path:
     return path
 
 
+def dump_connection(con: Any) -> dict[str, list[tuple[Any, ...]]]:
+    """Every table read back through an open connection: same shape as `generate()`."""
+    out = {}
+    for name in SCHEMA:
+        rows = con.execute(f"SELECT * FROM {name}").fetchall()
+        out[name] = [
+            tuple(float(v) if type(v).__name__ == "Decimal" else v for v in r) for r in rows
+        ]
+    return out
+
+
 def dump_database(path: Path) -> dict[str, list[tuple[Any, ...]]]:
     """Read every table back (for the reset check): same shape as `generate()`."""
     import duckdb
 
     con = duckdb.connect(str(path), read_only=True)
     try:
-        out = {}
-        for name in SCHEMA:
-            rows = con.execute(f"SELECT * FROM {name}").fetchall()
-            out[name] = [
-                tuple(float(v) if type(v).__name__ == "Decimal" else v for v in r) for r in rows
-            ]
-        return out
+        return dump_connection(con)
+    finally:
+        con.close()
+
+
+CATALOG_SQL = {  # what a reset check compares besides row content (C3.2)
+    "columns": "SELECT schema_name, table_name, column_name, data_type, column_default, "
+    "is_nullable, comment FROM duckdb_columns() WHERE NOT internal ORDER BY ALL",
+    "tables": "SELECT schema_name, table_name, comment FROM duckdb_tables() WHERE NOT internal "
+    "ORDER BY ALL",
+    "constraints": "SELECT table_name, constraint_type, constraint_text FROM "
+    "duckdb_constraints() ORDER BY ALL",
+    "views": "SELECT count(*) FROM duckdb_views() WHERE NOT internal",
+    "functions": "SELECT count(*) FROM duckdb_functions() WHERE NOT internal",
+    "sequences": "SELECT count(*) FROM duckdb_sequences()",
+    "indexes": "SELECT count(*) FROM duckdb_indexes()",
+    "types": "SELECT count(*) FROM duckdb_types() WHERE NOT internal",
+    "schemas": "SELECT count(*) FROM duckdb_schemas() WHERE NOT internal "
+    "AND database_name = current_database()",
+}
+
+
+def catalog_signature(con: Any) -> str:
+    """Tables, columns, types, defaults, nullability, constraints and comments, plus counts of
+    every other user object (views, macros, sequences, indexes, types, schemas): an extra
+    table, a comment or a macro carrying instructions fails the reset check even though no
+    pinned row changed."""
+    sig = {k: con.execute(q).fetchall() for k, q in CATALOG_SQL.items()}
+    return json.dumps(sig, default=str, sort_keys=True)
+
+
+def expected_catalog() -> str:
+    import duckdb
+
+    con = duckdb.connect()
+    try:
+        for name, cols in SCHEMA.items():
+            con.execute(f"CREATE TABLE {name} ({cols})")
+        return catalog_signature(con)
     finally:
         con.close()
 

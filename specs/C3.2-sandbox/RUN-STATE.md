@@ -1,3 +1,3 @@
 # C3.2 run state
 
-**Now:** spec written; waiting for C3.1 green
+**Now:** green (converged twice; verifier GREEN in round 4 after recording, replay and SQL-policy fixes, L-34)

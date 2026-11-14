@@ -86,6 +86,7 @@ def copy_task(tmp_path, task_id, edit):
         (lambda d: d.update(allowed_tools=["run_sql", "send_email"]), "forbidden"),
         (lambda d: d.update(gold_outcome={"kind": "mystery"}), "gold_outcome"),
         (lambda d: d.pop("gold_sql"), "needs gold_sql"),
+        (lambda d: d.update(allowed_tools=["run_sql"]), "must allow final_answer"),
     ],
 )
 def test_loader_rejects_bad_tasks(tmp_path, edit, needle):

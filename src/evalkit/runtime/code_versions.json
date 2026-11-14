@@ -1,4 +1,12 @@
 {
+  "agent_trial": {
+    "code_version": "2",
+    "hash": "02f54b9e1bde43a68e7b86d9edc294e607fd3f5b28310686afdc082b22ea3e03"
+  },
+  "agent_turn": {
+    "code_version": "1",
+    "hash": "b2b9653a98191ce432daf2482a9d690182ba56991db0656c04b749ef2a251f4e"
+  },
   "extract_claims": {
     "code_version": "2",
     "hash": "d6329a81e1ba859a14ebc64928a8115dcb0d9036bb03883608eab22162a00cfc"
