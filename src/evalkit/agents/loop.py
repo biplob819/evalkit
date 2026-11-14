@@ -262,7 +262,7 @@ class AgentTrial(Node[TrialInput, Trajectory]):
     resumes. Spend is counted by the turns, never twice."""
 
     name = "agent_trial"
-    code_version = "2"  # 2: key without gold, sandbox fingerprint (C3.2 verifier round 2)
+    code_version = "3"  # 3: records simulator cost (C3.3)
     In = TrialInput
     Out = Trajectory
 
@@ -315,6 +315,7 @@ class AgentTrial(Node[TrialInput, Trajectory]):
                 sandbox_reset_ok=True,
                 cost_usd=math.fsum(costs),
                 stop_reason=stop_reason,
+                simulator_cost_usd=float(getattr(self.user, "cost_usd", 0.0) or 0.0),
             )
 
         for i in range(task.step_budget):
@@ -428,6 +429,10 @@ async def run_trial(
     limited by the executor's "agent_trial" pool (`Executor(concurrency=...)`)."""
     if user is not None and not simulator:
         raise ValueError("a simulated user must be named (simulator='name@version')")
+    if user is not None and getattr(user, "name", simulator) != simulator:
+        raise ValueError("simulator must be the simulated user's own name (user.name)")
+    if user is not None and getattr(user, "trial", trial) != trial:
+        raise ValueError("the simulated user belongs to another trial: make one per trial")
     node = AgentTrial(executor, adapters, prices, db_path, workdir, user, run_id)
     inp = TrialInput(
         task=TrialTask(

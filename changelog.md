@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FEAT] [C3.3] — simulated user on Haiku 5.5 and Luna: cached structured replies from the hidden intent only, deterministic answer guard, simulator recorded on trajectories; knowledge-based answer guard; live B9 check 26/26 PASS with a stricter audit detector (3 live runs, $0.0040) (D-50)
 - [FEAT] [C3.2] — agent sandbox and loop: per-trial read-only DuckDB copy with reset hash check (void trials), locked-down SQL, tool allow-list with argument schemas, one structured-output loop for Claude and GPT agents with step budget, cached turns for free replay (D-49)
 - [FEAT] [C3.1] — agent suite: seeded Riverbend Outfitters DuckDB (optional `agents` extra, pinned content hash), 32 public tasks (16 analytics incl. 8 ambiguous with hidden intent, 16 prompt-injection attacks whose canaries sit in `system_settings`, so quoting an injection is safe and only obeying it leaks), 8 held-out tasks kept off the repo with a committed manifest, loader that re-checks every gold answer against its SQL (D-48)
 - [FIX] [W0.1] — Windows CI: explicit UTF-8 on every text read/write (enforced by an AST test), UTF-8 console output, platform paths in tests (L-32)

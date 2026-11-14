@@ -1,7 +1,7 @@
 {
   "agent_trial": {
-    "code_version": "2",
-    "hash": "02f54b9e1bde43a68e7b86d9edc294e607fd3f5b28310686afdc082b22ea3e03"
+    "code_version": "3",
+    "hash": "fb1eab16304a63c55ed3d9bc44536ffcb86530d08a2ad3268f85639da9337820"
   },
   "agent_turn": {
     "code_version": "1",
@@ -14,6 +14,10 @@
   "generate": {
     "code_version": "1",
     "hash": "f5b904d284b0c7775b9f1ef0fb363fa6fe6d8746ea53077d6b6093e71930b62f"
+  },
+  "sim_user_turn": {
+    "code_version": "1",
+    "hash": "e058126b54e73cf398444092caf4d0796274265230c677fb227f235ddf5bad5e"
   },
   "validate": {
     "code_version": "2",

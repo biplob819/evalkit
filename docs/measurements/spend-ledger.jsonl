@@ -5,3 +5,6 @@
 {"at": "2026-11-14T15:31:37+00:00", "judges": "live", "kind": "real_run_live_judges", "n_cases": 12, "run_id": "r-da401a6e9bcb", "spent_usd": 1.477624}
 {"at": "2026-11-14T15:55:08+00:00", "items": 3, "kind": "faithfulness_check", "spent_usd": 0.026712}
 {"at": "2026-11-14T16:01:11+00:00", "items": 3, "kind": "faithfulness_check", "spent_usd": 0.026612}
+{"at": "2026-11-14T17:17:30+00:00", "kind": "simuser_check", "questions": 20, "spent_usd": 0.001152}
+{"at": "2026-11-14T17:27:04+00:00", "kind": "simuser_check", "questions": 26, "spent_usd": 0.001443}
+{"at": "2026-11-14T17:27:30+00:00", "kind": "simuser_check", "questions": 26, "spent_usd": 0.001449}

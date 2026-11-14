@@ -95,6 +95,9 @@ class Trajectory(Model):
     stop_reason: Literal["final_answer", "step_budget", "refusal", "transport", "void"] = (
         "final_answer"
     )
+    # C3.3: what the simulated user cost in this trial. Kept apart from `cost_usd` (the
+    # agent's own spend, the basis of cost per success); reported alongside it.
+    simulator_cost_usd: NonNegFloat = 0.0
 
     @model_validator(mode="after")
     def _steps_in_order(self) -> Trajectory:
@@ -110,6 +113,7 @@ class Trajectory(Model):
 class AgentScore(Model):
     task_id: NonBlank
     agent: NonBlank
+    simulator: str | None = None  # per-simulator reporting (FR22); None without ask_user
     trial: PosInt
     success: bool
     valid_tool_calls: Fraction
