@@ -48,6 +48,27 @@ def write_measurements(path: Path, stats: dict[str, dict[str, Any]], meta: dict[
     path.write_text(json.dumps({"meta": meta, "models": stats}, indent=2, sort_keys=True) + "\n")
 
 
+LEDGER = Path(__file__).resolve().parents[2] / "docs" / "measurements" / "spend-ledger.jsonl"
+
+
+def record_spend(
+    kind: str, spent_usd: float, detail: dict[str, Any], ledger: Path = LEDGER
+) -> float:
+    """Append one real-API run to the spend ledger and return the running total in USD."""
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "kind": kind,
+        "spent_usd": round(spent_usd, 6),
+        **detail,
+    }
+    with ledger.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    return round(
+        sum(json.loads(line)["spent_usd"] for line in ledger.read_text().splitlines() if line), 6
+    )
+
+
 def assumptions_from(path: Path, base: TokenAssumptions | None = None) -> TokenAssumptions:
     """Generation assumptions from a measurements file: means across models that returned."""
     data = json.loads(path.read_text(encoding="utf-8"))["models"]

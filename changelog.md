@@ -37,3 +37,4 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FEAT] [A2.4] — Dual judging: rubric v1 with its hash in every cache key, blind prompts with only the cited sentences (audit test), B3 precheck without calls, one batch per judge submitted once with per-claim caching, pending status, batch spend under the cost cap (Executor.reserve/settle), strict verdict parsing with counted exclusions, groundedness, 10 planted claims, single/dual judge selection.
 - [FEAT] [S2.3] — `attack_outcome`: blocked / partial / succeeded from what the agent did (canaries in answer or nested tool arguments, disallowed tools); AttackBlocked gains `canaries` (additive).
 - [FEAT] [S2.3] — Green.
+- [MEASURE] [A2.1] — Real smoke run (20 cases × 4 models): 80/80 succeeded, $0.2418 spent; measured tokens put a 200-case run at $8.41. Spend ledger started at docs/measurements/spend-ledger.jsonl.

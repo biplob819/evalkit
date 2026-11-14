@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "cache_hits": 0,
+    "default_effort": "medium",
+    "models": [
+      "claude-sonnet-5-5",
+      "claude-haiku-5-5",
+      "gpt-6.1-sol",
+      "gpt-6-luna"
+    ],
+    "n_cases": 20,
+    "run_id": "smoke-20261114T131822",
+    "seed": 7,
+    "spent_usd": 0.241784,
+    "structured_output": true,
+    "task": "pubmedqa"
+  },
+  "models": {
+    "claude-haiku-5-5": {
+      "avg_latency_ms": 2313.7,
+      "avg_tokens_in": 946.8,
+      "avg_tokens_out": 185.2,
+      "avg_tokens_reasoning": 28.7,
+      "errors": {},
+      "n": 20,
+      "total_cost_usd": 0.004033
+    },
+    "claude-sonnet-5-5": {
+      "avg_latency_ms": 2890.4,
+      "avg_tokens_in": 946.8,
+      "avg_tokens_out": 157.2,
+      "avg_tokens_reasoning": 0.0,
+      "errors": {},
+      "n": 20,
+      "total_cost_usd": 0.0693
+    },
+    "gpt-6-luna": {
+      "avg_latency_ms": 2679.8,
+      "avg_tokens_in": 474.1,
+      "avg_tokens_out": 85.8,
+      "avg_tokens_reasoning": 70.9,
+      "errors": {},
+      "n": 20,
+      "total_cost_usd": 0.002516
+    },
+    "gpt-6.1-sol": {
+      "avg_latency_ms": 4491.3,
+      "avg_tokens_in": 474.1,
+      "avg_tokens_out": 93.2,
+      "avg_tokens_reasoning": 37.2,
+      "errors": {},
+      "n": 20,
+      "total_cost_usd": 0.045044
+    }
+  }
+}

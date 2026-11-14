@@ -131,7 +131,14 @@ def main(argv: list[str] | None = None) -> int:
             f"{model:<22} {s['n']:>3} {errs:<18} {s['avg_tokens_in']:>7} {s['avg_tokens_out']:>6} "
             f"{s['avg_tokens_reasoning']:>7} {s['avg_latency_ms']:>7} ${s['total_cost_usd']:>8.4f}"
         )
-    print(f"\nmeasurements written to {out.relative_to(ROOT)}")
+    import json as _json
+
+    from evalkit.smoke import record_spend
+
+    meta = _json.loads(out.read_text())["meta"]
+    total = record_spend("smoke", meta["spent_usd"], {"run_id": meta["run_id"], "n_cases": args.n})
+    print(f"\nthis run spent ${meta['spent_usd']:.4f}; all real API spend so far: ${total:.4f}")
+    print(f"measurements written to {out.relative_to(ROOT)}")
     dead = [m for m, s in stats.items() if s["errors"].get("transport", 0) == s["n"]]
     if dead:
         print(f"every call failed for: {', '.join(dead)}")
