@@ -17,3 +17,10 @@ Portfolio notes.md
 runs/
 heldout/*
 !heldout/MANIFEST.json
+
+# Streamlit local secrets
+.streamlit/secrets.toml
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

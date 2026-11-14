@@ -273,6 +273,7 @@ def test_the_daily_budget_refusal_reaches_the_visitor(tmp_path):
 def test_postgres_daily_cap_holds_under_concurrency():
     url = os.environ["EVALKIT_TEST_POSTGRES_URL"]
     store = PostgresSpend(url)
+    store.ensure_table()
     day = "2031-01-01"
     with __import__("psycopg").connect(url) as con:
         con.execute("DELETE FROM demo_spend WHERE day = %s", (day,))

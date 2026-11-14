@@ -44,6 +44,7 @@ agents = [
 ]
 demo = [
     "psycopg[binary]>=3.2",
+    "streamlit>=1.40",
 ]
 
 [dependency-groups]
@@ -76,7 +77,7 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]  # allow the › separator used in proof cells
 
 [tool.pyright]
-include = ["src", "scripts", "tests"]
+include = ["src", "scripts", "tests", "demo"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
 extraPaths = ["scripts"]

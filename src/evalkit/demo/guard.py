@@ -12,6 +12,7 @@ After the call the reservation is settled to the actual cost.
 from __future__ import annotations
 
 import hmac
+import logging
 import sqlite3
 import threading
 import time
@@ -27,6 +28,13 @@ DAILY_CAP_USD = 3.0  # FR16
 RATE_LIMIT = 5  # live requests per session
 RATE_WINDOW_S = 3600.0
 MAX_SESSIONS = 10_000  # rate-limit memory bound: the oldest idle sessions are forgotten first
+
+
+STORE_DOWN = (
+    "The live budget store is unavailable right now; try again later or use your own API keys. "
+    "Replay mode always works."
+)
+LOG = logging.getLogger("evalkit.demo")
 
 
 class GuardRefused(Exception):
@@ -113,14 +121,21 @@ class PostgresSpend:
 
             connect = psycopg.connect
         self._connect = lambda: connect(url)
+        self._ready = False  # the table is created on first use: constructing never connects
+
+    def ensure_table(self) -> None:
+        if self._ready:
+            return
         try:
             with self._connect() as con:
                 con.execute(self.TABLE)
         except Exception as exc:  # two processes creating the table at once: one wins
             if type(exc).__name__ not in ("UniqueViolation", "DuplicateTable"):
                 raise
+        self._ready = True
 
     def reserve(self, day: str, amount: float, cap: float) -> bool:
+        self.ensure_table()
         with self._connect() as con:
             con.execute(
                 "INSERT INTO demo_spend (day, usd) VALUES (%s, 0) ON CONFLICT (day) DO NOTHING",
@@ -134,6 +149,7 @@ class PostgresSpend:
             return row is not None
 
     def settle(self, day: str, reserved: float, actual: float) -> None:
+        self.ensure_table()
         with self._connect() as con:
             con.execute(
                 "UPDATE demo_spend SET usd = GREATEST(0, usd + %s) WHERE day = %s",
@@ -141,6 +157,7 @@ class PostgresSpend:
             )
 
     def spent(self, day: str) -> float:
+        self.ensure_table()
         with self._connect() as con:
             row = con.execute("SELECT usd FROM demo_spend WHERE day = %s", (day,)).fetchone()
             return float(row[0]) if row else 0.0
@@ -187,18 +204,14 @@ class Guard:
         if not hmac.compare_digest(passcode.encode(), self._passcode):
             raise GuardRefused("Wrong passcode.")
 
-    def reserve(self, passcode: str, session: str, hold_usd: float) -> Ticket:
-        """Refuse (GuardRefused) or reserve `hold_usd`, the request's upper bound, against
-        today's budget; nothing is called before this returns. Settle with the actual cost."""
-        self.check_passcode(passcode)
+    def admit(self, session: str, hold_usd: float) -> float:
+        """The checks every live request passes, whoever pays: a session, the per-request cap
+        (it also protects a visitor's own keys) and the session's rate limit. Takes a rate-limit
+        slot and returns its timestamp (for `_give_back`)."""
         if not session:
             raise GuardRefused("No session.")
-        if hold_usd > self.per_request_cap:
-            raise GuardRefused(
-                f"This request could cost up to ${hold_usd:.2f}, over the "
-                f"${self.per_request_cap:.2f} per-request limit. Try a shorter abstract."
-            )
-        with self._lock:  # tentatively take a rate-limit slot
+        self.check_cap(hold_usd)
+        with self._lock:
             now = self._clock()
             self._evict(now)
             hits = self._hits[session]
@@ -210,13 +223,36 @@ class Guard:
                     f"{self.rate_window_s / 60:.0f} minutes. Replay mode is always available."
                 )
             hits.append(now)
+        return now
+
+    def check_cap(self, hold_usd: float) -> None:
+        if hold_usd > self.per_request_cap:
+            raise GuardRefused(
+                f"This request could cost up to ${hold_usd:.2f}, over the "
+                f"${self.per_request_cap:.2f} per-request limit. Try a shorter abstract."
+            )
+
+    def _give_back(self, session: str, slot: float) -> None:
+        with self._lock:  # nothing ran: return the rate-limit slot
+            if self._hits.get(session) and self._hits[session][-1] == slot:
+                self._hits[session].pop()
+
+    def reserve(self, passcode: str, session: str, hold_usd: float) -> Ticket:
+        """Refuse (GuardRefused) or reserve `hold_usd`, the request's upper bound, against
+        today's budget; nothing is called before this returns. Settle with the actual cost."""
+        self.check_passcode(passcode)
+        slot = self.admit(session, hold_usd)
         day = self._today()
         # The bound is what the request may spend at most, so that is what is held against
         # today's budget; settle() returns the unused part.
-        if not self.spend.reserve(day, hold_usd, self.daily_cap):
-            with self._lock:  # give the slot back: nothing ran
-                if self._hits.get(session) and self._hits[session][-1] == now:
-                    self._hits[session].pop()
+        try:
+            held = self.spend.reserve(day, hold_usd, self.daily_cap)
+        except Exception as exc:  # the store is down: refuse readably, never echo its message
+            self._give_back(session, slot)
+            LOG.warning("demo spend store unavailable (%s)", type(exc).__name__)
+            raise GuardRefused(STORE_DOWN) from None
+        if not held:
+            self._give_back(session, slot)
             raise GuardRefused("Today's live budget is used up. Replay mode is always available.")
         return Ticket(day=day, reserved=hold_usd)
 
@@ -228,5 +264,19 @@ class Guard:
         while len(self._hits) > MAX_SESSIONS:  # still too many active: drop the oldest
             del self._hits[min(self._hits, key=lambda k: self._hits[k][-1])]
 
+    def remaining_today(self) -> float | None:
+        """Today's live budget not yet spent or held (for the page's budget line); None when
+        the store cannot be reached."""
+        try:
+            return max(0.0, self.daily_cap - self.spend.spent(self._today()))
+        except Exception as exc:
+            LOG.warning("demo spend store unavailable (%s)", type(exc).__name__)
+            return None
+
     def settle(self, ticket: Ticket, actual_usd: float) -> None:
-        self.spend.settle(ticket.day, ticket.reserved, max(0.0, actual_usd))
+        """Return the unused part of a reservation. If the store is down the whole reservation
+        stays held: today's budget is overcounted, never undercounted."""
+        try:
+            self.spend.settle(ticket.day, ticket.reserved, max(0.0, actual_usd))
+        except Exception as exc:
+            LOG.warning("demo spend settle failed (%s); reservation kept", type(exc).__name__)

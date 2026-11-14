@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-15
+- [FEAT] [D3.2] — demo page (Streamlit): replay by default with six prepared samples (`evalkit demo-cache`, $0.99 in three runs), live mode on the owner's keys behind the passcode or on a visitor's own keys (D-58), cards that fill in per model, aggregate-only logging; failed or unchecked cards are re-answered by the next cache run
 - [FEAT] [D3.1] — see commit 20c2fbc
 - [FEAT] [B2.3] — README headline chart and sentences generated from the published 200-case run (re-judged, D-52); report deployed to GitHub Pages by workflow (D-47, D-57)
 - [FIX] [C3.4] — first full agent run (300 trials, $3.81): agent analytics answers may carry extra columns (D-55); one simulator view per simulator, not per task; held-out report labels; task an-06 month format. Result: Sonnet 81% vs Sol 82–83% public success, 75% each held-out, no separated gap; agents rarely asked clarifying questions (6 and 16 of 60 ambiguous trials)

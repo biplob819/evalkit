@@ -16,3 +16,6 @@
 {"at": "2026-11-14T19:03:09+00:00", "kind": "agent_run", "run_id": "a-969daa3659a7", "spent_usd": 3.739228, "trials": 300}
 {"at": "2026-11-14T19:03:09+00:00", "kind": "agent_run", "note": "an-06 task fix; the other 294 trials replayed from cache", "run_id": "a-04da6b3d3618", "spent_usd": 0.069154, "trials": 6}
 {"at": "2026-11-14T19:29:42+00:00", "kind": "benchmark_rejudge_200", "note": "both judges re-run with answer-citation grounding (D-52)", "run_id": "r-e8dac378d2d3", "spent_usd": 8.482221}
+{"at": "2026-11-15T00:00:00+00:00", "kind": "demo_cache", "note": "6 replay samples; 4 had cards fail (a fresh event loop per sample broke the provider clients) and were re-answered", "run_id": "demo-cache-1", "spent_usd": 0.483148}
+{"at": "2026-11-15T00:00:00+00:00", "kind": "demo_cache", "note": "re-answer of the 4 samples after the one-event-loop fix", "run_id": "demo-cache-2", "spent_usd": 0.395181}
+{"at": "2026-11-15T00:00:00+00:00", "kind": "demo_cache", "note": "re-answer of 1 sample whose claim extraction had failed silently (now an error card)", "run_id": "demo-cache-3", "spent_usd": 0.106745}

@@ -109,6 +109,11 @@ class CitedSentence(Model):
     text: str
 
 
+class ClaimMark(Model):
+    text: str
+    verdict: Literal["supported", "unsupported", "unchecked"]
+
+
 class AnswerCard(Model):
     model: str
     label: str | None = None
@@ -117,6 +122,7 @@ class AnswerCard(Model):
     groundedness: float | None = None  # share of the judged claims the judge supported
     fully_grounded: bool | None = None
     n_claims: NonNegInt = 0
+    claims: tuple[ClaimMark, ...] = ()  # each claim marked as the judge found it (Flow B)
     judge: str | None = None
     cost_usd: NonNegFloat = 0.0  # everything this card cost: answer, extraction and judging
     latency_ms: NonNegInt = 0
@@ -324,12 +330,28 @@ async def _one_model(
         return done(error="grading timed out")
     except BudgetExceeded:
         return done(error="grading stopped at the cost cap")
+    if cs.error is not None:  # the answer stands, but its claims could not be checked
+        return done(error=f"claims not checked ({cs.error})")
     if not claims:
         return done(n_claims=0)
-    share, fully = groundedness(claims, res.verdicts)
     extra = len(cs.claims) - len(claims)
     note = f"{extra} more claims not checked in live mode." if extra > 0 else None
-    return done(groundedness=share, fully_grounded=fully, n_claims=len(claims), note=note)
+    marks = tuple(
+        ClaimMark(
+            text=cl.text,
+            verdict=res.verdicts[cl.id].verdict if cl.id in res.verdicts else "unchecked",
+        )
+        for cl in cs.claims
+    )
+    if any(cl.id not in res.verdicts for cl in claims):
+        # a judge call failed: a share over the judged claims would look like a real score
+        return done(
+            error="claims not checked (judge)", n_claims=len(claims), claims=marks, note=note
+        )
+    share, fully = groundedness(claims, res.verdicts)
+    return done(
+        groundedness=share, fully_grounded=fully, n_claims=len(claims), claims=marks, note=note
+    )
 
 
 async def compare(
@@ -348,8 +370,10 @@ async def compare(
     fetch: Callable[[str], list[str]] = fetch_abstract,
     gen_timeout: float = GENERATE_TIMEOUT_S,
     grade_timeout: float = GRADE_TIMEOUT_S,
+    on_card: Callable[[int, AnswerCard], None] | None = None,
 ) -> list[AnswerCard]:
-    """One AnswerCard per model in `config.models`, in that order."""
+    """One AnswerCard per model in `config.models`, in that order. `on_card(i, card)` is called
+    as each model finishes (live mode), so a page can fill cards in as they arrive."""
     question = question.strip()
     if not question:
         raise ValueError("ask a question")
@@ -387,21 +411,28 @@ async def compare(
         # pipeline can starve another; cancelled calls count at their reservation.
         executors = [Executor(MemoryStore(), max_cost_usd=b, count_cancelled=True) for b in bounds]
         try:
+
+            async def tracked(i: int, ex: Executor, m: str) -> AnswerCard:
+                card = await _one_model(
+                    ex,
+                    case,
+                    m,
+                    live,
+                    adapters,
+                    prices,
+                    judge,
+                    "demo",
+                    gen_timeout,
+                    grade_timeout,
+                )
+                if on_card is not None:
+                    on_card(i, card.model_copy(update=_decorate(card, judge, advice)))
+                return card
+
             results = await asyncio.gather(
                 *(
-                    _one_model(
-                        ex,
-                        case,
-                        m,
-                        live,
-                        adapters,
-                        prices,
-                        judge,
-                        "demo",
-                        gen_timeout,
-                        grade_timeout,
-                    )
-                    for ex, m in zip(executors, config.models, strict=True)
+                    tracked(i, ex, m)
+                    for i, (ex, m) in enumerate(zip(executors, config.models, strict=True))
                 ),
                 return_exceptions=True,  # every pipeline finishes (or fails) before settling
             )
@@ -414,21 +445,26 @@ async def compare(
             if isinstance(r, BaseException):
                 if not isinstance(r, Exception):
                     raise r  # KeyboardInterrupt and friends are not a card
-                r = AnswerCard(
-                    model=m, judge=judge, cost_usd=ex.spent_usd, error=f"failed: {type(r).__name__}"
-                )
+                r = AnswerCard(model=m, judge=judge, cost_usd=ex.spent_usd, error=_why(r))
             cards.append(r)
-        live_note = LIVE_NOTE.format(judge=judge)
-        return [
-            c.model_copy(
-                update={
-                    "notice": NOTICE,
-                    "advice": advice,
-                    "note": f"{live_note} {c.note}" if c.note else live_note,
-                }
-            )
-            for c in cards
-        ]
+        return [c.model_copy(update=_decorate(c, judge, advice)) for c in cards]
+
+
+def _why(exc: Exception) -> str:
+    """A card's error text. Provider messages are not echoed: some quote part of the key."""
+    name = type(exc).__name__
+    if name in ("AuthenticationError", "PermissionDeniedError"):
+        return "the provider rejected the API key"
+    return f"failed: {name}"
+
+
+def _decorate(card: AnswerCard, judge: str, advice: bool) -> dict[str, object]:
+    live_note = LIVE_NOTE.format(judge=judge)
+    return {
+        "notice": NOTICE,
+        "advice": advice,
+        "note": f"{live_note} {card.note}" if card.note else live_note,
+    }
 
 
 async def _reserve(guard: Guard, passcode: str, session: str, hold: float) -> Ticket:

@@ -1,0 +1,1178 @@
+{
+  "7f4ef7003c12dc3f": [
+    {
+      "model": "claude-sonnet-5-5",
+      "label": "yes",
+      "answer": "In 30 patients with critical leg ischemia and insufficient venous material, the combined technique reached a cumulative primary patency of 60.3% at 1 year and 48.4% at 3 years. Limb salvage was 68.6% at both 1 and 3 years. These results suggest the technique is a reasonable option when vein is limited, though the abstract has no comparison group and the series is small, so \"acceptable\" is an interpretation of modest outcomes.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "The aim of this study was to analyse the results of infragenual arterial revascularisation using semiclosed endarterectomy of the superficial femoral artery combined with a short venous bypass in patients with critical leg ischemia and insufficient venous material for a straightforward femorocrural reconstruction."
+        },
+        {
+          "n": 2,
+          "text": "From December 1990 through December 1998 thirty patients were studied (22 males and 8 females; mean age 65 years, range 31-92 years)."
+        },
+        {
+          "n": 5,
+          "text": "The cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years."
+        },
+        {
+          "n": 6,
+          "text": "The limb salvage rate was 68.6% at 1 and at 3 years."
+        }
+      ],
+      "groundedness": 0.6666666666666666,
+      "fully_grounded": false,
+      "n_claims": 6,
+      "claims": [
+        {
+          "text": "In 30 patients with critical leg ischemia and insufficient venous material, the combined technique reached a cumulative primary patency of 60.3% at 1 year and 48.4% at 3 years.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Limb salvage was 68.6% at both 1 and 3 years.",
+          "verdict": "supported"
+        },
+        {
+          "text": "These results suggest the technique is a reasonable option when vein is limited.",
+          "verdict": "unsupported"
+        },
+        {
+          "text": "The abstract has no comparison group.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The series is small.",
+          "verdict": "supported"
+        },
+        {
+          "text": "\"Acceptable\" is an interpretation of modest outcomes.",
+          "verdict": "unsupported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.038274,
+      "latency_ms": 11218,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "label": "maybe",
+      "answer": "The abstract reports results of semi-closed endarterectomy of the superficial femoral artery with a short venous bypass in 30 patients with critical leg ischemia and insufficient venous material. Cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years, and limb salvage was 68.6% at 1 and 3 years. The sentences do not include a comparator or a judgment of whether these outcomes make the approach acceptable, so the question cannot be settled from them alone.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "The aim of this study was to analyse the results of infragenual arterial revascularisation using semiclosed endarterectomy of the superficial femoral artery combined with a short venous bypass in patients with critical leg ischemia and insufficient venous material for a straightforward femorocrural reconstruction."
+        },
+        {
+          "n": 2,
+          "text": "From December 1990 through December 1998 thirty patients were studied (22 males and 8 females; mean age 65 years, range 31-92 years)."
+        },
+        {
+          "n": 5,
+          "text": "The cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years."
+        },
+        {
+          "n": 6,
+          "text": "The limb salvage rate was 68.6% at 1 and at 3 years."
+        }
+      ],
+      "groundedness": 0.8,
+      "fully_grounded": false,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "The abstract reports results of semi-closed endarterectomy of the superficial femoral artery with a short venous bypass in 30 patients with critical leg ischemia and insufficient venous material.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Limb salvage was 68.6% at 1 and 3 years.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The sentences do not include a comparator or a judgment of whether these outcomes make the approach acceptable.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The question cannot be settled from the sentences alone.",
+          "verdict": "unsupported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0280859,
+      "latency_ms": 9405,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "label": "maybe",
+      "answer": "The procedure was studied in 30 patients with critical leg ischemia and insufficient venous material for straightforward femorocrural reconstruction. Primary patency was 60.3% at 1 year and 48.4% at 3 years, while limb salvage was 68.6% at both time points. These outcomes suggest potential utility, but the abstract does not explicitly establish whether the procedure is an acceptable alternative.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "The aim of this study was to analyse the results of infragenual arterial revascularisation using semiclosed endarterectomy of the superficial femoral artery combined with a short venous bypass in patients with critical leg ischemia and insufficient venous material for a straightforward femorocrural reconstruction."
+        },
+        {
+          "n": 2,
+          "text": "From December 1990 through December 1998 thirty patients were studied (22 males and 8 females; mean age 65 years, range 31-92 years)."
+        },
+        {
+          "n": 5,
+          "text": "The cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years."
+        },
+        {
+          "n": 6,
+          "text": "The limb salvage rate was 68.6% at 1 and at 3 years."
+        }
+      ],
+      "groundedness": 0.8,
+      "fully_grounded": false,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "The procedure was studied in 30 patients with critical leg ischemia and insufficient venous material for straightforward femorocrural reconstruction.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Primary patency was 60.3% at 1 year and 48.4% at 3 years.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Limb salvage was 68.6% at both time points.",
+          "verdict": "supported"
+        },
+        {
+          "text": "These outcomes suggest potential utility of the procedure.",
+          "verdict": "unsupported"
+        },
+        {
+          "text": "The abstract does not explicitly establish whether the procedure is an acceptable alternative.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0323167,
+      "latency_ms": 13552,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6-luna",
+      "label": "maybe",
+      "answer": "The study evaluated this approach in patients with critical leg ischemia and insufficient venous material, reporting limb salvage of 68.6% at both 1 and 3 years and primary patency of 60.3% at 1 year and 48.4% at 3 years [1, 5, 6]. These results alone do not establish whether it is an acceptable alternative, since the abstract provides no comparison or explicit judgment of acceptability [1, 5, 6].",
+      "cited": [
+        {
+          "n": 1,
+          "text": "The aim of this study was to analyse the results of infragenual arterial revascularisation using semiclosed endarterectomy of the superficial femoral artery combined with a short venous bypass in patients with critical leg ischemia and insufficient venous material for a straightforward femorocrural reconstruction."
+        },
+        {
+          "n": 5,
+          "text": "The cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years."
+        },
+        {
+          "n": 6,
+          "text": "The limb salvage rate was 68.6% at 1 and at 3 years."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 2,
+      "claims": [
+        {
+          "text": "The study evaluated this approach in patients with critical leg ischemia and insufficient venous material, reporting limb salvage of 68.6% at both 1 and 3 years and primary patency of 60.3% at 1 year and 48.4% at 3 years.",
+          "verdict": "supported"
+        },
+        {
+          "text": "These results alone do not establish whether it is an acceptable alternative, since the abstract provides no comparison or explicit judgment of acceptability.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.011567299999999999,
+      "latency_ms": 8227,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    }
+  ],
+  "83f7af79f1964645": [
+    {
+      "model": "claude-sonnet-5-5",
+      "label": "maybe",
+      "answer": "Results are mixed. Overall, OSA patients had higher VO2max than the normalized Air Force data, but those with an apnea-hypopnea index above 20 had decreased VO2max. Treatment, medical or surgical, produced no change in VO2max, so the effect of OSA on aerobic fitness depends on severity and is not clear-cut.",
+      "cited": [
+        {
+          "n": 4,
+          "text": "Overall, individuals with OSA had increased VO2max when compared to the normalized US Air Force data (p<.001)."
+        },
+        {
+          "n": 5,
+          "text": "Patients with an apnea-hypopnea index of greater than 20 demonstrated a decreased VO2max as compared to normalized values (p<.001)."
+        },
+        {
+          "n": 6,
+          "text": "No differences in VO2max were observed after either medical or surgical therapy for OSA."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "Results are mixed.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Overall, OSA patients had higher VO2max than the normalized Air Force data.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Patients with an apnea-hypopnea index above 20 had decreased VO2max.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Treatment, medical or surgical, produced no change in VO2max.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The effect of OSA on aerobic fitness depends on severity and is not clear-cut.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0328653,
+      "latency_ms": 8488,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "label": "maybe",
+      "answer": "The abstract gives mixed findings: overall, patients with OSA had higher VO2max than normalized US Air Force data, while those with an apnea-hypopnea index above 20 showed decreased VO2max compared to normalized values. Medical or surgical therapy for OSA produced no observed differences in VO2max. Because the effect depends on OSA severity and the overall result runs in the opposite direction, the sentences do not settle a simple yes or no answer.",
+      "cited": [
+        {
+          "n": 4,
+          "text": "Overall, individuals with OSA had increased VO2max when compared to the normalized US Air Force data (p<.001)."
+        },
+        {
+          "n": 5,
+          "text": "Patients with an apnea-hypopnea index of greater than 20 demonstrated a decreased VO2max as compared to normalized values (p<.001)."
+        },
+        {
+          "n": 6,
+          "text": "No differences in VO2max were observed after either medical or surgical therapy for OSA."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 4,
+      "claims": [
+        {
+          "text": "The abstract gives mixed findings: overall, patients with OSA had higher VO2max than normalized US Air Force data, while those with an apnea-hypopnea index above 20 showed decreased VO2max compared to normalized values.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Medical or surgical therapy for OSA produced no observed differences in VO2max.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The effect depends on OSA severity and the overall result runs in the opposite direction.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The sentences do not settle a simple yes or no answer.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.022916000000000002,
+      "latency_ms": 7117,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "label": "yes",
+      "answer": "OSA was associated with differences in aerobic fitness, but the direction depended on apnea severity: overall, patients with OSA had higher VO2max than normative controls, whereas those with an apnea-hypopnea index greater than 20 had lower VO2max. No differences in VO2max were observed after medical or surgical therapy for OSA.",
+      "cited": [
+        {
+          "n": 4,
+          "text": "Overall, individuals with OSA had increased VO2max when compared to the normalized US Air Force data (p<.001)."
+        },
+        {
+          "n": 5,
+          "text": "Patients with an apnea-hypopnea index of greater than 20 demonstrated a decreased VO2max as compared to normalized values (p<.001)."
+        },
+        {
+          "n": 6,
+          "text": "No differences in VO2max were observed after either medical or surgical therapy for OSA."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 4,
+      "claims": [
+        {
+          "text": "OSA was associated with differences in aerobic fitness, but the direction depended on apnea severity.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Overall, patients with OSA had higher VO2max than normative controls.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Patients with an apnea-hypopnea index greater than 20 had lower VO2max.",
+          "verdict": "supported"
+        },
+        {
+          "text": "No differences in VO2max were observed after medical or surgical therapy for OSA.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0240239,
+      "latency_ms": 15638,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6-luna",
+      "label": "maybe",
+      "answer": "The findings suggest that the association depends on OSA severity: overall, patients with OSA had higher VO2max than controls, while those with an apnea-hypopnea index greater than 20 had lower VO2max. No VO2max differences were observed after medical or surgical therapy, so the results do not establish a uniform effect of OSA on aerobic fitness.",
+      "cited": [
+        {
+          "n": 4,
+          "text": "Overall, individuals with OSA had increased VO2max when compared to the normalized US Air Force data (p<.001)."
+        },
+        {
+          "n": 5,
+          "text": "Patients with an apnea-hypopnea index of greater than 20 demonstrated a decreased VO2max as compared to normalized values (p<.001)."
+        },
+        {
+          "n": 6,
+          "text": "No differences in VO2max were observed after either medical or surgical therapy for OSA."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "The association between OSA and VO2max depends on OSA severity.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Overall, patients with OSA had higher VO2max than controls.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Patients with an apnea-hypopnea index greater than 20 had lower VO2max.",
+          "verdict": "supported"
+        },
+        {
+          "text": "No VO2max differences were observed after medical or surgical therapy.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The results do not establish a uniform effect of OSA on aerobic fitness.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0269401,
+      "latency_ms": 8812,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    }
+  ],
+  "aa831aaa78fc2e5c": [
+    {
+      "model": "claude-sonnet-5-5",
+      "label": "yes",
+      "answer": "Spatial attention influenced affective prosody processing at early stages: emotional prosody effects interacted with spatial attention before 200 ms. At later stages (>200 ms) the effects were additive, so prosody was still processed when unattended. Thus attention modulates early processing but does not eliminate prosody effects.",
+      "cited": [
+        {
+          "n": 6,
+          "text": "Event-related potentials (ERPs) differed as a function of emotional prosody both when attended and when unattended."
+        },
+        {
+          "n": 7,
+          "text": "While emotional prosody effects interacted with effects of spatial attention at early processing levels (<200 ms), these effects were additive at later processing stages (>200 ms)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 6,
+      "claims": [
+        {
+          "text": "Spatial attention influenced affective prosody processing at early stages.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Emotional prosody effects interacted with spatial attention before 200 ms.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later stages (>200 ms) the effects of emotional prosody were additive with spatial attention.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Prosody was still processed when it was unattended.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Attention modulates early processing of affective prosody.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Attention does not eliminate prosody effects.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0356636,
+      "latency_ms": 12605,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "label": "yes",
+      "answer": "The study found that emotional prosody effects interacted with spatial attention at early processing levels (<200 ms), indicating that spatial attention modulates affective prosody processing early on. At later stages (>200 ms) the two effects were additive rather than interacting. Prosody effects appeared both when stimuli were attended and when they were unattended.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "The present study asked whether the processing of affective prosody is modulated by spatial attention."
+        },
+        {
+          "n": 6,
+          "text": "Event-related potentials (ERPs) differed as a function of emotional prosody both when attended and when unattended."
+        },
+        {
+          "n": 7,
+          "text": "While emotional prosody effects interacted with effects of spatial attention at early processing levels (<200 ms), these effects were additive at later processing stages (>200 ms)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 4,
+      "claims": [
+        {
+          "text": "The study found that emotional prosody effects interacted with spatial attention at early processing levels (<200 ms).",
+          "verdict": "supported"
+        },
+        {
+          "text": "Spatial attention modulates affective prosody processing early on.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later stages (>200 ms) the two effects were additive rather than interacting.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Prosody effects appeared both when stimuli were attended and when they were unattended.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0205053,
+      "latency_ms": 6969,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "label": "yes",
+      "answer": "Spatial attention influenced affective prosody processing at early processing levels (<200 ms), when emotional prosody effects interacted with spatial attention effects. At later stages (>200 ms), the effects were additive, and emotional prosody affected ERPs both when attended and unattended.",
+      "cited": [
+        {
+          "n": 6,
+          "text": "Event-related potentials (ERPs) differed as a function of emotional prosody both when attended and when unattended."
+        },
+        {
+          "n": 7,
+          "text": "While emotional prosody effects interacted with effects of spatial attention at early processing levels (<200 ms), these effects were additive at later processing stages (>200 ms)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "Spatial attention influenced affective prosody processing at early processing levels (<200 ms).",
+          "verdict": "supported"
+        },
+        {
+          "text": "At early processing levels (<200 ms), emotional prosody effects interacted with spatial attention effects.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later stages (>200 ms), the effects of emotional prosody and spatial attention were additive.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later stages (>200 ms), emotional prosody affected ERPs when attended.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later stages (>200 ms), emotional prosody affected ERPs when unattended.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0279021,
+      "latency_ms": 12952,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6-luna",
+      "label": "yes",
+      "answer": "Spatial attention influenced the processing of affective prosody at early processing levels, where emotional-prosody effects interacted with attention effects. At later stages, the effects were additive rather than interactive, and prosody effects were present whether the stimuli were attended or unattended.",
+      "cited": [
+        {
+          "n": 6,
+          "text": "Event-related potentials (ERPs) differed as a function of emotional prosody both when attended and when unattended."
+        },
+        {
+          "n": 7,
+          "text": "While emotional prosody effects interacted with effects of spatial attention at early processing levels (<200 ms), these effects were additive at later processing stages (>200 ms)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 4,
+      "claims": [
+        {
+          "text": "Spatial attention influenced the processing of affective prosody at early processing levels.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At early processing levels, emotional-prosody effects interacted with attention effects.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later processing stages, the effects of spatial attention and emotional prosody were additive rather than interactive.",
+          "verdict": "supported"
+        },
+        {
+          "text": "At later processing stages, prosody effects were present whether the stimuli were attended or unattended.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.019777399999999997,
+      "latency_ms": 6702,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    }
+  ],
+  "b6c2fe6b6c1f622a": [
+    {
+      "model": "claude-sonnet-5-5",
+      "label": "yes",
+      "answer": "In 83 patients examined separately by a trained urology nurse practitioner and a consultant urologist, each blinded to the other's findings, agreement was very close (Kappa 0.94). Each examiner missed one minute tumour, so their accuracy was similar. This suggests a trained nurse can feasibly perform flexible cystoscopy to detect bladder tumours.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To compare the accuracy achieved by a trained urology nurse practitioner (UNP) and consultant urologist in detecting bladder tumours during flexible cystoscopy."
+        },
+        {
+          "n": 2,
+          "text": "Eighty-three patients underwent flexible cystoscopy by both the UNP and consultant urologist, each unaware of the other's findings."
+        },
+        {
+          "n": 5,
+          "text": "One tumour was missed by the UNP and one by the urologist; each tumour was minute."
+        },
+        {
+          "n": 6,
+          "text": "Analysis using the chance-corrected proportional agreement (Kappa) was 0.94, indicating very close agreement."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 3,
+      "claims": [
+        {
+          "text": "In 83 patients examined separately by a trained urology nurse practitioner and a consultant urologist, each blinded to the other's findings, agreement was very close (Kappa 0.94).",
+          "verdict": "supported"
+        },
+        {
+          "text": "Each examiner missed one minute tumour, so their accuracy was similar.",
+          "verdict": "supported"
+        },
+        {
+          "text": "This suggests a trained nurse can feasibly perform flexible cystoscopy to detect bladder tumours.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.024019699999999998,
+      "latency_ms": 8109,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "label": "yes",
+      "answer": "In this study, a trained urology nurse practitioner detected bladder tumours during flexible cystoscopy with close agreement to the consultant urologist, with Kappa of 0.94 indicating very close agreement. Each missed only one minute tumour, so the nurse's accuracy was comparable to the urologist's. This supports the feasibility of a nurse cystoscopist, though the evidence comes from a single small study of 83 patients.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To compare the accuracy achieved by a trained urology nurse practitioner (UNP) and consultant urologist in detecting bladder tumours during flexible cystoscopy."
+        },
+        {
+          "n": 2,
+          "text": "Eighty-three patients underwent flexible cystoscopy by both the UNP and consultant urologist, each unaware of the other's findings."
+        },
+        {
+          "n": 5,
+          "text": "One tumour was missed by the UNP and one by the urologist; each tumour was minute."
+        },
+        {
+          "n": 6,
+          "text": "Analysis using the chance-corrected proportional agreement (Kappa) was 0.94, indicating very close agreement."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 6,
+      "claims": [
+        {
+          "text": "In this study, a trained urology nurse practitioner detected bladder tumours during flexible cystoscopy with close agreement to the consultant urologist.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The Kappa of 0.94 indicates very close agreement.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Each of the nurse and the urologist missed only one minute tumour.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The nurse's accuracy was comparable to the urologist's.",
+          "verdict": "supported"
+        },
+        {
+          "text": "This supports the feasibility of a nurse cystoscopist.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The evidence comes from a single small study of 83 patients.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0334338,
+      "latency_ms": 7690,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "label": "yes",
+      "answer": "The findings support a trained urology nurse practitioner as a feasible option for detecting bladder tumours during flexible cystoscopy. In 83 patients examined independently by both practitioners, the nurse and consultant urologist each missed one minute tumour, and agreement was very close (Kappa 0.94).",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To compare the accuracy achieved by a trained urology nurse practitioner (UNP) and consultant urologist in detecting bladder tumours during flexible cystoscopy."
+        },
+        {
+          "n": 2,
+          "text": "Eighty-three patients underwent flexible cystoscopy by both the UNP and consultant urologist, each unaware of the other's findings."
+        },
+        {
+          "n": 5,
+          "text": "One tumour was missed by the UNP and one by the urologist; each tumour was minute."
+        },
+        {
+          "n": 6,
+          "text": "Analysis using the chance-corrected proportional agreement (Kappa) was 0.94, indicating very close agreement."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 3,
+      "claims": [
+        {
+          "text": "The findings support a trained urology nurse practitioner as a feasible option for detecting bladder tumours during flexible cystoscopy.",
+          "verdict": "supported"
+        },
+        {
+          "text": "In 83 patients examined independently by both practitioners, the nurse and consultant urologist each missed one minute tumour.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Agreement between the nurse and consultant urologist was very close (Kappa 0.94).",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0203831,
+      "latency_ms": 8039,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6-luna",
+      "label": "maybe",
+      "answer": "The findings suggest a trained urology nurse practitioner could be a feasible option for detecting bladder tumours: agreement with the consultant urologist was very close (Kappa 0.94). However, each examiner missed one minute tumour, and the abstract does not directly assess feasibility beyond this comparison.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To compare the accuracy achieved by a trained urology nurse practitioner (UNP) and consultant urologist in detecting bladder tumours during flexible cystoscopy."
+        },
+        {
+          "n": 5,
+          "text": "One tumour was missed by the UNP and one by the urologist; each tumour was minute."
+        },
+        {
+          "n": 6,
+          "text": "Analysis using the chance-corrected proportional agreement (Kappa) was 0.94, indicating very close agreement."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 4,
+      "claims": [
+        {
+          "text": "The findings suggest a trained urology nurse practitioner could be a feasible option for detecting bladder tumours.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Agreement between the nurse practitioner and the consultant urologist was very close (Kappa 0.94).",
+          "verdict": "supported"
+        },
+        {
+          "text": "Each examiner missed one minute tumour.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The abstract does not directly assess feasibility beyond the comparison of agreement between examiners.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0226753,
+      "latency_ms": 8388,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    }
+  ],
+  "bee09ac2422f4caa": [
+    {
+      "model": "claude-sonnet-5-5",
+      "label": "no",
+      "answer": "The two procedures are not the same in terms of tissue removed. Cold knife cone specimens were significantly longer (1.5 vs. 1.0 cm, P = .001) and heavier (4.4 vs. 2.0 g, P = .001) than LEEP specimens. Diameter was larger for cold knife (2.6 vs. 2.2 cm) but not significantly different (P = .07).",
+      "cited": [
+        {
+          "n": 4,
+          "text": "Mean diameter of cold knife cone specimens was 2.6 vs. 2.2 cm for LEEP (P = .07)."
+        },
+        {
+          "n": 5,
+          "text": "Mean length of cold knife cone specimens was 1.5 vs. 1.0 cm for LEEP (P = .001)."
+        },
+        {
+          "n": 6,
+          "text": "Mean weight for cold knife cone specimens was 4.4 vs. 2.0 g for LEEP (P = .001)."
+        }
+      ],
+      "groundedness": 0.8,
+      "fully_grounded": false,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "The two procedures are not the same in terms of tissue removed.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimens were significantly longer (1.5 vs. 1.0 cm, P = .001) than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimens were significantly heavier (4.4 vs. 2.0 g, P = .001) than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimen diameter was larger (2.6 vs. 2.2 cm) than LEEP specimen diameter.",
+          "verdict": "unsupported"
+        },
+        {
+          "text": "The difference in diameter between cold knife and LEEP specimens was not statistically significant (P = .07).",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0343621,
+      "latency_ms": 13707,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "label": "no",
+      "answer": "The abstract compares LEEP and cold knife conization as different procedures that remove different amounts of tissue. Cold knife cone specimens were significantly longer (1.5 vs. 1.0 cm) and heavier (4.4 vs. 2.0 g) than LEEP specimens, with diameter trending larger but not significant (P = .07). The study therefore treats them as distinct procedures yielding different specimens, though it does not directly address clinical equivalence.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To prospectively evaluate the amount of tissue removed at loop electrosurgical excision procedure (LEEP) vs. cold knife conization."
+        },
+        {
+          "n": 4,
+          "text": "Mean diameter of cold knife cone specimens was 2.6 vs. 2.2 cm for LEEP (P = .07)."
+        },
+        {
+          "n": 5,
+          "text": "Mean length of cold knife cone specimens was 1.5 vs. 1.0 cm for LEEP (P = .001)."
+        },
+        {
+          "n": 6,
+          "text": "Mean weight for cold knife cone specimens was 4.4 vs. 2.0 g for LEEP (P = .001)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 6,
+      "claims": [
+        {
+          "text": "The abstract compares LEEP and cold knife conization as different procedures that remove different amounts of tissue.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimens were significantly longer (1.5 vs. 1.0 cm) than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimens were significantly heavier (4.4 vs. 2.0 g) than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimen diameter trended larger than LEEP specimen diameter but was not significant (P = .07).",
+          "verdict": "supported"
+        },
+        {
+          "text": "The study treats cold knife conization and LEEP as distinct procedures yielding different specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The study does not directly address clinical equivalence of cold knife conization and LEEP.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0366068,
+      "latency_ms": 8243,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "label": "no",
+      "answer": "The abstract treats LEEP and cold knife conization as distinct procedures and compares the tissue removed by each. Cold knife specimens had greater mean length (1.5 vs. 1.0 cm) and weight (4.4 vs. 2.0 g) than LEEP specimens.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To prospectively evaluate the amount of tissue removed at loop electrosurgical excision procedure (LEEP) vs. cold knife conization."
+        },
+        {
+          "n": 5,
+          "text": "Mean length of cold knife cone specimens was 1.5 vs. 1.0 cm for LEEP (P = .001)."
+        },
+        {
+          "n": 6,
+          "text": "Mean weight for cold knife cone specimens was 4.4 vs. 2.0 g for LEEP (P = .001)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 3,
+      "claims": [
+        {
+          "text": "The abstract treats LEEP and cold knife conization as distinct procedures and compares the tissue removed by each.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife specimens had greater mean length (1.5 vs. 1.0 cm) than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife specimens had greater weight (4.4 vs. 2.0 g) than LEEP specimens.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.022422499999999998,
+      "latency_ms": 9900,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6-luna",
+      "label": "no",
+      "answer": "The abstract treats LEEP and cold knife conization as separate procedures and compares their specimens. Cold knife cone specimens were significantly longer and heavier on average than LEEP specimens, so the procedures are not the same in this study.",
+      "cited": [
+        {
+          "n": 1,
+          "text": "To prospectively evaluate the amount of tissue removed at loop electrosurgical excision procedure (LEEP) vs. cold knife conization."
+        },
+        {
+          "n": 5,
+          "text": "Mean length of cold knife cone specimens was 1.5 vs. 1.0 cm for LEEP (P = .001)."
+        },
+        {
+          "n": 6,
+          "text": "Mean weight for cold knife cone specimens was 4.4 vs. 2.0 g for LEEP (P = .001)."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 5,
+      "claims": [
+        {
+          "text": "The abstract treats LEEP and cold knife conization as separate procedures.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The abstract compares the specimens of LEEP and cold knife conization.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimens were significantly longer on average than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Cold knife cone specimens were significantly heavier on average than LEEP specimens.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The procedures are not the same in this study.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0278242,
+      "latency_ms": 7931,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    }
+  ],
+  "edb0a18652175ab4": [
+    {
+      "model": "claude-sonnet-5-5",
+      "label": "no",
+      "answer": "Clinical predictors were not adequate in this study. Of 8 predictors examined, only neck tenderness occurred more often than expected in patients with cervical spine injury, and it was present in just 45.5% of them. This supports the hypothesis that clinical predictors alone miss many fractures in geriatric low-energy trauma.",
+      "cited": [
+        {
+          "n": 2,
+          "text": "We hypothesized that clinical predictors are not adequate in the identification of cervical spine fractures in geriatric blunt trauma patients with low-energy mechanism."
+        },
+        {
+          "n": 4,
+          "text": "A data form including 8 clinical predictors was completed for each group."
+        },
+        {
+          "n": 7,
+          "text": "Only neck tenderness exceeded the expected occurrence in the presence of a cervical spine injury (chi(2) = 18.1, P = .001) in just 45.5% of the study group."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 4,
+      "claims": [
+        {
+          "text": "Clinical predictors were not adequate in this study.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Of 8 predictors examined, only neck tenderness occurred more often than expected in patients with cervical spine injury.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Neck tenderness was present in just 45.5% of patients with cervical spine injury.",
+          "verdict": "supported"
+        },
+        {
+          "text": "This supports the hypothesis that clinical predictors alone miss many fractures in geriatric low-energy trauma.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0303931,
+      "latency_ms": 6710,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "label": "yes",
+      "answer": "The abstract indicates that clinical predictors are not adequate for identifying cervical spine fractures in this population. The authors hypothesized inadequacy, and among 8 clinical predictors only neck tenderness exceeded the expected occurrence with a cervical spine injury, and even then it was present in just 45.5% of the study group. This means most patients with fractures lacked the predictor, supporting that clinical predictors miss many fractures.",
+      "cited": [
+        {
+          "n": 2,
+          "text": "We hypothesized that clinical predictors are not adequate in the identification of cervical spine fractures in geriatric blunt trauma patients with low-energy mechanism."
+        },
+        {
+          "n": 4,
+          "text": "A data form including 8 clinical predictors was completed for each group."
+        },
+        {
+          "n": 7,
+          "text": "Only neck tenderness exceeded the expected occurrence in the presence of a cervical spine injury (chi(2) = 18.1, P = .001) in just 45.5% of the study group."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 6,
+      "claims": [
+        {
+          "text": "The abstract indicates that clinical predictors are not adequate for identifying cervical spine fractures in this population.",
+          "verdict": "supported"
+        },
+        {
+          "text": "The authors hypothesized inadequacy.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Among 8 clinical predictors only neck tenderness exceeded the expected occurrence with a cervical spine injury.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Neck tenderness was present in just 45.5% of the study group.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Most patients with fractures lacked the predictor.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Clinical predictors miss many fractures.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0346108,
+      "latency_ms": 7195,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "label": "no",
+      "answer": "The findings indicate that clinical predictors were not adequate to identify cervical spine fractures in this population. Only neck tenderness occurred more often than expected in patients with cervical spine injury, and it was present in just 45.5% of the study group.",
+      "cited": [
+        {
+          "n": 7,
+          "text": "Only neck tenderness exceeded the expected occurrence in the presence of a cervical spine injury (chi(2) = 18.1, P = .001) in just 45.5% of the study group."
+        }
+      ],
+      "groundedness": 0.6666666666666666,
+      "fully_grounded": false,
+      "n_claims": 3,
+      "claims": [
+        {
+          "text": "The findings indicate that clinical predictors were not adequate to identify cervical spine fractures in this population.",
+          "verdict": "unsupported"
+        },
+        {
+          "text": "Only neck tenderness occurred more often than expected in patients with cervical spine injury.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Neck tenderness was present in just 45.5% of the study group.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.0198712,
+      "latency_ms": 8440,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    },
+    {
+      "model": "gpt-6-luna",
+      "label": "no",
+      "answer": "Clinical predictors appear inadequate for identifying cervical spine fractures in these patients. Only neck tenderness exceeded the expected occurrence among patients with injury, and it was present in just 45.5% of the study group. [7]",
+      "cited": [
+        {
+          "n": 7,
+          "text": "Only neck tenderness exceeded the expected occurrence in the presence of a cervical spine injury (chi(2) = 18.1, P = .001) in just 45.5% of the study group."
+        }
+      ],
+      "groundedness": 1.0,
+      "fully_grounded": true,
+      "n_claims": 2,
+      "claims": [
+        {
+          "text": "Clinical predictors appear inadequate for identifying cervical spine fractures in these patients.",
+          "verdict": "supported"
+        },
+        {
+          "text": "Only neck tenderness exceeded the expected occurrence among patients with injury, and it was present in just 45.5% of the study group.",
+          "verdict": "supported"
+        }
+      ],
+      "judge": "claude-opus-5-5",
+      "cost_usd": 0.011934899999999998,
+      "latency_ms": 7752,
+      "error": null,
+      "notice": "Research demo, not medical advice. These answers summarise a study abstract; they are not guidance for any person's treatment. Ask a clinician about your own situation.",
+      "advice": false,
+      "note": "Live mode checks claims with one judge (claude-opus-5-5); the benchmark uses two."
+    }
+  ]
+}

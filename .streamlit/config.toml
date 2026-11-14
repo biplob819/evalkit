@@ -1,0 +1,7 @@
+# Streamlit Community Cloud runs apps from the repository root, so this applies to demo/app.py.
+[client]
+showErrorDetails = "none"  # a traceback could name the database host or carry request text
+toolbarMode = "viewer"
+
+[server]
+headless = true

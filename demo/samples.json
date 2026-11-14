@@ -1,0 +1,82 @@
+[
+  {
+    "id": "pqa-10759659",
+    "question": "The nurse cystoscopist: a feasible option?",
+    "sentences": [
+      "To compare the accuracy achieved by a trained urology nurse practitioner (UNP) and consultant urologist in detecting bladder tumours during flexible cystoscopy.",
+      "Eighty-three patients underwent flexible cystoscopy by both the UNP and consultant urologist, each unaware of the other's findings.",
+      "Before comparing the findings, each declared whether there was tumour or any suspicious lesion requiring biopsy.",
+      "Of 83 patients examined by flexible cystoscopy, 26 were found to have a tumour or a suspicious lesion.",
+      "One tumour was missed by the UNP and one by the urologist; each tumour was minute.",
+      "Analysis using the chance-corrected proportional agreement (Kappa) was 0.94, indicating very close agreement."
+    ],
+    "source": "PubMedQA (Jin et al., 2019, MIT licence)"
+  },
+  {
+    "id": "pqa-11149643",
+    "question": "Is semi-closed endarterectomy of the superficial femoral artery combined with a short venous bypass in case of insufficient venous material an acceptable alternative for limb-threatening ischemia?",
+    "sentences": [
+      "The aim of this study was to analyse the results of infragenual arterial revascularisation using semiclosed endarterectomy of the superficial femoral artery combined with a short venous bypass in patients with critical leg ischemia and insufficient venous material for a straightforward femorocrural reconstruction.",
+      "From December 1990 through December 1998 thirty patients were studied (22 males and 8 females; mean age 65 years, range 31-92 years).",
+      "The mean follow-up was 26 months (range 1-96 months).",
+      "Cumulative primary patency and limb salvage rates were calculated according to life-table analysis.",
+      "The cumulative primary patency was 60.3% at 1 year and 48.4% at 3 years.",
+      "The limb salvage rate was 68.6% at 1 and at 3 years."
+    ],
+    "source": "PubMedQA (Jin et al., 2019, MIT licence)"
+  },
+  {
+    "id": "pqa-11838307",
+    "question": "Cold knife conization vs. LEEP. Are they the same procedure?",
+    "sentences": [
+      "To prospectively evaluate the amount of tissue removed at loop electrosurgical excision procedure (LEEP) vs. cold knife conization.",
+      "Forty consecutive LEEP or cold knife conization specimens were prospectively measured and weighed by a single pathology technician.",
+      "Diameter, length and weight of the specimens were compared using Student's t test.",
+      "Mean diameter of cold knife cone specimens was 2.6 vs. 2.2 cm for LEEP (P = .07).",
+      "Mean length of cold knife cone specimens was 1.5 vs. 1.0 cm for LEEP (P = .001).",
+      "Mean weight for cold knife cone specimens was 4.4 vs. 2.0 g for LEEP (P = .001)."
+    ],
+    "source": "PubMedQA (Jin et al., 2019, MIT licence)"
+  },
+  {
+    "id": "pqa-18096128",
+    "question": "Cervical spine fractures in geriatric blunt trauma patients with low-energy mechanism: are clinical predictors adequate?",
+    "sentences": [
+      "Studies have identified clinical predictors to guide radiologic evaluation of the cervical spine in geriatric patients.",
+      "We hypothesized that clinical predictors are not adequate in the identification of cervical spine fractures in geriatric blunt trauma patients with low-energy mechanism.",
+      "A retrospective case-control study was performed on geriatric blunt trauma patients sustaining low-energy trauma from January 2000 to January 2006.",
+      "A data form including 8 clinical predictors was completed for each group.",
+      "There were 35 study and 64 control patients identified.",
+      "Both groups were similar in age (study 83.6 vs control 81.2) and injury severity score (study 9.06 vs control 9.61).",
+      "Only neck tenderness exceeded the expected occurrence in the presence of a cervical spine injury (chi(2) = 18.1, P = .001) in just 45.5% of the study group."
+    ],
+    "source": "PubMedQA (Jin et al., 2019, MIT licence)"
+  },
+  {
+    "id": "pqa-23360491",
+    "question": "Is the processing of affective prosody influenced by spatial attention?",
+    "sentences": [
+      "The present study asked whether the processing of affective prosody is modulated by spatial attention.",
+      "Pseudo-words with a neutral, happy, threatening, and fearful prosody were presented at two spatial positions.",
+      "Participants attended to one position in order to detect infrequent targets.",
+      "Emotional prosody was task irrelevant.",
+      "The electro-encephalogram (EEG) was recorded to assess processing differences as a function of spatial attention and emotional valence.",
+      "Event-related potentials (ERPs) differed as a function of emotional prosody both when attended and when unattended.",
+      "While emotional prosody effects interacted with effects of spatial attention at early processing levels (<200 ms), these effects were additive at later processing stages (>200 ms)."
+    ],
+    "source": "PubMedQA (Jin et al., 2019, MIT licence)"
+  },
+  {
+    "id": "pqa-17076091",
+    "question": "Does obstructive sleep apnea affect aerobic fitness?",
+    "sentences": [
+      "We sought to determine whether patients with obstructive sleep apnea (OSA) had an objective change in aerobic fitness during cycle ergometry compared to a normal population.",
+      "The most accurate test of aerobic fitness is measurement of maximum oxygen consumption (VO2max) with cycle ergometry.",
+      "We performed a retrospective cohort analysis (247 patients with OSA) of VO2max from annual cycle ergometry tests compared to a large control group (normative data from 1.4 million US Air Force tests) in a tertiary care setting.",
+      "Overall, individuals with OSA had increased VO2max when compared to the normalized US Air Force data (p<.001).",
+      "Patients with an apnea-hypopnea index of greater than 20 demonstrated a decreased VO2max as compared to normalized values (p<.001).",
+      "No differences in VO2max were observed after either medical or surgical therapy for OSA."
+    ],
+    "source": "PubMedQA (Jin et al., 2019, MIT licence)"
+  }
+]

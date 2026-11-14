@@ -505,6 +505,84 @@ def cmd_agent_run(args: argparse.Namespace) -> int:
     return code
 
 
+def cmd_demo_cache(args: argparse.Namespace) -> int:
+    from evalkit.adapters import get_adapter
+    from evalkit.config import load_run_config
+    from evalkit.cost import load_prices
+    from evalkit.demo import page as P
+    from evalkit.demo.engine import estimate_request_usd, request_bound_usd
+    from evalkit.env import load_dotenv, missing_keys
+    from evalkit.pipeline.generate import provider_for
+
+    load_dotenv(Path.cwd() / ".env")
+    try:
+        config = load_run_config(Path(args.config))
+        samples = P.load_samples(Path(args.samples))
+    except (OSError, ValueError) as exc:
+        return _err(str(exc))
+    prices = load_prices()
+    out = Path(args.out)
+    replay = P.load_replay(out)
+    todo = [s for s in samples if not P.is_cached(replay, s)]
+    judge = config.judges[0]
+    est = sum(estimate_request_usd(config, prices, judge, s.question, s.sentences) for s in todo)
+    bounds = [
+        request_bound_usd(s.question, s.sentences, config=config, prices=prices) for s in todo
+    ]
+    head = (
+        f"demo cache: {len(samples)} samples, {len(samples) - len(todo)} already cached, "
+        f"{len(todo)} to answer; estimate ${est:.2f} (worst case ${sum(bounds):.2f}), "
+        f"cap ${args.max_cost:.2f}"
+    )
+    if args.dry_run or not todo:
+        _emit(
+            args,
+            {
+                "dry_run": args.dry_run,
+                "to_answer": len(todo),
+                "estimate_usd": round(est, 4),
+                "worst_case_usd": round(sum(bounds), 4),
+            },
+            head + ("" if todo else "\nnothing to do"),
+        )
+        return 0
+    print(head, file=sys.stderr)
+    providers = {
+        provider_for(m, config.endpoints) for m in (*config.models, config.extractor, judge)
+    }
+    if missing := missing_keys(providers):
+        return _err(f"missing API keys: {', '.join(missing)}")
+    adapters = {p: get_adapter(p, prices=prices) for p in providers}
+
+    async def answer_all() -> tuple[float, int, int]:
+        # One event loop for every sample: the provider clients are bound to the loop that
+        # created them, so a fresh asyncio.run per sample breaks them after the first.
+        spent, added = 0.0, 0
+        for s, bound in zip(todo, bounds, strict=True):
+            if spent + bound > args.max_cost:  # the next sample could pass the cap: stop
+                return spent, added, len(todo) - added
+            part: dict[str, list] = {}
+            await P.build_replay(
+                [s], part, config=config, adapters=adapters, prices=prices, redo=True
+            )
+            replay.update(part)
+            spent += sum(c.cost_usd for cards in part.values() for c in cards)
+            added += 1
+            P.save_replay(out, replay)  # after every sample: nothing paid for is lost
+        return spent, added, 0
+
+    spent, added, stopped = asyncio.run(answer_all())
+    msg = f"answered {added} sample(s), spent ${spent:.4f} → {out}"
+    if stopped:
+        msg += f"; {stopped} left (raise --max-cost to continue, cached ones are not re-run)"
+    _emit(
+        args,
+        {"answered": added, "left": stopped, "spent_usd": round(spent, 6), "out": str(out)},
+        msg,
+    )
+    return 3 if stopped else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="evalkit",
@@ -576,6 +654,15 @@ def build_parser() -> argparse.ArgumentParser:
     ag.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
     ag.add_argument("--json", action="store_true", help="print one JSON object")
     ag.set_defaults(func=cmd_agent_run)
+
+    dc = sub.add_parser("demo-cache", help="answer the demo's sample questions for replay mode")
+    dc.add_argument("--samples", default="demo/samples.json")
+    dc.add_argument("--out", default="demo/replay.json")
+    dc.add_argument("--config", default="configs/pubmedqa.yaml")
+    dc.add_argument("--max-cost", type=float, default=10.0, help="USD cap for this run")
+    dc.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
+    dc.add_argument("--json", action="store_true")
+    dc.set_defaults(func=cmd_demo_cache)
 
     c = sub.add_parser("calibrate", help="label claims and score the judges")
     csub = c.add_subparsers(dest="action", required=True)
