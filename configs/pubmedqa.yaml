@@ -10,7 +10,7 @@ structured_output: true
 max_output_tokens: 2048   # reasoning tokens count toward this cap
 concurrency: {anthropic: 8, openai: 8}
 seed: 7
-max_cost_usd: 12
+max_cost_usd: 20
 default_effort: medium    # every generator at the same nominal effort (D-24)
-judge_effort: low         # OWNER D-28
-extractor_effort: low
+judge_effort: medium      # OWNER D-34 (supersedes D-28)
+extractor_effort: medium

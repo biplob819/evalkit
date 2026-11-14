@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
+import weakref
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -73,6 +74,11 @@ class Executor:
         self._spend = _Spend()
         self._lock = asyncio.Lock()
         self._pending: dict[str, asyncio.Future[BaseModel]] = {}
+        self._batch_reservations: dict[str, float] = {}
+        # Per event loop, weakly keyed so a finished loop and its locks can be freed.
+        self._named_locks: weakref.WeakKeyDictionary[
+            asyncio.AbstractEventLoop, dict[str, asyncio.Lock]
+        ] = weakref.WeakKeyDictionary()
         self.cache_hits = 0
         self.calls = 0
         self.coalesced = 0
@@ -80,6 +86,11 @@ class Executor:
     @property
     def spent_usd(self) -> float:
         return self._spend.spent
+
+    @property
+    def in_flight_usd(self) -> float:
+        """Reserved but not yet settled spend, including open batch holds."""
+        return self._spend.in_flight
 
     def _sem(self, provider: str | None) -> asyncio.Semaphore:
         # Nodes without a provider share the "_local" pool (default_concurrency slots).
@@ -187,6 +198,51 @@ class Executor:
         latency = int((time.perf_counter() - t0) * 1000)
         await self._log(node=node.name, key=key, cache_hit=False, latency_ms=latency, cost_usd=cost)
         return out
+
+    async def reserve(self, estimate: float) -> None:
+        """Reserve budget for work that does not go through run_node (provider batches).
+        Raises BudgetExceeded if it would not fit; pair with `settle`."""
+        await self._reserve(_check_amount(estimate, "estimate", "batch"))
+
+    async def settle(self, estimate: float, actual: float) -> None:
+        """Release a reservation and record what was actually spent."""
+        actual = _check_amount(actual, "actual cost", "batch")
+        async with self._lock:
+            self._spend.in_flight -= estimate
+            if abs(self._spend.in_flight) < 1e-12:  # float residue from many add/subtracts
+                self._spend.in_flight = 0.0
+            self._spend.spent += actual
+
+    async def hold_batch(self, batch_id: str, estimate: float) -> None:
+        """Keep a reservation open for a submitted batch until `settle_batch` (money for a
+        submitted batch is committed, so a pending batch keeps its budget held)."""
+        self._batch_reservations[batch_id] = self._batch_reservations.get(batch_id, 0.0) + estimate
+
+    async def rehold_batch(self, batch_id: str, estimate: float) -> None:
+        """Hold budget for a batch an earlier process submitted and has not been collected.
+        That money is already committed, so the hold is taken even past the cap; fresh work
+        then reserves against what is left. A batch already held here is not held twice."""
+        estimate = _check_amount(estimate, "estimate", "batch")
+        async with self._lock:
+            if batch_id in self._batch_reservations:
+                return
+            self._spend.in_flight += estimate
+            self._batch_reservations[batch_id] = estimate
+
+    def named_lock(self, name: str) -> asyncio.Lock:
+        """One lock per name (and event loop) for this executor, e.g. to serialise
+        scan-and-submit per judge. Keyed by loop because a lock that has waited in one loop
+        cannot be used from another, and an executor may outlive an `asyncio.run`."""
+        locks = self._named_locks.setdefault(asyncio.get_running_loop(), {})
+        if name not in locks:
+            locks[name] = asyncio.Lock()
+        return locks[name]
+
+    async def settle_batch(self, batch_id: str, actual: float) -> None:
+        """Record a collected batch's real cost, releasing this process's reservation for it.
+        Batches submitted by an earlier process have no reservation here; their cost is
+        recorded as committed spend."""
+        await self.settle(self._batch_reservations.pop(batch_id, 0.0), actual)
 
     async def submit_once(
         self, key: str, provider: str, submit: Callable[[], Awaitable[str]]

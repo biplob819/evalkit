@@ -41,8 +41,8 @@ class RunConfig(Model):
     # Effort is always explicit (D-24): per-model overrides, else the default.
     efforts: FrozenMap[Name] = Field(default_factory=dict)
     default_effort: Name = "medium"
-    judge_effort: Name = "low"  # OWNER D-28
-    extractor_effort: Name = "low"
+    judge_effort: Name = "medium"  # OWNER D-34 (supersedes D-28)
+    extractor_effort: Name = "medium"
 
     def effort_for(self, model: str) -> str:
         return self.efforts.get(model, self.default_effort)

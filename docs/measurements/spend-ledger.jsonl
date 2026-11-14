@@ -1,1 +1,3 @@
 {"at": "2026-11-14T13:18:42+00:00", "kind": "smoke", "n_cases": 20, "run_id": "smoke-20261114T131822", "spent_usd": 0.241784}
+{"at": "2026-11-14T13:29:19+00:00", "judges": ["claude-opus-5-5", "gpt-6.1-sol"], "kind": "planted_check", "spent_usd": 0.077342}
+{"at": "2026-11-14T13:51:34+00:00", "judges": ["claude-opus-5-5", "gpt-6.1-sol"], "kind": "planted_check", "spent_usd": 0.077152}

@@ -1,0 +1,169 @@
+{
+  "judge_effort": "medium",
+  "results": [
+    {
+      "judge": "claude-opus-5-5",
+      "spent_usd": 0.062084,
+      "problems": [],
+      "rows": [
+        {
+          "claim_id": "planted:0",
+          "verdict": "unsupported",
+          "quote": "Patients received aspirin for 12 weeks."
+        },
+        {
+          "claim_id": "planted:1",
+          "verdict": "unsupported",
+          "quote": "Participants reported their smoking history."
+        },
+        {
+          "claim_id": "planted:2",
+          "verdict": "unsupported",
+          "quote": "Insulin doses were recorded daily."
+        },
+        {
+          "claim_id": "planted:3",
+          "verdict": "unsupported",
+          "quote": "Vaccination records were reviewed for 400 children."
+        },
+        {
+          "claim_id": "planted:4",
+          "verdict": "unsupported",
+          "quote": "Participants described exercise habits."
+        },
+        {
+          "claim_id": "planted:5",
+          "verdict": "unsupported",
+          "quote": "Statin use was documented at baseline."
+        },
+        {
+          "claim_id": "planted:6",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:7",
+          "verdict": "unsupported",
+          "quote": "Body mass index was measured."
+        },
+        {
+          "claim_id": "planted:8",
+          "verdict": "unsupported",
+          "quote": "Hand hygiene audits ran monthly."
+        },
+        {
+          "claim_id": "planted:9",
+          "verdict": "unsupported",
+          "quote": "Folic acid intake was assessed."
+        },
+        {
+          "claim_id": "control:0",
+          "verdict": "supported",
+          "quote": "Thirty-day readmissions fell by 12% after the programme."
+        },
+        {
+          "claim_id": "control:1",
+          "verdict": "supported",
+          "quote": "A total of 400 patients were enrolled in the trial."
+        },
+        {
+          "claim_id": "control:2",
+          "verdict": "supported",
+          "quote": "Mortality was similar in both arms (p=0.61)."
+        },
+        {
+          "claim_id": "control:3",
+          "verdict": "supported",
+          "quote": "Median follow-up was 24 months."
+        },
+        {
+          "claim_id": "control:4",
+          "verdict": "supported",
+          "quote": "Costs increased in the intervention group."
+        }
+      ]
+    },
+    {
+      "judge": "gpt-6.1-sol",
+      "spent_usd": 0.015068,
+      "problems": [],
+      "rows": [
+        {
+          "claim_id": "planted:0",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:1",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:2",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:3",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:4",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:5",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:6",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:7",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:8",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "planted:9",
+          "verdict": "unsupported",
+          "quote": null
+        },
+        {
+          "claim_id": "control:0",
+          "verdict": "supported",
+          "quote": "Thirty-day readmissions fell by 12% after the programme."
+        },
+        {
+          "claim_id": "control:1",
+          "verdict": "supported",
+          "quote": "A total of 400 patients were enrolled in the trial."
+        },
+        {
+          "claim_id": "control:2",
+          "verdict": "supported",
+          "quote": "Mortality was similar in both arms (p=0.61)."
+        },
+        {
+          "claim_id": "control:3",
+          "verdict": "supported",
+          "quote": "Median follow-up was 24 months."
+        },
+        {
+          "claim_id": "control:4",
+          "verdict": "supported",
+          "quote": "Costs increased in the intervention group."
+        }
+      ]
+    }
+  ]
+}

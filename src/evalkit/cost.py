@@ -102,10 +102,10 @@ class TokenAssumptions(Model):
     t_reason: NonNegInt = 400  # generation at the model's configured effort
     t_ext_in: NonNegInt = 500
     t_ext_out: NonNegInt = 200
-    t_ext_reason: NonNegInt = 100  # extractor runs at low effort
+    t_ext_reason: NonNegInt = 300  # extractor at medium effort (D-34)
     t_j_in: NonNegInt = 900
     t_j_out: NonNegInt = 300
-    t_j_reason: NonNegInt = 100  # judges run at low effort (OWNER D-28)
+    t_j_reason: NonNegInt = 400  # judges at medium effort (OWNER D-34)
 
 
 class CostLine(Model):

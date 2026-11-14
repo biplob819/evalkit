@@ -84,9 +84,9 @@ def test_estimate_breaks_down_by_node_and_model():
     assert ("extract_claims", "claude-haiku-5-5", 800) in nodes
     assert ("judge", "claude-opus-5-5", 800) in nodes and ("judge", "gpt-6.1-sol", 800) in nodes
     assert est.total_usd == pytest.approx(sum(line.usd for line in est.lines))
-    # Judges and extractor at low effort (OWNER D-28): ~$10.35 for 200 cases, inside $12.
-    assert est.total_usd == pytest.approx(10.354, abs=0.01)
-    assert not est.over(12.0) and est.over(10.0)
+    # Planning assumptions with judges and extractor at medium effort (OWNER D-34).
+    assert est.total_usd == pytest.approx(14.034, abs=0.01)
+    assert not est.over(20.0)
 
 
 def test_estimate_scales_with_assumptions():

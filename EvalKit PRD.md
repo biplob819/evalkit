@@ -158,7 +158,7 @@ Twenty-nine functional requirements trace to the stories. Ten non-functional one
 | ID | Area | Bar |
 | --- | --- | --- |
 | NFR1 | Speed | Generation and deterministic scoring for 200 cases finish in under 30 minutes. Judging runs asynchronously on the Batch APIs, and the dashboard shows "judging pending" until it completes. The demo answers in under 30 seconds at p95 live and under 1 second in replay |
-| NFR2 | Cost | At most $12 per 200-case run, including extraction and both judges (the earlier $6 estimate covered one judge), confirmed against the Tech Spec cost model before the first run. Live demo capped at $3 a day |
+| NFR2 | Cost | At most $20 per 200-case run, including extraction and both judges at medium effort (OWNER D-34; estimate ~$12 from measured tokens), checked against the cost model before every run and reported from the spend ledger. Live demo capped at $3 a day |
 | NFR3 | Reproducibility | Rescoring saved completions is exact. Regenerating with the same seed lands inside the first run's 95% CI |
 | NFR4 | Security | API keys live only in environment variables or the host's secret store, never in the repo or the browser |
 | NFR5 | Reliability | A failed call never stops a run. Every failure is recorded with its error type and counts as incorrect and ungrounded in the headline metric |
@@ -272,7 +272,7 @@ EvalKit succeeds when its numbers are trustworthy, cheap to reproduce, quick to 
 | Judge agreement with held-out hand labels | Cohen's kappa of 0.6 or more per judge, reported with its CI either way | `evalkit calibrate` on the held-out 50 |
 | Judge self-preference | Each judge's per-family groundedness gap reported. A gap outside its CI is flagged on the dashboard | Self-preference table |
 | Reproducibility | Exact on rescore. Inside the CI on regeneration | Rescore and seed-7 rerun compared in CI and the dashboard |
-| Cost per 200-case run | At most $12, both judges included | Sum of `cost_usd` in the results file, reconciled with provider usage |
+| Cost per 200-case run | At most $20, both judges at medium effort included | Sum of `cost_usd` in the results file, reconciled with provider usage |
 | Generation time | Under 30 minutes for 200 cases | Timestamps on the first and last records |
 | Demo response | Under 30 seconds at p95, live | Latency logged per demo request |
 | Reuse | Every downstream project pins a tagged release | Pins checked in each repo |

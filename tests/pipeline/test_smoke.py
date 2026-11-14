@@ -18,7 +18,7 @@ PRICES = load_prices()
 def test_reference_config_loads_with_explicit_efforts():
     cfg = load_run_config(ROOT / "configs" / "pubmedqa.yaml")
     assert cfg.models == ("claude-sonnet-5-5", "claude-haiku-5-5", "gpt-6.1-sol", "gpt-6-luna")
-    assert cfg.default_effort == "medium" and cfg.judge_effort == "low"
+    assert cfg.default_effort == "medium" and cfg.judge_effort == "medium"
     assert all(m in PRICES for m in (*cfg.models, *cfg.judges, cfg.extractor))
 
 

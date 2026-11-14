@@ -102,6 +102,9 @@ class Store:
     def put_meta(self, key: str, name: str, data: dict[str, Any]) -> None:
         _atomic_write(self.path(key, f".{name}.json"), json.dumps(data, sort_keys=True))
 
+    def delete_meta(self, key: str, name: str) -> None:
+        self.path(key, f".{name}.json").unlink(missing_ok=True)
+
     def get_meta(self, key: str, name: str) -> dict[str, Any] | None:
         p = self.path(key, f".{name}.json")
         return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
