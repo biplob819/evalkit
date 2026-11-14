@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import yaml
 from pydantic import Field
@@ -97,15 +98,17 @@ def call_cost(
 class TokenAssumptions(Model):
     """Planning averages per call (Tech Spec §9). Replace with measured values after a smoke run."""
 
-    t_in: NonNegInt = 600
-    t_out: NonNegInt = 250
-    t_reason: NonNegInt = 400  # generation at the model's configured effort
+    # Measured on the 12-case real run of 2026-11-14 (D-46): 48 answers, 428 judge calls.
+    t_in: NonNegInt = 750
+    t_out: NonNegInt = 150
+    t_reason: NonNegInt = 50  # generation at the model's configured effort
     t_ext_in: NonNegInt = 500
     t_ext_out: NonNegInt = 200
     t_ext_reason: NonNegInt = 300  # extractor at medium effort (D-34)
-    t_j_in: NonNegInt = 900
-    t_j_out: NonNegInt = 300
-    t_j_reason: NonNegInt = 400  # judges at medium effort (OWNER D-34)
+    t_j_in: NonNegInt = 450
+    t_j_out: NonNegInt = 100
+    t_j_reason: NonNegInt = 40  # judges at medium effort (OWNER D-34)
+    claims_per_answer: Annotated[float, Field(gt=0, allow_inf_nan=False)] = 4.5  # measured 4.46
 
 
 class CostLine(Model):
@@ -161,7 +164,8 @@ def estimate_run_cost(
             tokens_reasoning=a.t_j_reason,
             batch=batch_judges,
         )
-        lines.append(CostLine(node="judge", model=j, calls=answers, usd=per * answers))
+        claims = math.ceil(answers * a.claims_per_answer)  # judges score each claim
+        lines.append(CostLine(node="judge", model=j, calls=claims, usd=per * claims))
     return CostEstimate(lines=tuple(lines), total_usd=sum(line.usd for line in lines))
 
 

@@ -8,6 +8,7 @@ same command always lands in the same folder and resumes from the content-addres
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -441,8 +442,8 @@ async def _graph(
     n_claims = sum(len(cs.claims) for cs in claim_sets)
     say("extract", f"{n_claims} claims · spent ${ex.spent_usd:.4f}")
     items = [(g.case, c) for g, cs in zip(generated, claim_sets, strict=True) for c in cs.claims]
-    judging: list[JudgingResult] = []
-    for judge in selection.judges:
+
+    async def judge_one(judge: str) -> JudgingResult:
         if live_judges:
             r = await judge_claims_live(
                 ex, items, judge, config, adapters, prices, run_id=plan.run_id
@@ -459,8 +460,17 @@ async def _graph(
                 max_wait_s=wait_s,
                 poll_interval_s=min(30.0, max(1.0, wait_s / 10)) if wait_s else 30.0,
             )
-        judging.append(r)
         say("judge", f"{judge}: {r.status}, {len(r.verdicts)} verdicts · spent ${ex.spent_usd:.4f}")
+        return r
+
+    # Both judges at once: their batches run in parallel at the provider (D-46).
+    outcomes = await asyncio.gather(
+        *(judge_one(j) for j in selection.judges), return_exceptions=True
+    )
+    for o in outcomes:
+        if isinstance(o, BaseException):
+            raise o
+    judging: list[JudgingResult] = [o for o in outcomes if isinstance(o, JudgingResult)]
 
     complete = all(r.status == "complete" for r in judging)
     if complete and manifest.finished_at is None:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import math
 import re
 import time
 import unicodedata
@@ -21,7 +22,7 @@ from typing import Any, Literal
 from pydantic import field_validator
 
 from evalkit.adapters import BatchRequest, CompletionRequest, ModelAdapter, RawCompletion
-from evalkit.cost import Price, call_cost, price_for
+from evalkit.cost import Price, TokenAssumptions, call_cost, price_for
 from evalkit.pipeline.answer import SchemaError, _extract_json
 from evalkit.pipeline.generate import adapter_key, provider_for
 from evalkit.runtime import BudgetExceeded, Executor
@@ -364,10 +365,18 @@ def _store_verdict(
     executor.store.delete_meta(key, _META)
 
 
+# A batch holds budget for thousands of claims at once, so its hold uses the expected output
+# (measured, D-46) with a margin rather than the worst-case cap; a live call reserves the cap.
+BATCH_HOLD_FACTOR = 1.5
+
+
 def _estimate(price: Price, req: CompletionRequest, *, batch: bool) -> float:
-    return call_cost(
-        price, tokens_in=len(req.prompt) // 3 + 1, tokens_out=req.max_output_tokens, batch=batch
-    )
+    if batch:
+        a = TokenAssumptions()
+        out = min(req.max_output_tokens, math.ceil(BATCH_HOLD_FACTOR * (a.t_j_out + a.t_j_reason)))
+    else:
+        out = req.max_output_tokens
+    return call_cost(price, tokens_in=len(req.prompt) // 3 + 1, tokens_out=out, batch=batch)
 
 
 _FATAL_STATUS = frozenset({401, 403, 404})

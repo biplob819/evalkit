@@ -3,6 +3,8 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FIX] [A2.4] — batch holds use 1.5x measured expected output, not the 4,096-token cap (a 200-case run could never start under $20); judges run concurrently (D-46)
+- [FIX] [N1.2] — cost model from the 12-case real run: judge calls per claim (4.5 per answer), measured token assumptions; 200-case estimate $14.13 (D-46)
 - [FIX] [B2.2] — run safety (D-45): total cost cap across resumes, judge-set lock per run folder, no live re-pay of open batches, dry run without keys, exit 2 with masked messages for every unexpected error
 - [FEAT] [B2.2] — CLI: `evalkit run` (resumable run folders, dry run, cost cap exit 3, judging-pending exit 4, `--live-judges` sharing the batch cache, `--json`), `evalkit calibrate export|label|import|score`, `evalkit report [--publish]`; validation before any call; user YAML tasks with local JSONL datasets
 - [FIX] [A2.5] — a pending run whose records carry no per-judge scores now aggregates (found by the CLI tests)

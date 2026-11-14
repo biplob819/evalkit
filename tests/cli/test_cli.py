@@ -487,16 +487,19 @@ def test_live_judging_respects_concurrency_and_retries_parse_failures(env, capsy
 
     tmp, _ = env
     (tmp / "evalkit.yaml").write_text(CONFIG + "concurrency: {anthropic: 2, openai: 2}\n")
-    state = {"live": 0, "peak": 0, "garbage_left": 3}
+    state = {"garbage_left": 3}
+    live: dict[str, int] = {}
+    peak: dict[str, int] = {}
 
     class Counting(ScriptedBatchAdapter):
         async def complete(self, req):
             if req.model != "judge":
                 return await super().complete(req)
-            state["live"] += 1
-            state["peak"] = max(state["peak"], state["live"])
+            j = req.model_id  # one judge per provider here
+            live[j] = live.get(j, 0) + 1
+            peak[j] = max(peak.get(j, 0), live[j])
             await asyncio.sleep(0.001)
-            state["live"] -= 1
+            live[j] -= 1
             if state["garbage_left"] > 0:
                 state["garbage_left"] -= 1
                 self.requests.append(req)
@@ -508,6 +511,6 @@ def test_live_judging_respects_concurrency_and_retries_parse_failures(env, capsy
         R, "make_adapters", lambda config, prices: {"anthropic": fake, "openai": fake}
     )
     assert run("--live-judges", "--json") in (0, 1)
-    assert state["peak"] <= 2 and state["garbage_left"] == 0
+    assert peak and max(peak.values()) <= 2 and state["garbage_left"] == 0  # per provider
     summary = json.loads(capsys.readouterr().out)
     assert summary["judging_status"] == "complete"

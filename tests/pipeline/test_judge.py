@@ -793,3 +793,25 @@ def test_provider_errors_on_retry_are_never_cached(tmp_path):
     again = ScriptedBatchAdapter(supported)
     res2 = run(Executor(Store(tmp_path)), [(CASE, claim())], again, max_wait_s=1)
     assert len(again.submitted) == 1 and set(res2.verdicts) == {"pqa-1:m:0"}
+
+
+def test_full_run_batch_holds_fit_under_the_default_cap():
+    """Real 12-case run (D-46): worst-case holds would need ~$33 for Opus alone at 200 cases."""
+    from evalkit.cost import TokenAssumptions
+
+    case = CASE.model_copy(
+        update={
+            "context": tuple(
+                "A typical abstract sentence of about thirty words." * 3 for _ in range(8)
+            )
+        }
+    )
+    inp = judge_input(claim(0, (1, 2)), case, "claude-opus-5-5", "medium")
+    claims = 800 * TokenAssumptions().claims_per_answer
+    opus = jm._estimate(PRICES["claude-opus-5-5"], jm._request(inp), batch=True) * claims
+    sol = jm._estimate(PRICES["gpt-6.1-sol"], jm._request(inp), batch=True) * claims
+    assert opus + sol + 1.5 < 20  # both holds at once, plus generation and extraction
+    worst = jm.call_cost(
+        PRICES["claude-opus-5-5"], tokens_in=600, tokens_out=jm.JUDGE_MAX_OUTPUT_TOKENS, batch=True
+    )
+    assert worst * claims > 20  # the old rule could never have fitted

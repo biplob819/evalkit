@@ -82,10 +82,11 @@ def test_estimate_breaks_down_by_node_and_model():
     nodes = [(line.node, line.model, line.calls) for line in est.lines]
     assert nodes[0] == ("generate", "claude-sonnet-5-5", 200)
     assert ("extract_claims", "claude-haiku-5-5", 800) in nodes
-    assert ("judge", "claude-opus-5-5", 800) in nodes and ("judge", "gpt-6.1-sol", 800) in nodes
+    # Judges score every claim: 800 answers x 4.5 measured claims per answer (D-46).
+    assert ("judge", "claude-opus-5-5", 3600) in nodes and ("judge", "gpt-6.1-sol", 3600) in nodes
     assert est.total_usd == pytest.approx(sum(line.usd for line in est.lines))
-    # Planning assumptions with judges and extractor at medium effort (OWNER D-34).
-    assert est.total_usd == pytest.approx(14.034, abs=0.01)
+    # Measured assumptions (12-case real run, D-46), judges and extractor at medium effort.
+    assert est.total_usd == pytest.approx(14.13, abs=0.01)
     assert not est.over(20.0)
 
 
