@@ -16,3 +16,6 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FEAT] [N1.3] — Green.
 - [FIX] [N1.4] — Verifier findings: splitter recovers 41 wrong merges (initials, units, unclosed brackets, spaced decimals), download verified before an atomic write, network failures raise DatasetError, duplicate ids rejected, data card claims made true or dated, probe spec fully pinned, PubMedQA credited in the README.
 - [FEAT] [N1.4] — Green.
+- [FEAT] [N1.2] — Adapters: Anthropic (Messages, Message Batches) and OpenAI (Chat Completions, Batch) plus OpenAI-compatible servers, behind one interface with entry-point plugins; no sampling params, explicit effort, structured JSON; `prices.yaml` (Claude 5.5 family, gpt-6.1-sol, gpt-6-luna, gpt-6.1-terra), per-call cost, pre-run estimate and reconciliation; retry policy (6 attempts, full jitter, transport errors only); token-bucket pacing.
+- [FIX] [N1.2] — Verifier findings: expired/cancelled batches keep billed results, real SDK error types, damaged batch lines tolerated, duplicate custom_ids refused, explicit effort enforced, token bucket wired into every adapter call, plugin failures isolated, compatible-server URL and key checks, long-context price tiers, judges at low effort (OWNER D-28, estimate $10.35).
+- [FEAT] [N1.2] — Green. Wave 1 (N1.1-N1.4) complete.

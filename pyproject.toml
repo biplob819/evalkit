@@ -31,6 +31,14 @@ Issues = "https://github.com/biplob819/evalkit/issues"
 [project.scripts]
 evalkit = "evalkit.cli:main"
 
+[project.optional-dependencies]
+anthropic = [
+    "anthropic>=1",
+]
+openai = [
+    "openai>=2",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8",

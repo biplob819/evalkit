@@ -1,0 +1,200 @@
+"""Prices, per-call cost, pre-run estimates and post-run reconciliation (ADP-04, ADP-05)."""
+
+from __future__ import annotations
+
+import warnings
+from collections.abc import Iterable
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import Field
+
+from evalkit.schemas import RunConfig
+from evalkit.schemas._base import Model, Name, NonNegFloat, NonNegInt
+
+PRICES_YAML = Path(__file__).with_name("prices.yaml")
+PER_M = 1_000_000
+
+
+class Price(Model):
+    input: NonNegFloat
+    output: NonNegFloat
+    cache_read: NonNegFloat
+    cache_write: NonNegFloat
+    batch_discount: float = Field(default=0.5, gt=0, le=1, allow_inf_nan=False)
+    checked_on: date
+    source: str
+    verified: bool = True
+    # Long-context tier: prompts above `long_threshold` tokens bill at these prices instead.
+    long_threshold: NonNegInt | None = None
+    long_input: NonNegFloat | None = None
+    long_output: NonNegFloat | None = None
+    long_cache_read: NonNegFloat | None = None
+
+
+FREE = Price(
+    input=0,
+    output=0,
+    cache_read=0,
+    cache_write=0,
+    checked_on=date(2026, 11, 14),
+    source="local or self-hosted model",
+    verified=False,
+)
+
+
+class UnknownPrice(KeyError):
+    pass
+
+
+def load_prices(path: Path = PRICES_YAML) -> dict[str, Price]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return {model: Price.model_validate(entry) for model, entry in data.items()}
+
+
+def price_for(prices: dict[str, Price], model_id: str, *, free_if_unknown: bool = False) -> Price:
+    """The price for a model id. Unknown models are an error, never a silent $0, unless the
+    caller opts in (local OpenAI-compatible servers), which warns."""
+    if model_id in prices:
+        return prices[model_id]
+    if free_if_unknown:
+        warnings.warn(f"no price for {model_id!r}; costing it at $0", stacklevel=2)
+        return FREE
+    raise UnknownPrice(f"no price for model {model_id!r} in prices.yaml")
+
+
+def call_cost(
+    price: Price,
+    *,
+    tokens_in: int,
+    tokens_out: int,
+    tokens_reasoning: int = 0,
+    tokens_cached: int = 0,
+    tokens_cache_write: int = 0,
+    batch: bool = False,
+) -> float:
+    """Cost of one call. `tokens_in` is the whole prompt; cached and cache-write tokens are
+    the parts of it billed at cache prices. Reasoning tokens are billed as output."""
+    uncached = tokens_in - tokens_cached - tokens_cache_write
+    if min(uncached, tokens_out, tokens_reasoning, tokens_cached, tokens_cache_write) < 0:
+        raise ValueError("token counts are inconsistent (cached + cache writes exceed the prompt)")
+    inp, out, cread = price.input, price.output, price.cache_read
+    if price.long_threshold is not None and tokens_in > price.long_threshold:
+        inp = price.long_input if price.long_input is not None else inp
+        out = price.long_output if price.long_output is not None else out
+        cread = price.long_cache_read if price.long_cache_read is not None else cread
+    usd = (
+        uncached * inp
+        + tokens_cached * cread
+        + tokens_cache_write * price.cache_write
+        + (tokens_out + tokens_reasoning) * out
+    ) / PER_M
+    return usd * (price.batch_discount if batch else 1.0)
+
+
+class TokenAssumptions(Model):
+    """Planning averages per call (Tech Spec §9). Replace with measured values after a smoke run."""
+
+    t_in: NonNegInt = 600
+    t_out: NonNegInt = 250
+    t_reason: NonNegInt = 400  # generation at the model's configured effort
+    t_ext_in: NonNegInt = 500
+    t_ext_out: NonNegInt = 200
+    t_ext_reason: NonNegInt = 100  # extractor runs at low effort
+    t_j_in: NonNegInt = 900
+    t_j_out: NonNegInt = 300
+    t_j_reason: NonNegInt = 100  # judges run at low effort (OWNER D-28)
+
+
+class CostLine(Model):
+    node: Name
+    model: Name
+    calls: NonNegInt
+    usd: NonNegFloat
+
+
+class CostEstimate(Model):
+    lines: tuple[CostLine, ...]
+    total_usd: NonNegFloat
+
+    def over(self, budget: float | None) -> bool:
+        return budget is not None and self.total_usd > budget
+
+
+def estimate_run_cost(
+    prices: dict[str, Price],
+    *,
+    models: list[str] | tuple[str, ...],
+    extractor: str,
+    judges: list[str] | tuple[str, ...],
+    n_cases: int,
+    assumptions: TokenAssumptions | None = None,
+) -> CostEstimate:
+    """generation + extraction + judging (batch), per node and model (Tech Spec §9)."""
+    a = assumptions or TokenAssumptions()
+    lines: list[CostLine] = []
+    for m in models:
+        per = call_cost(
+            price_for(prices, m), tokens_in=a.t_in, tokens_out=a.t_out, tokens_reasoning=a.t_reason
+        )
+        lines.append(CostLine(node="generate", model=m, calls=n_cases, usd=per * n_cases))
+    answers = len(models) * n_cases
+    per = call_cost(
+        price_for(prices, extractor),
+        tokens_in=a.t_ext_in,
+        tokens_out=a.t_ext_out,
+        tokens_reasoning=a.t_ext_reason,
+    )
+    lines.append(CostLine(node="extract_claims", model=extractor, calls=answers, usd=per * answers))
+    for j in judges:
+        per = call_cost(
+            price_for(prices, j),
+            tokens_in=a.t_j_in,
+            tokens_out=a.t_j_out,
+            tokens_reasoning=a.t_j_reason,
+            batch=True,
+        )
+        lines.append(CostLine(node="judge", model=j, calls=answers, usd=per * answers))
+    return CostEstimate(lines=tuple(lines), total_usd=sum(line.usd for line in lines))
+
+
+def reconcile(
+    recorded_usd: float, provider_usd: float, tolerance: float = 0.10
+) -> tuple[bool, float]:
+    """Compare EvalKit's summed costs with the provider's usage figure. Returns (ok, gap_ratio)."""
+    if provider_usd <= 0:
+        return recorded_usd == 0, 0.0 if recorded_usd == 0 else float("inf")
+    gap = abs(recorded_usd - provider_usd) / provider_usd
+    return gap <= tolerance, gap
+
+
+def reconcile_records(
+    records: Iterable[Any], provider_usd: float, tolerance: float = 0.10
+) -> tuple[bool, float]:
+    """`reconcile` over anything carrying `cost_usd` directly or on `.completion`."""
+    total = 0.0
+    for r in records:
+        cost = getattr(r, "cost_usd", None)
+        if cost is None:
+            cost = r.completion.cost_usd
+        total += float(cost)
+    return reconcile(total, provider_usd, tolerance)
+
+
+def estimate_for_config(
+    prices: dict[str, Price],
+    config: RunConfig,
+    n_cases: int,
+    assumptions: TokenAssumptions | None = None,
+) -> CostEstimate:
+    """The ADP-05 entry point: estimate a run straight from its RunConfig (model ids)."""
+    return estimate_run_cost(
+        prices,
+        models=config.models,
+        extractor=config.extractor,
+        judges=config.judges,
+        n_cases=n_cases,
+        assumptions=assumptions,
+    )

@@ -447,8 +447,8 @@ Every run computes this estimate before the first call and prints it. The run ab
 
 ```
 generation = Σ_models  n × (t_in × p_in + (t_out + t_reason) × p_out)
-extraction = n_models × n × (t_ext_in × p_in_ext + t_ext_out × p_out_ext)
-judging    = Σ_judges  n_models × n × (t_j_in × p_in_j + t_j_out × p_out_j) × batch_discount
+extraction = n_models × n × (t_ext_in × p_in_ext + (t_ext_out + t_ext_reason) × p_out_ext)
+judging    = Σ_judges  n_models × n × (t_j_in × p_in_j + (t_j_out + t_j_reason) × p_out_j) × batch_discount
 total      = generation + extraction + judging
 ```
 
