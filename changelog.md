@@ -2,6 +2,9 @@
 
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
+## 2026-11-15
+- [FIX] [A2.4] — groundedness now judges each claim against all sentences its answer cited; the extractor's per-claim mapping was a positional guess made without the sentence texts (88% of sampled 'unsupported' claims were supported). The first 200-case headline was withdrawn and the run re-judged (D-52, L-37)
+
 ## 2026-11-14
 - [FEAT] [C3.4] — agent scorers (sql_match / attack outcome, violations, steps over minimum, recovery, cost per success), two-level bootstrap with per-simulator views, Holm-adjusted separation matrix, held-out gap, `evalkit agent-run` with estimate, total cap, resume and an Agents report; agent prompts made cache-friendly (Anthropic automatic caching) (D-51)
 - [FEAT] [C3.3] — simulated user on Haiku 5.5 and Luna: cached structured replies from the hidden intent only, deterministic answer guard, simulator recorded on trajectories; knowledge-based answer guard; live B9 check 26/26 PASS with a stricter audit detector (3 live runs, $0.0040) (D-50)

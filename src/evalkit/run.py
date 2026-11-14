@@ -26,7 +26,7 @@ from evalkit.datasets import DatasetFileError, load_jsonl_cases, load_pqa_l
 from evalkit.env import missing_keys
 from evalkit.pipeline.aggregate import aggregate, build_records, family_for, write_summary
 from evalkit.pipeline.calibrate import usable_agreements
-from evalkit.pipeline.extract import extract_all
+from evalkit.pipeline.extract import extract_all, ground_on_answer_citations
 from evalkit.pipeline.generate import adapter_key, generate_and_validate, provider_for
 from evalkit.pipeline.judge import (
     JudgeSelection,
@@ -455,6 +455,7 @@ async def _graph(
     )
     say("generate", f"done · spent ${ex.spent_usd:.4f}")
     claim_sets = await extract_all(ex, generated, config, adapters, prices, run_id=plan.run_id)
+    claim_sets = ground_on_answer_citations(generated, claim_sets)  # D-52
     n_claims = sum(len(cs.claims) for cs in claim_sets)
     say("extract", f"{n_claims} claims · spent ${ex.spent_usd:.4f}")
     items = [(g.case, c) for g, cs in zip(generated, claim_sets, strict=True) for c in cs.claims]

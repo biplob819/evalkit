@@ -299,3 +299,36 @@ def test_prompt_edits_are_caught_by_the_version_check(tmp_path):
     manifest = versions.build_manifest(load("Say A.", "a"))
     problems = versions.check(manifest, load("Say B.", "b"))
     assert len(problems) == 1 and versions.BUMP_HINT in problems[0]
+
+
+def test_claims_are_judged_against_every_sentence_the_answer_cited():
+    """D-52: the extractor's per-claim mapping is a positional guess, so groundedness uses the
+    answer's full (valid) citation set for every claim."""
+    from evalkit.pipeline.extract import ClaimSet, ground_on_answer_citations
+    from evalkit.schemas import Claim
+
+    case = Case(
+        id="c1", question="q?", context=("a.", "b.", "c."), reference_label="yes", source="t"
+    )
+    comp = Completion(
+        model="m",
+        model_snapshot="s",
+        params={},
+        raw_text="{}",
+        answer=Answer(label="yes", answer="x", citations=(3, 1, 9)),
+        tokens_in=1,
+        tokens_out=1,
+        latency_ms=1,
+        cost_usd=0.0,
+    )
+    g = Generated(case=case, model="m", completion=comp)
+    cs = ClaimSet(
+        claims=(
+            Claim(id="c1:m:0", text="t0", cited=(1,), extractor_version="v"),
+            Claim(id="c1:m:1", text="t1", cited=(), extractor_version="v"),
+        ),
+        addresses_question=(True, True),
+    )
+    out = ground_on_answer_citations([g], [cs])[0]
+    assert [c.cited for c in out.claims] == [(1, 3), (1, 3)]  # 9 is out of range: dropped
+    assert [c.id for c in out.claims] == ["c1:m:0", "c1:m:1"]

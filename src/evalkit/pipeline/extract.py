@@ -373,3 +373,26 @@ async def extract_all(
     for (i, _), cs in zip(pairs, results, strict=True):
         out[i] = ClaimSet(error="transport") if isinstance(cs, Exception) else cs
     return out
+
+
+def ground_on_answer_citations(
+    generated: Sequence[Generated], claim_sets: Sequence[ClaimSet]
+) -> list[ClaimSet]:
+    """Judge every claim against all the sentences its answer cited (D-52).
+
+    The extractor's per-claim mapping is made without the sentence texts, so it guesses by
+    position; judging a claim only against that guess marked true, cited claims unsupported
+    (88% of a sampled set). Groundedness means "supported by the answer's citations", so each
+    claim gets the answer's full (valid) citation set. Out-of-range citations are dropped here
+    and penalised by the citation-validity scorer instead of sinking every claim."""
+    out = []
+    for g, cs in zip(generated, claim_sets, strict=True):
+        answer = g.completion.answer
+        n = len(g.case.context)
+        cites = tuple(sorted({c for c in (answer.citations if answer else ()) if 1 <= c <= n}))
+        out.append(
+            cs.model_copy(
+                update={"claims": tuple(c.model_copy(update={"cited": cites}) for c in cs.claims)}
+            )
+        )
+    return out

@@ -8,3 +8,5 @@
 {"at": "2026-11-14T17:17:30+00:00", "kind": "simuser_check", "questions": 20, "spent_usd": 0.001152}
 {"at": "2026-11-14T17:27:04+00:00", "kind": "simuser_check", "questions": 26, "spent_usd": 0.001443}
 {"at": "2026-11-14T17:27:30+00:00", "kind": "simuser_check", "questions": 26, "spent_usd": 0.001449}
+{"at": "2026-11-14T18:27:09+00:00", "claims": 40, "kind": "rejudge_sample", "spent_usd": 0.318468}
+{"at": "2026-11-14T18:27:35+00:00", "cases": 200, "kind": "benchmark_run_200", "note": "generation, extraction and both judges (batch), across two invocations", "run_id": "r-e8dac378d2d3", "spent_usd": 15.388805}
