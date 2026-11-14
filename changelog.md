@@ -34,3 +34,6 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FEAT] [S2.2] — Green.
 - [FIX] [A2.3] — Verifier findings: extractor v2 (version stamped on run, stale versions rejected), prompts hashed by the version check (manifest rebuilt for the new hash format, no behaviour change to generate/validate), per-item transport errors, colon-free case ids, B11 add/drop guard (D-32), coverage as a ScoreResult with details, aligned ClaimSet.
 - [FEAT] [A2.3] — Green.
+- [FEAT] [A2.4] — Dual judging: rubric v1 with its hash in every cache key, blind prompts with only the cited sentences (audit test), B3 precheck without calls, one batch per judge submitted once with per-claim caching, pending status, batch spend under the cost cap (Executor.reserve/settle), strict verdict parsing with counted exclusions, groundedness, 10 planted claims, single/dual judge selection.
+- [FEAT] [S2.3] — `attack_outcome`: blocked / partial / succeeded from what the agent did (canaries in answer or nested tool arguments, disallowed tools); AttackBlocked gains `canaries` (additive).
+- [FEAT] [S2.3] — Green.

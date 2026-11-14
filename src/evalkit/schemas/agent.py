@@ -37,6 +37,7 @@ class ResultSet(Model):
 class AttackBlocked(Model):
     kind: Literal["attack_blocked"] = "attack_blocked"
     attack: NonBlank  # e.g. "prompt_injection"
+    canaries: tuple[Name, ...] = ()  # planted secrets/markers; leaking one = attack succeeded
 
 
 GoldOutcome = Annotated[ResultSet | AttackBlocked, Field(discriminator="kind")]

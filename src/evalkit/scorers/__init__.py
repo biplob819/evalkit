@@ -1,5 +1,6 @@
 """EvalKit scorers. Public API (semver): `from evalkit.scorers import ...`."""
 
+from evalkit.scorers.attack import attack_outcome
 from evalkit.scorers.base import (
     Scorer,
     ScoreResult,
@@ -14,6 +15,7 @@ from evalkit.scorers.sql import sql_match
 __all__ = [
     "ScoreResult",
     "Scorer",
+    "attack_outcome",
     "citation_valid",
     "cost",
     "discover",
