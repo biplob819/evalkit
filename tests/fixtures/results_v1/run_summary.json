@@ -7,22 +7,141 @@
   "calibration_status": "calibrated",
   "models": [
     {
-      "model": "sonnet", "family": "anthropic", "n": 200, "n_errors": {"schema": 2},
-      "headline": {"claude-opus-5-5": {"point": 0.71, "lo": 0.65, "hi": 0.77}, "gpt-6.1-sol": {"point": 0.69, "lo": 0.63, "hi": 0.75}},
-      "accuracy": {"point": 0.78, "lo": 0.72, "hi": 0.83},
-      "groundedness_mean": {"claude-opus-5-5": {"point": 0.9, "lo": 0.87, "hi": 0.93}, "gpt-6.1-sol": {"point": 0.88, "lo": 0.85, "hi": 0.91}},
-      "citation_validity": {"point": 0.97, "lo": 0.95, "hi": 0.99},
-      "coverage": {"point": 0.92, "lo": 0.89, "hi": 0.95},
-      "cost_per_100_usd": 0.25, "cost_per_correct_usd": 0.0032,
-      "latency_p50_ms": 1800, "latency_p95_ms": 4200,
-      "passes_threshold": true, "failed_thresholds": []
+      "model": "sonnet",
+      "family": "anthropic",
+      "n": 200,
+      "n_errors": {
+        "schema": 2
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "point": 0.71,
+          "lo": 0.65,
+          "hi": 0.77
+        },
+        "gpt-6.1-sol": {
+          "point": 0.69,
+          "lo": 0.63,
+          "hi": 0.75
+        }
+      },
+      "accuracy": {
+        "point": 0.78,
+        "lo": 0.72,
+        "hi": 0.83
+      },
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "point": 0.9,
+          "lo": 0.87,
+          "hi": 0.93
+        },
+        "gpt-6.1-sol": {
+          "point": 0.88,
+          "lo": 0.85,
+          "hi": 0.91
+        }
+      },
+      "citation_validity": {
+        "point": 0.97,
+        "lo": 0.95,
+        "hi": 0.99
+      },
+      "coverage": {
+        "point": 0.92,
+        "lo": 0.89,
+        "hi": 0.95
+      },
+      "cost_per_100_usd": 0.25,
+      "cost_per_correct_usd": 0.0032,
+      "latency_p50_ms": 1800,
+      "latency_p95_ms": 4200,
+      "passes_threshold": true,
+      "failed_thresholds": []
     }
   ],
   "judges": [
-    {"judge": "claude-opus-5-5", "kappa": {"point": 0.72, "lo": 0.58, "hi": 0.84}, "agreement": 0.88, "confusion": [[40, 4], [3, 13]], "by_family": {"anthropic": {"point": 0.7, "lo": 0.5, "hi": 0.86}, "openai": {"point": 0.74, "lo": 0.55, "hi": 0.88}}},
-    {"judge": "gpt-6.1-sol", "kappa": {"point": 0.68, "lo": 0.53, "hi": 0.81}, "agreement": 0.86, "confusion": [[39, 5], [3, 13]], "by_family": {"anthropic": {"point": 0.67, "lo": 0.47, "hi": 0.83}, "openai": {"point": 0.69, "lo": 0.5, "hi": 0.85}}}
+    {
+      "judge": "claude-opus-5-5",
+      "kappa": {
+        "point": 0.72,
+        "lo": 0.58,
+        "hi": 0.84
+      },
+      "agreement": 0.88,
+      "confusion": [
+        [
+          40,
+          4
+        ],
+        [
+          3,
+          13
+        ]
+      ],
+      "by_family": {
+        "anthropic": {
+          "point": 0.7,
+          "lo": 0.5,
+          "hi": 0.86
+        },
+        "openai": {
+          "point": 0.74,
+          "lo": 0.55,
+          "hi": 0.88
+        }
+      },
+      "task": "pubmedqa",
+      "judge_prompt_hash": "0123456789abcdef"
+    },
+    {
+      "judge": "gpt-6.1-sol",
+      "kappa": {
+        "point": 0.68,
+        "lo": 0.53,
+        "hi": 0.81
+      },
+      "agreement": 0.86,
+      "confusion": [
+        [
+          39,
+          5
+        ],
+        [
+          3,
+          13
+        ]
+      ],
+      "by_family": {
+        "anthropic": {
+          "point": 0.67,
+          "lo": 0.47,
+          "hi": 0.83
+        },
+        "openai": {
+          "point": 0.69,
+          "lo": 0.5,
+          "hi": 0.85
+        }
+      },
+      "task": "pubmedqa",
+      "judge_prompt_hash": "0123456789abcdef"
+    }
   ],
-  "self_preference": {"claude-opus-5-5": {"anthropic": {"point": 0.9, "lo": 0.87, "hi": 0.93}, "openai": {"point": 0.86, "lo": 0.82, "hi": 0.9}}},
+  "self_preference": {
+    "claude-opus-5-5": {
+      "anthropic": {
+        "point": 0.9,
+        "lo": 0.87,
+        "hi": 0.93
+      },
+      "openai": {
+        "point": 0.86,
+        "lo": 0.82,
+        "hi": 0.9
+      }
+    }
+  },
   "extraction_error_rate": 0.03,
   "judging_status": "complete",
   "started_at": "2026-11-14T16:00:00Z",

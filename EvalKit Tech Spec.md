@@ -412,7 +412,7 @@ The B8 publish guard (`evalkit report --publish`) requires `dual` and `calibrate
 ## 6. Statistics
 
 - **Benchmark CIs.** Non-parametric bootstrap over cases, 10,000 resamples, percentile 95% intervals, for every `Interval` field.
-- **Model comparisons.** Paired bootstrap on the difference over shared cases, reported as a 95% interval with a two-sided bootstrap p-value. A gap is "separated" only if its p-value survives a Holm correction across every pair compared in the run (family-wise error 5%, OWNER D-36). Otherwise it is reported as a tie. All models and metrics share one seeded resample matrix (D-37).
+- **Model comparisons.** Paired bootstrap on the difference over shared cases, reported as a 95% interval with a two-sided bootstrap p-value. A gap is "separated" only if its p-value survives a Holm correction across the model pairs compared for that metric and judge (family-wise error 5% per family, OWNER D-36). Otherwise it is reported as a tie. All models and metrics share one seeded resample matrix (D-37).
 - **Agents.** Two-level bootstrap: resample tasks, then trials within each task. Report pass@k, pass^k, interval widths and a pairwise separation matrix.
 - **Held-out agent split.** Report the held-out score beside the public interval. Flag it if it falls outside.
 

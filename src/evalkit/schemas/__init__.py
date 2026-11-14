@@ -21,7 +21,13 @@ from evalkit.schemas.benchmark import (
 )
 from evalkit.schemas.calibration import CalibrationLabel
 from evalkit.schemas.config import RunConfig, TaskConfig, Threshold
-from evalkit.schemas.summary import Interval, JudgeAgreement, ModelSummary, RunSummary
+from evalkit.schemas.summary import (
+    Interval,
+    JudgeAgreement,
+    ModelSummary,
+    PairComparison,
+    RunSummary,
+)
 
 __all__ = [
     "SCHEMA_VERSION",
@@ -38,6 +44,7 @@ __all__ = [
     "Interval",
     "JudgeAgreement",
     "ModelSummary",
+    "PairComparison",
     "Record",
     "ResultSet",
     "RunConfig",

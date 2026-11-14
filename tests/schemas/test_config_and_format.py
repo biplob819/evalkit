@@ -21,7 +21,7 @@ FIX = Path(__file__).resolve().parent.parent / "fixtures" / "results_v1"
 def test_threshold_semantics():
     assert Threshold(metric="headline", op=">=", value=0.6).holds(0.6)
     assert not Threshold(metric="headline", op=">=", value=0.6).holds(0.59)
-    assert Threshold(metric="cost", op="<=", value=0.01).holds(0.009)
+    assert Threshold(metric="cost_per_100_usd", op="<=", value=0.01).holds(0.009)
     with pytest.raises(ValueError):
         Threshold(metric="headline", op=">", value=0.6)  # type: ignore[arg-type]
 

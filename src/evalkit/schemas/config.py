@@ -2,17 +2,31 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
 from pydantic import Field, field_validator
 
 from evalkit.schemas._base import FrozenMap, Model, Name, PosInt, StrictInt
 
+# Per-judge metrics (headline, groundedness) are checked against the worst judge.
+ThresholdMetric = Literal[
+    "headline",
+    "groundedness",
+    "accuracy",
+    "citation_validity",
+    "coverage",
+    "cost_per_100_usd",
+    "cost_per_correct_usd",
+    "latency_p50_ms",
+    "latency_p95_ms",
+]
+THRESHOLD_METRICS: tuple[str, ...] = get_args(ThresholdMetric)
+
 
 class Threshold(Model):
     """A pass bar: `metric op value`. A model passes only if every threshold holds."""
 
-    metric: Name
+    metric: ThresholdMetric
     op: Literal[">=", "<="]
     value: Annotated[float, Field(allow_inf_nan=False)]
 

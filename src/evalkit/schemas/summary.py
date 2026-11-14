@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 
 from evalkit.schemas._base import (
     Fraction,
@@ -45,8 +45,8 @@ class ModelSummary(Model):
     coverage: Interval
     cost_per_100_usd: NonNegFloat
     cost_per_correct_usd: NonNegFloat | None  # None when nothing was correct
-    latency_p50_ms: NonNegInt
-    latency_p95_ms: NonNegInt
+    latency_p50_ms: NonNegInt | None  # over calls that reached the provider; None if none did
+    latency_p95_ms: NonNegInt | None
     passes_threshold: bool
     failed_thresholds: tuple[str, ...]
 
@@ -61,7 +61,10 @@ class ModelSummary(Model):
             raise ValueError(f"unknown error types in n_errors: {sorted(unknown)}")
         if sum(self.n_errors.values()) > self.n:
             raise ValueError("n_errors cannot exceed n")
-        if self.latency_p95_ms < self.latency_p50_ms:
+        lat = (self.latency_p50_ms, self.latency_p95_ms)
+        if (lat[0] is None) != (lat[1] is None):
+            raise ValueError("latency percentiles are both set or both None")
+        if lat[0] is not None and lat[1] is not None and lat[1] < lat[0]:
             raise ValueError("latency_p95_ms cannot be below latency_p50_ms")
         if set(self.headline) != set(self.groundedness_mean):
             raise ValueError("headline and groundedness_mean must name the same judges")
@@ -69,7 +72,11 @@ class ModelSummary(Model):
 
 
 class JudgeAgreement(Model):
+    """Held-out agreement for one judge, valid only for this task and rubric (Tech Spec §5)."""
+
     judge: NonBlank
+    task: NonBlank
+    judge_prompt_hash: NonBlank
     kappa: Interval
     agreement: Fraction
     confusion: tuple[tuple[NonNegInt, ...], ...]  # [[TP, FN], [FP, TN]], "supported" positive
@@ -82,6 +89,29 @@ class JudgeAgreement(Model):
         return self
 
 
+class PairComparison(Model):
+    """Paired-bootstrap difference model_a - model_b on shared cases (Tech Spec §6). `diff` is an
+    unadjusted 95% interval; `separated` is decided by Holm across the model pairs of one metric
+    and judge (OWNER D-36), so an interval that excludes 0 can still be a tie. Reports must
+    label the interval as unadjusted."""
+
+    metric: Literal["accuracy", "headline"]
+    judge: NonBlank | None  # None for judge-free metrics
+    model_a: NonBlank
+    model_b: NonBlank
+    diff: Interval
+    p_value: Annotated[float, Field(gt=0, le=1, allow_inf_nan=False)]
+    separated: bool
+
+    @model_validator(mode="after")
+    def _shape(self) -> PairComparison:
+        if self.model_a == self.model_b:
+            raise ValueError("a model cannot be compared with itself")
+        if (self.metric == "headline") != (self.judge is not None):
+            raise ValueError("headline comparisons name a judge; accuracy comparisons do not")
+        return self
+
+
 class RunSummary(Versioned):
     run_id: NonBlank
     task: NonBlank
@@ -91,6 +121,7 @@ class RunSummary(Versioned):
     models: tuple[ModelSummary, ...]
     judges: tuple[JudgeAgreement, ...]  # agreement with held-out labels; empty when uncalibrated
     self_preference: FrozenMap[FrozenMap[Interval]]  # judge -> generator family -> groundedness
+    comparisons: tuple[PairComparison, ...] = ()
     extraction_error_rate: Fraction | None = None
     judging_status: Literal["pending", "complete"]
     started_at: Timestamp
@@ -100,6 +131,8 @@ class RunSummary(Versioned):
     def _stamps_are_honest(self) -> RunSummary:
         n_judges = 2 if self.judge_mode == "dual" else 1
         names = [j.judge for j in self.judges]
+        if any(j.task != self.task for j in self.judges):
+            raise ValueError("judge agreement must come from this run's task")
         if len(names) != len(set(names)):
             raise ValueError("each judge may appear only once in judges")
         if self.calibration_status == "calibrated" and len(names) != n_judges:
@@ -111,12 +144,23 @@ class RunSummary(Versioned):
             raise ValueError("an uncalibrated run cannot report judge agreement")
         if self.judge_mode == "single" and self.self_preference:
             raise ValueError("self-preference needs two judges; a single-judge run has none")
+        if self.judging_status == "pending":
+            # D-37: no per-judge figures until every judge has finished.
+            self._check_times()
+            if self.self_preference or any(m.headline for m in self.models):
+                raise ValueError("a pending run cannot report per-judge figures")
+            if any(c.metric == "headline" for c in self.comparisons):
+                raise ValueError("a pending run cannot compare headlines")
+            return self._check_times()
         for m in self.models:
             if len(m.headline) != n_judges:
                 raise ValueError(
                     f"{m.model}: a {self.judge_mode}-judge run needs {n_judges} headline "
                     f"entries, got {len(m.headline)}"
                 )
+        return self._check_times()
+
+    def _check_times(self) -> RunSummary:
         if (self.judging_status == "complete") != (self.finished_at is not None):
             raise ValueError("finished_at is set exactly when judging_status is complete")
         if self.finished_at is not None and self.finished_at < self.started_at:
