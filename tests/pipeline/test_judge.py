@@ -811,7 +811,9 @@ def test_full_run_batch_holds_fit_under_the_default_cap():
     opus = jm._estimate(PRICES["claude-opus-5-5"], jm._request(inp), batch=True) * claims
     sol = jm._estimate(PRICES["gpt-6.1-sol"], jm._request(inp), batch=True) * claims
     assert opus + sol + 1.5 < 20  # both holds at once, plus generation and extraction
-    worst = jm.call_cost(
+    from evalkit.cost import call_cost
+
+    worst = call_cost(
         PRICES["claude-opus-5-5"], tokens_in=600, tokens_out=jm.JUDGE_MAX_OUTPUT_TOKENS, batch=True
     )
     assert worst * claims > 20  # the old rule could never have fitted
