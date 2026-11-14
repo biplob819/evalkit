@@ -27,3 +27,8 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FIX] [A2.1] — Verifier findings: budget exhaustion and configuration errors stop the run (only transient provider errors are 'transport'), answers must be one JSON object (validate v2), .env parsing, smoke exit codes and labels, tighter OpenAI routing.
 - [FEAT] [S2.2] — Retrieval metrics: recall@k, MRR, nDCG@k (binary or graded), positions as returned, duplicates earn no credit.
 - [FEAT] [A2.1] — Green (real smoke run pending API keys).
+- [FEAT] [A2.3] — Claim extractor: pinned prompt with hashed extractor_version, ExtractClaims node at low effort with structured output, B11 checks (no invented citations, no duplicates, no empty extraction), coverage v1 (D-31).
+- [FIX] [S2.1] — Verifier blocker fixed: unordered matching honours the tolerance exactly (exact-first, grouped, Hopcroft-Karp matching, windowed candidates), exact big-integer comparison, Decimal as numbers, 20k noisy rows < 3 s, brute-force fuzz.
+- [FIX] [S2.2] — Any negative gain raises, all-zero gains undefined, string inputs rejected.
+- [FEAT] [S2.1] — Green.
+- [FEAT] [S2.2] — Green.

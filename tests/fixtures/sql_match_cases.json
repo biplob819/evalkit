@@ -1,0 +1,590 @@
+[
+ {
+  "name": "identical",
+  "predicted": {
+   "columns": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    [
+     1,
+     "x"
+    ],
+    [
+     2,
+     "y"
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    [
+     1,
+     "x"
+    ],
+    [
+     2,
+     "y"
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "row_order_ignored",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     2
+    ],
+    [
+     1
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "row_order_required",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     2
+    ],
+    [
+     1
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ],
+   "ordered": true
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "ordered_match",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ],
+   "ordered": true
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "duplicates_matter",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     1
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "duplicates_equal",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     1
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "alias_positional",
+  "predicted": {
+   "columns": [
+    "total_n"
+   ],
+   "rows": [
+    [
+     5
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "count"
+   ],
+   "rows": [
+    [
+     5
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "column_permutation_by_name",
+  "predicted": {
+   "columns": [
+    "B",
+    "a"
+   ],
+   "rows": [
+    [
+     "x",
+     1
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    [
+     1,
+     "x"
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "float_tolerance",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     0.30000000000000004
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     0.3
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "float_outside_tolerance",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     0.31
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     0.3
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "int_vs_float",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     3
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     3.0
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "numeric_string_not_coerced",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     "3"
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     3
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "bool_not_number",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     true
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     1
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "none_only_equals_none",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     null
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     0
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "none_equals_none",
+  "predicted": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     null
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "v"
+   ],
+   "rows": [
+    [
+     null
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "trailing_space_trimmed",
+  "predicted": {
+   "columns": [
+    "s"
+   ],
+   "rows": [
+    [
+     "abc  "
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "s"
+   ],
+   "rows": [
+    [
+     "abc"
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "empty_matches_empty",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": []
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [],
+   "ordered": false
+  },
+  "expected": 1.0
+ },
+ {
+  "name": "empty_vs_rows",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": []
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "extra_row",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ],
+    [
+     3
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ],
+    [
+     2
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "missing_column",
+  "predicted": {
+   "columns": [
+    "a"
+   ],
+   "rows": [
+    [
+     1
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    [
+     1,
+     2
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 0.0
+ },
+ {
+  "name": "tolerant_unordered_pairing",
+  "predicted": {
+   "columns": [
+    "a",
+    "v"
+   ],
+   "rows": [
+    [
+     "y",
+     2.0000000001
+    ],
+    [
+     "x",
+     1.0
+    ]
+   ]
+  },
+  "gold": {
+   "columns": [
+    "a",
+    "v"
+   ],
+   "rows": [
+    [
+     "x",
+     1
+    ],
+    [
+     "y",
+     2
+    ]
+   ],
+   "ordered": false
+  },
+  "expected": 1.0
+ }
+]

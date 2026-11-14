@@ -8,6 +8,8 @@ from evalkit.scorers.base import (
     scorer,
 )
 from evalkit.scorers.deterministic import citation_valid, cost, label_correct, latency
+from evalkit.scorers.retrieval import mrr, ndcg_at_k, recall_at_k
+from evalkit.scorers.sql import sql_match
 
 __all__ = [
     "ScoreResult",
@@ -18,5 +20,9 @@ __all__ = [
     "get_scorer",
     "label_correct",
     "latency",
+    "mrr",
+    "ndcg_at_k",
+    "recall_at_k",
     "scorer",
+    "sql_match",
 ]
