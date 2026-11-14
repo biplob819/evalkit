@@ -88,3 +88,8 @@ def test_status_output_is_deterministic(capsys):
     first = capsys.readouterr().out
     status.main([])
     assert capsys.readouterr().out == first
+
+
+def test_gitattributes_force_lf():
+    text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+    assert "* text=auto eol=lf" in text
