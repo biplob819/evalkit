@@ -120,5 +120,8 @@ class AgentScore(Model):
     policy_violations: NonNegInt
     steps_over_gold: StrictInt
     recovered_from_error: bool | None = None
-    cost_usd: NonNegFloat
-    error: str | None = None
+    cost_usd: NonNegFloat  # the agent's own spend (basis of cost per success)
+    simulator_cost_usd: NonNegFloat = 0.0
+    split: Literal["public", "heldout"] = "public"
+    detail: str = ""  # why it failed, in a few words (empty on success)
+    error: str | None = None  # "void" when the sandbox reset check failed (excluded, counted)

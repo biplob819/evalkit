@@ -59,6 +59,14 @@ def _interval_from(point: float, boot: Sequence[float], alpha: float) -> Interva
     return Interval(point=point, lo=min(lo, point), hi=max(hi, point))
 
 
+def interval_from(point: float, boot: Sequence[float], alpha: float = ALPHA) -> Interval:
+    """Percentile interval for a point estimate from bootstrap draws made elsewhere (e.g. the
+    agent track's two-level bootstrap)."""
+    if not boot:
+        raise ValueError("no bootstrap draws")
+    return _interval_from(point, boot, alpha)
+
+
 def _finite_mean(values: Sequence[float]) -> float:
     for v in values:
         if not math.isfinite(v):

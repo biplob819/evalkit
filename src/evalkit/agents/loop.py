@@ -26,7 +26,7 @@ from evalkit.runtime import BudgetExceeded, Executor, Node, RunContext
 from evalkit.schemas import AgentTask, Step, Trajectory
 from evalkit.schemas._base import Model, Name, NonBlank, NonNegInt, PosInt
 
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"  # 2: history last, one block per step (prompt caching)
 StopReason = Literal["final_answer", "step_budget", "refusal", "transport", "void"]
 
 SYSTEM = """\
@@ -44,13 +44,24 @@ Rules:
 - Finish with final_answer. For a question whose answer is a table, also give the result \
 as columns and rows.
 - Set every argument your tool does not use to null.
+- Each action uses one step. After the steps so far, reply with your next action.
 """
 
+# The prompt is the task header followed by one block per step, and nothing after the latest
+# step: every turn's prompt extends the previous one, so providers cache the shared prefix
+# (Anthropic automatic caching, OpenAI prefix caching) and only the newest step is new input.
 TURN = """\
 Task: {goal}
+Step budget: {budget} steps in total.
 
-{history}
-You have used {used} of {budget} steps. Reply with your next action."""
+Steps so far:
+"""
+STEP = """\
+Step {i} action: {action}
+Step {i} result: {result}
+({left} steps left)
+
+"""
 
 
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
@@ -91,14 +102,25 @@ def system_prompt(task: AgentTask | TrialTask) -> str:
     return SYSTEM.format(tools=tools, allowed=", ".join(task.allowed_tools), max_rows=MAX_ROWS)
 
 
-def render_history(steps: list[tuple[dict[str, Any], str]]) -> str:
-    if not steps:
-        return "No steps yet.\n"
-    parts = []
-    for i, (action, result) in enumerate(steps):
-        parts.append(f"Step {i} action: {json.dumps(action, ensure_ascii=False, sort_keys=True)}")
-        parts.append(f"Step {i} result: {result}\n")
-    return "\n".join(parts) + "\n"
+def prompt_parts(
+    goal: str, budget: int, steps: list[tuple[dict[str, Any], str]]
+) -> tuple[str, ...]:
+    """The turn prompt as blocks: the header, then one block per step taken so far."""
+    head = TURN.format(goal=goal, budget=budget)
+    steps_text = [
+        STEP.format(
+            i=i,
+            action=json.dumps(action, ensure_ascii=False, sort_keys=True),
+            result=result,
+            left=budget - i - 1,
+        )
+        for i, (action, result) in enumerate(steps)
+    ]
+    return (head, *steps_text)
+
+
+def render_history(steps: list[tuple[dict[str, Any], str]], goal: str = "", budget: int = 1) -> str:
+    return "".join(prompt_parts(goal, budget, steps)[1:])
 
 
 class TurnInput(Model):
@@ -109,16 +131,20 @@ class TurnInput(Model):
     provider: Name
     effort: Name | None
     system: str
-    prompt: str
+    prompt_parts: tuple[str, ...]
     max_output_tokens: PosInt
     prompt_version: str = PROMPT_VERSION
+
+    @property
+    def prompt(self) -> str:
+        return "".join(self.prompt_parts)
 
 
 class AgentTurn(Node[TurnInput, RawCompletion]):
     """One model call in a trial. Transport errors propagate (never cached)."""
 
     name = "agent_turn"
-    code_version = "1"
+    code_version = "2"  # 2: prompt blocks and provider caching
     In = TurnInput
     Out = RawCompletion
 
@@ -144,6 +170,8 @@ class AgentTurn(Node[TurnInput, RawCompletion]):
                 model_id=inp.model,
                 system=inp.system,
                 prompt=inp.prompt,
+                prompt_parts=inp.prompt_parts,
+                cache=True,
                 max_output_tokens=inp.max_output_tokens,
                 params={"effort": inp.effort} if inp.effort else {},
                 json_schema=action_schema(),
@@ -214,7 +242,7 @@ def sandbox_fingerprint() -> str:
             sorted(sb.KEYWORD_FUNCTIONS),
             sb.RESERVED_PREFIXES,
         ],
-        "prompts": [SYSTEM, TURN, action_schema()],
+        "prompts": [SYSTEM, TURN, STEP, action_schema()],
     }
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -262,7 +290,7 @@ class AgentTrial(Node[TrialInput, Trajectory]):
     resumes. Spend is counted by the turns, never twice."""
 
     name = "agent_trial"
-    code_version = "3"  # 3: records simulator cost (C3.3)
+    code_version = "4"  # 4: prompt blocks (C3.4); 3: simulator cost (C3.3)
     In = TrialInput
     Out = Trajectory
 
@@ -327,9 +355,7 @@ class AgentTrial(Node[TrialInput, Trajectory]):
                 provider=inp.provider,
                 effort=inp.effort,
                 system=system,
-                prompt=TURN.format(
-                    goal=task.goal, history=render_history(history), used=i, budget=task.step_budget
-                ),
+                prompt_parts=prompt_parts(task.goal, task.step_budget, history),
                 max_output_tokens=inp.max_output_tokens,
             )
             try:

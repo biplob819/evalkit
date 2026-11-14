@@ -33,7 +33,8 @@ EXIT_CODES = """exit codes:
   1  run finished and a threshold failed
   2  configuration or runtime error
   3  stopped at the cost cap (completed work is cached; resume with the same command)
-  4  judging pending (rerun the same command to collect, at no extra cost)"""
+  4  judging pending (rerun the same command to collect, at no extra cost); for agent-run,
+     trials interrupted by provider failures (rerun the same command to finish them)"""
 
 _JSON_MODE = False
 
@@ -367,6 +368,143 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_agent_run(args: argparse.Namespace) -> int:
+    from evalkit.adapters import get_adapter
+    from evalkit.agents import runner as A
+    from evalkit.agents.simuser import SIMULATORS
+    from evalkit.cost import load_prices
+    from evalkit.env import load_dotenv, missing_keys
+    from evalkit.pipeline.generate import provider_for
+    from evalkit.runtime import BudgetExceeded
+
+    load_dotenv(Path.cwd() / ".env")
+    prices = load_prices()
+    try:
+        plan = A.plan_agent_run(
+            agents=args.agents or A.AGENTS,
+            simulators=args.simulators if args.simulators is not None else SIMULATORS,
+            k=args.k,
+            seed=args.seed,
+            out=Path(args.out),
+            store_dir=Path(args.store),
+            heldout_dir=None if args.no_heldout else Path(args.heldout),
+            heldout_manifest=Path(args.heldout).parent / "MANIFEST.json",
+            only=args.tasks or (),
+        )
+        costs = A.estimate_usd(plan, prices)
+    except (A.AgentRunError, KeyError) as exc:
+        return _err(str(exc))
+    est = A.total(costs)
+    n_ambiguous = sum(1 for j in plan.jobs if j.simulator)
+    header = (
+        f"agent run {plan.run_id}: {len(plan.tasks)} tasks "
+        f"({'with' if plan.heldout_present else 'without'} held-out), "
+        f"{len(plan.agents)} agents, k={plan.k}, {len(plan.jobs)} trials "
+        f"({n_ambiguous} with a simulated user)"
+    )
+    lines = "\n".join(f"  {m:<22} ${usd:.2f}" for m, usd in sorted(costs.items()))
+    if args.dry_run:
+        _emit(
+            args,
+            {
+                "dry_run": True,
+                "run_id": plan.run_id,
+                "trials": len(plan.jobs),
+                "tasks": len(plan.tasks),
+                "heldout_present": plan.heldout_present,
+                "estimate_usd": round(est, 4),
+                "by_model": {m: round(v, 4) for m, v in costs.items()},
+            },
+            f"{header}\n{lines}\nestimated total ${est:.2f} (no API calls made)",
+        )
+        return 0
+    providers = {provider_for(m) for m in (*plan.agents, *plan.simulators)}
+    if missing := missing_keys(providers):
+        return _err(f"missing API keys: {', '.join(missing)}")
+    # The estimate is always shown before the first call (stderr, so --json stays one object).
+    print(
+        f"{header}\n{lines}\nestimated total ${est:.2f}; cap ${args.max_cost:.2f}",
+        file=sys.stderr,
+    )
+    if est > args.max_cost:
+        print(
+            f"note: estimate ${est:.2f} exceeds the cap ${args.max_cost:.2f}; the run stops at "
+            "the cap and resumes with a higher --max-cost",
+            file=sys.stderr,
+        )
+    adapters = {p: get_adapter(p, prices=prices) for p in providers}
+    try:
+        outcome = asyncio.run(
+            A.execute_agent_run(
+                plan, adapters, prices, max_cost_usd=args.max_cost, concurrency=args.concurrency
+            )
+        )
+    except BudgetExceeded as exc:
+        m = A.read_agent_manifest(plan.run_dir)
+        spent = m.spent_usd if m else 0.0
+        msg = (
+            f"stopped at the cost cap ({exc}); ${spent:.4f} spent on this run so far. Finished "
+            f"trials are cached: resume with the same command and a higher --max-cost "
+            f"(run folder {plan.run_dir})"
+        )
+        _emit(
+            args,
+            {
+                "exit_code": 3,
+                "run_id": plan.run_id,
+                "spent_usd_total": round(spent, 6),
+                "error": msg,
+            },
+            msg,
+        )
+        return 3
+    s = outcome.summary
+    rows = [
+        {
+            "agent": r.agent,
+            "view": r.view,
+            "split": r.split,
+            "success": round(r.metrics["success"].point, 4),
+            # absent when no task has all k trials for every agent (lost trials)
+            "pass_hat_k": round(r.metrics["pass_hat_k"].point, 4)
+            if "pass_hat_k" in r.metrics
+            else None,
+        }
+        for r in s.rows
+    ]
+    text = "\n".join(
+        f"{r['agent']:<20} {(r['view'] or 'no simulator').split('+')[0]:<18} {r['split']:<8} "
+        f"success {r['success']:.0%}  pass^k "
+        + (f"{r['pass_hat_k']:.0%}" if r["pass_hat_k"] is not None else "– (trials missing)")
+        for r in rows
+    )
+    seps = [x for x in s.separation if x.separated]
+    code = 4 if outcome.incomplete else 0
+    resume = (
+        f"\n{outcome.incomplete} trial(s) hit provider failures: rerun the same command to "
+        "finish them (finished trials replay free)"
+        if outcome.incomplete
+        else ""
+    )
+    _emit(
+        args,
+        {
+            "exit_code": code,
+            "estimate_usd": round(est, 4),
+            "incomplete_trials": outcome.incomplete,
+            "run_id": plan.run_id,
+            "run_dir": str(outcome.run_dir),
+            "spent_usd": round(outcome.spent_usd, 6),
+            "rows": rows,
+            "separated": [x.model_dump(mode="json") for x in seps],
+            "note": s.note,
+        },
+        f"{text}\n{len(seps)} separated gap(s) · spent ${outcome.spent_usd:.4f} · report "
+        f"{outcome.run_dir / 'report.html'}" + (f"\n{s.note}" if s.note else "") + resume,
+    )
+    return code
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="evalkit",
@@ -403,6 +541,41 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--live-judges", action="store_true", help="judge now at full price")
     r.add_argument("--json", action="store_true", help="print one JSON object")
     r.set_defaults(func=cmd_run)
+
+    ag = sub.add_parser("agent-run", help="run (or resume) the agent suite")
+    ag.add_argument(
+        "--agents",
+        nargs="+",
+        default=None,
+        help="agent models (default: claude-sonnet-5-5 gpt-6.1-sol)",
+    )
+    ag.add_argument(
+        "--simulators",
+        nargs="*",
+        default=None,
+        help="simulated-user models (default: claude-haiku-5-5 gpt-6-luna)",
+    )
+    ag.add_argument("--k", type=int, default=3, help="trials per task (default 3)")
+    ag.add_argument("--seed", type=int, default=7)
+    ag.add_argument("--tasks", nargs="+", default=None, help="only these task ids")
+    ag.add_argument(
+        "--heldout",
+        default="heldout/agent_tasks",
+        help="held-out task folder, checked against its MANIFEST.json",
+    )
+    ag.add_argument("--no-heldout", action="store_true", help="public tasks only")
+    ag.add_argument("--out", default="runs", help="folder for run folders (default ./runs)")
+    ag.add_argument("--store", default=".evalkit/store", help="cache folder")
+    ag.add_argument(
+        "--max-cost",
+        type=float,
+        default=25.0,
+        help="total USD this run folder may spend, across resumes (default 25)",
+    )
+    ag.add_argument("--concurrency", type=int, default=8, help="trials at once (default 8)")
+    ag.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
+    ag.add_argument("--json", action="store_true", help="print one JSON object")
+    ag.set_defaults(func=cmd_agent_run)
 
     c = sub.add_parser("calibrate", help="label claims and score the judges")
     csub = c.add_subparsers(dest="action", required=True)

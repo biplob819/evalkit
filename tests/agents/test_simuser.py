@@ -279,9 +279,7 @@ def action(tool, **args):
 
 
 def step_of(req):
-    m = re.search(r"You have used (\d+) of", req.prompt)
-    assert m
-    return int(m.group(1))
+    return len(re.findall(r"^Step \d+ result:", req.prompt, re.M))
 
 
 class Router(ScriptedAdapter):

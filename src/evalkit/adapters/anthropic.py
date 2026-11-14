@@ -66,6 +66,16 @@ class AnthropicAdapter(ModelAdapter):
             "max_tokens": req.max_output_tokens,
             "messages": [{"role": "user", "content": req.prompt}],
         }
+        if req.prompt_parts:
+            params["messages"] = [
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": p} for p in req.prompt_parts if p],
+                }
+            ]
+        if req.cache:
+            # automatic caching: the breakpoint follows the last block as the history grows
+            params["cache_control"] = {"type": "ephemeral"}
         if req.system:
             params["system"] = req.system
         output_config: dict[str, Any] = {}

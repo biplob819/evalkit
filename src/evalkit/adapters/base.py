@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from typing import Any, ClassVar, TypeVar
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from evalkit.schemas._base import (
     FrozenMap,
@@ -32,6 +32,19 @@ class CompletionRequest(Model):
     max_output_tokens: PosInt = 1024
     params: FrozenMap[str] = Field(default_factory=dict)
     json_schema: FrozenMap[JsonValue] | None = None  # structured output (D-24)
+    # Optional split of `prompt` into parts that only ever grow at the end (an agent's
+    # history). Providers that cache by content block send one block per part; `prompt`
+    # must equal the parts joined, so caching keys and providers without blocks see the same
+    # text. `cache` asks the provider to cache the growing prefix (Anthropic automatic caching;
+    # OpenAI caches long prefixes on its own).
+    prompt_parts: tuple[str, ...] | None = None
+    cache: bool = False
+
+    @model_validator(mode="after")
+    def _parts_match(self) -> CompletionRequest:
+        if self.prompt_parts is not None and "".join(self.prompt_parts) != self.prompt:
+            raise ValueError("prompt must equal its prompt_parts joined")
+        return self
 
 
 class RawCompletion(Model):
