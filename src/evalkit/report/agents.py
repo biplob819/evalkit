@@ -27,6 +27,25 @@ def _num(iv: Interval) -> str:
     return f"{iv.point:.2f} <span class=muted>({iv.lo:.2f}–{iv.hi:.2f})</span>"
 
 
+GAP_LABELS = {**LABELS, "cost_per_success": "Cost per success"}
+
+
+def _value(metric: str, iv: Interval) -> str:
+    if metric in RATES:
+        return _pct(iv)
+    if metric == "cost_per_success":
+        return f"${iv.point:.3f} <span class=muted>(${iv.lo:.3f}–${iv.hi:.3f})</span>"
+    return _num(iv)
+
+
+def _gap(metric: str, iv: Interval) -> str:
+    if metric in RATES:
+        return _diff(iv)
+    if metric == "cost_per_success":
+        return f"{iv.point:+.3f} <span class=muted>({iv.lo:+.3f} to {iv.hi:+.3f})</span>"
+    return f"{iv.point:+.2f} <span class=muted>({iv.lo:+.2f} to {iv.hi:+.2f})</span>"
+
+
 def _diff(iv: Interval) -> str:
     return f"{iv.point:+.0%} <span class=muted>({iv.lo:+.0%} to {iv.hi:+.0%})</span>"
 
@@ -154,8 +173,8 @@ def _heldout_table(summary: AgentSummary) -> str:
         return f"<p>{escape(summary.note)}</p>"
     rows = "".join(
         f"<tr><th scope=row>{escape(g.agent)}</th><td>{escape(_view(g.view))}</td>"
-        f"<td>{LABELS[g.metric]}</td><td>{_pct(g.public)}</td><td>{_pct(g.heldout)}</td>"
-        f"<td>{_diff(g.diff)}</td></tr>"
+        f"<td>{GAP_LABELS.get(g.metric, g.metric)}</td><td>{_value(g.metric, g.public)}</td>"
+        f"<td>{_value(g.metric, g.heldout)}</td><td>{_gap(g.metric, g.diff)}</td></tr>"
         for g in summary.heldout_gap
     )
     return (

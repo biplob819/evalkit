@@ -136,12 +136,82 @@ def _group_matches(
     return _max_matching(adj, len(g_nums)) == len(p_nums)
 
 
+MAX_ASSIGNMENTS = 200  # column assignments tried when matching gold columns by value
+
+
+def _column_profile(rows: Any, i: int, rel_tol: float, abs_tol: float) -> tuple[Any, ...]:
+    """A column's values as a sorted, comparable profile (numbers rounded to the tolerance's
+    scale so near-equal columns profile alike; used only to prune assignments)."""
+    vals = [_norm_value(r[i]) for r in rows]
+    out = []
+    for kind, v in vals:
+        if kind == "num":
+            out.append(("num", round(float(v), 4)))
+        else:
+            out.append((kind, str(v)))
+    return tuple(sorted(out))
+
+
+def _assignments(
+    predicted: ResultSet, gold: ResultSet, rel_tol: float, abs_tol: float
+) -> list[list[int]]:
+    """Ways to map each gold column to a distinct predicted column: by name when every gold
+    name is present, else by matching value profiles."""
+    pcols = [c.casefold() for c in predicted.columns]
+    gcols = [c.casefold() for c in gold.columns]
+    if set(gcols) <= set(pcols) and len(set(pcols)) == len(pcols):
+        return [[pcols.index(c) for c in gcols]]
+    gprof = [_column_profile(gold.rows, j, rel_tol, abs_tol) for j in range(len(gcols))]
+    pprof = [_column_profile(predicted.rows, i, rel_tol, abs_tol) for i in range(len(pcols))]
+    cands = [[i for i in range(len(pcols)) if pprof[i] == gprof[j]] for j in range(len(gcols))]
+    out: list[list[int]] = []
+
+    def walk(j: int, used: list[int]) -> None:
+        if len(out) >= MAX_ASSIGNMENTS:
+            return
+        if j == len(gcols):
+            out.append(list(used))
+            return
+        for i in cands[j]:
+            if i not in used:
+                used.append(i)
+                walk(j + 1, used)
+                used.pop()
+
+    walk(0, [])
+    return out
+
+
 def sql_match(
-    predicted: ResultSet, gold: ResultSet, *, rel_tol: float = 1e-6, abs_tol: float = 1e-9
+    predicted: ResultSet,
+    gold: ResultSet,
+    *,
+    rel_tol: float = 1e-6,
+    abs_tol: float = 1e-9,
+    allow_extra_columns: bool = False,
 ) -> ScoreResult:
-    """1.0 if `predicted` returns the same rows and values as `gold`, else 0.0 with a reason."""
+    """1.0 if `predicted` returns the same rows and values as `gold`, else 0.0 with a reason.
+
+    With `allow_extra_columns` (the agent track, D-55), a table with more columns than the gold
+    passes when some choice of its columns (matched by name, else by values) reproduces the
+    gold exactly; extra or missing rows still fail."""
     if not (0 <= rel_tol < 1) or abs_tol < 0:
         raise ValueError("rel_tol must be in [0, 1) and abs_tol >= 0")
+    if allow_extra_columns and len(predicted.columns) > len(gold.columns):
+        tried = _assignments(predicted, gold, rel_tol, abs_tol)
+        for order in tried:
+            res = _compare(predicted, gold, order, "subset", rel_tol, abs_tol)
+            if res.value == 1.0:
+                return res
+        return ScoreResult(
+            value=0.0,
+            details={
+                "reason": "no_matching_columns" if not tried else "row_mismatch",
+                "predicted": len(predicted.columns),
+                "gold": len(gold.columns),
+                "assignments_tried": len(tried),
+            },
+        )
     pcols = [c.casefold() for c in predicted.columns]
     gcols = [c.casefold() for c in gold.columns]
     if sorted(pcols) == sorted(gcols) and len(set(gcols)) == len(gcols):
@@ -153,7 +223,17 @@ def sql_match(
             value=0.0,
             details={"reason": "column_count", "predicted": len(pcols), "gold": len(gcols)},
         )
+    return _compare(predicted, gold, order, mode, rel_tol, abs_tol)
 
+
+def _compare(
+    predicted: ResultSet,
+    gold: ResultSet,
+    order: list[int],
+    mode: str,
+    rel_tol: float,
+    abs_tol: float,
+) -> ScoreResult:
     p_rows = [tuple(_norm_value(r[i]) for i in order) for r in predicted.rows]
     g_rows = [tuple(_norm_value(v) for v in r) for r in gold.rows]
     if len(p_rows) != len(g_rows):

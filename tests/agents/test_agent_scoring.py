@@ -639,3 +639,27 @@ def test_disjoint_public_tasks_explain_the_missing_heldout_gap():
     s = summarize(scores, heldout_present=True)
     assert len(s.rows) == 4 and s.k == 1 and not s.heldout_gap
     assert "No held-out gap" in s.note
+
+
+def test_report_renders_every_heldout_metric():
+    from evalkit.report.agents import render_agent_report
+
+    pub = suite(lambda t, k: True, lambda t, k: t % 3 != 0)
+    held = suite(lambda t, k: t % 2 == 0, lambda t, k: True, n_tasks=8, split="heldout")
+    s = summarize(pub + held, heldout_present=True)
+    assert {g.metric for g in s.heldout_gap} >= {"cost_per_success", "steps_over_gold"}
+    html = render_agent_report(s, "a-test", pub + held)
+    assert "Cost per success" in html and "Steps over minimum" in html
+
+
+def test_a_simulator_is_one_view_across_tasks_with_different_guards():
+    scores = [sc("plain", "A", 1, True)]
+    scores += [
+        sc("amb1", "A", 1, True, sim="haiku@v+effort=low+guard=aaa"),
+        sc("amb2", "A", 1, False, sim="haiku@v+effort=low+guard=bbb"),
+        sc("amb1", "A", 1, True, sim="luna@v+effort=low+guard=ccc"),
+        sc("amb2", "A", 1, True, sim="luna@v+effort=low+guard=ddd"),
+    ]
+    s = summarize(scores, heldout_present=False)
+    assert s.views == ["haiku@v+effort=low", "luna@v+effort=low"]
+    assert [r.n_tasks for r in s.rows] == [3, 3]

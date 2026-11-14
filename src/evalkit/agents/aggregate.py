@@ -164,13 +164,20 @@ class AgentSummary(Model):
         return " ".join(self.notes)
 
 
+def view_of(simulator: str | None) -> str | None:
+    """The simulator a trial's view belongs to. A simulator's full name ends with a fingerprint
+    of the answer guard, which differs per task (each protects its own gold values); the view
+    is the simulator itself (model, prompt and settings), the same across tasks."""
+    return None if simulator is None else simulator.split("+guard=")[0]
+
+
 def _views(scores: Sequence[AgentScore]) -> list[str | None]:
-    sims = sorted({s.simulator for s in scores if s.simulator})
+    sims = sorted({s.simulator.split("+guard=")[0] for s in scores if s.simulator})
     return list(sims) if sims else [None]
 
 
 def _in_view(s: AgentScore, view: str | None) -> bool:
-    return s.simulator is None or s.simulator == view
+    return s.simulator is None or view_of(s.simulator) == view
 
 
 def _tasks_for(

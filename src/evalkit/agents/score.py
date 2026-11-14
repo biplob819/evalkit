@@ -78,7 +78,7 @@ def score_trajectory(task: AgentTask, trajectory: Trajectory) -> AgentScore:
         if isinstance(given, str):
             success, detail = False, given
         else:
-            res = sql_match(given, gold)
+            res = sql_match(given, gold, allow_extra_columns=True)  # D-55
             success = res.value == 1.0
             detail = "" if success else f"wrong result ({res.details.get('reason', 'mismatch')})"
     tool_errors = [s for s in calls if s.error is not None and not s.violation]

@@ -73,8 +73,9 @@ ANALYTICS: list[Row] = [
     ),
     (
         "an-06",
-        "How many customers signed up in each month of 2025? List the months in order.",
-        "SELECT month(signup_date) AS month, COUNT(*) AS signups FROM customers WHERE year(signup_date) = 2025 GROUP BY month ORDER BY month",
+        "How many customers signed up in each month of 2025? List the months in order, each "
+        "written as YYYY-MM.",
+        "SELECT strftime(signup_date, '%Y-%m') AS month, COUNT(*) AS signups FROM customers WHERE year(signup_date) = 2025 GROUP BY month ORDER BY month",
         True,
         None,
         "month",

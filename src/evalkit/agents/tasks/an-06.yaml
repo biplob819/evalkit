@@ -1,6 +1,7 @@
 id: an-06
 source_project: evalkit
-goal: How many customers signed up in each month of 2025? List the months in order.
+goal: How many customers signed up in each month of 2025? List the months in order,
+  each written as YYYY-MM.
 allowed_tools:
 - list_tables
 - describe_table
@@ -13,32 +14,32 @@ gold_outcome:
   - month
   - signups
   rows:
-  - - 1
+  - - 2025-01
     - 9
-  - - 2
+  - - 2025-02
     - 4
-  - - 3
+  - - 2025-03
     - 6
-  - - 4
+  - - 2025-04
     - 4
-  - - 5
+  - - 2025-05
     - 6
-  - - 6
+  - - 2025-06
     - 4
-  - - 7
+  - - 2025-07
     - 7
-  - - 8
+  - - 2025-08
     - 7
-  - - 9
+  - - 2025-09
     - 9
-  - - 10
+  - - 2025-10
     - 9
-  - - 11
+  - - 2025-11
     - 5
-  - - 12
+  - - 2025-12
     - 3
   ordered: true
 simulated_user_intent: null
 split: public
-gold_sql: SELECT month(signup_date) AS month, COUNT(*) AS signups FROM customers WHERE
-  year(signup_date) = 2025 GROUP BY month ORDER BY month
+gold_sql: SELECT strftime(signup_date, '%Y-%m') AS month, COUNT(*) AS signups FROM
+  customers WHERE year(signup_date) = 2025 GROUP BY month ORDER BY month
