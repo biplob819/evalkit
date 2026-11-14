@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from evalkit.adapters import CompletionRequest, ModelAdapter, RawCompletion
-from evalkit.cost import Price, call_cost, price_for
+from evalkit.cost import Price, call_cost, estimate_tokens, price_for
 from evalkit.pipeline.answer import SchemaError, answer_schema, parse_answer
 from evalkit.retry import is_retryable
 from evalkit.runtime import BudgetExceeded, Executor, Node, RunContext
@@ -70,7 +70,7 @@ class Generate(Node[GenerateInput, RawCompletion]):
             self.prices, inp.model_id, free_if_unknown=inp.provider == "openai_compatible"
         )
         return call_cost(
-            price, tokens_in=len(inp.prompt) // 3 + 1, tokens_out=inp.max_output_tokens
+            price, tokens_in=estimate_tokens(inp.prompt), tokens_out=inp.max_output_tokens
         )
 
     async def run(self, inp: GenerateInput, ctx: RunContext) -> RawCompletion:

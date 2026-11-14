@@ -17,7 +17,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from evalkit.adapters import CompletionRequest, ModelAdapter, RawCompletion
-from evalkit.cost import Price, call_cost, price_for
+from evalkit.cost import Price, call_cost, estimate_tokens, price_for
 from evalkit.pipeline.generate import adapter_key, provider_for
 from evalkit.runtime import Executor, Node, RunContext
 from evalkit.schemas import AgentTask, ResultSet
@@ -86,8 +86,8 @@ class SimTurn(Node[SimInput, RawCompletion]):
         price = price_for(
             self.prices, inp.model, free_if_unknown=inp.provider == "openai_compatible"
         )
-        chars = len(inp.system) + len(inp.prompt)
-        return call_cost(price, tokens_in=chars // 3 + 1, tokens_out=inp.max_output_tokens)
+        tokens = estimate_tokens(inp.system, inp.prompt)
+        return call_cost(price, tokens_in=tokens, tokens_out=inp.max_output_tokens)
 
     async def run(self, inp: SimInput, ctx: RunContext) -> RawCompletion:
         adapter = self.adapters[adapter_key(inp.provider, inp.model)]

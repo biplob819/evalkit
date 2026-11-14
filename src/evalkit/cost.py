@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import math
 import warnings
 from collections.abc import Iterable
@@ -64,6 +65,32 @@ def price_for(prices: dict[str, Price], model_id: str, *, free_if_unknown: bool 
         warnings.warn(f"no price for {model_id!r}; costing it at $0", stacklevel=2)
         return FREE
     raise UnknownPrice(f"no price for model {model_id!r} in prices.yaml")
+
+
+# When set (the live demo, D-54), every token estimate is a strict upper bound: one token per
+# UTF-8 byte for all text, since dense digits or symbols can approach one token per character.
+# Context-local, so it covers exactly the calls made inside `compare()` and nothing else.
+STRICT_TOKENS: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "evalkit_strict_tokens", default=False
+)
+
+
+def estimate_tokens(*texts: str) -> int:
+    """A conservative prompt-token count for budgeting: ASCII at about 3 characters per token,
+    and every other character at one token per UTF-8 byte, a true upper bound (byte-level
+    tokenizers never emit more tokens than bytes). English estimates are unchanged, while CJK,
+    emoji or rare scripts can no longer be priced at a third of their real cost (D3.1). Under
+    `STRICT_TOKENS` all text counts by bytes (an upper bound for any input)."""
+    if STRICT_TOKENS.get():
+        return sum(len(t.encode("utf-8")) for t in texts) + 1
+    ascii_chars = other_bytes = 0
+    for t in texts:
+        for ch in t:
+            if ch < "\x80":
+                ascii_chars += 1
+            else:
+                other_bytes += len(ch.encode("utf-8"))
+    return ascii_chars // 3 + other_bytes + 1
 
 
 def call_cost(

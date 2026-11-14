@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import field_validator, model_validator
 
 from evalkit.adapters import CompletionRequest, ModelAdapter
-from evalkit.cost import Price, call_cost, price_for
+from evalkit.cost import Price, call_cost, estimate_tokens, price_for
 from evalkit.pipeline.answer import SchemaError, _extract_json
 from evalkit.pipeline.generate import Generated, adapter_key, provider_for
 from evalkit.retry import is_retryable
@@ -279,8 +279,8 @@ class ExtractClaims(Node[ExtractInput, ClaimSet]):
         price = price_for(
             self.prices, inp.extractor_id, free_if_unknown=inp.provider == "openai_compatible"
         )
-        prompt_chars = len(self.prompt) + len(inp.question) + len(inp.answer_text)
-        return call_cost(price, tokens_in=prompt_chars // 3 + 1, tokens_out=inp.max_output_tokens)
+        tokens = estimate_tokens(self.prompt, inp.question, inp.answer_text)
+        return call_cost(price, tokens_in=tokens, tokens_out=inp.max_output_tokens)
 
     async def run(self, inp: ExtractInput, ctx: RunContext) -> ClaimSet:
         prompt = self.prompt.format(

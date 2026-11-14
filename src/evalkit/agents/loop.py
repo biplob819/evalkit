@@ -21,7 +21,7 @@ from evalkit.adapters.base import render_turns
 from evalkit.agents.db import DB_SHA256
 from evalkit.agents.sandbox import ARG_SCHEMAS, Sandbox, UserFn
 from evalkit.agents.tasks import TOOLBOX
-from evalkit.cost import Price, call_cost, price_for
+from evalkit.cost import Price, call_cost, estimate_tokens, price_for
 from evalkit.pipeline.generate import adapter_key, is_provider_failure, provider_for
 from evalkit.runtime import BudgetExceeded, Executor, Node, RunContext
 from evalkit.schemas import AgentTask, Step, Trajectory
@@ -146,8 +146,8 @@ class AgentTurn(Node[TurnInput, RawCompletion]):
         price = price_for(
             self.prices, inp.model, free_if_unknown=inp.provider == "openai_compatible"
         )
-        chars = len(inp.system) + len(inp.prompt)
-        return call_cost(price, tokens_in=chars // 3 + 1, tokens_out=inp.max_output_tokens)
+        tokens = estimate_tokens(inp.system, inp.prompt)
+        return call_cost(price, tokens_in=tokens, tokens_out=inp.max_output_tokens)
 
     async def run(self, inp: TurnInput, ctx: RunContext) -> RawCompletion:
         adapter = self.adapters[adapter_key(inp.provider, inp.model)]

@@ -43,3 +43,26 @@ jobs:
         run: |
           uv run python -c "import importlib.util as u; assert u.find_spec('anthropic') is None and u.find_spec('openai') is None"
           uv run python -c "import evalkit, evalkit.scorers, evalkit.runtime; from evalkit.adapters import discover; assert {'anthropic','openai'} <= set(discover())"
+
+  postgres:
+    name: demo spend counter against Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: evalkit
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 2s
+          --health-retries 20
+    env:
+      EVALKIT_TEST_POSTGRES_URL: postgresql://postgres:test@localhost:5432/evalkit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --all-extras
+      - run: uv run pytest -q tests/demo -k postgres

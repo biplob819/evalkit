@@ -62,6 +62,7 @@ class Executor:
         default_concurrency: int = 4,
         max_cost_usd: float | None = None,
         log: JsonlWriter | None = None,
+        count_cancelled: bool = False,
     ) -> None:
         if max_cost_usd is not None:
             _check_amount(max_cost_usd, "max_cost_usd", "executor")
@@ -74,6 +75,11 @@ class Executor:
         self._spend = _Spend()
         self._lock = asyncio.Lock()
         self._pending: dict[str, asyncio.Future[BaseModel]] = {}
+        # A call cancelled mid-flight may already be billed. A small capped request (the live
+        # demo) counts it at its reservation so a cap is never passed unseen; a long run
+        # (Ctrl-C on a benchmark) does not, so resumed caps are not charged worst cases.
+        self.count_cancelled = count_cancelled
+        self.cancelled = 0
         self._batch_reservations: dict[str, float] = {}
         # Per event loop, weakly keyed so a finished loop and its locks can be freed.
         self._named_locks: weakref.WeakKeyDictionary[
@@ -169,6 +175,12 @@ class Executor:
                         f"{node.name} returned {type(out).__name__}, not {node.Out.__name__}"
                     )
                 cost = _check_amount(node.cost_of(out), "cost_of", node.name)
+            except asyncio.CancelledError:
+                # No await here: the loop is single-threaded, so this update is atomic.
+                if self.count_cancelled:
+                    self._spend.spent += estimate
+                self.cancelled += 1
+                raise
             except Exception as exc:
                 latency = int((time.perf_counter() - t0) * 1000)
                 await self._log(

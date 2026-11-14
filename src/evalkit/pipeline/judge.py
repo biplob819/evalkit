@@ -22,7 +22,7 @@ from typing import Any, Literal
 from pydantic import field_validator
 
 from evalkit.adapters import BatchRequest, CompletionRequest, ModelAdapter, RawCompletion
-from evalkit.cost import Price, TokenAssumptions, call_cost, price_for
+from evalkit.cost import Price, TokenAssumptions, call_cost, estimate_tokens, price_for
 from evalkit.pipeline.answer import SchemaError, _extract_json
 from evalkit.pipeline.generate import adapter_key, provider_for
 from evalkit.runtime import BudgetExceeded, Executor
@@ -314,12 +314,12 @@ def parse_verdict(raw_text: str, inp: JudgeInput) -> ClaimVerdict:
     )
 
 
-def _request(inp: JudgeInput) -> CompletionRequest:
+def _request(inp: JudgeInput, max_output_tokens: int | None = None) -> CompletionRequest:
     return CompletionRequest(
         model="judge",
         model_id=inp.judge_id,
         prompt=render_judge_prompt(inp),
-        max_output_tokens=JUDGE_MAX_OUTPUT_TOKENS,
+        max_output_tokens=max_output_tokens or JUDGE_MAX_OUTPUT_TOKENS,
         params={"effort": inp.effort} if inp.effort else {},
         json_schema=verdict_schema(),
     )
@@ -376,7 +376,21 @@ def _estimate(price: Price, req: CompletionRequest, *, batch: bool) -> float:
         out = min(req.max_output_tokens, math.ceil(BATCH_HOLD_FACTOR * (a.t_j_out + a.t_j_reason)))
     else:
         out = req.max_output_tokens
-    return call_cost(price, tokens_in=len(req.prompt) // 3 + 1, tokens_out=out, batch=batch)
+    return call_cost(price, tokens_in=estimate_tokens(req.prompt), tokens_out=out, batch=batch)
+
+
+def live_call_estimate(
+    case: Case,
+    claim: Claim,
+    judge: str,
+    effort: str | None,
+    price: Price,
+    max_output_tokens: int | None = None,
+) -> float:
+    """What `judge_claims_live` reserves for one claim: an exact upper bound on its cost,
+    since the provider stops at `max_output_tokens` (used by callers that budget a request)."""
+    req = _request(judge_input(claim, case, judge, effort), max_output_tokens)
+    return _estimate(price, req, batch=False)
 
 
 _FATAL_STATUS = frozenset({401, 403, 404})
@@ -391,16 +405,24 @@ def _is_fatal(exc: BaseException) -> bool:
 
 
 async def _retry_live(
-    executor: Executor, adapter: ModelAdapter, inp: JudgeInput, price: Price
+    executor: Executor,
+    adapter: ModelAdapter,
+    inp: JudgeInput,
+    price: Price,
+    max_output_tokens: int | None = None,
 ) -> tuple[ClaimVerdict | None, str | None, float]:
     """Tech Spec §2.4, D-35: one live retry with the same prompt for an unparseable verdict.
     Returns (verdict, error label, cost). Budget and provider exceptions propagate."""
-    req = _request(inp)
+    req = _request(inp, max_output_tokens)
     estimate = _estimate(price, req, batch=False)
     await executor.reserve(estimate)
     cost = 0.0
     try:
-        raw = await adapter.complete(req)
+        try:
+            raw = await adapter.complete(req)
+        except asyncio.CancelledError:
+            cost = estimate if executor.count_cancelled else 0.0  # possibly billed
+            raise
         cost = raw.cost_usd
         if raw.refusal:
             return None, "refusal", cost
@@ -635,10 +657,15 @@ async def judge_claims_live(
     *,
     run_id: str,
     concurrency: int = 8,
+    max_output_tokens: int | None = None,
 ) -> JudgingResult:
     """Judge every claim through the normal API (OWNER D-44 `--live-judges`): full price, no
     waiting. Same prompt, parsing, single retry and cache keys as batch judging, so verdicts
-    from either path are interchangeable and a later batch run never pays for them again."""
+    from either path are interchangeable and a later batch run never pays for them again.
+
+    `max_output_tokens` (the live demo, D-54) caps each verdict's output, which makes every
+    call's reservation an exact upper bound on its cost; such verdicts are not cached, since
+    they come from a differently configured judge."""
     provider = provider_for(judge, config.endpoints)
     adapter = adapters[adapter_key(provider, judge)]
     price = price_for(prices, judge, free_if_unknown=provider == "openai_compatible")
@@ -665,13 +692,16 @@ async def judge_claims_live(
             result.status = "pending"
             return
         async with sem:
-            req = _request(inp)
+            req = _request(inp, max_output_tokens)
             estimate = _estimate(price, req, batch=False)
             await executor.reserve(estimate)
             cost = 0.0
             try:
                 raw = await adapter.complete(req)
                 cost = raw.cost_usd
+            except asyncio.CancelledError:
+                cost = estimate if executor.count_cancelled else 0.0  # possibly billed
+                raise
             except Exception as exc:
                 if _is_fatal(exc):
                     raise
@@ -681,14 +711,17 @@ async def judge_claims_live(
                 await executor.settle(estimate, cost)
             result.cost_usd += cost
             if raw.refusal:
-                _store_verdict(executor, key, None, "refusal", cost)
+                if max_output_tokens is None:  # a lower output limit is not the benchmark's judge
+                    _store_verdict(executor, key, None, "refusal", cost)
                 result.n_errors += 1
                 return
             try:
                 verdict, err = parse_verdict(raw.raw_text, inp), None
             except SchemaError:
                 try:
-                    verdict, err, retry_cost = await _retry_live(executor, adapter, inp, price)
+                    verdict, err, retry_cost = await _retry_live(
+                        executor, adapter, inp, price, max_output_tokens
+                    )
                 except Exception as exc:
                     if _is_fatal(exc) or isinstance(exc, BudgetExceeded):
                         raise
@@ -696,7 +729,8 @@ async def judge_claims_live(
                     return
                 result.cost_usd += retry_cost
                 cost += retry_cost
-        _store_verdict(executor, key, verdict, err, cost)
+        if max_output_tokens is None:  # verdicts under a lower output limit are never cached
+            _store_verdict(executor, key, verdict, err, cost)
         if verdict is not None:
             result.verdicts[claim.id] = verdict
         else:

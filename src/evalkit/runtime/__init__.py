@@ -3,7 +3,7 @@
 from evalkit.runtime.canonical import canonical_json, sha256_hex
 from evalkit.runtime.executor import BudgetExceeded, Executor
 from evalkit.runtime.node import Node, RunContext
-from evalkit.runtime.store import Lineage, Store
+from evalkit.runtime.store import Lineage, MemoryStore, Store
 from evalkit.runtime.writer import JsonlWriter
 
 __all__ = [
@@ -11,6 +11,7 @@ __all__ = [
     "Executor",
     "JsonlWriter",
     "Lineage",
+    "MemoryStore",
     "Node",
     "RunContext",
     "Store",

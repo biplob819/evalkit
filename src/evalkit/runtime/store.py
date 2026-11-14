@@ -108,3 +108,45 @@ class Store:
     def get_meta(self, key: str, name: str) -> dict[str, Any] | None:
         p = self.path(key, f".{name}.json")
         return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+
+
+class MemoryStore(Store):
+    """A store that never touches disk (D3.1 live mode: the question and the abstract must not
+    be written anywhere). Same contract as `Store`; everything is gone when it is dropped."""
+
+    def __init__(self) -> None:
+        super().__init__(Path("<memory>"))
+        self._out: dict[str, str] = {}
+        self._lineage: dict[str, str] = {}
+        self._meta: dict[tuple[str, str], str] = {}
+
+    def has(self, key: str) -> bool:
+        self.path(key)  # validates the key
+        return key in self._out
+
+    def get(self, key: str, model: type[M]) -> M | None:
+        raw = self._out.get(key)
+        return None if raw is None else model.model_validate_json(raw)
+
+    def put(self, key: str, value: BaseModel, lineage: Lineage, *, overwrite: bool = False) -> bool:
+        if lineage.key != key:
+            raise ValueError("lineage key does not match the stored key")
+        if not overwrite and self.has(key):
+            return False
+        self._lineage[key] = lineage.model_dump_json()
+        self._out[key] = value.model_dump_json()
+        return True
+
+    def lineage(self, key: str) -> Lineage | None:
+        raw = self._lineage.get(key)
+        return None if raw is None else Lineage.model_validate_json(raw)
+
+    def put_meta(self, key: str, name: str, data: dict[str, Any]) -> None:
+        self._meta[(key, name)] = json.dumps(data, sort_keys=True)
+
+    def delete_meta(self, key: str, name: str) -> None:
+        self._meta.pop((key, name), None)
+
+    def get_meta(self, key: str, name: str) -> dict[str, Any] | None:
+        raw = self._meta.get((key, name))
+        return None if raw is None else json.loads(raw)

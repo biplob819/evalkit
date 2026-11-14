@@ -7,7 +7,9 @@ source of every Node class in its MRO (so a shared base class counts) and of its
 outputs produced by the old logic would be served as if new; `check()` reports exactly that,
 and `--update` refuses to record it.
 
-Prompts and other string constants attached to the class are hashed by value.
+Prompts and other string constants attached to the class are hashed by value. Methods that
+cannot change a node's output (`estimate_cost`, `pool`: budgeting and scheduling) are left out,
+so tightening a cost estimate never invalidates cached work.
 
 Limit: module-level helper functions a node calls are not hashed. Keep node logic on the
 class, or bump `code_version` by hand when a helper changes.
@@ -15,11 +17,13 @@ class, or bump `code_version` by hand when a helper changes.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib
 import inspect
 import json
 import pkgutil
+import textwrap
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -53,12 +57,30 @@ def package_modules(package: str = "evalkit") -> list[ModuleType]:
     return mods
 
 
+NON_OUTPUT_METHODS = frozenset({"estimate_cost", "pool"})
+HASH_SCHEME = "2"  # 2: non-output methods excluded
+
+
 def _source(cls: type) -> str:
     try:
-        src = inspect.getsource(cls)
+        src = textwrap.dedent(inspect.getsource(cls))
     except (OSError, TypeError):
         return f"<no source: {cls.__module__}.{cls.__qualname__}>"
-    return "\n".join(line.rstrip() for line in src.splitlines())
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return "\n".join(line.rstrip() for line in src.splitlines())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            node.body = [
+                b
+                for b in node.body
+                if not (
+                    isinstance(b, ast.FunctionDef | ast.AsyncFunctionDef)
+                    and b.name in NON_OUTPUT_METHODS
+                )
+            ] or [ast.Pass()]
+    return ast.unparse(tree)
 
 
 def _string_constants(c: type) -> str:

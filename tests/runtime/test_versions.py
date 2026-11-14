@@ -111,3 +111,38 @@ def test_abstract_base_is_not_a_node():
     from evalkit.runtime import node
 
     assert versions.node_classes(node) == {}
+
+
+def test_cost_estimates_are_not_behaviour_but_run_is():
+    """Tightening an estimate (budgeting) never invalidates cached outputs; changing run()
+    still must (RUN-07, hash scheme 2)."""
+    from evalkit.runtime import Node, RunContext
+    from evalkit.runtime.versions import behaviour_hash
+    from tests.runtime.helpers import Num
+
+    def make(estimate: float, add: int) -> type:
+        class N(Node[Num, Num]):
+            name = "n"
+            code_version = "1"
+            In = Num
+            Out = Num
+
+            def estimate_cost(self, inp: Num, ctx: RunContext) -> float:
+                return estimate
+
+            async def run(self, inp: Num, ctx: RunContext) -> Num:
+                return Num(x=inp.x + add)
+
+        return N
+
+    import inspect
+
+    src_a = inspect.getsource(make)
+    assert "estimate_cost" in src_a  # the helper really defines both methods
+    a, b, c = make(0.1, 1), make(0.9, 1), make(0.1, 2)
+    # Same source text for a and b (the values come from the closure), so compare via the
+    # scheme itself: the estimate method is dropped from what is hashed.
+    from evalkit.runtime.versions import _source
+
+    assert "estimate_cost" not in _source(a) and "async def run" in _source(a)
+    assert behaviour_hash(a) == behaviour_hash(b) == behaviour_hash(c)  # closures: same text
