@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import importlib.metadata
+import itertools
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
-from typing import Any, ClassVar, TypeVar
+from typing import Any, ClassVar, Literal, TypeVar
 
 from pydantic import Field, model_validator
 
@@ -32,19 +33,32 @@ class CompletionRequest(Model):
     max_output_tokens: PosInt = 1024
     params: FrozenMap[str] = Field(default_factory=dict)
     json_schema: FrozenMap[JsonValue] | None = None  # structured output (D-24)
-    # Optional split of `prompt` into parts that only ever grow at the end (an agent's
-    # history). Providers that cache by content block send one block per part; `prompt`
-    # must equal the parts joined, so caching keys and providers without blocks see the same
-    # text. `cache` asks the provider to cache the growing prefix (Anthropic automatic caching;
-    # OpenAI caches long prefixes on its own).
-    prompt_parts: tuple[str, ...] | None = None
+    # Optional multi-turn conversation (an agent's history): alternating user/assistant
+    # turns, starting and ending with a user turn. When set, providers send these turns
+    # instead of `prompt`, and `prompt` must equal `render_turns(turns)` so caching keys see
+    # the same text. Each closed turn is a cacheable prefix: `cache` asks the provider to cache
+    # it (Anthropic automatic caching; OpenAI caches long prefixes on its own). Prefixes inside
+    # one message do not cache (measured, D-51).
+    turns: tuple[tuple[Literal["user", "assistant"], str], ...] | None = None
     cache: bool = False
 
     @model_validator(mode="after")
-    def _parts_match(self) -> CompletionRequest:
-        if self.prompt_parts is not None and "".join(self.prompt_parts) != self.prompt:
-            raise ValueError("prompt must equal its prompt_parts joined")
+    def _turns_valid(self) -> CompletionRequest:
+        if self.turns is None:
+            return self
+        roles = [r for r, _ in self.turns]
+        if not roles or roles[0] != "user" or roles[-1] != "user":
+            raise ValueError("turns must start and end with a user turn")
+        if any(a == b for a, b in itertools.pairwise(roles)):
+            raise ValueError("turns must alternate between user and assistant")
+        if render_turns(self.turns) != self.prompt:
+            raise ValueError("prompt must equal render_turns(turns)")
         return self
+
+
+def render_turns(turns: tuple[tuple[str, str], ...] | list[tuple[str, str]]) -> str:
+    """One text for a conversation (the cache key and providers' fallback)."""
+    return "".join(f"<{role}>\n{text}\n</{role}>\n" for role, text in turns)
 
 
 class RawCompletion(Model):

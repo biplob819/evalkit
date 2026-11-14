@@ -3,7 +3,6 @@
 
 import asyncio
 import json
-import re
 from typing import Any
 
 import pytest
@@ -14,7 +13,7 @@ from evalkit.adapters import CompletionRequest
 from evalkit.adapters.anthropic import AnthropicAdapter
 from evalkit.agents import runner as R
 from evalkit.agents.aggregate import METRICS, Plan, summarize
-from evalkit.agents.loop import action_schema, prompt_parts
+from evalkit.agents.loop import action_schema, conversation
 from evalkit.agents.score import min_steps, score_trajectory
 from evalkit.agents.simuser import REPLY_SCHEMA
 from evalkit.agents.tasks import TASKS_DIR, load_agent_tasks
@@ -283,37 +282,48 @@ def test_heldout_is_scored_apart_with_a_gap():
 # ---- prompt caching ---------------------------------------------------------------------------
 
 
-def test_each_turn_prompt_extends_the_previous_one():
-    a = prompt_parts("goal", 5, [])
-    b = prompt_parts("goal", 5, [({"tool": "list_tables"}, "stores")])
-    c = prompt_parts("goal", 5, [({"tool": "list_tables"}, "stores"), ({"tool": "x"}, "y")])
-    assert b[: len(a)] == a and c[: len(b)] == b  # cacheable prefixes, newest step last
-    assert "".join(c).endswith("(3 steps left)\n\n")
+def test_each_turn_extends_the_previous_conversation_by_whole_turns():
+    a = conversation("goal", 5, [])
+    b = conversation("goal", 5, [('{"tool": "list_tables"}', "stores")])
+    c = conversation("goal", 5, [('{"tool": "list_tables"}', "stores"), ('{"tool": "x"}', "y")])
+    assert b[: len(a)] == a and c[: len(b)] == b  # cacheable: closed turns, newest last
+    assert [r for r, _ in c] == ["user", "assistant", "user", "assistant", "user"]
+    assert c[-1] == ("user", "y\n(3 steps left)")
 
 
-def test_anthropic_requests_cache_the_growing_history():
-    parts = ("head\n", "step 0\n", "step 1\n")
+def test_both_providers_send_the_conversation_and_anthropic_caches_it():
+    from evalkit.adapters.base import render_turns
+    from evalkit.adapters.openai import OpenAIAdapter
+
+    turns = conversation("goal", 3, [('{"tool": "list_tables"}', "stores")])
     req = CompletionRequest(
         model="m",
         model_id="claude-sonnet-5-5",
-        prompt="".join(parts),
-        prompt_parts=parts,
+        prompt=render_turns(turns),
+        turns=turns,
         cache=True,
         params={"effort": "low"},
     )
     params = AnthropicAdapter(client=object(), prices=PRICES).build_params(req)
-    blocks = params["messages"][0]["content"]
-    assert [b["text"] for b in blocks] == list(parts)
+    assert params["messages"] == [{"role": r, "content": t} for r, t in turns]
     assert params["cache_control"] == {"type": "ephemeral"}
-    with pytest.raises(ValueError, match="joined"):
-        CompletionRequest(model="m", model_id="x", prompt="other", prompt_parts=parts)
+    oai = OpenAIAdapter(client=object(), prices=PRICES).build_params(
+        req.model_copy(update={"model_id": "gpt-6.1-sol", "system": "sys"})
+    )
+    assert oai["messages"][0] == {"role": "system", "content": "sys"}
+    assert oai["messages"][1:] == [{"role": r, "content": t} for r, t in turns]
+    with pytest.raises(ValueError, match="render_turns"):
+        CompletionRequest(model="m", model_id="x", prompt="other", turns=turns)
+    bad: Any = (("user", "a"), ("user", "b"))
+    with pytest.raises(ValueError, match="alternate"):
+        CompletionRequest(model="m", model_id="x", prompt=render_turns(bad), turns=bad)
 
 
 # ---- ASC-05 agent-run -------------------------------------------------------------------------
 
 
 def step_of(req):
-    return len(re.findall(r"^Step \d+ result:", req.prompt, re.M))
+    return req.prompt.count("<assistant>")  # one assistant turn per step taken
 
 
 class Bot(ScriptedAdapter):

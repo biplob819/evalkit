@@ -10,3 +10,6 @@
 {"at": "2026-11-14T17:27:30+00:00", "kind": "simuser_check", "questions": 26, "spent_usd": 0.001449}
 {"at": "2026-11-14T18:27:09+00:00", "claims": 40, "kind": "rejudge_sample", "spent_usd": 0.318468}
 {"at": "2026-11-14T18:27:35+00:00", "cases": 200, "kind": "benchmark_run_200", "note": "generation, extraction and both judges (batch), across two invocations", "run_id": "r-e8dac378d2d3", "spent_usd": 15.388805}
+{"at": "2026-11-14T18:42:02+00:00", "kind": "agent_pilot", "note": "prompt v2 (blocks), caching not hitting", "run_id": "a-87c66388d355", "spent_usd": 0.229402, "trials": 10}
+{"at": "2026-11-14T18:42:02+00:00", "kind": "cache_probe", "note": "two direct Sonnet probes of prompt caching; computed from returned usage", "spent_usd": 0.0782}
+{"at": "2026-11-14T18:42:02+00:00", "kind": "agent_pilot", "note": "prompt v3 (conversation turns), caching 66%/46%", "run_id": "a-87c66388d355", "spent_usd": 0.130126, "trials": 10}

@@ -3,7 +3,6 @@
 
 import asyncio
 import json
-import re
 import shutil
 from typing import Any
 
@@ -47,7 +46,7 @@ def action(tool, **args):
 
 
 def step_of(req):
-    return len(re.findall(r"^Step \d+ result:", req.prompt, re.M))
+    return req.prompt.count("<assistant>")  # one assistant turn per step taken
 
 
 def script(*replies):

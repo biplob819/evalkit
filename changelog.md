@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-15
+- [FIX] [C3.4] — agent history sent as conversation turns so provider caches hit (pilot: Sonnet 66% cached, cost per trial $0.040 → $0.018); estimate uses measured pilot tokens (full run $6.16, was $31.52 on placeholders)
 - [FIX] [A2.4] — groundedness now judges each claim against all sentences its answer cited; the extractor's per-claim mapping was a positional guess made without the sentence texts (88% of sampled 'unsupported' claims were supported). The first 200-case headline was withdrawn and the run re-judged (D-52, L-37)
 
 ## 2026-11-14

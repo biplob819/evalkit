@@ -78,7 +78,10 @@ class OpenAIAdapter(ModelAdapter):
         messages: list[dict[str, str]] = []
         if req.system:
             messages.append({"role": "system", "content": req.system})
-        messages.append({"role": "user", "content": req.prompt})
+        if req.turns:
+            messages.extend({"role": r, "content": t} for r, t in req.turns)
+        else:
+            messages.append({"role": "user", "content": req.prompt})
         params: dict[str, Any] = {
             "model": req.model_id,
             "messages": messages,

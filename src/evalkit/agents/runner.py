@@ -40,14 +40,15 @@ class AgentRunError(Exception):
 
 
 class AgentTokenAssumptions(Model):
-    """Per-trial token assumptions for the cost estimate. Replace with measured values (the
-    pilot run records them in docs/measurements) before trusting the estimate (D-46 pattern)."""
+    """Per-trial token assumptions for the cost estimate, measured by a 10-trial pilot
+    (docs/measurements/agent-tokens-2026-11-15.json: Sonnet 5.2 turns, 1,777 in, 194 out,
+    66% cached; Sol 6.8 turns, 1,163 in, 168 out, 46% cached). Output includes reasoning."""
 
     turns: float = 6.0  # agent turns per trial
-    t_in: float = 4500.0  # prompt tokens per agent turn (the history grows each turn)
-    cached_share: float = 0.0  # share of prompt tokens read from the provider cache
-    t_out: float = 250.0
-    t_reason: float = 600.0
+    t_in: float = 1500.0  # prompt tokens per agent turn (the conversation grows each turn)
+    cached_share: float = 0.5  # share of prompt tokens read from the provider cache
+    t_out: float = 180.0
+    t_reason: float = 0.0  # already inside t_out (measured as billed output)
     sim_calls: float = 1.0  # simulated-user replies per ambiguous trial
     sim_in: float = 650.0
     sim_out: float = 60.0
