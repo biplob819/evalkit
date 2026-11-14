@@ -235,3 +235,33 @@ def test_concurrent_puts_of_one_key_are_safe(tmp_path):
     assert errors == []
     assert store.get(KEY, Num) == Num(x=7)
     assert [p for p in tmp_path.rglob("*.tmp")] == []
+
+
+def test_store_is_first_writer_wins_unless_overwriting(tmp_path):
+    store = Store(tmp_path)
+    assert store.put(KEY, Num(x=1), _lineage(KEY)) is True
+    assert store.put(KEY, Num(x=2), _lineage(KEY)) is False
+    assert store.get(KEY, Num) == Num(x=1)
+    assert store.put(KEY, Num(x=3), _lineage(KEY), overwrite=True) is True
+    assert store.get(KEY, Num) == Num(x=3)
+
+
+def test_refused_replace_onto_an_existing_file_is_treated_as_lost_race(tmp_path, monkeypatch):
+    import os
+
+    from evalkit.runtime import store as store_mod
+
+    target = tmp_path / "x.json"
+    target.write_text("first")
+    tmp = tmp_path / ".x.json.tmp"
+    tmp.write_text("second")
+
+    def refuse(*_a, **_k):
+        raise PermissionError(13, "Access is denied")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    import time
+
+    monkeypatch.setattr(time, "sleep", lambda _s: None)
+    store_mod._replace(str(tmp), target)
+    assert target.read_text() == "first" and not tmp.exists()

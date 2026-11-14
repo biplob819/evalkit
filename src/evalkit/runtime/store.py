@@ -6,6 +6,7 @@ import contextlib
 import json
 import os
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
@@ -35,11 +36,30 @@ def _atomic_write(path: Path, text: str) -> None:
             fh.write(text)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, path)
+        _replace(tmp, path)
     except BaseException:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(tmp)
         raise
+
+
+def _replace(tmp: str, path: Path, attempts: int = 8) -> None:
+    """os.replace, tolerating Windows' refusal to replace a file another writer is replacing.
+
+    The store is content-addressed and first-writer-wins: if the rename keeps being refused
+    and the target exists, another writer has already stored this key, so ours is dropped.
+    """
+    for i in range(attempts):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if i == attempts - 1:
+                if path.exists():
+                    os.unlink(tmp)
+                    return
+                raise
+            time.sleep(0.005 * (i + 1))
 
 
 class Store:
@@ -62,12 +82,17 @@ class Store:
             return None
         return model.model_validate_json(p.read_text(encoding="utf-8"))
 
-    def put(self, key: str, value: BaseModel, lineage: Lineage) -> None:
+    def put(self, key: str, value: BaseModel, lineage: Lineage, *, overwrite: bool = False) -> bool:
+        """Store an output. First writer wins: returns False without writing if the key is
+        already stored, unless `overwrite` (used to replace a corrupt or stale entry)."""
         if lineage.key != key:
             raise ValueError("lineage key does not match the stored key")
+        if not overwrite and self.has(key):
+            return False
         # Lineage first: an output never exists without its lineage.
         _atomic_write(self.path(key, ".lineage.json"), lineage.model_dump_json())
         _atomic_write(self.path(key), value.model_dump_json())
+        return True
 
     def lineage(self, key: str) -> Lineage | None:
         p = self.path(key, ".lineage.json")

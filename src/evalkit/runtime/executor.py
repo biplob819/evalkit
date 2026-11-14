@@ -182,7 +182,8 @@ class Executor:
             finished_at=datetime.now(UTC),
             cost_usd=cost,
         )
-        self.store.put(key, out, lineage)
+        # A corrupt/stale entry exists on disk: overwrite it; otherwise first writer wins.
+        self.store.put(key, out, lineage, overwrite=self.store.has(key))
         latency = int((time.perf_counter() - t0) * 1000)
         await self._log(node=node.name, key=key, cache_hit=False, latency_ms=latency, cost_usd=cost)
         return out
