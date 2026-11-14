@@ -45,6 +45,8 @@ def test_ci_workflow_covers_gates_and_matrix():
     assert re.search(r"^on:\n  push:", ci, re.M)
     for step in ("ruff check", "pyright", "pytest", "uv build", "secret_scan.py"):
         assert step in ci
+    assert "uv sync --locked --all-extras" in ci  # provider SDKs are optional extras (L-20)
+    assert "core-only:" in ci
     for v in ('"3.11"', '"3.12"', '"3.13"'):
         assert v in ci
     for os_name in ("ubuntu-latest", "macos-latest", "windows-latest"):
