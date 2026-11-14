@@ -32,3 +32,5 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - [FIX] [S2.2] — Any negative gain raises, all-zero gains undefined, string inputs rejected.
 - [FEAT] [S2.1] — Green.
 - [FEAT] [S2.2] — Green.
+- [FIX] [A2.3] — Verifier findings: extractor v2 (version stamped on run, stale versions rejected), prompts hashed by the version check (manifest rebuilt for the new hash format, no behaviour change to generate/validate), per-item transport errors, colon-free case ids, B11 add/drop guard (D-32), coverage as a ScoreResult with details, aligned ClaimSet.
+- [FEAT] [A2.3] — Green.

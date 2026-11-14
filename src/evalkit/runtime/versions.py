@@ -7,6 +7,8 @@ source of every Node class in its MRO (so a shared base class counts) and of its
 outputs produced by the old logic would be served as if new; `check()` reports exactly that,
 and `--update` refuses to record it.
 
+Prompts and other string constants attached to the class are hashed by value.
+
 Limit: module-level helper functions a node calls are not hashed. Keep node logic on the
 class, or bump `code_version` by hand when a helper changes.
 """
@@ -59,8 +61,20 @@ def _source(cls: type) -> str:
     return "\n".join(line.rstrip() for line in src.splitlines())
 
 
+def _string_constants(c: type) -> str:
+    """Class-level string attributes (prompts, templates) hashed by value, so editing a
+    prompt defined as a module constant and attached to the class forces a bump."""
+    items = sorted(
+        (k, v) for k, v in vars(c).items() if isinstance(v, str) and not k.startswith("__")
+    )
+    return repr(items)
+
+
 def behaviour_hash(cls: type[Node[Any, Any]]) -> str:
-    parts = [_source(c) for c in cls.__mro__ if issubclass(c, Node) and c is not Node]
+    parts = []
+    for c in cls.__mro__:
+        if issubclass(c, Node) and c is not Node:
+            parts += [_source(c), _string_constants(c)]
     for attr in ("In", "Out"):
         schema = getattr(cls, attr, None)
         if isinstance(schema, type):
