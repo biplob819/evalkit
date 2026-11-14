@@ -5,7 +5,7 @@ Evaluate **your own task** across Claude and OpenAI models: accuracy, groundedne
 > **Status: pre-alpha (v0.0.1).** This release reserves the package name and contains only the project skeleton. The first usable release is v0.1.0.
 
 ```bash
-pip install evalkit-harness
+pip install 'evalkit-harness[anthropic,openai]'
 evalkit --version
 ```
 

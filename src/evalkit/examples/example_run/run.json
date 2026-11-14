@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "run_id": "g",
+  "task": "pubmedqa",
+  "task_ref": "pubmedqa",
+  "config_hash": "golden",
+  "seed": 7,
+  "n": 12,
+  "models": [
+    "claude-sonnet-5-5",
+    "gpt-6.1-sol",
+    "gpt-6-luna"
+  ],
+  "judges": [
+    "claude-opus-5-5",
+    "gpt-6.1-sol"
+  ],
+  "judge_mode": "dual",
+  "families": {
+    "claude-sonnet-5-5": "anthropic",
+    "gpt-6.1-sol": "openai",
+    "gpt-6-luna": "openai"
+  },
+  "thresholds": [
+    {
+      "metric": "headline",
+      "op": ">=",
+      "value": 0.6
+    }
+  ],
+  "live_judges": false,
+  "started_at": "2026-11-14T12:00:00Z",
+  "finished_at": "2026-11-14T13:00:00Z",
+  "spent_usd": 0.0
+}

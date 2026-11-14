@@ -3,6 +3,9 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FIX] [B2.4] — never overwrite user files (example output, task templates); doctor and run check SDKs and the keys the config needs; README installs the provider extras
+- [FEAT] [B2.4] — onboarding: `evalkit init` (config, .env.example, task template, .gitignore; never overwrites), `evalkit doctor` (Python, SDKs, key names, network, prices age, cache), `evalkit report --example` (bundled example run, no keys or network), caveats in every run/report output; shared outputs written 0644
+- [FEAT] [B2.3] — README headline chart and generated sentences (`evalkit.report.readme`), `scripts/publish_results.py`, GitHub Pages workflow (OWNER D-47)
 - [FIX] [A2.4] — batch holds use 1.5x measured expected output, not the 4,096-token cap (a 200-case run could never start under $20); judges run concurrently (D-46)
 - [FIX] [N1.2] — cost model from the 12-case real run: judge calls per claim (4.5 per answer), measured token assumptions; 200-case estimate $14.13 (D-46)
 - [FIX] [B2.2] — run safety (D-45): total cost cap across resumes, judge-set lock per run folder, no live re-pay of open batches, dry run without keys, exit 2 with masked messages for every unexpected error

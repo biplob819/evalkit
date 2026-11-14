@@ -791,7 +791,7 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | --- | --- | --- |
 | REL-01 | Headline chart generated from `summary.json`, showing the judge-mode and calibration stamps | FR17 |
 | REL-02 | README opening with one chart and three sentences, a 3-line install-and-run snippet, PubMedQA credit | US5, NFR7 |
-| REL-03 | Dashboard deployed to Cloudflare Pages | FR11 |
+| REL-03 | Dashboard deployed to GitHub Pages (OWNER D-47) | FR11 |
 
 **B2.4 Public CLI and onboarding**
 

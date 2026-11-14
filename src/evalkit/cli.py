@@ -188,10 +188,14 @@ def cmd_run(args: argparse.Namespace) -> int:
             if args.live_judges
             else "judging pending: rerun the same command to collect the batches (no extra cost)"
         )
+    from evalkit.pipeline.aggregate import stamp_lines
+
+    caveats = stamp_lines(s)
     _emit(
         args,
         {
             "exit_code": outcome.exit_code,
+            "caveats": caveats,
             "run_id": s.run_id,
             "run_dir": str(outcome.run_dir),
             "spent_usd": round(outcome.spent_usd, 6),
@@ -200,7 +204,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             "calibration_status": s.calibration_status,
             "models": models,
         },
-        "\n".join(lines)
+        "".join(f"⚠ {c}\n" for c in caveats)
+        + "\n".join(lines)
         + f"\nspent ${outcome.spent_usd:.4f} · report {outcome.run_dir / 'report.html'}"
         + (f"\n{tail}" if tail else ""),
     )
@@ -209,22 +214,114 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_report(args: argparse.Namespace) -> int:
     from evalkit import run as R
+    from evalkit.pipeline.aggregate import stamp_lines
     from evalkit.pipeline.calibrate import PublishRefused, publish_guard
     from evalkit.schemas import RunSummary
 
-    run_dir = Path(args.run_dir)
+    if args.example:
+        import shutil
+
+        from evalkit.onboarding import EXAMPLE_DIR
+
+        run_dir = Path(args.out or "evalkit-example")
+        if run_dir.exists() and any(run_dir.iterdir()):
+            example_id = json.loads((EXAMPLE_DIR / "run.json").read_text("utf-8"))["run_id"]
+            existing = run_dir / "run.json"
+            ours = (
+                existing.is_file()
+                and json.loads(existing.read_text("utf-8")).get("run_id") == example_id
+            )
+            if not ours:
+                return _err(
+                    f"{run_dir} is not empty and does not hold the example; choose another --out"
+                )
+        run_dir.mkdir(parents=True, exist_ok=True)
+        for f in EXAMPLE_DIR.iterdir():
+            if f.suffix in (".json", ".jsonl"):
+                shutil.copyfile(f, run_dir / f.name)
+    elif args.run_dir:
+        run_dir = Path(args.run_dir)
+    else:
+        return _err("give a run folder, or --example for the bundled example run")
     try:
         path = R.render(run_dir)
     except (R.RunError, FileNotFoundError) as exc:
         return _err(str(exc))
+    summary = RunSummary.model_validate_json((run_dir / "summary.json").read_text("utf-8"))
+    caveats = stamp_lines(summary)
     if args.publish:
-        summary = RunSummary.model_validate_json((run_dir / "summary.json").read_text("utf-8"))
         try:
             publish_guard(summary)
         except PublishRefused as exc:
             return _err(str(exc))
-    _emit(args, {"report": str(path), "published": bool(args.publish)}, f"report {path}")
+    _emit(
+        args,
+        {
+            "report": str(path),
+            "published": bool(args.publish),
+            "caveats": caveats,
+            "example": bool(args.example),
+        },
+        "".join(f"⚠ {c}\n" for c in caveats)
+        + (
+            "example run: scripted stand-in models on 12 fixture cases, not real results\n"
+            if args.example
+            else ""
+        )
+        + f"report {path}",
+    )
     return 0
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    from evalkit.onboarding import init_project
+
+    root = Path(args.dir)
+    try:
+        res = init_project(root, force=args.force)
+    except (ValueError, OSError) as exc:
+        return _err(f"cannot initialise {root}: {exc}")
+    lines = [f"wrote {f}" for f in res.written] + [
+        f"kept existing {f} (use --force to replace)" for f in res.skipped
+    ]
+    cd = f"  cd {root}\n" if str(root) != "." else ""
+    nxt = (
+        "next:\n" + cd + "  cp .env.example .env    # then add your keys\n"
+        "  evalkit doctor\n"
+        "  evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3 --dry-run\n"
+        "  evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3"
+    )
+    _emit(
+        args,
+        {"written": res.written, "skipped": res.skipped},
+        "\n".join(lines) + "\n" + nxt,
+    )
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    from evalkit.env import load_dotenv
+    from evalkit.onboarding import doctor
+
+    load_dotenv(Path.cwd() / ".env")
+    checks = doctor(offline=args.offline, store=Path(args.store), config=Path(args.config))
+    blocking = [c for c in checks if c.blocking and not c.ok]
+    _emit(
+        args,
+        {
+            "ready": not blocking,
+            "checks": [
+                {"name": c.name, "ok": c.ok, "detail": c.detail, "blocking": c.blocking}
+                for c in checks
+            ],
+        },
+        "\n".join(
+            f"{'ok' if c.ok else ('FAIL' if c.blocking else 'warn'):<4}  {c.name:<18} {c.detail}"
+            for c in checks
+        )
+        + ("\nready to run" if not blocking else "\nnot ready: fix the FAIL lines above"),
+    )
+    return 0 if not blocking else EXIT_ERROR
 
 
 def cmd_calibrate(args: argparse.Namespace) -> int:
@@ -326,11 +423,28 @@ def build_parser() -> argparse.ArgumentParser:
             a.add_argument("csv", help="the filled sheet.csv")
     c.set_defaults(func=cmd_calibrate)
 
-    rep = sub.add_parser("report", help="re-render a run's report")
-    rep.add_argument("run_dir")
+    rep = sub.add_parser("report", help="re-render a run's report (or --example)")
+    rep.add_argument("run_dir", nargs="?", help="the run folder (runs/r-...)")
+    rep.add_argument("--example", action="store_true", help="render the bundled example run")
+    rep.add_argument("--out", default=None, help="folder for --example (default ./evalkit-example)")
     rep.add_argument("--publish", action="store_true", help="refuse unless dual and calibrated")
     rep.add_argument("--json", action="store_true")
     rep.set_defaults(func=cmd_report)
+
+    ini = sub.add_parser("init", help="scaffold evalkit.yaml, .env.example and a sample task")
+    ini.add_argument("dir", nargs="?", default=".", help="project folder (default: here)")
+    ini.add_argument("--force", action="store_true", help="replace EvalKit's own files")
+    ini.add_argument("--json", action="store_true", help="print one JSON object")
+    ini.set_defaults(func=cmd_init)
+
+    doc = sub.add_parser("doctor", help="check Python, SDKs, keys (names only), network, prices")
+    doc.add_argument("--offline", action="store_true", help="skip the network checks")
+    doc.add_argument("--store", default=".evalkit/store", help="cache folder to measure")
+    doc.add_argument(
+        "--config", default="evalkit.yaml", help="run config whose providers must be ready"
+    )
+    doc.add_argument("--json", action="store_true", help="print one JSON object")
+    doc.set_defaults(func=cmd_doctor)
     return p
 
 

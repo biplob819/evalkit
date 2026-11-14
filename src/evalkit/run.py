@@ -196,6 +196,21 @@ def readiness_problems(
             problems.append(
                 f"unknown model {m!r}: add it to prices.yaml or give it an endpoint in the config"
             )
+    import importlib.util
+
+    from evalkit.onboarding import SDK_MODULE
+
+    used = {
+        provider_for(m, config.endpoints)
+        for m in (*config.models, config.extractor, *config.judges)
+    }
+    for provider in sorted(used):
+        module = SDK_MODULE.get(provider)
+        if module and importlib.util.find_spec(module) is None:
+            extra = "openai" if provider == "openai_compatible" else provider
+            problems.append(
+                f"the {provider} SDK is not installed: pip install 'evalkit-harness[{extra}]'"
+            )
     if not include_keys:
         return problems
     # Models and the extractor must all be reachable; judges need at least one (single-judge
@@ -248,6 +263,7 @@ def make_adapters(config: RunConfig, prices: dict[str, Price]) -> dict[str, Mode
 def _atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}-")
+    os.chmod(tmp, 0o644)  # mkstemp makes 0600; outputs are meant to be shared
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)

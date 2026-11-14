@@ -372,6 +372,7 @@ def write_summary(summary: RunSummary, path: Path) -> None:
     """Atomic write: readers see the old file or the new one, never a partial file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".summary-", suffix=".json")
+    os.chmod(tmp, 0o644)  # mkstemp makes 0600; outputs are meant to be shared
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(summary_json(summary))

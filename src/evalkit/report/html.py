@@ -491,6 +491,7 @@ def write_report(
     }
     for name, text in files.items():
         fd, tmp = tempfile.mkstemp(dir=out_dir, prefix=f".{name}-")
+        os.chmod(tmp, 0o644)  # mkstemp makes 0600; outputs are meant to be shared
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(text)
