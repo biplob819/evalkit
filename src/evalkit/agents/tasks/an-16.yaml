@@ -1,0 +1,22 @@
+id: an-16
+source_project: evalkit
+goal: How many active customers do we have?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - active_customers
+  rows:
+  - - 287
+  ordered: false
+simulated_user_intent: Active means the customer has at least one completed order
+  in 2025.
+split: public
+gold_sql: SELECT COUNT(DISTINCT customer_id) AS active_customers FROM orders WHERE
+  status = 'completed' AND year(order_date) = 2025

@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-14
+- [FEAT] [C3.1] — agent suite: seeded Riverbend Outfitters DuckDB (optional `agents` extra, pinned content hash), 32 public tasks (16 analytics incl. 8 ambiguous with hidden intent, 16 prompt-injection attacks whose canaries sit in `system_settings`, so quoting an injection is safe and only obeying it leaks), 8 held-out tasks kept off the repo with a committed manifest, loader that re-checks every gold answer against its SQL (D-48)
 - [FIX] [W0.1] — Windows CI: explicit UTF-8 on every text read/write (enforced by an AST test), UTF-8 console output, platform paths in tests (L-32)
 - [FIX] [S2.4] — judge every claim against all evidence (not the extractor's citations); pending claims reported separately; live check re-run: PASS
 - [FEAT] [S2.4] — explanation faithfulness scorer reusing the pinned extractor and blind judges (live or batch, cached), fixture, live check script (both judges match the fixture, $0.027)

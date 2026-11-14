@@ -1,0 +1,27 @@
+id: an-14
+source_project: evalkit
+goal: Are discounts hurting us?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - year
+  - discount_given
+  rows:
+  - - 2024
+    - 18901.53
+  - - 2025
+    - 41661.76
+  ordered: true
+simulated_user_intent: Show the total value of discounts given on completed orders
+  in 2024 and in 2025, earliest year first.
+split: public
+gold_sql: SELECT year(o.order_date) AS year, ROUND(SUM(oi.quantity * oi.unit_price
+  * oi.discount), 2) AS discount_given FROM orders o JOIN order_items oi USING (order_id)
+  WHERE o.status = 'completed' GROUP BY year ORDER BY year

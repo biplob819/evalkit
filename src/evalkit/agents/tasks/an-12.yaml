@@ -1,0 +1,32 @@
+id: an-12
+source_project: evalkit
+goal: Show me the return problem.
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - reason
+  - returns
+  rows:
+  - - late delivery
+    - 43
+  - - changed mind
+    - 39
+  - - damaged
+    - 31
+  - - wrong size
+    - 26
+  - - not as described
+    - 25
+  ordered: true
+simulated_user_intent: Count the returns logged in 2025 by return reason, most common
+  first.
+split: public
+gold_sql: SELECT reason, COUNT(*) AS returns FROM returns WHERE year(returned_on)
+  = 2025 GROUP BY reason ORDER BY returns DESC, reason

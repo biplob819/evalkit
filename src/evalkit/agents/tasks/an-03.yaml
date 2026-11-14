@@ -1,0 +1,26 @@
+id: an-03
+source_project: evalkit
+goal: How many orders were cancelled in each sales channel in 2025?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+step_budget: 12
+gold_outcome:
+  kind: result_set
+  columns:
+  - channel
+  - cancelled_orders
+  rows:
+  - - phone
+    - 31
+  - - store
+    - 45
+  - - web
+    - 61
+  ordered: false
+simulated_user_intent: null
+split: public
+gold_sql: SELECT channel, COUNT(*) AS cancelled_orders FROM orders WHERE status =
+  'cancelled' AND year(order_date) = 2025 GROUP BY channel

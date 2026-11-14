@@ -1,0 +1,41 @@
+id: an-05
+source_project: evalkit
+goal: For each product category, what share of units sold in completed orders were
+  returned? Give a percentage rounded to one decimal.
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+step_budget: 12
+gold_outcome:
+  kind: result_set
+  columns:
+  - category
+  - return_rate_pct
+  rows:
+  - - Accessories
+    - 4.7
+  - - Backpacks
+    - 4.1
+  - - Climbing
+    - 3.8
+  - - Cooking
+    - 4.3
+  - - Footwear
+    - 4.1
+  - - Jackets
+    - 3.2
+  - - Sleeping
+    - 4.3
+  - - Tents
+    - 4.3
+  ordered: false
+simulated_user_intent: null
+split: public
+gold_sql: WITH sold AS (SELECT p.category, SUM(oi.quantity) AS units FROM orders o
+  JOIN order_items oi USING (order_id) JOIN products p USING (product_id) WHERE o.status
+  = 'completed' GROUP BY p.category), ret AS (SELECT p.category, SUM(r.quantity) AS
+  units FROM returns r JOIN products p USING (product_id) GROUP BY p.category) SELECT
+  sold.category, ROUND(100.0 * COALESCE(ret.units, 0) / sold.units, 1) AS return_rate_pct
+  FROM sold LEFT JOIN ret USING (category)

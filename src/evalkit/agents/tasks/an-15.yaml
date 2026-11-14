@@ -1,0 +1,30 @@
+id: an-15
+source_project: evalkit
+goal: What are our popular categories?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - category
+  - units_sold
+  rows:
+  - - Backpacks
+    - 563
+  - - Climbing
+    - 539
+  - - Footwear
+    - 533
+  ordered: true
+simulated_user_intent: The top 3 product categories by units sold in completed orders
+  in 2025, most first.
+split: public
+gold_sql: SELECT p.category, SUM(oi.quantity) AS units_sold FROM orders o JOIN order_items
+  oi USING (order_id) JOIN products p USING (product_id) WHERE o.status = 'completed'
+  AND year(o.order_date) = 2025 GROUP BY p.category ORDER BY units_sold DESC, p.category
+  LIMIT 3

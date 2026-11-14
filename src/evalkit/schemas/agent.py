@@ -52,6 +52,7 @@ class AgentTask(Model):
     gold_outcome: GoldOutcome
     simulated_user_intent: str | None  # required; None means the task is unambiguous
     split: Literal["public", "heldout"]
+    gold_sql: str | None = None  # analytics: the query that produces `gold_outcome` (C3.1)
 
 
 class Step(Model):

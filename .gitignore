@@ -15,4 +15,5 @@ build/
 Portfolio notes.md
 .venv-py*/
 runs/
-heldout/
+heldout/*
+!heldout/MANIFEST.json

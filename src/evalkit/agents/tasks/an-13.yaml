@@ -1,0 +1,32 @@
+id: an-13
+source_project: evalkit
+goal: Which region is growing fastest?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - region
+  - growth_pct
+  rows:
+  - - North
+    - 118.9
+  - - South
+    - 117.8
+  - - West
+    - 110.8
+  ordered: true
+simulated_user_intent: Compare 2025 with 2024 net revenue (after line-item discounts,
+  before returns) from completed orders for every region and show the growth percentage,
+  rounded to one decimal, fastest first.
+split: public
+gold_sql: WITH r AS (SELECT s.region, year(o.order_date) AS y, SUM(oi.quantity * oi.unit_price
+  * (1 - oi.discount)) AS rev FROM orders o JOIN order_items oi USING (order_id) JOIN
+  stores s USING (store_id) WHERE o.status = 'completed' GROUP BY s.region, y) SELECT
+  a.region, ROUND(100.0 * (b.rev - a.rev) / a.rev, 1) AS growth_pct FROM r a JOIN
+  r b ON a.region = b.region AND a.y = 2024 AND b.y = 2025 ORDER BY growth_pct DESC

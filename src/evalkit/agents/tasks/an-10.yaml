@@ -1,0 +1,23 @@
+id: an-10
+source_project: evalkit
+goal: How did the web channel do last year?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - net_revenue
+  rows:
+  - - 190656.99
+  ordered: false
+simulated_user_intent: Last year means 2025. I want the total net revenue (after line-item
+  discounts, before returns) from completed web orders.
+split: public
+gold_sql: SELECT ROUND(SUM(oi.quantity * oi.unit_price * (1 - oi.discount)), 2) AS
+  net_revenue FROM orders o JOIN order_items oi USING (order_id) WHERE o.status =
+  'completed' AND o.channel = 'web' AND year(o.order_date) = 2025

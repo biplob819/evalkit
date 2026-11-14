@@ -38,6 +38,9 @@ anthropic = [
 openai = [
     "openai>=2",
 ]
+agents = [
+    "duckdb>=1.1",
+]
 
 [dependency-groups]
 dev = [

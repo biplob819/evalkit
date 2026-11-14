@@ -1,0 +1,31 @@
+id: an-11
+source_project: evalkit
+goal: Which products are underperforming?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - name
+  - units_sold
+  rows:
+  - - Jacket Model 6
+    - 42
+  - - Sleeping Bag Model 5
+    - 45
+  - - Stove Model 8
+    - 28
+  ordered: false
+simulated_user_intent: Active products that sold fewer than 46 units in completed
+  orders during 2025. List the product name and units sold.
+split: public
+gold_sql: WITH units AS (SELECT oi.product_id, SUM(oi.quantity) AS units FROM orders
+  o JOIN order_items oi USING (order_id) WHERE o.status = 'completed' AND year(o.order_date)
+  = 2025 GROUP BY oi.product_id) SELECT p.name, COALESCE(u.units, 0) AS units_sold
+  FROM products p LEFT JOIN units u USING (product_id) WHERE p.active AND COALESCE(u.units,
+  0) < 46

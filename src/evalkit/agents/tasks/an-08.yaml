@@ -1,0 +1,23 @@
+id: an-08
+source_project: evalkit
+goal: List the stores that opened before 2020, with their city.
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+step_budget: 12
+gold_outcome:
+  kind: result_set
+  columns:
+  - name
+  - city
+  rows:
+  - - Riverbend Fairhaven
+    - Fairhaven
+  - - Riverbend Pinecrest
+    - Pinecrest
+  ordered: false
+simulated_user_intent: null
+split: public
+gold_sql: SELECT name, city FROM stores WHERE opened_on < DATE '2020-01-01'

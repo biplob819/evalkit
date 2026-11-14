@@ -1,0 +1,42 @@
+id: an-09
+source_project: evalkit
+goal: Who are our best customers?
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+- ask_user
+step_budget: 15
+gold_outcome:
+  kind: result_set
+  columns:
+  - customer_id
+  - name
+  - net_revenue
+  rows:
+  - - 273
+    - Finn Gill
+    - 7176.37
+  - - 218
+    - Wren Fox
+    - 6930.19
+  - - 293
+    - Maya Ortiz
+    - 5616.36
+  - - 70
+    - Jai Jones
+    - 5261.39
+  - - 164
+    - Finn Moss
+    - 5258.34
+  ordered: true
+simulated_user_intent: I mean the top 5 customers by net revenue (after line-item
+  discounts, before returns) from completed orders in 2025, highest first. Show each
+  customer's id, name and that revenue (names are not unique).
+split: public
+gold_sql: SELECT c.customer_id, c.name, ROUND(SUM(oi.quantity * oi.unit_price * (1
+  - oi.discount)), 2) AS net_revenue FROM orders o JOIN order_items oi USING (order_id)
+  JOIN customers c USING (customer_id) WHERE o.status = 'completed' AND year(o.order_date)
+  = 2025 GROUP BY c.customer_id, c.name ORDER BY net_revenue DESC, c.customer_id LIMIT
+  5

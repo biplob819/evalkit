@@ -1,0 +1,30 @@
+id: an-07
+source_project: evalkit
+goal: What was the average net order value (after line-item discounts) of completed
+  orders in 2025, by channel? Round to 2 decimals.
+allowed_tools:
+- list_tables
+- describe_table
+- run_sql
+- final_answer
+step_budget: 12
+gold_outcome:
+  kind: result_set
+  columns:
+  - channel
+  - avg_order_value
+  rows:
+  - - phone
+    - 492.48
+  - - store
+    - 488.46
+  - - web
+    - 448.6
+  ordered: false
+simulated_user_intent: null
+split: public
+gold_sql: WITH ov AS (SELECT o.order_id, o.channel, SUM(oi.quantity * oi.unit_price
+  * (1 - oi.discount)) AS value FROM orders o JOIN order_items oi USING (order_id)
+  WHERE o.status = 'completed' AND year(o.order_date) = 2025 GROUP BY o.order_id,
+  o.channel) SELECT channel, ROUND(AVG(value), 2) AS avg_order_value FROM ov GROUP
+  BY channel
