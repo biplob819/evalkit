@@ -19,7 +19,9 @@ Questions from [PubMedQA](https://pubmedqa.github.io/) (Jin et al., 2019, MIT li
 
 Evaluate **your own task** across Claude and OpenAI models: accuracy, groundedness, citation validity, cost and latency side by side, with confidence intervals and two cross-family judges whose error rate is measured against held-out hand labels.
 
-> **Status: v0.1.0, the first public release.** To work on EvalKit itself, clone it and run `uv sync --all-extras`.
+> **Status: v0.1.0, the first public release** ([on PyPI](https://pypi.org/project/evalkit-harness/)). To work on EvalKit itself, clone it and run `uv sync --all-extras`.
+
+**Try it in the browser:** the [live demo](https://evalkit-demo.streamlit.app/) shows four models answering the same question from a study abstract, with every claim checked against the sentences it cites. Replay mode is free; live mode runs on your own API keys or the owner's passcode.
 
 **Start here:** [Quickstart](https://github.com/biplob819/evalkit/blob/main/docs/quickstart.md) (a first result in under five minutes) · [Write your own task](https://github.com/biplob819/evalkit/blob/main/docs/writing-a-task.md) (JSONL or CSV) · [Control cost](https://github.com/biplob819/evalkit/blob/main/docs/cost.md) · [Calibrate the judges](https://github.com/biplob819/evalkit/blob/main/docs/calibrate-your-task.md) · [Scorers and adapters](https://github.com/biplob819/evalkit/blob/main/docs/plugins.md) · [Run it in CI](https://github.com/biplob819/evalkit/blob/main/examples/github-action/evalkit.yml) · [Versioning](https://github.com/biplob819/evalkit/blob/main/docs/versioning.md)
 
