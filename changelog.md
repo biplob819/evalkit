@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-15
+- [RELEASE] [B2.5] — v0.1.0 published: evalkit-harness 0.1.0 on PyPI (wheel + sdist) by trusted publishing from tag v0.1.0; install smoke passed on three OSes; B2.5 green. Release record: docs/measurements/release-v0.1.0-2026-11-15.json. Spend: $0.
 - [RELEASE] [B2.5] — v0.1.0 prepared: SciFact as a second built-in task, CSV datasets, quickstart / task / plugin / cost / versioning docs, community files, privacy statement, CI action example, public API contract test, post-release smoke job on three OSes
 - [FEAT] [D3.2] — demo page (Streamlit): replay by default with six prepared samples (`evalkit demo-cache`, $0.99 in three runs), live mode on the owner's keys behind the passcode or on a visitor's own keys (D-58), cards that fill in per model, aggregate-only logging; failed or unchecked cards are re-answered by the next cache run
 - [FEAT] [D3.1] — see commit 20c2fbc

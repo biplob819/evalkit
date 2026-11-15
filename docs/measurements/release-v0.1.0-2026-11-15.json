@@ -1,0 +1,41 @@
+{
+  "what": "v0.1.0 release of evalkit-harness to PyPI by GitHub Actions trusted publishing",
+  "project": "evalkit-harness",
+  "version": "0.1.0",
+  "tag": "v0.1.0",
+  "commit": "06591f8de9b178078c971940a83019a6530fd119",
+  "pypi_url": "https://pypi.org/project/evalkit-harness/0.1.0/",
+  "requires_python": ">=3.11",
+  "workflow": ".github/workflows/release.yml",
+  "workflow_run": "https://github.com/biplob819/evalkit/actions/runs/43692393403",
+  "publish_method": "trusted publishing (OIDC), no stored token; environment pypi",
+  "jobs": {
+    "checks": "success",
+    "publish": "success",
+    "smoke (ubuntu-latest)": "success",
+    "smoke (macos-latest)": "success",
+    "smoke (windows-latest)": "success"
+  },
+  "smoke_steps": [
+    "uvx install of evalkit-harness==0.1.0 from PyPI",
+    "evalkit doctor --offline --json: only the key checks fail (no keys in the job)",
+    "evalkit report --example",
+    "scripts/check_public_api.py against the installed package"
+  ],
+  "files": [
+    {
+      "filename": "evalkit_harness-0.1.0-py3-none-any.whl",
+      "sha256": "8921677faf675e0b5ce95962e6d2644f833e51da8c70ff27997abec772bbcc2d",
+      "size": 248224,
+      "upload_time": "2026-11-15T09:34:54.904069Z"
+    },
+    {
+      "filename": "evalkit_harness-0.1.0.tar.gz",
+      "sha256": "6066685e09b63e483debe7df37548cfd2108a0b499365429e1c2ba78b6c9ee89",
+      "size": 190168,
+      "upload_time": "2026-11-15T09:34:56.202007Z"
+    }
+  ],
+  "local_check": "uv run --no-project --with evalkit-harness==0.1.0 python -I scripts/check_public_api.py -> public API: OK (macOS, Python 3.13)",
+  "notes": "The first two publish attempts failed with invalid-publisher (the PyPI pending publisher had not been saved); nothing was uploaded until the third, which succeeded without retagging."
+}

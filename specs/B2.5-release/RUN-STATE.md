@@ -1,3 +1,3 @@
 # B2.5 run state
 
-**Now:** verifier PASS (round 2), should-fix items done. Waiting on the owner: PyPI pending trusted publisher, approval to push the v0.1.0 tag, and (optional) enabling private vulnerability reporting. Then HAR-08 / OSS-01 / OSS-08 proofs from the published package and the smoke job, and the node goes green.
+**Now:** GREEN. v0.1.0 published to PyPI by trusted publishing (run 43692393403): checks, publish and the install smoke on Linux, macOS and Windows all passed; the public-API check also passes locally against the PyPI package. Evidence in docs/measurements/release-v0.1.0-2026-11-15.json, held to the tree by tests/test_published.py. Private vulnerability reporting is on.
