@@ -1,3 +1,3 @@
 # D3.2 run state
 
-**Now:** spec written
+**Now:** GREEN. Deployed at https://evalkit-demo.streamlit.app/ from `demo/app.py` on main, with the four secrets in Streamlit's secret store and the daily spend counter in Neon Postgres. Checked against the public URL: replay renders four cards; the budget line shows; a wrong passcode is refused at no cost; own-keys mode asks for the passcode first (D-59); one live request on the owner's keys (PMID 10173769, run by the owner) settled at $0.1312, read back from the store. Verifier passed rounds 1–2 earlier (all DEM-01..05 proofs). Evidence: docs/measurements/demo-deploy-2026-11-17.json, held to the repo by tests/demo/test_deployed.py.

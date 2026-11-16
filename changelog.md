@@ -2,6 +2,9 @@
 
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
+## 2026-11-17
+- [DEMO] [D3.2] — Green: demo live at https://evalkit-demo.streamlit.app/ (replay for everyone; live behind the passcode on the owner's keys or the visitor's own, D-59); deployment checked end to end. Spend: $0.1312 (one live request).
+
 ## 2026-11-15
 - [RELEASE] [B4.1] — v0.2.0 prepared (not yet tagged or published): systems under test (`SystemAdapter.answer(case, request)` gets the whole `Case`; `systems:` in `evalkit.yaml`; `evalkit.systems` entry-point group), `Case.meta` from a JSONL `meta` object, task-declared scorers (every `TaskConfig.scorers` name outside the benchmark set runs inside `evalkit run`; `Record.task_scores`, `ModelSummary.task_scores` with 95% CIs, report columns), per-slice summary and report (`TaskConfig.slices`, `RunSummary.slices`). Backwards compatible: new fields are omitted when empty, so v0.1 run ids, cache keys, results and reports are byte-identical. Breaking changes for v0.1 tasks (D-59): (1) an unknown scorer name now exits 2 instead of being ignored; (2) a scorer name that matches a registered plugin, which v0.1 ignored, now runs, so its records and summary gain `task_scores`; (3) such a plugin must accept keyword context (`model=`, `claims=`, `verdicts=`, `scores=`, or `**ctx`), or the run exits 2. Runs whose tasks name only benchmark scorers are byte-identical
 - [RELEASE] [B2.5] — v0.1.0 published: evalkit-harness 0.1.0 on PyPI (wheel + sdist) by trusted publishing from tag v0.1.0; install smoke passed on three OSes; B2.5 green. Release record: docs/measurements/release-v0.1.0-2026-11-15.json. Spend: $0.

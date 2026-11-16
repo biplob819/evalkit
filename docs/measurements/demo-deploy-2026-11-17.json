@@ -1,0 +1,30 @@
+{
+  "what": "D3.2 demo deployed on Streamlit Community Cloud and checked end to end",
+  "url": "https://evalkit-demo.streamlit.app/",
+  "host": "Streamlit Community Cloud",
+  "repository": "biplob819/evalkit",
+  "branch": "main",
+  "main_file": "demo/app.py",
+  "requirements": "demo/requirements.txt",
+  "config": ".streamlit/config.toml",
+  "secrets_in_host_store": ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "EVALKIT_DEMO_PASSCODE", "EVALKIT_DEMO_DATABASE_URL"],
+  "spend_store": "Neon Postgres (EVALKIT_DEMO_DATABASE_URL)",
+  "verified_with": "headless Chrome (Playwright) against the public URL; spend read back from the store",
+  "deployed_commit": "4ba2a84",
+  "checks": [
+    {"check": "replay mode renders the sample question with four model cards and no model call", "result": "pass"},
+    {"check": "live mode shows the budget line, $3.00 of $3.00 before any request", "result": "pass"},
+    {"check": "a wrong passcode is refused with 'Wrong passcode.' and nothing is spent", "result": "pass"},
+    {"check": "own-keys mode asks for the passcode before the API keys (D-59)", "result": "pass"},
+    {"check": "one live request on the owner's keys (PMID 10173769, run by the owner) fills four cards and settles its spend", "result": "pass"}
+  ],
+  "live_check": {
+    "pmid": "10173769",
+    "budget_before_usd": 3.0,
+    "budget_after_usd": 2.87,
+    "spent_usd": 0.1312,
+    "per_request_cap_usd": 2.0,
+    "ledger_run_id": "demo-deploy-check"
+  },
+  "notes": "The owner entered the passcode for the live request; it was never typed by the agent. The question text is not recorded anywhere (aggregate-only logging)."
+}
