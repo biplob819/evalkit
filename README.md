@@ -21,7 +21,7 @@ Evaluate **your own task** across Claude and OpenAI models: accuracy, groundedne
 
 > **Status: v0.1.0, the first public release** ([on PyPI](https://pypi.org/project/evalkit-harness/)). To work on EvalKit itself, clone it and run `uv sync --all-extras`.
 
-**Try it in the browser:** the [live demo](https://evalkit-demo.streamlit.app/) shows four models answering the same question from a study abstract, with every claim checked against the sentences it cites. Replay mode is free; live mode runs on your own API keys or the owner's passcode.
+**Try it in the browser:** the [live demo](https://evalkit-demo.streamlit.app/) shows four models answering the same question from a study abstract, with every claim checked against the sentences it cites. Replay mode is open to everyone; live mode needs a passcode from the owner and then runs on the owner's keys or your own.
 
 **Start here:** [Quickstart](https://github.com/biplob819/evalkit/blob/main/docs/quickstart.md) (a first result in under five minutes) · [Write your own task](https://github.com/biplob819/evalkit/blob/main/docs/writing-a-task.md) (JSONL or CSV) · [Control cost](https://github.com/biplob819/evalkit/blob/main/docs/cost.md) · [Calibrate the judges](https://github.com/biplob819/evalkit/blob/main/docs/calibrate-your-task.md) · [Scorers and adapters](https://github.com/biplob819/evalkit/blob/main/docs/plugins.md) · [Run it in CI](https://github.com/biplob819/evalkit/blob/main/examples/github-action/evalkit.yml) · [Versioning](https://github.com/biplob819/evalkit/blob/main/docs/versioning.md)
 

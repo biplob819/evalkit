@@ -2,7 +2,8 @@
 claim is checked against the sentences each answer cites.
 
 Replay mode (the default) shows prepared answers and makes no model call. Live mode needs the
-passcode; it is guarded per request and per day (evalkit.demo.guard). All logic lives in
+passcode, on the owner's keys or the visitor's own (D-59); it is guarded per request and per
+day (evalkit.demo.guard). All logic lives in
 evalkit.demo.page so it is testable without a browser; this file is layout only.
 
 Run locally:  uv run --all-extras streamlit run demo/app.py
@@ -130,11 +131,10 @@ def live_view(config) -> None:
         f"each request holds at most ${guard.per_request_cap:.2f} · "
         f"{guard.rate_limit} requests per hour per visitor"
     )
-    pay = st.radio(
-        "Run on", ["The owner's keys (passcode)", "My own API keys"], horizontal=True, index=0
-    )
+    pay = st.radio("Run on", ["The owner's keys", "My own API keys"], horizontal=True, index=0)
     own = pay.startswith("My own")
     with st.form("live"):
+        passcode = st.text_input("Passcode", type="password", help="Ask the owner for one.")
         if own:
             st.caption(
                 "Your keys are used for your requests only: never saved or logged, held in "
@@ -144,9 +144,7 @@ def live_view(config) -> None:
             )
             key_a = st.text_input("Anthropic API key", type="password")
             key_o = st.text_input("OpenAI API key (optional)", type="password")
-            passcode = ""
         else:
-            passcode = st.text_input("Passcode", type="password")
             key_a = key_o = ""
         question = st.text_area("Question", max_chars=MAX_QUESTION_CHARS)
         pmid = st.text_input("PubMed ID (or paste the abstract below)")

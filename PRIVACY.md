@@ -13,7 +13,7 @@ EvalKit makes network requests only for these purposes:
 | Calibration labelling page | Nothing outbound: a local server on `127.0.0.1` that only your browser reaches | `evalkit calibrate label RUN_DIR` |
 | Public benchmark data | Hugging Face datasets server (PubMedQA), the SciFact release on Amazon S3 | First use of `--task pubmedqa` or `--task scifact`, then cached |
 | Reachability check | `api.anthropic.com`, `api.openai.com` (a TCP connection, no data sent) | `evalkit doctor` without `--offline` |
-| Demo only: model calls | Anthropic and OpenAI, on the owner's keys (passcode) or the visitor's own keys | Each live request |
+| Demo only: model calls | Anthropic and OpenAI, behind the owner's passcode, on the owner's keys or the visitor's own keys | Each live request |
 | Demo only: abstract lookup | NCBI PubMed E-utilities | When a demo visitor enters a PubMed ID |
 | Demo only: daily spend total | The demo's Postgres database (one number per day, nothing about requests) | Each live request |
 

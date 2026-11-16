@@ -254,13 +254,23 @@ def test_live_mode_needs_all_four_secrets():
 
 
 def own(tmp_path: Path, keys: dict[str, str], **kw: Any):
-    return live(tmp_path, own_keys=keys, passcode="", **kw)
+    return live(tmp_path, own_keys=keys, **kw)
 
 
-def test_own_keys_need_no_passcode_and_leave_the_owner_budget_alone(tmp_path, caplog):
+def test_own_keys_need_the_passcode_and_leave_the_owner_budget_alone(tmp_path, caplog):
     caplog.set_level(logging.INFO)
     g = guard(tmp_path)
-    res = own(tmp_path, {"anthropic": "k1", "openai": "k2"}, guard=g)
+    keys = {"anthropic": "k1", "openai": "k2"}
+    fetched: list[str] = []
+    for wrong in ("", "nope"):  # D-59: own keys do not skip the passcode
+        a = adapters()
+        res = own(
+            tmp_path, keys, guard=g, adapters=a, passcode=wrong, pmid="7", fetch=fetched.append
+        )
+        assert res.refused == "Wrong passcode." and res.cards == ()
+        assert a["anthropic"].requests == [] and a["openai"].requests == [] and fetched == []
+    assert own(tmp_path, {"openai": "k2"}, passcode="nope").refused == "Wrong passcode."
+    res = own(tmp_path, keys, guard=g)
     assert res.refused is None and len(res.cards) == 4
     assert all(c.error is None and c.answer for c in res.cards)
     assert g.remaining_today() == g.daily_cap
@@ -673,7 +683,7 @@ def test_live_mode_fills_four_cards_and_logs_no_question(app_env, tmp_path, capl
             assert marker.encode() not in f.read_bytes(), f
 
 
-def test_live_mode_on_own_keys_skips_the_passcode_and_the_owner_budget(app_env, tmp_path):
+def test_live_mode_on_own_keys_needs_the_passcode_but_not_the_owner_budget(app_env, tmp_path):
     calls = configure_live(app_env, tmp_path)
     _, _, mp = app_env
     built: list[dict[str, str]] = []
@@ -689,12 +699,21 @@ def test_live_mode_on_own_keys_skips_the_passcode_and_the_owner_budget(app_env, 
     at.radio[0].set_value("Live").run()
     at.radio[1].set_value("My own API keys").run()
     assert any("never saved or logged" in c.value for c in at.caption)
-    at.text_input[0].input("sk-ant-visitor")
+    assert [t.label for t in at.text_input][:3] == [
+        "Passcode",
+        "Anthropic API key",
+        "OpenAI API key (optional)",
+    ]
+    at.text_input[1].input("sk-ant-visitor")
     at.text_area[0].input(QUESTION)
     at.text_area[1].input(" ".join(SENTENCES))
+    at.button[0].click().run()  # no passcode: refused before any client is built
+    assert [e.value for e in at.error] == ["Wrong passcode."]
+    assert calls == []  # clients may be built, but nothing reached a provider
+    at.text_input[0].input(PASS)
     at.button[0].click().run()
     assert not at.exception and not at.error
-    assert built == [{"anthropic": "sk-ant-visitor", "openai": ""}]
+    assert built[-1] == {"anthropic": "sk-ant-visitor", "openai": ""}
     html = page_html(at)
     assert html.count("class='card'") == 4 and "no openai key given" in html
     assert "sk-ant-visitor" not in html and calls

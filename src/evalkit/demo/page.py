@@ -217,8 +217,9 @@ async def run_live(
     aggregate line. Refusals and input problems come back as `refused` messages.
 
     With `own_keys` ({"anthropic": ..., "openai": ...}) the request runs on the visitor's keys
-    and `adapters` must be built on them (`own_key_adapters`): no passcode, nothing held against
-    the owner's daily budget, but the per-request cap and the rate limit still apply. Without
+    and `adapters` must be built on them (`own_key_adapters`): the passcode is still required
+    (D-59), nothing is held against the owner's daily budget, and the per-request cap and the
+    rate limit still apply. Without
     an OpenAI key the OpenAI models get a "no key" card; an Anthropic key is required because
     the claim extractor and the live judge are Claude models."""
     from evalkit.text.sentences import split_sentences
@@ -234,9 +235,9 @@ async def run_live(
     outcome, cards, refused = "ok", [], None
     bound = estimate = 0.0
     try:
-        if own_keys is None:
-            guard.check_passcode(passcode)  # first, as in compare(): a wrong one learns nothing
-        elif not own_keys.get("anthropic"):
+        # first in both modes, as in compare(): a wrong passcode learns nothing (D-59)
+        guard.check_passcode(passcode)
+        if own_keys is not None and not own_keys.get("anthropic"):
             raise GuardRefused(
                 "An Anthropic key is needed: the claim checker and the judge are Claude models."
             )
@@ -247,7 +248,7 @@ async def run_live(
             raise ValueError(f"the question is longer than {MAX_QUESTION_CHARS} characters")
         slot_taken = False
         if isinstance(source, PMID):
-            if own_keys is not None:  # no passcode in front: the rate limit comes before NCBI
+            if own_keys is not None:  # no budget hold here: the rate limit comes before NCBI
                 guard.admit(session, 0.0)
                 slot_taken = True
             # fetched here so the request's bound is known (and shown) before any model call
