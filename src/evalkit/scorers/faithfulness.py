@@ -12,7 +12,7 @@ from typing import Literal
 
 from evalkit.adapters import ModelAdapter
 from evalkit.cost import Price
-from evalkit.pipeline.extract import ClaimSet, extract_all
+from evalkit.pipeline.extract import ClaimSet, extract_faithfulness_all
 from evalkit.pipeline.generate import Generated
 from evalkit.pipeline.judge import groundedness, judge_claims, judge_claims_live
 from evalkit.runtime import Executor
@@ -69,7 +69,8 @@ def _generated(item: FaithfulnessItem) -> Generated:
         model_snapshot="",
         params={},
         raw_text=item.explanation,
-        # Explanations rarely cite: every evidence sentence counts as cited (FTH-01).
+        # Explanations rarely cite: every evidence sentence counts as cited (FTH-01). The
+        # extractor is not shown this list (D-60); claims are mapped to all evidence below.
         answer=Answer(
             label="n/a",
             answer=item.explanation,
@@ -94,21 +95,36 @@ async def faithfulness(
     live: bool = True,
     max_wait_s: float = 0.0,
     run_id: str = "faithfulness",
+    question_words: bool = True,
 ) -> list[FaithfulnessResult]:
     """Score each explanation against its evidence, per judge. Live judging by default (one
     call per claim, immediate); `live=False` uses the Batch APIs and may leave claims unjudged
-    until a later call collects them (those count against `fully_faithful`)."""
+    until a later call collects them (those count against `fully_faithful`).
+
+    Claims come from the faithfulness extractor (`extract_faithfulness_claims`, D-60), which is
+    not asked to cite: every claim is judged against all of the item's evidence. With
+    `question_words` (the default) the explanation is read as an answer to its question, so a
+    claim may use the question's words (e.g. the subject of a fragment like "Income Support,
+    Pension Credit...") without failing the B11 "adds content" check; coverage is still
+    measured against the explanation alone. `question_words=False` applies B11 against the
+    explanation only, as the benchmark extractor does."""
     if not items:
         return []
     for item in items:
         if not item.evidence:
             raise ValueError(f"item {item.id!r} has no evidence to check against")
     generated = [_generated(i) for i in items]
-    claim_sets: list[ClaimSet] = await extract_all(
-        executor, generated, config, adapters, prices, run_id=run_id
+    claim_sets: list[ClaimSet] = await extract_faithfulness_all(
+        executor,
+        generated,
+        config,
+        adapters,
+        prices,
+        run_id=run_id,
+        question_words=question_words,
     )
-    # Judge every claim against ALL of the item's evidence, whatever subset the extractor
-    # mapped it to: faithfulness is to the evidence given, not to the extractor's citations.
+    # Judge every claim against ALL of the item's evidence: faithfulness is to the evidence
+    # given (FTH-02). The faithfulness extractor returns no citations, so this sets them.
     claim_sets = [
         cs.model_copy(
             update={

@@ -11,6 +11,10 @@
     "code_version": "2",
     "hash": "529d8b8ca3efba30828ab8227eb9fe7a6014eb7925f1225567465840c6c18646"
   },
+  "extract_faithfulness_claims": {
+    "code_version": "1",
+    "hash": "64c125ed48ff7dd6047dd1d27d4278743657209a93f7fb46c2cfb0665d5447db"
+  },
   "generate": {
     "code_version": "1",
     "hash": "fcc7cdd6c0b6133e6ed3bf3bc62141916d4b72857e4e9f4c888af7c6d65c1e86"

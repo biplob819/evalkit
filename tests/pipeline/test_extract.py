@@ -18,6 +18,7 @@ from evalkit.pipeline.extract import (
 )
 from evalkit.pipeline.generate import Generated
 from evalkit.runtime import Executor, RunContext, Store
+from evalkit.runtime.canonical import canonical_json
 from evalkit.schemas import Answer, Case, Completion, RunConfig
 from tests.pipeline.fakes import ScriptedAdapter
 
@@ -332,3 +333,116 @@ def test_claims_are_judged_against_every_sentence_the_answer_cited():
     out = ground_on_answer_citations([g], [cs])[0]
     assert [c.cited for c in out.claims] == [(1, 3), (1, 3)]  # 9 is out of range: dropped
     assert [c.id for c in out.claims] == ["c1:m:0", "c1:m:1"]
+
+
+# ---- D-60: faithfulness extraction is separate; the benchmark extractor is untouched ---------
+
+
+def test_benchmark_extractor_is_unchanged_by_the_faithfulness_extractor():
+    """D-60 must not invalidate benchmark caches: same node name, code version, behaviour
+    hash, prompt version and request (citation list and `cited` in the schema)."""
+    from evalkit.runtime import versions
+
+    assert ExtractClaims.name == "extract_claims" and ExtractClaims.code_version == "2"
+    assert EXTRACTOR_VERSION == "ext2-f484fe5e"
+    assert versions.behaviour_hash(ExtractClaims) == (
+        "529d8b8ca3efba30828ab8227eb9fe7a6014eb7925f1225567465840c6c18646"
+    )
+    fake = ScriptedAdapter(lambda req: GOOD)
+    asyncio.run(ExtractClaims({"anthropic": fake}, PRICES).run(inp(), RunContext(run_id="r")))
+    req = fake.requests[0]
+    assert "Cited sentence numbers: [2, 4]" in req.prompt
+    assert (
+        canonical_json(req.json_schema) == canonical_json(ex.extraction_schema())
+        and req.max_output_tokens == 1024
+    )
+
+
+def test_benchmark_b11_does_not_accept_question_words_or_uncited_claims():
+    q_only = reply([{"text": "Readmissions fell after the readmission programme.", "cited": []}])
+    fragment = inp(
+        question="Which benefits help pensioners with heating costs?",
+        answer_text="Income Support, Pension Credit.",
+        citations=(1,),
+    )
+    borrowed = reply(
+        [
+            {
+                "text": f"Pensioners get {b} to help with heating costs.",
+                "cited": [1],
+                "addresses_question": True,
+            }
+            for b in ("Income Support", "Pension Credit")
+        ]
+    )
+    with pytest.raises(SchemaError, match="B11"):
+        parse_claims(borrowed, fragment)  # the default contract: answer words only
+    claims, _ = parse_claims(
+        borrowed, fragment, extra_words=ex.content_words(fragment.question)
+    )  # only the faithfulness extractor passes the question's words
+    assert len(claims) == 2
+    with pytest.raises(SchemaError, match="exactly text, cited, addresses_question"):
+        parse_claims(q_only, inp())
+    no_cited = reply([{"text": "Readmissions fell.", "addresses_question": True}])
+    with pytest.raises(SchemaError, match="exactly text, cited, addresses_question"):
+        parse_claims(no_cited, inp())
+
+
+def finp(**over: Any) -> ex.FaithfulnessExtractInput:
+    base: dict[str, Any] = dict(
+        case_id="fth-1",
+        model="explanation",
+        question="Which benefits help pensioners with heating costs?",
+        answer_text="Income Support, Pension Credit.",
+        extractor_id="claude-haiku-5-5",
+        provider="anthropic",
+        effort="medium",
+    )
+    base.update(over)
+    return ex.FaithfulnessExtractInput(**base)
+
+
+def test_faithfulness_input_has_no_citations_and_its_own_pinned_version():
+    i = finp()
+    assert i.citations == () and i.question_words is True
+    assert i.extractor_version == ex.FAITHFULNESS_EXTRACTOR_VERSION != EXTRACTOR_VERSION
+    assert ex.FAITHFULNESS_EXTRACTOR_VERSION.startswith("extf1-")
+    with pytest.raises(ValueError, match="no citations"):
+        finp(citations=(1, 2))
+    with pytest.raises(ValueError, match="not the current"):
+        finp(extractor_version=EXTRACTOR_VERSION)
+
+
+def test_faithfulness_node_names_claims_with_its_version_and_no_citations():
+    borrowed = json.dumps(
+        {
+            "claims": [
+                {"text": f"Pensioners get {b} for heating costs.", "addresses_question": True}
+                for b in ("Income Support", "Pension Credit")
+            ]
+        }
+    )
+    fake = ScriptedAdapter(lambda req: borrowed)
+    node = ex.ExtractFaithfulnessClaims({"anthropic": fake}, PRICES)
+    out = asyncio.run(node.run(finp(), RunContext(run_id="r")))
+    assert out.error is None and [c.id for c in out.claims] == [
+        "fth-1:explanation:0",
+        "fth-1:explanation:1",
+    ]
+    assert all(c.cited == () for c in out.claims)
+    assert all(c.extractor_version == ex.FAITHFULNESS_EXTRACTOR_VERSION for c in out.claims)
+    req = fake.requests[0]
+    assert canonical_json(req.json_schema) == canonical_json(ex.faithfulness_extraction_schema())
+    assert "Cited sentence numbers" not in req.prompt and "words from the question" in req.prompt
+    strict = asyncio.run(node.run(finp(question_words=False), RunContext(run_id="r")))
+    assert strict.error == "schema"
+    assert node.cache_key(finp(), RunContext(run_id="r")) != node.cache_key(
+        finp(question_words=False), RunContext(run_id="r")
+    )
+
+
+def test_faithfulness_estimate_covers_the_retry():
+    node = ex.ExtractFaithfulnessClaims({}, PRICES)
+    ctx = RunContext(run_id="r")
+    one_call = ExtractClaims({}, PRICES).estimate_cost(inp(), ctx)
+    assert node.estimate_cost(finp(), ctx) > 4 * one_call
