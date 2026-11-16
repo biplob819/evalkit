@@ -235,5 +235,5 @@ def estimate_for_config(
         n_cases=n_cases,
         assumptions=assumptions,
         batch_judges=batch_judges,
-        free=frozenset(config.endpoints),
+        free=frozenset(config.endpoints) | frozenset(config.systems),
     )

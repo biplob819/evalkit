@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
 
 from evalkit.schemas._base import (
     Fraction,
+    FrozenDict,
     FrozenMap,
     Model,
     NonBlank,
@@ -49,6 +50,10 @@ class ModelSummary(Model):
     latency_p95_ms: NonNegInt | None
     passes_threshold: bool
     failed_thresholds: tuple[str, ...]
+    # v0.2 (D-59): task scorer -> mean over all cases with its 95% bootstrap interval.
+    task_scores: FrozenMap[Interval] = Field(default_factory=FrozenDict)
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("task_scores",)
 
     @model_validator(mode="after")
     def _consistency(self) -> ModelSummary:
@@ -66,6 +71,50 @@ class ModelSummary(Model):
             raise ValueError("latency percentiles are both set or both None")
         if lat[0] is not None and lat[1] is not None and lat[1] < lat[0]:
             raise ValueError("latency_p95_ms cannot be below latency_p50_ms")
+        if set(self.headline) != set(self.groundedness_mean):
+            raise ValueError("headline and groundedness_mean must name the same judges")
+        return self
+
+
+def _check_errors_and_latency(
+    n: int, n_errors: dict[str, int], lat: tuple[int | None, int | None]
+) -> None:
+    unknown = set(n_errors) - set(ERROR_TYPES)
+    if unknown:
+        raise ValueError(f"unknown error types in n_errors: {sorted(unknown)}")
+    if sum(n_errors.values()) > n:
+        raise ValueError("n_errors cannot exceed n")
+    if (lat[0] is None) != (lat[1] is None):
+        raise ValueError("latency percentiles are both set or both None")
+    if lat[0] is not None and lat[1] is not None and lat[1] < lat[0]:
+        raise ValueError("latency_p95_ms cannot be below latency_p50_ms")
+
+
+class SliceSummary(Model):
+    """One model on one slice of the cases (v0.2, D-59): the cases whose `field` (a case field
+    such as `rule` or `split`) has `value`. Rates are over the slice's cases only, with 95%
+    bootstrap intervals drawn over those cases."""
+
+    field: NonBlank
+    value: NonBlank  # "(none)" for cases without the field
+    model: NonBlank
+    n: NonNegInt
+    n_errors: FrozenMap[NonNegInt]
+    accuracy: Interval
+    headline: FrozenMap[Interval]  # per judge; empty while judging is pending
+    groundedness_mean: FrozenMap[Interval]
+    citation_validity: Interval
+    coverage: Interval
+    task_scores: FrozenMap[Interval] = Field(default_factory=FrozenDict)
+    cost_per_100_usd: NonNegFloat
+    latency_p50_ms: NonNegInt | None
+    latency_p95_ms: NonNegInt | None
+
+    @model_validator(mode="after")
+    def _consistency(self) -> SliceSummary:
+        _check_errors_and_latency(
+            self.n, dict(self.n_errors), (self.latency_p50_ms, self.latency_p95_ms)
+        )
         if set(self.headline) != set(self.groundedness_mean):
             raise ValueError("headline and groundedness_mean must name the same judges")
         return self
@@ -129,10 +178,24 @@ class RunSummary(Versioned):
     judging_status: Literal["pending", "complete"]
     started_at: Timestamp
     finished_at: Timestamp | None = None
+    slices: tuple[SliceSummary, ...] = ()  # v0.2 (D-59): by task slice field, value, model
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("slices",)
 
     @model_validator(mode="after")
     def _stamps_are_honest(self) -> RunSummary:
         n_judges = 2 if self.judge_mode == "dual" else 1
+        known = {m.model for m in self.models}
+        for s in self.slices:
+            if s.model not in known:
+                raise ValueError(f"slice {s.field}={s.value} names unknown model {s.model!r}")
+            if self.judging_status == "pending" and s.headline:
+                raise ValueError("a pending run cannot report per-judge figures in slices")
+            if self.judging_status == "complete" and len(s.headline) != n_judges:
+                raise ValueError(
+                    f"slice {s.field}={s.value}/{s.model}: a {self.judge_mode}-judge run needs "
+                    f"{n_judges} headline entries, got {len(s.headline)}"
+                )
         names = [j.judge for j in self.judges]
         if any(j.split != "heldout" for j in self.judges):
             raise ValueError("only held-out agreement can be reported as calibration")

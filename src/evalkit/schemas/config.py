@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, get_args
+from typing import Annotated, ClassVar, Literal, get_args
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
-from evalkit.schemas._base import FrozenMap, Model, Name, PosInt, StrictInt
+from evalkit.schemas._base import FrozenDict, FrozenMap, Model, Name, PosInt, StrictInt
 
 # Per-judge metrics (headline, groundedness) are checked against the worst judge.
 ThresholdMetric = Literal[
@@ -57,6 +57,21 @@ class RunConfig(Model):
     default_effort: Name = "medium"
     judge_effort: Name = "medium"  # OWNER D-34 (supersedes D-28)
     extractor_effort: Name = "medium"
+    # v0.2 (D-59): model alias -> registered system under test (`evalkit.systems`).
+    systems: FrozenMap[Name] = Field(default_factory=FrozenDict)
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("systems",)
+
+    @model_validator(mode="after")
+    def _systems_are_models(self) -> RunConfig:
+        for alias in self.systems:
+            if alias not in self.models:
+                raise ValueError(f"systems names {alias!r}, which is not in models")
+            if alias in self.endpoints:
+                raise ValueError(f"{alias!r} cannot be both a system and an endpoint")
+            if alias == self.extractor or alias in self.judges:
+                raise ValueError(f"system {alias!r} cannot be the extractor or a judge")
+        return self
 
     def effort_for(self, model: str) -> str:
         return self.efforts.get(model, self.default_effort)
@@ -76,6 +91,18 @@ class TaskConfig(Model):
     output_schema: Name
     scorers: Annotated[tuple[Name, ...], Field(min_length=1)]
     thresholds: tuple[Threshold, ...] = ()
+    # v0.2 (D-59): case fields to break results down by (`reference_label`, `source` or a key
+    # of `Case.meta`, e.g. "rule", "split").
+    slices: tuple[Name, ...] = ()
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("slices",)
+
+    @field_validator("slices")
+    @classmethod
+    def _unique_slices(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        if len(set(v)) != len(v):
+            raise ValueError("slices must be unique")
+        return v
 
     @field_validator("labels")
     @classmethod

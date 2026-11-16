@@ -200,7 +200,7 @@ def needed_providers(config_path: Path | None) -> set[str] | None:
 
     config = load_run_config(config_path)
     names = (*config.models, config.extractor)
-    return {provider_for(m, config.endpoints) for m in names}
+    return {provider_for(m, config.endpoints, config.systems) for m in names}
 
 
 def doctor(

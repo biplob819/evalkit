@@ -17,7 +17,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from evalkit.adapters import ModelAdapter
 from evalkit.config import ConfigError, load_run_config, load_task_config
@@ -31,10 +31,16 @@ from evalkit.datasets import (
 )
 from evalkit.datasets.scifact import DATASET as SCIFACT
 from evalkit.env import missing_keys
-from evalkit.pipeline.aggregate import aggregate, build_records, family_for, write_summary
+from evalkit.pipeline.aggregate import (
+    aggregate,
+    build_records,
+    family_for,
+    slice_value,
+    write_summary,
+)
 from evalkit.pipeline.calibrate import usable_agreements
 from evalkit.pipeline.extract import extract_all, ground_on_answer_citations
-from evalkit.pipeline.generate import adapter_key, generate_and_validate, provider_for
+from evalkit.pipeline.generate import SYSTEM, adapter_key, generate_and_validate, provider_for
 from evalkit.pipeline.judge import (
     JudgeSelection,
     JudgingResult,
@@ -42,6 +48,7 @@ from evalkit.pipeline.judge import (
     judge_claims_live,
     select_judges,
 )
+from evalkit.pipeline.task_scorers import TaskScorerError, resolve_task_scorers
 from evalkit.report import write_report
 from evalkit.runtime import Executor, Store
 from evalkit.runtime.canonical import sha256_hex
@@ -82,6 +89,9 @@ class RunManifest(Model):
     started_at: Timestamp
     finished_at: Timestamp | None = None
     spent_usd: float = 0.0  # all real spend on this run folder, across resumes (cap is total)
+    slices: tuple[NonBlank, ...] = ()  # v0.2: the task's slice fields, for re-aggregation
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("slices",)
 
 
 @dataclass(frozen=True)
@@ -152,16 +162,27 @@ def plan_run(
             raise RunError(f"endpoint for {name!r} must be an http(s) URL, got {url!r}")
     for m in (*config.models, config.extractor, *config.judges):
         try:
-            provider_for(m, config.endpoints)
+            provider_for(m, config.endpoints, config.systems)
         except ValueError:
             raise RunError(
                 f"unknown model {m!r}: add it to prices.yaml or give it an endpoint in the config"
             ) from None
+    check_systems(config)
     task_cfg, base_dir = load_task(task)
+    try:
+        resolve_task_scorers(task_cfg)
+    except TaskScorerError as exc:
+        raise RunError(str(exc)) from None
     cases = load_cases(task_cfg, base_dir)
     if not 0 < n <= len(cases):
         raise RunError(f"--n must be between 1 and {len(cases)} for task {task_cfg.name}, got {n}")
     sample = stratified_sample(cases, n, seed=config.seed)
+    for field in task_cfg.slices:
+        for c in sample.cases:
+            try:
+                slice_value(c, field)
+            except ValueError as exc:
+                raise RunError(f"invalid task {task_cfg.name}: {exc}") from None
     # The folder identity ignores knobs that cannot change results (cost cap, concurrency), so
     # raising a cap or a rate limit resumes the same run instead of stranding its labels.
     config_hash = sha256_hex(config.model_copy(update={"max_cost_usd": None, "concurrency": {}}))[
@@ -192,9 +213,35 @@ def plan_run(
     )
 
 
+def check_systems(config: RunConfig) -> None:
+    """Every system alias names a registered SystemAdapter and is not a provider model id
+    (v0.2, D-59). Checked before any call."""
+    if not config.systems:
+        return
+    from evalkit.adapters import discover_systems
+
+    registered = discover_systems()
+    for alias, name in config.systems.items():
+        try:
+            provider = provider_for(alias, config.endpoints)
+        except ValueError:
+            pass
+        else:
+            raise RunError(
+                f"system alias {alias!r} is a model id that the {provider} provider serves; "
+                "give the system its own name"
+            )
+        if name not in registered:
+            raise RunError(
+                f"unknown system {name!r} for {alias!r}: register a SystemAdapter with "
+                f"@register_system or the `evalkit.systems` entry-point group "
+                f"(registered: {sorted(registered) or 'none'})"
+            )
+
+
 def providers_needed(config: RunConfig) -> set[str]:
     names = (*config.models, config.extractor, *config.judges)
-    return {provider_for(m, config.endpoints) for m in names}
+    return {provider_for(m, config.endpoints, config.systems) for m in names}
 
 
 def readiness_problems(
@@ -205,7 +252,7 @@ def readiness_problems(
     problems = []
     config = plan.config
     for m in (*config.models, config.extractor, *config.judges):
-        if m not in prices and m not in config.endpoints:
+        if m not in prices and m not in config.endpoints and m not in config.systems:
             problems.append(
                 f"unknown model {m!r}: add it to prices.yaml or give it an endpoint in the config"
             )
@@ -214,7 +261,7 @@ def readiness_problems(
     from evalkit.onboarding import SDK_MODULE
 
     used = {
-        provider_for(m, config.endpoints)
+        provider_for(m, config.endpoints, config.systems)
         for m in (*config.models, config.extractor, *config.judges)
     }
     for provider in sorted(used):
@@ -228,14 +275,21 @@ def readiness_problems(
         return problems
     # Models and the extractor must all be reachable; judges need at least one (single-judge
     # mode, D-10), which select_judges enforces once keys are known.
-    needed = {provider_for(m, config.endpoints) for m in (*config.models, config.extractor)}
+    needed = {
+        provider_for(m, config.endpoints, config.systems)
+        for m in (*config.models, config.extractor)
+    }
     keys = missing_keys(needed - {"openai_compatible"})
     if keys:
         problems.append(
             f"missing API keys: {', '.join(keys)} (set them in the environment or a .env file)"
         )
-    if not available_providers(config) & {provider_for(j, config.endpoints) for j in config.judges}:
-        judge_keys = missing_keys({provider_for(j, config.endpoints) for j in config.judges})
+    if not available_providers(config) & {
+        provider_for(j, config.endpoints, config.systems) for j in config.judges
+    }:
+        judge_keys = missing_keys(
+            {provider_for(j, config.endpoints, config.systems) for j in config.judges}
+        )
         problems.append(f"no judge is usable: set {' or '.join(judge_keys)}")
     return problems
 
@@ -243,7 +297,7 @@ def readiness_problems(
 def available_providers(config: RunConfig) -> set[str]:
     """Providers whose keys are set (local endpoints need none)."""
     names = (*config.models, config.extractor, *config.judges)
-    providers = {provider_for(m, config.endpoints) for m in names}
+    providers = {provider_for(m, config.endpoints, config.systems) for m in names}
     missing = set(missing_keys(providers))
     from evalkit.env import KEYS
 
@@ -254,13 +308,29 @@ def estimate(plan: Plan, prices: dict[str, Price], *, live_judges: bool) -> Cost
     return estimate_for_config(prices, plan.config, plan.n, batch_judges=not live_judges)
 
 
+def system_adapters(config: RunConfig) -> dict[str, ModelAdapter]:
+    """One SystemAdapter per system alias in the config (v0.2), keyed like make_adapters."""
+    from evalkit.adapters import get_system
+
+    out: dict[str, ModelAdapter] = {}
+    for alias, name in config.systems.items():
+        try:
+            out[adapter_key(SYSTEM, alias)] = get_system(name)
+        except KeyError as exc:
+            raise RunError(str(exc).strip("'\"")) from None
+    return out
+
+
 def make_adapters(config: RunConfig, prices: dict[str, Price]) -> dict[str, ModelAdapter]:
-    """Real provider adapters for every model, extractor and judge in the config."""
+    """Real provider adapters for every model, extractor and judge in the config, and the
+    system adapters for systems under test."""
     from evalkit.adapters import get_adapter
 
-    adapters: dict[str, ModelAdapter] = {}
+    adapters: dict[str, ModelAdapter] = system_adapters(config)
     for m in (*config.models, config.extractor, *config.judges):
-        provider = provider_for(m, config.endpoints)
+        provider = provider_for(m, config.endpoints, config.systems)
+        if provider == SYSTEM:
+            continue
         key = adapter_key(provider, m)
         if key not in adapters:
             kwargs: dict[str, Any] = {"prices": prices}
@@ -324,6 +394,7 @@ def summarise(
 ) -> RunSummary:
     """Aggregate a run folder's records, using calibration that still certifies this task."""
     calibration = read_calibration(run_dir)
+    cases = read_cases(run_dir) if manifest.slices else None
     selection = JudgeSelection(
         judges=manifest.judges, judge_mode=manifest.judge_mode, n_available=len(manifest.judges)
     )
@@ -342,6 +413,8 @@ def summarise(
         agreements=usable_agreements(calibration, manifest.task),
         started_at=manifest.started_at,
         finished_at=manifest.finished_at,
+        cases=cases,
+        slices=manifest.slices,
     )
 
 
@@ -424,12 +497,13 @@ async def execute(
         models=config.models,
         judges=selection.judges,
         judge_mode=selection.judge_mode,
-        families={m: family_for(m, config.endpoints) for m in config.models},
+        families={m: family_for(m, config.endpoints, config.systems) for m in config.models},
         thresholds=config.thresholds or plan.task.thresholds,
         live_judges=live_judges or (previous.live_judges if previous else False),
         started_at=started_at,
         finished_at=previous.finished_at if previous else None,
         spent_usd=spent_before,
+        slices=plan.task.slices,
     )
     _atomic_write(run_dir / "run.json", manifest.model_dump_json(indent=2) + "\n")
     _atomic_write(run_dir / "cases.jsonl", _jsonl(plan.cases))
@@ -462,6 +536,10 @@ async def _graph(
     now: Callable[[], datetime],
 ) -> Outcome:
     config, run_dir = plan.config, plan.run_dir
+    try:
+        task_scorers = resolve_task_scorers(plan.task)
+    except TaskScorerError as exc:
+        raise RunError(str(exc)) from None
     say("generate", f"{len(config.models)} models × {plan.n} cases")
     generated = await generate_and_validate(
         ex, plan.cases, plan.task, config, adapters, prices, run_id=plan.run_id
@@ -506,17 +584,21 @@ async def _graph(
     if complete and manifest.finished_at is None:
         manifest = manifest.model_copy(update={"finished_at": now()})
         _atomic_write(run_dir / "run.json", manifest.model_dump_json(indent=2) + "\n")
-    records = build_records(
-        generated,
-        claim_sets,
-        judging,
-        run_id=plan.run_id,
-        task=plan.task.name,
-        seed=config.seed,
-        git_sha=os.environ.get("EVALKIT_GIT_SHA", "unknown"),
-        prompt_hash=hashlib.sha256(plan.task.prompt_template.encode()).hexdigest()[:16],
-        timestamp=manifest.started_at,
-    )
+    try:
+        records = build_records(
+            generated,
+            claim_sets,
+            judging,
+            run_id=plan.run_id,
+            task=plan.task.name,
+            seed=config.seed,
+            git_sha=os.environ.get("EVALKIT_GIT_SHA", "unknown"),
+            prompt_hash=hashlib.sha256(plan.task.prompt_template.encode()).hexdigest()[:16],
+            timestamp=manifest.started_at,
+            task_scorers=task_scorers,
+        )
+    except TaskScorerError as exc:
+        raise RunError(f"{exc} (completed calls are cached: fix it and rerun for free)") from None
     _atomic_write(run_dir / "records.jsonl", _jsonl(records))
     summary = summarise(run_dir, manifest, records, "complete" if complete else "pending")
     write_summary(summary, run_dir / "summary.json")

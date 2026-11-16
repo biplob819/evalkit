@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Literal, get_args
+from typing import Annotated, ClassVar, Literal, get_args
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 
 from evalkit.schemas._base import (
     Fraction,
+    FrozenDict,
     FrozenMap,
+    JsonValue,
     Model,
     NonBlank,
     NonNegFloat,
@@ -30,6 +32,11 @@ class Case(Model):
     context: tuple[str, ...]  # source split into sentences; sentence i is cited as i (1-based)
     reference_label: NonBlank | None = None  # one of the task's labels, or None if unlabelled
     source: NonBlank  # e.g. "pubmedqa/pqa_l"
+    # v0.2 (D-59): free-form case data for systems under test, task scorers and slices, e.g.
+    # {"rule": "B3", "split": "heldout", "prior_turns": [["hi", "hello"]]}. Omitted when empty.
+    meta: FrozenMap[JsonValue] = Field(default_factory=FrozenDict)
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("meta",)
 
 
 class Answer(Model):
@@ -95,6 +102,15 @@ class Scores(Model):
         return self
 
 
+class TaskScore(Model):
+    """One task scorer's result on one record (v0.2, D-59): the scorer's value, the scorer
+    version that produced it, and its details."""
+
+    value: Annotated[float, Field(strict=True, allow_inf_nan=False)]
+    version: NonBlank
+    details: FrozenMap[JsonValue] = Field(default_factory=FrozenDict)
+
+
 class Record(Versioned):
     """One JSONL line: one case answered by one model, with everything needed to rescore it.
 
@@ -113,6 +129,9 @@ class Record(Versioned):
     seed: StrictInt
     git_sha: str
     prompt_hash: NonBlank
+    task_scores: FrozenMap[TaskScore] = Field(default_factory=FrozenDict)  # v0.2: by scorer name
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("task_scores",)
 
     @model_validator(mode="after")
     def _claims_and_verdicts_link(self) -> Record:

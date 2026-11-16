@@ -7,9 +7,13 @@ from evalkit.adapters.base import (
     CompletionRequest,
     ModelAdapter,
     RawCompletion,
+    SystemAdapter,
     discover,
+    discover_systems,
     get_adapter,
+    get_system,
     register,
+    register_system,
 )
 
 __all__ = [
@@ -19,7 +23,11 @@ __all__ = [
     "CompletionRequest",
     "ModelAdapter",
     "RawCompletion",
+    "SystemAdapter",
     "discover",
+    "discover_systems",
     "get_adapter",
+    "get_system",
     "register",
+    "register_system",
 ]

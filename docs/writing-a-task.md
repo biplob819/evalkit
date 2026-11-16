@@ -18,6 +18,14 @@ starting at 1.
 {"id": "q1", "question": "Does the policy cover floods?", "context": ["The policy covers fire.", "Floods are excluded."], "label": "no"}
 ```
 
+An optional `meta` object carries any other data about the case (0.2.0). EvalKit does not
+read it itself; it reaches system adapters, task scorers and slices (see below and
+[plugins.md](plugins.md)):
+
+```json
+{"id": "q2", "question": "Is theft covered?", "context": ["Theft is covered."], "label": "yes", "meta": {"topic": "theft", "split": "heldout"}}
+```
+
 ### CSV (a spreadsheet export)
 
 Columns `id`, `question`, `context` and optionally `label`. The `context` cell holds the
@@ -65,6 +73,26 @@ The template can use `{question}`, `{numbered_context}` (the sentences as `[1] .
 `{labels}` and `{n_sentences}`. Literal braces in the JSON example are doubled (`{{`, `}}`).
 Keep the reply shape: the answer, its label and the cited sentence numbers are what the
 scorers read.
+
+## Slices (0.2.0)
+
+`slices` breaks the summary and the report down by a case field: `reference_label`, `source`
+or a key of `meta`. Each slice gets its own figures per model (accuracy, headline and
+groundedness per judge, citation validity, coverage, task scores, cost and latency), with
+95% bootstrap intervals drawn over that slice's cases only.
+
+```yaml
+slices: [topic, split]
+```
+
+Values must be strings, integers or booleans; a case without the field is counted under
+`(none)`. Small slices have wide intervals: read the interval, not just the point.
+
+## Task scorers (0.2.0)
+
+Any name in `scorers` beyond `label_correct`, `citation_valid`, `groundedness`, `coverage`,
+`cost` and `latency` is a scorer you register yourself; it runs on every answer and its
+mean appears in the summary and the report. See [plugins.md](plugins.md).
 
 ## Thresholds
 

@@ -34,9 +34,13 @@ PUBLIC: dict[str, list[str]] = {
         "CompletionRequest",
         "ModelAdapter",
         "RawCompletion",
+        "SystemAdapter",  # v0.2
         "discover",
+        "discover_systems",  # v0.2
         "get_adapter",
+        "get_system",  # v0.2
         "register",
+        "register_system",  # v0.2
     ],
     "evalkit.schemas": [
         "SCHEMA_VERSION",
@@ -60,8 +64,10 @@ PUBLIC: dict[str, list[str]] = {
         "RunConfig",
         "RunSummary",
         "Scores",
+        "SliceSummary",  # v0.2
         "Step",
         "TaskConfig",
+        "TaskScore",  # v0.2
         "Threshold",
         "Trajectory",
     ],

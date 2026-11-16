@@ -543,6 +543,7 @@ Status vocabulary: `not-started | spec | building | green`.
 | **C3.4** | Agent scorers and aggregate | C3.2, C3.3, S2.1, S2.3, A2.5 | Trajectory scorers, pass@k, pass^k, two-level bootstrap, `evalkit agent-run`, dashboard tab | US11 |
 | **D3.1** | `compare()` and guard | A2.2, A2.4 | `compare()`, PMID fetch, live single-judge path, guard with persistent KV counter | US8, US9 |
 | **D3.2** | Demo page and replay | D3.1, B2.2 | `evalkit demo-cache`, Streamlit page in `portfolio-demos`, banner, deploy | US8, US9 |
+| **B4.1** | EvalKit v0.2: case-aware systems, task scorers, slices (D-59) | B2.5 | `SystemAdapter` with the whole `Case`, `Case.meta`, task scorers inside `evalkit run`, per-slice summary and report, v0.2.0 | US6 |
 
 Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo. The first public release, v0.1.0 on PyPI, ships at B2.5.
 
@@ -892,6 +893,16 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | DEM-04 | Four answer cards that fill in as models reply, banner, link to the dashboard | US8, B7 |
 | DEM-05 | Aggregate-only logging | NFR8 |
 | DEM-06 | Deployed to `portfolio-demos` with secrets in the host's secret store | NFR4 |
+
+**B4.1 EvalKit v0.2 (D-59)**
+
+| Cap | Capability | Trace |
+| --- | --- | --- |
+| SUT-01 | `SystemAdapter.answer(case, request)` gets the full `Case`, routed from `systems:`, cached by case and adapter version | D-59 |
+| SUT-02 | `Case.meta` from a JSONL `meta` object reaches systems, task scorers and slices | D-59 |
+| TSC-01 | Task-declared plugin scorers run inside `evalkit run` and reach records, summary and report | D-59 |
+| SLC-01 | Per-slice summary and report by case field with bootstrap CIs | D-59 |
+| BWC-01 | v0.2.0 backwards compatible: v0.1 adapters, tasks, configs and results unchanged | D-59, US6 |
 
 ### 11.5 Node lifecycle
 

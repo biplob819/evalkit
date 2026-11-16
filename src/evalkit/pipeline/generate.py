@@ -1,13 +1,15 @@
-"""Generate and Validate nodes (GEN-01 to GEN-04)."""
+"""Generate and Validate nodes (GEN-01 to GEN-04), and GenerateSystem for systems under test
+(v0.2, D-59)."""
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from evalkit.adapters import CompletionRequest, ModelAdapter, RawCompletion
+from evalkit.adapters import CompletionRequest, ModelAdapter, RawCompletion, SystemAdapter
 from evalkit.cost import Price, call_cost, estimate_tokens, price_for
 from evalkit.pipeline.answer import SchemaError, answer_schema, parse_answer
 from evalkit.retry import is_retryable
@@ -19,7 +21,18 @@ from evalkit.tasks import render_prompt
 OPENAI_MODEL = re.compile(r"^(gpt-|o\d+(-|$))")
 
 
-def provider_for(model_id: str, endpoints: Mapping[str, str] | None = None) -> str:
+SYSTEM = "system"
+
+
+def provider_for(
+    model_id: str,
+    endpoints: Mapping[str, str] | None = None,
+    systems: Mapping[str, str] | None = None,
+) -> str:
+    """Which adapter serves a model: a system under test (v0.2), an OpenAI-compatible
+    endpoint, Anthropic or OpenAI."""
+    if systems and model_id in systems:
+        return SYSTEM
     if endpoints and model_id in endpoints:
         return "openai_compatible"
     if model_id.startswith("claude-"):
@@ -32,8 +45,9 @@ def provider_for(model_id: str, endpoints: Mapping[str, str] | None = None) -> s
 
 
 def adapter_key(provider: str, model_id: str) -> str:
-    """Adapters are shared per provider; each OpenAI-compatible endpoint gets its own."""
-    return f"{provider}:{model_id}" if provider == "openai_compatible" else provider
+    """Adapters are shared per provider; each OpenAI-compatible endpoint and each system under
+    test gets its own."""
+    return f"{provider}:{model_id}" if provider in ("openai_compatible", SYSTEM) else provider
 
 
 class GenerateInput(Model):
@@ -158,6 +172,92 @@ def transport_failure(inp: GenerateInput, exc: BaseException) -> Completion:
     )
 
 
+class SystemInput(Model):
+    """One case for a system under test. The whole case is in the cache key (its `meta`
+    included), with the system's name and version, so a changed case or a new system version
+    asks again and anything else is served from the cache."""
+
+    case: Case
+    prompt: str
+    model: Name  # the alias in `models`
+    system: Name  # the registered system name
+    system_version: NonBlank
+    max_output_tokens: PosInt
+    structured_output: bool
+    labels: tuple[Name, ...]
+
+
+class GenerateSystem(Node[SystemInput, RawCompletion]):
+    """Ask a system under test one case. Failures propagate like Generate's: transient ones
+    become transport records upstream, never cached; anything else stops the run."""
+
+    name = "generate_system"
+    code_version = "1"
+    In = SystemInput
+    Out = RawCompletion
+
+    def __init__(self, adapters: Mapping[str, ModelAdapter], prices: dict[str, Price]) -> None:
+        self.adapters = adapters
+        self.prices = prices
+
+    def _adapter(self, inp: SystemInput) -> SystemAdapter:
+        adapter = self.adapters[adapter_key(SYSTEM, inp.model)]
+        if not isinstance(adapter, SystemAdapter):
+            raise TypeError(f"{inp.model!r} is routed to a system but got {type(adapter).__name__}")
+        return adapter
+
+    def _request(self, inp: SystemInput) -> CompletionRequest:
+        return CompletionRequest(
+            model=inp.model,
+            model_id=inp.model,
+            prompt=inp.prompt,
+            max_output_tokens=inp.max_output_tokens,
+            json_schema=answer_schema(inp.labels) if inp.structured_output else None,
+        )
+
+    def pool(self, inp: SystemInput) -> str | None:
+        return f"{SYSTEM}:{inp.model}"
+
+    def estimate_cost(self, inp: SystemInput, ctx: RunContext) -> float:
+        return float(self._adapter(inp).estimate_cost(inp.case, self._request(inp)))
+
+    async def run(self, inp: SystemInput, ctx: RunContext) -> RawCompletion:
+        out = await self._adapter(inp).answer(inp.case, self._request(inp))
+        if not isinstance(out, RawCompletion):
+            raise TypeError(
+                f"system {inp.system!r} returned {type(out).__name__}, expected RawCompletion"
+            )
+        return out
+
+
+def system_inputs(cases: Sequence[Case], task: TaskConfig, config: RunConfig) -> list[SystemInput]:
+    """One input per (system model, case), in config order."""
+    from evalkit.adapters import discover_systems
+
+    registered = discover_systems()
+    out = []
+    for model in config.models:
+        if model not in config.systems:
+            continue
+        name = config.systems[model]
+        if name not in registered:
+            raise KeyError(f"unknown system {name!r}; registered: {sorted(registered)}")
+        for case in cases:
+            out.append(
+                SystemInput(
+                    case=case,
+                    prompt=render_prompt(task, case),
+                    model=model,
+                    system=name,
+                    system_version=registered[name].version,
+                    max_output_tokens=config.max_output_tokens,
+                    structured_output=config.structured_output,
+                    labels=task.labels,
+                )
+            )
+    return out
+
+
 @dataclass(frozen=True)
 class Generated:
     case: Case
@@ -170,7 +270,9 @@ def generate_inputs(
 ) -> list[GenerateInput]:
     out = []
     for model in config.models:
-        provider = provider_for(model, config.endpoints)
+        provider = provider_for(model, config.endpoints, config.systems)
+        if provider == SYSTEM:
+            continue  # systems under test go through GenerateSystem
         effort = (
             None
             if provider == "openai_compatible" and model not in config.efforts
@@ -208,6 +310,8 @@ async def generate_and_validate(
     inputs = generate_inputs(cases, task, config)
     gen = Generate(adapters, prices)
     ctx = RunContext(run_id=run_id, seed=config.seed)
+    if config.systems:
+        return await _with_systems(executor, cases, task, config, adapters, prices, ctx)
     raws = await executor.map_settled(gen, inputs, ctx)
     budget = [r for r in raws if isinstance(r, BudgetExceeded)]
     if budget:
@@ -231,3 +335,69 @@ async def generate_and_validate(
             )
         out.append(Generated(case=by_id[inp.case_id], model=inp.model, completion=completion))
     return out
+
+
+async def _with_systems(
+    executor: Executor,
+    cases: Sequence[Case],
+    task: TaskConfig,
+    config: RunConfig,
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    ctx: RunContext,
+) -> list[Generated]:
+    """generate_and_validate for a config with systems under test (v0.2): provider models go
+    through Generate, systems through GenerateSystem, both with the same failure taxonomy and
+    the same Validate step; the result is in config order, model by model, case by case."""
+    by_id = {c.id: c for c in cases}
+    gen, sysgen = Generate(adapters, prices), GenerateSystem(adapters, prices)
+    inputs = generate_inputs(cases, task, config)
+    sys_inputs = system_inputs(cases, task, config)
+    raws, sys_raws = await asyncio.gather(
+        executor.map_settled(gen, inputs, ctx), executor.map_settled(sysgen, sys_inputs, ctx)
+    )
+    every: list[RawCompletion | Exception] = [*raws, *sys_raws]
+    budget = [r for r in every if isinstance(r, BudgetExceeded)]
+    if budget:
+        raise BudgetExceeded(executor.spent_usd, budget[0].cap, remaining=len(budget))
+    local = [r for r in every if isinstance(r, Exception) and not is_provider_failure(r)]
+    if local:
+        raise local[0]
+    validate = Validate()
+    done: dict[tuple[str, str], Generated] = {}
+    items: list[tuple[GenerateInput | SystemInput, RawCompletion | Exception, str]] = [
+        *((i, r, gen.cache_key(i, ctx)) for i, r in zip(inputs, raws, strict=True)),
+        *((i, r, sysgen.cache_key(i, ctx)) for i, r in zip(sys_inputs, sys_raws, strict=True)),
+    ]
+    for inp, raw, parent in items:
+        case_id = inp.case_id if isinstance(inp, GenerateInput) else inp.case.id
+        if isinstance(raw, Exception):
+            completion = _failure(inp, raw)
+        else:
+            completion = await executor.run_node(
+                validate,
+                ValidateInput(raw=raw, labels=inp.labels, structured_output=inp.structured_output),
+                ctx,
+                parents=[parent],
+            )
+        done[inp.model, case_id] = Generated(
+            case=by_id[case_id], model=inp.model, completion=completion
+        )
+    return [done[m, c.id] for m in config.models for c in cases]
+
+
+def _failure(inp: GenerateInput | SystemInput, exc: BaseException) -> Completion:
+    if isinstance(inp, GenerateInput):
+        return transport_failure(inp, exc)
+    return Completion(
+        model=inp.model,
+        model_snapshot="",
+        raw_text="",
+        params={"structured_output": inp.structured_output, "transport_error": type(exc).__name__},
+        answer=None,
+        tokens_in=0,
+        tokens_out=0,
+        latency_ms=0,
+        cost_usd=0.0,
+        error="transport",
+    )

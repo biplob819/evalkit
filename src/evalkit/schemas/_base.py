@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator, Mapping
-from typing import Annotated, Any, NoReturn, TypeVar
+from typing import Annotated, Any, ClassVar, NoReturn, TypeVar
 
 from pydantic import (
     AfterValidator,
@@ -17,8 +17,10 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SerializerFunctionWrapHandler,
     StringConstraints,
     field_validator,
+    model_serializer,
 )
 
 SCHEMA_VERSION = "1.0"
@@ -80,9 +82,26 @@ FrozenMap = Annotated[dict[str, V], AfterValidator(_freeze_mapping)]
 
 
 class Model(BaseModel):
-    """Frozen, strict base: unknown fields are errors, objects are immutable, floats finite."""
+    """Frozen, strict base: unknown fields are errors, objects are immutable, floats finite.
+
+    Fields added after v0.1 are listed in `_omit_if_default` and left out of every dump while
+    they hold their default, so a v0.1-shaped object keeps its exact JSON, its hashes and its
+    cache keys, and v0.1 readers (which forbid unknown fields) can still read it (D-59).
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
+    _omit_if_default: ClassVar[tuple[str, ...]] = ()
+
+    @model_serializer(mode="wrap")
+    def _omit_new_defaults(self, handler: SerializerFunctionWrapHandler) -> Any:
+        data = handler(self)
+        if self._omit_if_default and isinstance(data, dict):
+            fields = type(self).model_fields
+            for name in self._omit_if_default:
+                default = fields[name].get_default(call_default_factory=True)
+                if name in data and getattr(self, name) == default:
+                    del data[name]
+        return data
 
 
 class Versioned(Model):

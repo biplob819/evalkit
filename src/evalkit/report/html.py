@@ -140,10 +140,19 @@ def _badge(m: object) -> str:
     return '<span class="badge fail">✗ FAIL</span>'
 
 
+def _num(iv: Interval | None) -> str:
+    """A task score: any finite number, so not a percent."""
+    if iv is None:
+        return "—"
+    return f"{iv.point:.3g} <span class=muted>({iv.lo:.3g} to {iv.hi:.3g})</span>"
+
+
 def _model_table(summary: RunSummary) -> str:
     judges = sorted({j for m in summary.models for j in m.headline})
+    tasks = sorted({t for m in summary.models for t in m.task_scores})
     head = "".join(f"<th scope=col>Headline · {escape(j)}</th>" for j in judges)
     head += "".join(f"<th scope=col>Groundedness · {escape(j)}</th>" for j in judges)
+    tail = "".join(f"<th scope=col>{escape(t)}</th>" for t in tasks)  # v0.2 task scorers
     rows = []
     for m in summary.models:
         failed = "".join(f"<div class=muted>{escape(f)}</div>" for f in m.failed_thresholds)
@@ -156,7 +165,9 @@ def _model_table(summary: RunSummary) -> str:
             f"<td>{_pct(m.citation_validity)}</td><td>{_pct(m.coverage)}</td>"
             f"<td>{_usd(m.cost_per_correct_usd)}</td><td>{_usd(m.cost_per_100_usd)}</td>"
             f"<td>{_ms(m.latency_p50_ms)} / {_ms(m.latency_p95_ms)}</td>"
-            f"<td>{m.n} cases<div class=muted>errors: {errors}</div></td></tr>"
+            f"<td>{m.n} cases<div class=muted>errors: {errors}</div></td>"
+            + "".join(f"<td>{_num(m.task_scores.get(t))}</td>" for t in tasks)
+            + "</tr>"
         )
     return (
         "<table id=models><caption>Every rate is over all cases asked; failed calls count as "
@@ -164,10 +175,47 @@ def _model_table(summary: RunSummary) -> str:
         f"<th scope=col>Model</th><th scope=col>Bar</th>{head}<th scope=col>Accuracy</th>"
         "<th scope=col>Citation validity</th><th scope=col>Coverage</th>"
         "<th scope=col>Cost per correct</th><th scope=col>Cost per 100</th>"
-        "<th scope=col>Latency p50 / p95</th><th scope=col>Cases</th></tr></thead><tbody>"
+        f"<th scope=col>Latency p50 / p95</th><th scope=col>Cases</th>{tail}</tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
     )
+
+
+def _slices(summary: RunSummary) -> str:
+    """v0.2 (D-59): one table per slice field, one row per value and model."""
+    if not summary.slices:
+        return ""
+    judges = sorted({j for s in summary.slices for j in s.headline})
+    tasks = sorted({t for s in summary.slices for t in s.task_scores})
+    tables = []
+    for field in dict.fromkeys(s.field for s in summary.slices):
+        head = "".join(f"<th scope=col>Headline · {escape(j)}</th>" for j in judges)
+        head += "".join(f"<th scope=col>Groundedness · {escape(j)}</th>" for j in judges)
+        tail = "".join(f"<th scope=col>{escape(t)}</th>" for t in tasks)
+        rows = []
+        for s in (s for s in summary.slices if s.field == field):
+            errors = ", ".join(f"{escape(k)} {v}" for k, v in sorted(s.n_errors.items())) or "none"
+            cells = "".join(f"<td>{_pct(s.headline.get(j))}</td>" for j in judges)
+            cells += "".join(f"<td>{_pct(s.groundedness_mean.get(j))}</td>" for j in judges)
+            cells += "".join(f"<td>{_num(s.task_scores.get(t))}</td>" for t in tasks)
+            rows.append(
+                f"<tr><th scope=row>{escape(s.value)}</th><td>{escape(s.model)}</td>"
+                f"<td>{s.n}<div class=muted>errors: {errors}</div></td>{cells}"
+                f"<td>{_pct(s.accuracy)}</td><td>{_pct(s.citation_validity)}</td>"
+                f"<td>{_pct(s.coverage)}</td><td>{_usd(s.cost_per_100_usd)}</td>"
+                f"<td>{_ms(s.latency_p50_ms)} / {_ms(s.latency_p95_ms)}</td></tr>"
+            )
+        tables.append(
+            f"<table class=slices><caption>By {escape(field)}: every rate is over that slice's "
+            "cases only, with a 95% bootstrap CI drawn over those cases.</caption><thead><tr>"
+            f"<th scope=col>{escape(field)}</th><th scope=col>Model</th><th scope=col>Cases</th>"
+            f"{head}{tail}<th scope=col>Accuracy</th><th scope=col>Citation validity</th>"
+            "<th scope=col>Coverage</th><th scope=col>Cost per 100</th>"
+            "<th scope=col>Latency p50 / p95</th></tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+    return f"<h2 id=slices-h>Slices</h2><div class=card>{''.join(tables)}</div>"
 
 
 def _pairs_table(summary: RunSummary) -> str:
@@ -390,6 +438,7 @@ def render_report(
         f"<h1>{escape(summary.task)} · run {escape(summary.run_id)}</h1>{meta}{stamp_html}"
         f"<h2 id=headline>Headline</h2>{headline}"
         f"<h2 id=models-h>Models</h2><div class=card>{_model_table(summary)}</div>"
+        f"{_slices(summary)}"
         f"<h2 id=pairs-h>Pairwise comparisons</h2><div class=card>{_pairs_table(summary)}</div>"
         f"<h2 id=cal-h>Judge calibration</h2><div class=card>"
         f"{_calibration(summary, calibration)}</div>"

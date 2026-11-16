@@ -32,7 +32,8 @@ from evalkit.schemas import Case, ClaimVerdict, Completion, Interval, Record, Ru
 from evalkit.schemas._base import SCHEMA_VERSION
 from evalkit.schemas.benchmark import Scores
 from evalkit.schemas.config import Threshold
-from evalkit.schemas.summary import JudgeAgreement, ModelSummary, PairComparison
+from evalkit.schemas.summary import JudgeAgreement, ModelSummary, PairComparison, SliceSummary
+from evalkit.scorers.base import Scorer
 from evalkit.scorers.deterministic import citation_valid, label_correct
 from evalkit.stats import Resamples, holm, interval, paired, percentile_ms
 
@@ -40,9 +41,14 @@ Family = Literal["anthropic", "openai", "other"]
 PER_JUDGE_METRICS = ("headline", "groundedness")
 
 
-def family_for(model: str, endpoints: Mapping[str, str] | None = None) -> Family:
-    """Generator family for the self-preference table, from the model's provider."""
-    provider = provider_for(model, endpoints)
+def family_for(
+    model: str,
+    endpoints: Mapping[str, str] | None = None,
+    systems: Mapping[str, str] | None = None,
+) -> Family:
+    """Generator family for the self-preference table, from the model's provider. A system
+    under test is "other"."""
+    provider = provider_for(model, endpoints, systems)
     return provider if provider in ("anthropic", "openai") else "other"  # type: ignore[return-value]
 
 
@@ -92,9 +98,13 @@ def build_records(
     git_sha: str,
     prompt_hash: str,
     timestamp: datetime,
+    task_scorers: Sequence[Scorer] = (),
 ) -> list[Record]:
     """One scored Record per generated answer. Only judges whose results are complete
-    contribute verdicts and per-judge scores (D-37)."""
+    contribute verdicts and per-judge scores (D-37). Task scorers (v0.2) run once per record
+    and fill `task_scores`; one that fails raises TaskScorerError."""
+    from evalkit.pipeline.task_scorers import score_task
+
     if len(generated) != len(claim_sets):
         raise ValueError("one claim set per generated answer")
     done = {r.judge: r.verdicts for r in judging if r.status == "complete"}
@@ -106,6 +116,21 @@ def build_records(
                 f"claim set does not belong to {g.case.id}/{g.model}: lists misaligned"
             )
         per_judge = {j: {c.id: vs[c.id] for c in cs.claims if c.id in vs} for j, vs in done.items()}
+        verdicts = tuple(v for j in sorted(per_judge) for v in per_judge[j].values())
+        scores = score_record(g.case, g.completion, cs, per_judge)
+        task_scores = (
+            score_task(
+                task_scorers,
+                g.case,
+                g.completion,
+                model=g.model,
+                claims=cs.claims,
+                verdicts=verdicts,
+                scores=scores,
+            )
+            if task_scorers
+            else {}
+        )
         out.append(
             Record(
                 schema_version=SCHEMA_VERSION,
@@ -115,11 +140,12 @@ def build_records(
                 timestamp=timestamp,
                 completion=g.completion,
                 claims=cs.claims,
-                verdicts=tuple(v for j in sorted(per_judge) for v in per_judge[j].values()),
-                scores=score_record(g.case, g.completion, cs, per_judge),
+                verdicts=verdicts,
+                scores=scores,
                 seed=seed,
                 git_sha=git_sha,
                 prompt_hash=prompt_hash,
+                task_scores=task_scores,
             )
         )
     return out
@@ -159,6 +185,8 @@ def aggregate(
     started_at: datetime,
     finished_at: datetime | None = None,
     n_resamples: int = 10_000,
+    cases: Mapping[str, Case] | None = None,
+    slices: Sequence[str] = (),
 ) -> RunSummary:
     """Build the run summary. The stamps are derived, never passed in (AGG-08):
     `judge_mode` from the judge selection, `judging_status` from the judging results, and
@@ -198,6 +226,9 @@ def aggregate(
                     f"record {r.case_id}/{r.completion.model} has no scores for judge(s) {stale}: "
                     "rebuild records after judging completes"
                 )
+    task_names = _task_score_names(records)
+    if slices and cases is None:
+        raise ValueError("slices need the run's cases")
     rs = Resamples(len(case_ids), n_resamples, seed=seed)
 
     def vec(m: str, f: Callable[[Record], float]) -> list[float]:
@@ -241,6 +272,9 @@ def aggregate(
             latency_p95_ms=percentile_ms(ok_latency, 0.95) if ok_latency else None,
             passes_threshold=True,
             failed_thresholds=(),
+            task_scores={
+                t: interval(vec(m, lambda r, t=t: r.task_scores[t].value), rs) for t in task_names
+            },
         )
         failed = []
         all_failed = sum(errors.values()) == n
@@ -318,7 +352,111 @@ def aggregate(
         judging_status=judging_status,
         started_at=started_at,
         finished_at=finished_at if complete else None,
+        slices=_slices(
+            by_model, case_ids, cases or {}, slices, judges, task_names, complete, n_resamples, seed
+        ),
     )
+
+
+def _task_score_names(records: Sequence[Record]) -> tuple[str, ...]:
+    """The task scorers every record carries; records that disagree are an error."""
+    names = {tuple(sorted(r.task_scores)) for r in records}
+    if len(names) > 1:
+        raise ValueError(f"records carry different task scores: {sorted(names)}")
+    return next(iter(names), ())
+
+
+NO_VALUE = "(none)"
+
+
+def slice_value(case: Case, field: str) -> str:
+    """The slice a case falls in for `field`: `reference_label`, `source`, or a key of
+    `Case.meta`. Strings, integers and booleans are allowed; a missing or null field is
+    "(none)"; anything else (a list, an object, a float) is a ValueError."""
+    top = field in ("reference_label", "source")
+    value = getattr(case, field) if top else case.meta.get(field)
+    if value is None:
+        return NO_VALUE
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | str):
+        text = str(value)
+        return text if text.strip() else NO_VALUE
+    raise ValueError(
+        f"slice {field!r}: case {case.id!r} has a {type(value).__name__} value; slices need a "
+        "string, integer or boolean"
+    )
+
+
+def _slices(
+    by_model: Mapping[str, Mapping[str, Record]],
+    case_ids: Sequence[str],
+    cases: Mapping[str, Case],
+    fields: Sequence[str],
+    judges: Sequence[str],
+    task_names: Sequence[str],
+    complete: bool,
+    n_resamples: int,
+    seed: int,
+) -> tuple[SliceSummary, ...]:
+    """Per-slice figures (v0.2, D-59): each (field, value, model) over that slice's cases
+    only, with a bootstrap over those cases (seeded, so reruns are identical)."""
+    out: list[SliceSummary] = []
+    for field in fields:
+        groups: dict[str, list[str]] = {}
+        for cid in case_ids:
+            if cid not in cases:
+                raise ValueError(f"slices need case {cid!r}, which is not in the run's cases")
+            groups.setdefault(slice_value(cases[cid], field), []).append(cid)
+        for value in sorted(groups):
+            ids = groups[value]
+            rs = Resamples(len(ids), n_resamples, seed=seed)
+            for m, by_case in by_model.items():
+                rows = [by_case[c] for c in ids]
+
+                def iv(
+                    f: Callable[[Record], float], rows: list[Record] = rows, rs: Resamples = rs
+                ) -> Interval:
+                    return interval([f(r) for r in rows], rs)
+
+                ok_latency = [
+                    r.completion.latency_ms for r in rows if r.completion.error != "transport"
+                ]
+                errors = Counter(r.completion.error for r in rows if r.completion.error is not None)
+                per_judge = judges if complete else ()
+                out.append(
+                    SliceSummary(
+                        field=field,
+                        value=value,
+                        model=m,
+                        n=len(rows),
+                        n_errors=dict(errors),
+                        accuracy=iv(lambda r: float(_s(r).label_correct)),
+                        headline={
+                            j: iv(lambda r, j=j: float(_s(r).correct_and_grounded[j]))
+                            for j in per_judge
+                        },
+                        groundedness_mean={
+                            j: iv(lambda r, j=j: _s(r).groundedness[j]) for j in per_judge
+                        },
+                        citation_validity=iv(lambda r: _s(r).citation_valid),
+                        coverage=iv(lambda r: _s(r).coverage),
+                        task_scores={
+                            t: iv(lambda r, t=t: r.task_scores[t].value) for t in task_names
+                        },
+                        cost_per_100_usd=math.fsum(r.completion.cost_usd for r in rows)
+                        / len(rows)
+                        * 100,
+                        latency_p50_ms=percentile_ms(ok_latency, 0.50) if ok_latency else None,
+                        latency_p95_ms=percentile_ms(ok_latency, 0.95) if ok_latency else None,
+                    )
+                )
+    return tuple(out)
+
+
+def _s(r: Record) -> Scores:
+    assert r.scores is not None
+    return r.scores
 
 
 def judging_status_of(

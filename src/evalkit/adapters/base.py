@@ -1,4 +1,7 @@
-"""The adapter interface (ADP-01/02/08/09): every provider looks the same to EvalKit."""
+"""The adapter interface (ADP-01/02/08/09): every provider looks the same to EvalKit.
+
+v0.2 (D-59) adds `SystemAdapter`: a system under test that answers whole cases.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +24,7 @@ from evalkit.schemas._base import (
     NonNegInt,
     PosInt,
 )
+from evalkit.schemas.benchmark import Case
 
 ALLOWED_PARAMS = frozenset({"effort"})  # no temperature/top_p/top_k (D-22)
 
@@ -174,3 +178,102 @@ def get_adapter(name: str, **kwargs: Any) -> ModelAdapter:
     if name not in adapters:
         raise KeyError(f"unknown adapter {name!r}; available: {sorted(adapters)}")
     return adapters[name](**kwargs)
+
+
+# ---- systems under test (v0.2, D-59) -----------------------------------------------------------
+
+
+class SystemAdapter(ModelAdapter):
+    """A system under test: it answers one whole `Case`, not a bare prompt.
+
+    `answer` receives the full case (id, question, context, meta) and the request a model would
+    have been sent (the task's rendered prompt, the answer schema, the output budget). It
+    returns a `RawCompletion` whose `raw_text` is the task's answer JSON, which EvalKit then
+    validates, extracts, judges and scores exactly like a model's answer. Route a model alias
+    to it in `evalkit.yaml` with `systems: {alias: registered-name}`.
+
+    `version` is part of every cache key: bump it whenever the system's answers would change,
+    or a rerun serves the old answers from the cache. `estimate_cost` is the most one call can
+    cost; it is held against `--max-cost` while the call runs. Raise a transient error
+    (`ConnectionError`, `TimeoutError`, anything with a 429 or 5xx `status_code`) for a failure
+    worth recording as `error="transport"`; any other exception stops the run.
+    """
+
+    provider: ClassVar[str] = "system"
+    version: ClassVar[str] = "1"
+
+    @abstractmethod
+    async def answer(self, case: Case, request: CompletionRequest) -> RawCompletion: ...
+
+    def estimate_cost(self, case: Case, request: CompletionRequest) -> float:
+        return 0.0
+
+    async def complete(self, req: CompletionRequest) -> RawCompletion:
+        raise TypeError(
+            f"{type(self).__name__} is a system under test and needs the case: call "
+            "answer(case, request)"
+        )
+
+    async def submit_batch(self, reqs: list[BatchRequest]) -> str:
+        raise NotImplementedError("systems under test have no batch API")
+
+    async def collect_batch(
+        self, batch_id: str, reqs: Mapping[str, CompletionRequest]
+    ) -> list[BatchResult] | None:
+        raise NotImplementedError("systems under test have no batch API")
+
+
+_SYSTEMS: dict[str, type[SystemAdapter]] = {}
+_FAILED_SYSTEMS: set[str] = set()
+SYSTEM_ENTRY_POINT_GROUP = "evalkit.systems"
+
+S = TypeVar("S", bound=type[SystemAdapter])
+
+
+def register_system(name: str) -> Callable[[S], S]:
+    """Register a SystemAdapter subclass under a unique name."""
+
+    def deco(cls: S) -> S:
+        if not (isinstance(cls, type) and issubclass(cls, SystemAdapter)):
+            raise TypeError(f"system {name!r} must subclass SystemAdapter")
+        if name in _SYSTEMS and _SYSTEMS[name] is not cls:
+            raise ValueError(f"a system named {name!r} is already registered")
+        _SYSTEMS[name] = cls
+        return cls
+
+    return deco
+
+
+def discover_systems() -> dict[str, type[SystemAdapter]]:
+    """Registered systems plus any published under the `evalkit.systems` entry-point group.
+    A plugin that fails to load warns once and is skipped."""
+    try:
+        eps = list(importlib.metadata.entry_points(group=SYSTEM_ENTRY_POINT_GROUP))
+    except Exception as exc:  # broken metadata must not break runs that use no system
+        warnings.warn(f"could not read system plugins: {exc}", stacklevel=2)
+        eps = []
+    for ep in eps:
+        source = getattr(ep, "value", repr(ep))
+        if ep.name in _SYSTEMS or source in _FAILED_SYSTEMS:
+            continue
+        try:
+            cls = ep.load()
+        except Exception as exc:
+            warnings.warn(f"plugin system {ep.name!r} failed to load: {exc}", stacklevel=2)
+            _FAILED_SYSTEMS.add(source)
+            continue
+        if not (isinstance(cls, type) and issubclass(cls, SystemAdapter)):
+            warnings.warn(
+                f"plugin {ep.name!r} is not a SystemAdapter subclass; ignored", stacklevel=2
+            )
+            _FAILED_SYSTEMS.add(source)
+            continue
+        _SYSTEMS[ep.name] = cls
+    return dict(_SYSTEMS)
+
+
+def get_system(name: str, **kwargs: Any) -> SystemAdapter:
+    systems = discover_systems()
+    if name not in systems:
+        raise KeyError(f"unknown system {name!r}; registered: {sorted(systems)}")
+    return systems[name](**kwargs)

@@ -36,9 +36,11 @@ def test_all_lists_exactly_the_public_names(module):
 
 def test_entry_point_groups_are_stable():
     from evalkit.adapters.base import ENTRY_POINT_GROUP as adapters
+    from evalkit.adapters.base import SYSTEM_ENTRY_POINT_GROUP as systems
     from evalkit.scorers.base import ENTRY_POINT_GROUP as scorers
 
     assert (scorers, adapters) == ("evalkit.scorers", "evalkit.adapters")
+    assert systems == "evalkit.systems"  # v0.2
 
 
 def test_builtin_scorers_keep_their_names():

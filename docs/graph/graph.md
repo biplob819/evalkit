@@ -66,3 +66,9 @@ Generated from EvalKit Tech Spec §11.2 on 2026-11-14; edit here from now on and
 | --- | --- | --- | --- | --- | --- |
 | **D3.1** | `compare()` and guard | A2.2, A2.4 | node_converge + verifier | `compare()`, PMID fetch, live single-judge path, guard with persistent KV counter | US8, US9 |
 | **D3.2** | Demo page and replay | D3.1, B2.2 | node_converge + verifier | `evalkit demo-cache`, Streamlit page in `portfolio-demos`, banner, deploy | US8, US9 |
+
+## Wave 4 — v0.2 (downstream needs)
+
+| Node | Title | Depends on | Verified by | Deliverable | Stories |
+| --- | --- | --- | --- | --- | --- |
+| **B4.1** | EvalKit v0.2: case-aware systems, task scorers, slices | B2.5 | node_converge + verifier | `SystemAdapter` (gets the whole `Case`, routed by `systems:`), `Case.meta`, task-declared plugin scorers inside `evalkit run`, per-slice summary and report, v0.2.0 | US6 |

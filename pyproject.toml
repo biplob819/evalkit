@@ -1,6 +1,6 @@
 [project]
 name = "evalkit-harness"
-version = "0.1.0"
+version = "0.2.0"
 description = "Evaluate your own task across Claude and OpenAI models: grounded, calibrated, cost-aware, with confidence intervals."
 readme = "README.md"
 license = "MIT"

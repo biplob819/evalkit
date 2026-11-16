@@ -18,6 +18,7 @@ from evalkit.schemas.benchmark import (
     Completion,
     Record,
     Scores,
+    TaskScore,
 )
 from evalkit.schemas.calibration import CalibrationLabel, CalibrationReport
 from evalkit.schemas.config import RunConfig, TaskConfig, Threshold
@@ -27,6 +28,7 @@ from evalkit.schemas.summary import (
     ModelSummary,
     PairComparison,
     RunSummary,
+    SliceSummary,
 )
 
 __all__ = [
@@ -51,8 +53,10 @@ __all__ = [
     "RunConfig",
     "RunSummary",
     "Scores",
+    "SliceSummary",
     "Step",
     "TaskConfig",
+    "TaskScore",
     "Threshold",
     "Trajectory",
 ]

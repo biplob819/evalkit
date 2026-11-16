@@ -1,6 +1,8 @@
 """Local datasets for user tasks (CLI-05, OSS-04): JSONL, or CSV exported from a spreadsheet.
 
 One case per line: {"id": "...", "question": "...", "context": ["sentence", ...], "label": ...}.
+An optional "meta" object (v0.2) is carried into `Case.meta` for systems under test, task
+scorers and slices; CSV files have no meta.
 `label` is optional (unlabelled cases still get groundedness, not accuracy) and, when present,
 must be one of the task's labels. Ids must be unique and cannot contain ":" (claim ids use it).
 """
@@ -129,6 +131,9 @@ def _cases(rows: list[tuple[str, object]], task: TaskConfig, path: Path) -> list
                     f"{where}: label {label!r} is not one of the task labels {list(task.labels)}"
                 )
             label = labels[label.casefold()]
+        meta = row.get("meta", {})
+        if not isinstance(meta, dict):
+            raise DatasetFileError(f"{where}: meta must be a JSON object")
         try:
             cases.append(
                 Case(
@@ -137,6 +142,7 @@ def _cases(rows: list[tuple[str, object]], task: TaskConfig, path: Path) -> list
                     context=tuple(context),
                     reference_label=label,
                     source=f"local/{task.name}",
+                    meta=meta,
                 )
             )
         except ValueError as exc:  # pydantic ValidationError is a ValueError
