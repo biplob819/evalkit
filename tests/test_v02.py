@@ -770,14 +770,19 @@ def test_v01_style_plugins_still_work():
 
 
 def test_version_is_0_2_0_everywhere():
-    import tomllib
+    """0.2.0 shipped (release record); the tree has since moved on to 0.3.0 (B5.4, checked
+    in tests/test_v03_release.py), so this holds the 0.2.0 record and the changelog to it."""
+    import json
 
     import evalkit
 
     root = Path(__file__).resolve().parents[1]
-    proj = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert proj["version"] == evalkit.__version__ == "0.2.0"
-    lock = (root / "uv.lock").read_text(encoding="utf-8")
-    assert 'name = "evalkit-harness"\nversion = "0.2.0"' in lock
+    rec = json.loads(
+        (root / "docs" / "measurements" / "release-v0.2.0-2026-11-16.json").read_text("utf-8")
+    )
+    assert rec["version"] == "0.2.0" and rec["tag"] == "v0.2.0"
+    from packaging.version import Version
+
+    assert Version(evalkit.__version__) >= Version("0.2.0")
     log = (root / "changelog.md").read_text(encoding="utf-8")
     assert "[B4.1]" in log and "0.2.0" in log

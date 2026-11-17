@@ -370,11 +370,20 @@ def _src_matches_commit() -> bool:
     return p.returncode == 0 and not p.stdout.strip()
 
 
+def _evalkit_version() -> str:
+    """The version this checkout declares (pyproject.toml), read without importing it."""
+    import tomllib
+
+    meta = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return str(meta["project"]["version"])
+
+
 def _record(projects: dict[str, dict]) -> dict:
     """The run record. `finding` per project is written by the person recording a baseline."""
     return {
         "date": dt.date.today().isoformat(),
         "evalkit_commit": _git_head(ROOT),
+        "evalkit_version": _evalkit_version(),
         "evalkit_src_matches_commit": _src_matches_commit(),
         "command": "python scripts/downstream_canary.py " + " ".join(sys.argv[1:]),
         "spend_usd": 0,

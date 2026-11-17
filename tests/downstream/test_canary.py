@@ -65,7 +65,7 @@ def test_matrix_holds_only_projects_with_tests(capsys):
 def test_commands_install_this_checkout_over_the_pin_and_skip_live_tests(tmp_path):
     (row,) = [r for r in dc.load_registry() if r.project == "ai-visibility"]
     cmds = dc.commands(row, tmp_path / "evalkit", ["tests/test_a.py", "tests/test_b.py"])
-    assert cmds[0] == ["uv", "sync", "--frozen", "--extra", "support"]
+    assert cmds[0] == ["uv", "sync", "--frozen", "--group", "support"]  # a group
     assert cmds[1] == ["uv", "pip", "install", "--no-deps", "-e", str(tmp_path / "evalkit")]
     assert cmds[2][:3] == ["uv", "run", "--no-sync"]
     assert cmds[2][cmds[2].index("-m") + 1] == "not live"
