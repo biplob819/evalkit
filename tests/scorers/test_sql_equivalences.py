@@ -740,3 +740,39 @@ def _python(script: str, *args: str, seed: str) -> str:
         timeout=120,
     )
     return proc.stdout.strip()
+
+
+# ---- B5.15 verifier pass 2 ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["week_of_month", "day_of_month", "month_count"])
+def test_sub_period_and_count_columns_are_not_month_numbers(name):
+    from evalkit.scorers import sql_match
+
+    gold = rs((name,), ((3,),))
+    pred = rs(("d",), (("2024-03-01",),))
+    res = sql_match(pred, gold, question="Which month of 2024?", equivalences=["period_number"])
+    assert res.value == 0.0
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What share bought? Do not express it as a percentage.",
+        "What share bought, without converting to a percentage?",
+        "What share bought? Avoid percentages.",
+    ],
+)
+def test_any_negation_beside_a_percent_turns_percent_scale_off(question):
+    from evalkit.scorers.sql_equivalences import asks_percent
+
+    assert asks_percent(question) is False
+
+
+def test_a_percentile_column_is_not_a_percent_column():
+    from evalkit.scorers import sql_match
+
+    gold = rs(("latency_pct95",), ((1.23,),))
+    pred = rs(("latency_pct95",), ((0.0123,),))
+    res = sql_match(pred, gold, question="What percentage of time?", equivalences=["percent_scale"])
+    assert res.value == 0.0

@@ -4,7 +4,7 @@
 
 ## Capabilities
 - **SQE-01**: Opt-in `sql_match` equivalences, each off by default and named per call: `percent_scale`, `pivot`, `empty_check`, `period_number` (rules below; narrower than D-71's sketch, as the reference is) [D-71]
-- **SQE-02**: Strict `sql_match` is unchanged by default (existing fixtures and outputs byte-identical); results record `correct_strict` and the equivalences that matched, so strict and lenient scores sit side by side; agentic-analytics' baseline cases are tests [D-71]
+- **SQE-02**: Strict `sql_match` is unchanged by default (existing fixtures and outputs unchanged in values and reasons); results record `correct_strict` and the equivalences that matched, so strict and lenient scores sit side by side; agentic-analytics' baseline cases are tests [D-71]
 
 ## Goal
 A SQL agent that returns the right answer in a different, defensible shape (a fraction for a percentage, one wide row for a long table, a zero-count check for "no data", period-start dates for period numbers) can be scored as right by a caller who asks for that, while the strict score stays beside it and nothing changes for callers who do not.
@@ -25,7 +25,7 @@ sql_match(
     equivalences: Collection[str] = (),
 ) -> ScoreResult
 ```
-- `equivalences`: names from `evalkit.scorers.sql_equivalences.EQUIVALENCES` = `("percent_scale", "pivot", "empty_check", "period_number")`. Any other name, or a bare string, raises `ValueError`/`TypeError`. Empty (the default) is the pre-B5.15 function exactly: same value, same `details`, same JSON bytes.
+- `equivalences`: names from `evalkit.scorers.sql_equivalences.EQUIVALENCES` = `("percent_scale", "pivot", "empty_check", "period_number")`. Any other name, or a bare string, raises `ValueError`/`TypeError`. Empty (the default) gives the pre-B5.15 values and reasons; failure details were made deterministic across hash seeds and regenerated once.
 - `question`: the question text; `percent_scale` and `period_number` read it and never apply when it is `None`. Not a `str` or `None` -> `TypeError`.
 - The strict match runs first. If it passes, that result is returned with `correct_strict: true, equivalences: []` added to `details`. If it fails, each normalised form of `predicted` (below, in the order listed) is matched by the same strict match with the same `rel_tol`, `abs_tol`, `allow_extra_columns` and `gold.ordered`; the first that passes gives `value 1.0` with its own details plus `correct_strict: false`, `equivalences: [names used]`, `strict_reason`. If none passes, the strict failure is returned with `correct_strict: false, equivalences: []` added. These keys appear only when at least one equivalence is named.
 
@@ -45,9 +45,9 @@ Stricter than the reference (verifier, 2026-11-17): an equivalence may only resh
 - The strict match is EvalKit's own (`sql_match`); agentic-analytics' column assignment by value profile is not ported. The baseline cases pass with `allow_extra_columns=True` (as agentic-analytics calls it) and the question's tolerance.
 
 ## Test plan
-- `tests/scorers/test_sql_equivalences.py`: the 42 reference tests ported (the 8 baseline cases parametrised; fixture coverage; per-rule positives and false-pass negatives incl. share/proportion/percentile, non-percent names, non-zero extras, swapped pivot gold, two-year dates, unnamed quarters, ordered rescues, strict-first labelling) with EvalKit's arguments in place of agentic-analytics' `Question`/`Scores` (its clarify/probe/error tests become off-unless-named, question-gating and miss-keeps-strict tests; its record-format tests become the snapshot, details round-trip and argument-validation tests), plus three: order-free determinism, byte-identical results across hash seeds in fresh interpreters, hostile inputs. 45 tests at build; the verifier fixes add 16 (per-column percent tolerance, the stricter-than-reference false passes from the verifier's probe, agentic-analytics D-91's 7 tests ported, rows_differ reachability): 61 collected.
+- `tests/scorers/test_sql_equivalences.py`: the 42 reference tests ported (the 8 baseline cases parametrised; fixture coverage; per-rule positives and false-pass negatives incl. share/proportion/percentile, non-percent names, non-zero extras, swapped pivot gold, two-year dates, unnamed quarters, ordered rescues, strict-first labelling) with EvalKit's arguments in place of agentic-analytics' `Question`/`Scores` (its clarify/probe/error tests become off-unless-named, question-gating and miss-keeps-strict tests; its record-format tests become the snapshot, details round-trip and argument-validation tests), plus three: order-free determinism, unchanged in values and reasons results across hash seeds in fresh interpreters, hostile inputs. 45 tests at build; the verifier fixes add 16 (per-column percent tolerance, the stricter-than-reference false passes from the verifier's probe, agentic-analytics D-91's 7 tests ported, rows_differ reachability): 61 collected.
 - `tests/fixtures/sql_equivalences/d81_baseline_cases.json`: vendored verbatim from the reference (aggregate counts and shares over HM Land Registry Price Paid data, town names only; no personal data).
-- `tests/fixtures/sql_equivalences/strict_snapshot.json`: `sql_match` outputs (JSON) on every `sql_match_cases.json` case and every baseline case, with and without `allow_extra_columns`, generated on `ca50e38` before any change; the default call must reproduce them byte for byte.
+- `tests/fixtures/sql_equivalences/strict_snapshot.json`: `sql_match` outputs (JSON) on every `sql_match_cases.json` case and every baseline case, with and without `allow_extra_columns`, values and reasons from `ca50e38`, failure details regenerated once after they were made deterministic; the default call reproduces them byte for byte under any hash seed.
 
 ## Out of scope
 Changing `sql_match` defaults; a task-scorer wrapper; caller-set per-column tolerances; any change in the agentic-analytics repo (D-61 rule 4).

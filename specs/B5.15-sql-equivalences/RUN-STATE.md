@@ -1,6 +1,6 @@
 # B5.15 run state
 
-**Now:** verifier findings fixed, awaiting lead review (2026-11-17).
+**Now:** GREEN (2026-11-17).
 
 ## History
 - 2026-11-17 — lane opened (D-66); spec written from D-71 and agentic-analytics f6abdec.
@@ -17,3 +17,4 @@
   - Aligned with agentic-analytics D-91 (a638db9) by keeping the stricter rule wherever the two differ; its 7 tests are ported. 61 tests.
   - Fuzz: 4×50k against a638db9 and f6abdec. Every disagreement is EvalKit stricter, except percent_scale rescues at a caller `abs_tol < 0.01` (the per-column tolerance, by design).
   - criteria.md still carries the old SQE-01 wording (`abs_tol >= 0.01`, pct/percent/points); it is left for the lead with the catalog.
+- 2026-11-17 — two verifier passes. Pass 1: false passes shared with the reference (percentile, points, negated percent, quarter-on-month, wrong year, any-integer month, text/avg zeros, pivot total) and an over-claimed byte-identity: fixed, aligned with agentic-analytics' a638db9 and stricter where they differ, per-column percent tolerance. Pass 2: three narrow false passes (sub-period month columns, negations like "avoid percentages", pct95 percentiles) and doc wording: fixed by the lead (clause-level negation fail-safe, NOT_A_PERIOD_WORDS, two-digit percentile suffixes); the verifier's probe now agrees on every case but one where its expectation was wrong (a correct answer). GREEN.

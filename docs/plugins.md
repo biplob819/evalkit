@@ -257,7 +257,7 @@ The strict match runs first; only when it fails is each named reshaping of `pred
 matched strictly in turn (same tolerance apart from the scaled percent column, same columns,
 row count and `gold.ordered`). With equivalences named, `details` carries `correct_strict`
 and the `equivalences` that matched (and `strict_reason` on a rescue), so report both
-scores. With none named, the result is byte-for-byte what it was before 0.4.0. The rules
+scores. With none named, the result is the same values and reasons as before 0.4.0 (failure details were made deterministic across hash seeds and regenerated once). The rules
 start from agentic-analytics' (its OWNER D-81, EvalKit D-71). Where its D-91 narrowing and
 EvalKit differ, EvalKit keeps the stricter rule.
 

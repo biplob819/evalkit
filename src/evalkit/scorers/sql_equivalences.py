@@ -96,6 +96,10 @@ _NAMES_QUARTERS = re.compile(r"\bquarters?\b", re.IGNORECASE)
 _NAMES_YEAR = re.compile(r"(?<![0-9])((?:19|20)[0-9]{2})(?![0-9])")
 MONTH_WORDS = frozenset({"month"})
 QUARTER_WORDS = frozenset({"quarter", "qtr"})
+# a name with these words is a count or a sub-period, not a month or quarter number
+NOT_A_PERIOD_WORDS = frozenset(
+    {"day", "days", "week", "weeks", "count", "n", "num", "number", "total", "sum", "avg"}
+)
 _PERIOD_START = re.compile(
     r"(\d{4})-(\d{2})-01(?:[T ]00:00(?::00(?:\.0+)?)?(?:Z|[+-]00:?00)?)?", re.ASCII
 )
@@ -236,9 +240,25 @@ def _column(rs: ResultSet, i: int) -> list[Any]:
 # 1. percent_scale
 
 
+# Fail-safe (B5.15 verifier pass 2): any negation in a clause that mentions a percentage
+# ("do not express it as a percentage", "avoid percentages", "without converting to a
+# percentage") means the question does not ask for one.
+_ANY_NEGATION = re.compile(
+    r"\b(?:not|no|never|without|avoid|avoiding|instead|rather|nor|neither)\b|n['’]t\b",
+    re.IGNORECASE,
+)
+
+
 def asks_percent(question: str) -> bool:
-    """The question asks for a percentage and nowhere negates one."""
-    return bool(_ASKS_PERCENT.search(question)) and not _NOT_PERCENT.search(question)
+    """The question asks for a percentage and no clause that mentions one negates anything."""
+    if not _ASKS_PERCENT.search(question) or _NOT_PERCENT.search(question):
+        return False
+    # the clause that mentions the percentage ("Not counting refunds, what percentage ...?"
+    # still asks for one; "..., without converting to a percentage" does not)
+    for clause in re.split(r"[,;:.!?()]", question):
+        if _ASKS_PERCENT.search(clause) and _ANY_NEGATION.search(clause):
+            return False
+    return True
 
 
 def _gold_percent_columns(gold: ResultSet, question: str) -> list[int]:
@@ -248,8 +268,22 @@ def _gold_percent_columns(gold: ResultSet, question: str) -> list[int]:
     return [
         j
         for j, name in enumerate(gold.columns)
-        if PERCENT_WORDS & words(name) or (points and words(name) >= POINT_CHANGE_WORDS)
+        if (PERCENT_WORDS & words(name) or (points and words(name) >= POINT_CHANGE_WORDS))
+        and not _percentile_name(name)
     ]
+
+
+_PERCENTILE_WORDS = frozenset(
+    {"percentile", "pctile", "quantile", "median", "p50", "p90", "p95", "p99"}
+)
+
+
+def _percentile_name(name: str) -> bool:
+    """A percentile, not a percentage: `latency_pct95`, `p95`, `pctile`, or pct beside a number."""
+    ws = words(name)
+    # a two-digit suffix is a percentile (pct95, p99); a four-digit one is a year (pct2023)
+    suffix = re.search(r"(?i)(?:^|[^a-z])p(?:ct)?\d{2}(?!\d)", name)
+    return bool(_PERCENTILE_WORDS & ws) or bool(suffix)
 
 
 def percent_columns(
@@ -390,6 +424,8 @@ def _period_numbers(gold: ResultSet, named: frozenset[str], top: int) -> frozens
     for j, name in enumerate(gold.columns):
         cells = _column(gold, j)
         if not named & words(name) or not cells:
+            continue
+        if NOT_A_PERIOD_WORDS & words(name):  # week_of_month, day_of_month, month_count
             continue
         if all(_is_num(v) and float(v).is_integer() and 1 <= v <= top for v in cells):
             out.append(j)
