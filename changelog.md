@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [HARNESS] [B5.12–B5.14] — D-65: per-sentence citation support (B5.12, next, for gemma-grounded-health), agent and decision scorers (B5.13, v0.3.0: answer-from-rows, clarification, rule compliance, structured-evidence faithfulness), held-out discipline and tamper-evident logs (B5.14, v0.4.0); public calibration API (PUB-04), release-gate rigour and latency/cost gates (GAT-09, GAT-10), silent-skip-free baselines (RVR-03), trend chart and spend ledger (LED-05, LED-06). Spend: $0.
 - [HARNESS] [B5.3, B5.11] — D-64 (assay-pipeline): exact Clopper-Pearson bounds (GAT-07) and fail/warn gate severity (GAT-08) in B5.3; new node B5.11 agent security eval kit for v0.4.0. Spend: $0.
 - [HARNESS] [B5.3, B5.7] — D-63: respectful-offers adopts EvalKit through Wave 5; B5.3 adds multi-field labels, units, supplied intervals, a `simulated` flag (GAT-05) and group-disparity gates (GAT-06); B5.7 adds a drift and calibration monitor (LED-04). Off-policy coverage stays in respectful-offers. Spend: $0.
 - [HARNESS] [B5.3–B5.10] — Wave 5 widened (OWNER D-62): fraud-review-bedrock (Field PM Pack) is the seventh downstream project; B5.3 gates any named metric from a metrics-summary format (assay-pipeline's needs); new B5.6 run-vs-run compare, B5.7 monitoring and improvement ledger, B5.8 paraphrase contamination probe, B5.9 calibration integrity sheet, B5.10 v0.4.0. Spend: $0.

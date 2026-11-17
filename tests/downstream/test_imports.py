@@ -37,7 +37,10 @@ def _checkout(tmp_path: Path) -> Path:
     _write(root, "scripts/tool.py", "from evalkit import __version__\n")
     _write(root, "src/proj/broken.py", "from evalkit.cost import (\n")
     _write(root, ".venv/lib/site.py", "from evalkit.pipeline import judge\n")
-    _write(root, "venv-old/lib/site.py", "from evalkit.pipeline import judge\n")
+    _write(root, "tests/venv-old/lib/site.py", "from evalkit.pipeline import judge\n")
+    _write(root, "tests/venv-old/pyvenv.cfg", "home = /usr\n")
+    _write(root, "tests/devenv/test_dev.py", "from evalkit import scorers\n")
+    _write(root, "tests/conftest.py", "from evalkit.schemas import Record\n")
     _write(root, "notes/other.py", "from evalkit.pipeline import judge\n")  # outside scanned dirs
     return root
 
@@ -60,12 +63,14 @@ def test_every_import_is_listed_and_classed(tmp_path):
     assert uses[("evalkit.stats", "_quantile")].kind == "private"
     assert uses[("evalkit.runtime", "*")].kind == "internal"
     assert ("os", "*") not in uses
+    assert uses[("evalkit", "scorers")].kind == "public", "a public module imported whole"
 
 
 def test_virtual_envs_and_unscanned_dirs_are_skipped(tmp_path):
     report = di.audit(_checkout(tmp_path))
     assert ("evalkit.pipeline", "judge") not in _by_key(report)
     assert all(".venv" not in f and "venv-old" not in f for f in report.files_scanned)
+    assert "tests/devenv/test_dev.py" in report.test_files, "a folder named like venv is scanned"
 
 
 def test_unparsable_file_is_reported_not_fatal(tmp_path):
@@ -77,7 +82,7 @@ def test_unparsable_file_is_reported_not_fatal(tmp_path):
 def test_tests_flag_lists_only_evalkit_importing_tests(tmp_path, capsys):
     root = _checkout(tmp_path)
     assert di.main([str(root), "--tests"]) == 0
-    assert capsys.readouterr().out.split() == ["tests/test_uses.py"]
+    assert capsys.readouterr().out.split() == ["tests/devenv/test_dev.py", "tests/test_uses.py"]
 
 
 def test_json_is_stable_and_sorted(tmp_path, capsys):
@@ -89,8 +94,8 @@ def test_json_is_stable_and_sorted(tmp_path, capsys):
     data = json.loads(first)
     keys = [(u["module"], u["name"]) for u in data["uses"]]
     assert keys == sorted(keys)
-    assert data["counts"] == {"internal": 3, "private": 1, "public": 3, "public-elsewhere": 1}
-    assert data["test_files"] == ["tests/test_uses.py"]
+    assert data["counts"] == {"internal": 3, "private": 1, "public": 5, "public-elsewhere": 1}
+    assert data["test_files"] == ["tests/devenv/test_dev.py", "tests/test_uses.py"]
 
 
 def test_text_output_groups_by_class(tmp_path, capsys):
@@ -98,6 +103,7 @@ def test_text_output_groups_by_class(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "internal" in out and "evalkit.cost.call_cost" in out
     assert "evalkit.adapters.base.SystemAdapter -> evalkit.adapters" in out
+    assert "import evalkit.runtime" in out
 
 
 def test_missing_checkout_exits_2(tmp_path, capsys):

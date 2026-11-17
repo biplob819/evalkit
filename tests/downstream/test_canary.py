@@ -7,6 +7,7 @@ import json
 import re
 import sys
 import textwrap
+from pathlib import Path
 
 import yaml
 
@@ -47,12 +48,13 @@ def test_workflow_matrix_comes_from_the_registry_and_does_not_fail_fast():
     assert any(u.startswith("actions/upload-artifact@") for u in uses)
     checkouts = [s for s in canary["steps"] if s.get("uses", "").startswith("actions/checkout@")]
     assert any(s.get("with", {}).get("repository") == "${{ matrix.repo }}" for s in checkouts)
+    assert all(s["with"].get("persist-credentials") is False for s in checkouts), "no token on disk"
 
 
 def test_matrix_holds_only_projects_with_tests(capsys):
     assert dc.main(["--matrix"]) == 0
     matrix = json.loads(capsys.readouterr().out)
-    auto = [r for r in dc.load_registry() if r.tests == "auto"]
+    auto = [r for r in dc.load_registry() if r.tests in {"auto", "all"}]
     assert [m["project"] for m in matrix["include"]] == [r.project for r in auto]
     assert all(set(m) == {"project", "repo", "branch"} for m in matrix["include"])
 
@@ -76,17 +78,40 @@ def test_pin_identity_tests_are_deselected_by_node_id(tmp_path):
     assert all("::" in d and "pin" in d for d in deselected)
 
 
-def test_child_environment_has_no_keys_or_secrets(monkeypatch):
-    for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GH_TOKEN", "NEON_PASSWORD", "MY_SECRET"):
+def test_child_environment_has_no_keys_or_secrets(monkeypatch, tmp_path):
+    leaky = (
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "GH_TOKEN",
+        "NEON_PASSWORD",
+        "MY_SECRET",
+        "DB_PASS",
+        "DATABASE_URL",
+        "GH_PAT",
+        "SERVICE_AUTH",
+        "AWS_PROFILE",
+        "SSH_AUTH_SOCK",
+        "LANGFUSE_SK",
+        "NEON_DSN",
+        "VIRTUAL_ENV",
+    )
+    for k in leaky:
         monkeypatch.setenv(k, "x")
-    monkeypatch.setenv("VIRTUAL_ENV", "/somewhere")
-    env = dc.child_env()
-    assert not any(re.search(r"KEY|TOKEN|SECRET|PASSWORD", k) for k in env)
-    assert "VIRTUAL_ENV" not in env
+    env = dc.child_env(home=tmp_path / "home")
+    assert not set(leaky) & set(env), "the child environment is an allowlist"
+    assert env["HOME"] == str(tmp_path / "home") != str(Path.home())
     assert env["EVALKIT_DOWNSTREAM"] == "1" and "PATH" in env
+    assert set(env) <= dc.ENV_ALLOW | dc.ENV_ALLOW_WINDOWS | {
+        "HOME",
+        "USERPROFILE",
+        "UV_CACHE_DIR",
+        "EVALKIT_DOWNSTREAM",
+    }
 
 
 def test_pytest_summary_is_parsed():
+    noisy = "2 passed in 0.5s\nretry 3 failed attempts\n"
+    assert dc.parse_counts(noisy)["failed"] == 0 and dc.parse_counts(noisy)["passed"] == 2
     line = "== 3 failed, 41 passed, 2 skipped, 1 error in 9.1s =="
     assert dc.parse_counts(line) == {"passed": 41, "failed": 3, "errors": 1, "skipped": 2}
     assert dc.parse_counts("no tests ran in 0.01s") == {
@@ -117,7 +142,7 @@ def test_run_one_on_a_tiny_project_records_a_pass(tmp_path):
         "from evalkit.scorers import sql_match\n\ndef test_ok():\n    assert sql_match\n",
         encoding="utf-8",
     )
-    row = dc.Row("tiny", "me/tiny", "main", "evalkit-harness", "", "auto", "-", "-", "")
+    row = dc.Row("tiny", "me/tiny", "main", "evalkit-harness", "", "auto", "-", "-", "-", "")
     runner = dc.FakeRunner(pytest_line="== 1 passed in 0.01s ==")
     result = dc.run_one(row, proj, ROOT, runner=runner)
     assert result["status"] == "pass"
@@ -131,17 +156,71 @@ def test_run_one_marks_failure_and_setup_errors(tmp_path):
     proj = tmp_path / "p"
     (proj / "tests").mkdir(parents=True)
     (proj / "tests" / "test_x.py").write_text("import evalkit\n", encoding="utf-8")
-    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", "")
+    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", "-", "")
     failed = dc.run_one(row, proj, ROOT, runner=dc.FakeRunner("== 1 failed in 0.1s ==", 1))
     assert failed["status"] == "fail" and failed["counts"]["failed"] == 1
     broken = dc.run_one(row, proj, ROOT, runner=dc.FakeRunner("", 0, fail_step=0))
     assert broken["status"] == "setup-error" and "uv sync" in broken["detail"]
 
 
+def _proj(tmp_path, body="import evalkit\n\ndef test_x():\n    pass\n"):
+    proj = tmp_path / "p"
+    (proj / "tests").mkdir(parents=True)
+    (proj / "tests" / "test_x.py").write_text(body, encoding="utf-8")
+    return proj
+
+
+def test_nothing_collected_or_all_skipped_is_not_a_pass(tmp_path):
+    proj = _proj(tmp_path)
+    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", "-", "")
+    empty = dc.run_one(row, proj, ROOT, runner=dc.FakeRunner("no tests ran in 0.01s", 5))
+    skipped = dc.run_one(row, proj, ROOT, runner=dc.FakeRunner("== 4 skipped in 0.1s ==", 0))
+    assert empty["status"] == skipped["status"] == "nothing-ran"
+
+
+def test_only_known_failures_is_known_drift_and_anything_else_fails(tmp_path):
+    proj = _proj(tmp_path, "import evalkit\n\ndef test_x():\n    pass\n\ndef test_y():\n    pass\n")
+    known = "tests/test_x.py::test_x"
+    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", known, "")
+    out = f"FAILED {known} - AssertionError\n== 1 failed, 3 passed in 0.2s =="
+    assert dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(out, 1))["status"] == "known-drift"
+    other = "FAILED tests/test_x.py::test_y - boom\n== 1 failed, 3 passed in 0.2s =="
+    assert dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(other, 1))["status"] == "fail"
+
+
+def test_stale_node_ids_are_a_setup_error(tmp_path):
+    proj = _proj(tmp_path, "import evalkit\n\nclass TestA:\n    def test_m(self):\n        pass\n")
+    ok = dc.Row(
+        "p", "me/p", "main", "x", "", "auto", "-", "tests/test_x.py::TestA::test_m", "-", ""
+    )
+    assert dc.stale_ids(proj, ok.deselected()) == []
+    gone = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "tests/test_x.py::test_gone", "-", "")
+    res = dc.run_one(gone, proj, ROOT, runner=dc.FakeRunner("== 1 passed in 0.1s =="))
+    assert res["status"] == "setup-error" and "test_gone" in res["detail"]
+
+
+def test_a_checkout_with_a_dotenv_is_refused(tmp_path):
+    proj = _proj(tmp_path)
+    (proj / ".env").write_text("X=1\n", encoding="utf-8")
+    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", "-", "")
+    runner = dc.FakeRunner("== 1 passed in 0.1s ==")
+    res = dc.run_one(row, proj, ROOT, runner=runner)
+    assert res["status"] == "setup-error" and ".env" in res["detail"] and runner.calls == []
+
+
+def test_tests_all_runs_the_whole_suite(tmp_path):
+    proj = _proj(tmp_path, "def test_x():\n    pass\n")  # reaches EvalKit only via project code
+    row = dc.Row("p", "me/p", "main", "x", "", "all", "-", "-", "-", "")
+    runner = dc.FakeRunner("== 1 passed in 0.1s ==")
+    res = dc.run_one(row, proj, ROOT, runner=runner)
+    assert res["status"] == "pass" and res["files"] == []
+    assert not any(a.endswith(".py") for a in runner.calls[2])
+
+
 def test_project_with_no_evalkit_tests_is_reported_not_passed(tmp_path):
     proj = tmp_path / "p"
     (proj / "tests").mkdir(parents=True)
-    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", "")
+    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", "-", "")
     result = dc.run_one(row, proj, ROOT, runner=dc.FakeRunner("", 0))
     assert result["status"] == "no-tests"
 
@@ -149,13 +228,13 @@ def test_project_with_no_evalkit_tests_is_reported_not_passed(tmp_path):
 def test_baseline_run_covers_every_project_with_tests():
     assert BASELINE, "run scripts/downstream_canary.py --all and record the baseline"
     record = json.loads(BASELINE[-1].read_text(encoding="utf-8"))
-    auto = {r.project for r in dc.load_registry() if r.tests == "auto"}
+    auto = {r.project for r in dc.load_registry() if r.tests in {"auto", "all"}}
     assert set(record["projects"]) == auto
     assert re.fullmatch(r"[0-9a-f]{40}", record["evalkit_commit"])
     for name, p in record["projects"].items():
         assert re.fullmatch(r"[0-9a-f]{40}", p["commit"]), name
-        assert p["status"] in {"pass", "fail", "setup-error", "no-tests"}, name
-        assert p["files"] or p["status"] == "no-tests", name
+        assert p["status"] in dc.STATUSES, name
+        assert p["files"] or p["status"] == "no-tests" or p["tests"] == "all", name
         if p["status"] != "pass":
             assert p.get("finding"), f"{name} did not pass: record why (D-61)"
 

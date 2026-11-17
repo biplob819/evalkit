@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_public_api import PUBLIC
 
 SCANNED_DIRS = ("src", "tests", "scripts", "demo")
-SKIPPED_PARTS = {".git", "node_modules", "__pycache__", "site-packages"}
+SKIPPED_PARTS = {".git", "node_modules", "__pycache__", "site-packages", ".tox", ".nox"}
 KINDS = ("public", "public-elsewhere", "internal", "private")
 
 
@@ -64,6 +64,8 @@ def classify(module: str, name: str) -> tuple[str, str]:
     """(kind, public_at) for one imported name."""
     if name in PUBLIC.get(module, ()) or (name == "*" and module in PUBLIC):
         return "public", ""
+    if name != "*" and f"{module}.{name}" in PUBLIC:  # `from evalkit import scorers`
+        return "public", ""
     if name != "*":
         for pkg, names in PUBLIC.items():
             if module.startswith(pkg + ".") and name in names:
@@ -73,11 +75,24 @@ def classify(module: str, name: str) -> tuple[str, str]:
     return "internal", ""
 
 
-def _skipped(rel: Path) -> bool:
-    return any(
-        part in SKIPPED_PARTS or part.startswith(".venv") or "venv" in part.lower()
-        for part in rel.parts[:-1]
-    )
+def _is_venv(path: Path) -> bool:
+    return (path / "pyvenv.cfg").is_file() or path.name.startswith(".venv")
+
+
+def _skipped(root: Path, rel: Path) -> bool:
+    """Skip VCS, cache and virtual-environment folders (marked by pyvenv.cfg or named .venv*),
+    and nothing else: a folder merely named like `tests/devenv` is scanned."""
+    current = root
+    for part in rel.parts[:-1]:
+        current = current / part
+        if part in SKIPPED_PARTS or _is_venv(current):
+            return True
+    return False
+
+
+def is_test_file(rel: str) -> bool:
+    name = rel.rsplit("/", 1)[-1]
+    return rel.startswith("tests/") and (name.startswith("test_") or name.endswith("_test.py"))
 
 
 def _python_files(root: Path) -> list[Path]:
@@ -85,7 +100,7 @@ def _python_files(root: Path) -> list[Path]:
     for d in SCANNED_DIRS:
         base = root / d
         if base.is_dir():
-            files += [p for p in base.rglob("*.py") if not _skipped(p.relative_to(root))]
+            files += [p for p in base.rglob("*.py") if not _skipped(root, p.relative_to(root))]
     return sorted(files)
 
 
@@ -114,7 +129,7 @@ def audit(root: Path) -> Report:
         found = _imports(tree)
         for key in found:
             seen[key] = seen.get(key, 0) + 1
-        if found and rel.startswith("tests/"):
+        if found and is_test_file(rel):
             report.test_files.append(rel)
     for (module, name), n in sorted(seen.items()):
         kind, at = classify(module, name)
@@ -140,7 +155,7 @@ def to_text(report: Report) -> str:
             continue
         lines.append(f"\n{kind} ({len(rows)})")
         for u in rows:
-            name = u.module if u.name == "*" else f"{u.module}.{u.name}"
+            name = f"import {u.module}" if u.name == "*" else f"{u.module}.{u.name}"
             hint = f" -> {u.public_at}" if u.public_at else ""
             lines.append(f"  {name}{hint}  [{u.files} file{'s' if u.files != 1 else ''}]")
     if report.unparsable:

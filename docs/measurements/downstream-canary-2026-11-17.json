@@ -1,8 +1,8 @@
 {
-  "command": "python scripts/downstream_canary.py --all --workdir <scratch> --out <file>",
+  "command": "python scripts/downstream_canary.py --all --workdir <fresh scratch dir> --out <file>",
   "date": "2026-11-17",
-  "evalkit_commit": "e31d24acae068a6692f4d5924096d6fa059c8e59",
-  "evalkit_src_note": "src/ identical to evalkit_commit; only scripts/, tests/ and docs/ of B5.1 were uncommitted",
+  "evalkit_commit": "bc70635cd28c01d1abdf37c871ee14f674be1583",
+  "evalkit_src_note": "src/ identical to evalkit_commit; only B5.1's scripts/, tests/ and docs/ were uncommitted",
   "projects": {
     "agentic-analytics": {
       "audit": {
@@ -18,6 +18,8 @@
         "passed": 109,
         "skipped": 0
       },
+      "detail": "",
+      "failures": [],
       "files": [
         "tests/aggregate/test_accuracy.py",
         "tests/aggregate/test_consistency.py",
@@ -42,24 +44,28 @@
         "evalkit.stats.paired [internal]",
         "evalkit.stats.percentile_ms [internal]"
       ],
+      "known_fixed": [],
       "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119",
       "repo": "biplob819/agentic-analytics",
-      "status": "pass"
+      "status": "pass",
+      "tests": "auto"
     },
     "ai-visibility": {
       "audit": {
-        "internal": 18,
-        "private": 0,
+        "internal": 20,
+        "private": 1,
         "public": 7,
         "public-elsewhere": 0
       },
-      "commit": "8d2ef2681780dc27c6d2b38d16bb80fe58c9854e",
+      "commit": "8836a051488b4b850d8144b84767fe8d75588f72",
       "counts": {
         "errors": 0,
         "failed": 0,
         "passed": 18,
         "skipped": 0
       },
+      "detail": "",
+      "failures": [],
       "files": [
         "tests/support/test_judge.py"
       ],
@@ -71,6 +77,9 @@
         "evalkit.cost.call_cost [internal]",
         "evalkit.cost.estimate_tokens [internal]",
         "evalkit.cost.load_prices [internal]",
+        "evalkit.pipeline.calibrate._Pair [private]",
+        "evalkit.pipeline.calibrate.cluster_kappa [internal]",
+        "evalkit.pipeline.calibrate.kappa_from [internal]",
         "evalkit.pipeline.extract.EXTRACTOR_PROMPT [internal]",
         "evalkit.pipeline.generate.adapter_key [internal]",
         "evalkit.pipeline.generate.provider_for [internal]",
@@ -83,9 +92,11 @@
         "evalkit.scorers.faithfulness.JudgedClaim [internal]",
         "evalkit.scorers.faithfulness.faithfulness [internal]"
       ],
+      "known_fixed": [],
       "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@218192132ad601f02976d486d839e712e39bc4e2",
       "repo": "biplob819/ai-visibility",
-      "status": "pass"
+      "status": "pass",
+      "tests": "auto"
     },
     "assay-pipeline": {
       "audit": {
@@ -101,13 +112,17 @@
         "passed": 60,
         "skipped": 0
       },
+      "detail": "",
+      "failures": [],
       "files": [
         "tests/security/test_run.py"
       ],
       "imports_not_public": [],
+      "known_fixed": [],
       "pin": "evalkit-harness==0.1.0",
       "repo": "biplob819/assay-pipeline",
-      "status": "pass"
+      "status": "pass",
+      "tests": "auto"
     },
     "course-assistant": {
       "audit": {
@@ -116,17 +131,17 @@
         "public": 24,
         "public-elsewhere": 9
       },
-      "commit": "3ff08a1fb032305385ac46bde91e351e3540b0ab",
+      "commit": "f7c3e7e864a09d73fa1a37b0517d4d8e93d82852",
       "counts": {
         "errors": 0,
         "failed": 0,
         "passed": 151,
         "skipped": 0
       },
+      "detail": "",
+      "failures": [],
       "files": [
         "tests/answer/test_hint_cache.py",
-        "tests/eval/offline_run.py",
-        "tests/eval/scripted_eval.py",
         "tests/eval/test_calibration.py",
         "tests/eval/test_course_ta.py",
         "tests/eval/test_course_ta_fixes.py",
@@ -144,7 +159,6 @@
         "evalkit.cost.estimate_tokens [internal]",
         "evalkit.cost.load_prices [internal]",
         "evalkit.datasets.load_jsonl_cases [internal]",
-        "evalkit.onboarding.* [internal]",
         "evalkit.pipeline.aggregate.slice_value [internal]",
         "evalkit.pipeline.aggregate.summary_json [internal]",
         "evalkit.pipeline.answer.SchemaError [internal]",
@@ -186,11 +200,14 @@
         "evalkit.stats.holm [internal]",
         "evalkit.stats.interval [internal]",
         "evalkit.stats.paired [internal]",
-        "evalkit.stats.percentile_ms [internal]"
+        "evalkit.stats.percentile_ms [internal]",
+        "import evalkit.onboarding [internal]"
       ],
+      "known_fixed": [],
       "pin": "evalkit-harness>=0.2,<0.3",
       "repo": "biplob819/course-assistant",
-      "status": "pass"
+      "status": "pass",
+      "tests": "auto"
     },
     "fraud-review-bedrock": {
       "audit": {
@@ -203,19 +220,21 @@
       "counts": {
         "errors": 0,
         "failed": 0,
-        "passed": 0,
+        "passed": 965,
         "skipped": 0
       },
-      "detail": "no test file imports evalkit",
+      "detail": "",
+      "failures": [],
       "files": [],
-      "finding": "Young project (its node N1.3 is building): EvalKit is imported from src/ only, no test imports it yet, so there is nothing to run. The canary picks its tests up automatically once one imports evalkit. Its faithfulness import is internal today (evalkit.scorers.faithfulness is not in the public contract): a B5.2 promotion candidate shared with ai-visibility.",
       "imports_not_public": [
         "evalkit.scorers.faithfulness.FaithfulnessItem [internal]",
         "evalkit.scorers.faithfulness.faithfulness [internal]"
       ],
+      "known_fixed": [],
       "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@43df77edb8efb07d6f168fc0f8b8544ec86e3aca",
       "repo": "biplob819/fraud-review-bedrock",
-      "status": "no-tests"
+      "status": "pass",
+      "tests": "all"
     },
     "gemma-grounded-health": {
       "audit": {
@@ -228,10 +247,13 @@
       "counts": {
         "errors": 0,
         "failed": 1,
-        "passed": 119,
-        "skipped": 5
+        "passed": 117,
+        "skipped": 7
       },
-      "detail": ">       assert set(config.SPEC) == set(RunConfig.model_fields)  # nothing unchecked or dropped\nE       AssertionError: assert {'concurrency..._effort', ...} == {'concurrency..._effort', ...}\nE         \nE         Extra items in the right set:\nE         'systems'\nE         Use -v to get more diff\nFAILED tests/evals/test_config.py::test_spec_covers_every_run_config_field - ...",
+      "detail": "...........s........s.ss.............................F.................. [ 57%]\n...........s....................................s...s                    [100%]\n=================================== FAILURES ===================================\n___________________ test_spec_covers_every_run_config_field ____________________\n\n    def test_spec_covers_every_run_config_field():\n        from evalkit.schemas import RunConfig\n    \n>       assert set(config.SPEC) == set(RunConfig.model_fields)  # nothing unchecked or dropped\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       AssertionError: assert {'concurrency..._effort', ...} == {'concurrency..._effort', ...}\nE         \nE         Extra items in the right set:\nE         'systems'\nE         Use -v to get more diff\n\ntests/evals/test_config.py:27: AssertionError\n=========================== short test summary info ============================\nFAILED tests/evals/test_config.py::test_spec_covers_every_run_config_field - ...\n1 failed, 117 passed, 7 skipped, 2 deselected in 8.67s",
+      "failures": [
+        "tests/evals/test_config.py::test_spec_covers_every_run_config_field"
+      ],
       "files": [
         "tests/data/test_build.py",
         "tests/evals/test_behaviour.py",
@@ -244,7 +266,7 @@
         "tests/train/test_format.py",
         "tests/train/test_generate.py"
       ],
-      "finding": "Expected drift, not an EvalKit bug: v0.2 added the optional RunConfig.systems field (D-59, allowed in a minor release by docs/versioning.md), and the project's tests/evals/test_config.py::test_spec_covers_every_run_config_field requires its config SPEC to list every RunConfig field. The project pins the v0.1.0 commit, so it is unaffected until it upgrades; the B5.4 migration guide must tell it to add `systems` to SPEC. Two pin-identity tests are deselected by the registry.",
+      "finding": "Known drift, not an EvalKit bug: v0.2 added the optional RunConfig.systems field (D-59; allowed in a minor release by docs/versioning.md) and the project's test_spec_covers_every_run_config_field requires its config SPEC to list every RunConfig field. The project pins the v0.1.0 commit, so it is unaffected until it upgrades; the B5.4 migration guide tells it to add `systems`. Two pin-identity tests are deselected by the registry.",
       "imports_not_public": [
         "evalkit.adapters.base.CompletionRequest -> evalkit.adapters [public-elsewhere]",
         "evalkit.adapters.base.RawCompletion -> evalkit.adapters [public-elsewhere]",
@@ -265,9 +287,11 @@
         "evalkit.text.number_sentences [internal]",
         "evalkit.text.split_sentences [internal]"
       ],
+      "known_fixed": [],
       "pin": "evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119",
       "repo": "biplob819/gemma-grounded-health",
-      "status": "fail"
+      "status": "known-drift",
+      "tests": "auto"
     }
   },
   "spend_usd": 0

@@ -39,12 +39,13 @@ def test_every_row_is_well_formed():
     for r in dc.load_registry():
         assert re.fullmatch(r"[\w.-]+/[\w.-]+", r.repo), r
         assert r.branch and " " not in r.branch, r
-        assert r.tests in {"auto", "none"}, r
+        assert r.tests in {"auto", "all", "none"}, r
         toks = r.install.split()
         assert len(toks) % 2 == 0 and all(t in {"--extra", "--group"} for t in toks[::2]), r
         assert (r.tests == "none") == (r.pin == "-"), "a project with no pin has nothing to test"
         assert r.summary == "-" or r.summary.endswith(".json"), r
-        assert all(re.fullmatch(r"tests/[\w/.-]+\.py::\w+", d) for d in r.deselected()), r
+        for node in r.deselected() + r.known_failures():
+            assert re.fullmatch(r"tests/[\w/.-]+\.py(::\w+)+", node), (r.project, node)
 
 
 def test_respectful_offers_imports_nothing_so_is_not_run():

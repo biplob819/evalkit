@@ -510,7 +510,7 @@ scripts/status.py            # live one-table build status (D-13)
 
 Status vocabulary: `not-started | spec | building | green`.
 
-### 11.2 Build graph: 38 nodes in six waves
+### 11.2 Build graph: 41 nodes in six waves
 
 **First public release, v0.1.0 (all Must stories): 16 nodes.** W0.1, N1.1–N1.4, A2.1–A2.6, B2.1–B2.5.
 **Full scope: 26 nodes.**
@@ -547,14 +547,17 @@ Status vocabulary: `not-started | spec | building | green`.
 | **B5.1** | Downstream registry and canary (D-61) | B4.1 | `docs/downstream.tsv`, import audit, canary workflow running each project's offline contract tests against this checkout | US6 |
 | **B5.2** | Public API 0.3 (D-61) | B5.1, S2.4 | Internals used by two or more projects promoted to public names, deprecation shims at old paths | US6 |
 | **B5.3** | Gates on any metric (D-61, D-62) | B5.2 | Metrics-summary format; thresholds on any named metric, point or CI bound, per label; held-out aggregates only; `evalkit gate` | US6 |
-| **B5.4** | v0.3.0 and downstream migration guide (D-61) | B5.2, B5.3, B5.6 | v0.3.0 on PyPI, `docs/downstream.md` | US6 |
+| **B5.4** | v0.3.0 and downstream migration guide (D-61, D-65) | B5.2, B5.3, B5.6, B5.12, B5.13 | v0.3.0 on PyPI, `docs/downstream.md` | US6 |
 | **B5.5** | Cross-project eval index (D-61, D-62) | B5.4, B5.7, B2.3 | Index page: per project headline with CI, calibration stamp, gate status, improvements, lessons link, version, date | US5, US6 |
 | **B5.6** | Run-vs-run compare (D-62) | B5.3 | `evalkit compare`: change per metric and label with paired two-level bootstrap CIs, Holm flags | US6 |
-| **B5.7** | Monitoring and improvement ledger (D-62) | B5.4 | Run history, trend and alarm bands, experiment ledger with a freeze guard | US6 |
+| **B5.7** | Monitoring and improvement ledger (D-62, D-65) | B5.4, B5.14 | Run history, trend and alarm bands, experiment ledger with a freeze guard | US6 |
 | **B5.8** | Paraphrase contamination probe (D-62) | B5.4 | Paraphrase set by the PRD method, original-vs-paraphrase report | US6, US10 |
 | **B5.9** | Calibration integrity sheet (D-62) | B5.4 | Blind repeats and planted items; certificate bound to run and rubric hashes | US3 |
-| **B5.10** | v0.4.0 (D-62, D-64) | B5.7, B5.8, B5.9, B5.11 | Ledger, probe, integrity sheet and security kit released | US6 |
-| **B5.11** | Agent security eval kit (D-64) | B5.4, C3.4 | Attack-case schema, pass^k, stopping layers, scripted attacker, held-out never reported | US11 |
+| **B5.10** | v0.4.0 (D-62, D-64, D-65) | B5.7, B5.8, B5.9, B5.11, B5.14 | Ledger, probe, integrity sheet, security kit and held-out discipline released | US6 |
+| **B5.11** | Agent security eval kit (D-64) | B5.4, C3.4, B5.14 | Attack-case schema, pass^k, stopping layers, scripted attacker, held-out never reported | US11 |
+| **B5.12** | Per-sentence citation support (D-65) | A2.4, A2.5 | Citation-judge node, citation precision, aim-citation rate | US2, US6 |
+| **B5.13** | Agent and decision scorers (D-65) | B5.2 | Answer-from-rows, clarification, rule compliance, structured-evidence faithfulness | US6, US11 |
+| **B5.14** | Held-out discipline and tamper-evident logs (D-65) | B5.2 | Manifest, score-once guard, exposure scan, hash-chained log | US3, US6 |
 
 Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo → **B4** v0.2 for downstream needs → **B5** one eval loop across the seven downstream projects (D-61, D-62). The first public release, v0.1.0 on PyPI, ships at B2.5.
 
@@ -955,6 +958,23 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | SEC-03 | Stopping-layer attribution | D-64 |
 | SEC-04 | Model-free scripted-attacker mode | D-64 |
 | SEC-05 | Held-out attack cases never reported | D-64 |
+| PUB-04 | Public calibration API at any label unit | D-65 |
+| GAT-09 | Release-gate rigour: exit precedence, input classes, domains, gate.json always | D-65 |
+| GAT-10 | Latency and per-case cost gates | D-65 |
+| RVR-03 | Baselines never skip silently; case-only resampling; optional sidecar | D-65 |
+| LED-05 | Trend chart and PSI drift defaults | D-65 |
+| LED-06 | Spend ledger with a cap alarm | D-65 |
+| CIT-01 | Citation-judge node: supports and role per cited sentence | D-65 |
+| CIT-02 | Citation precision and aim-citation rate with CIs | D-65 |
+| CIT-03 | Gemma's aim-sentence cases as tests | D-65 |
+| AFR-01 | Answer-from-rows scorer | D-65 |
+| CLR-01 | Clarification scorer | D-65 |
+| RUL-01 | Rule-compliance scorer | D-65 |
+| SEV-01 | Structured-evidence faithfulness with a value check | D-65 |
+| HLD-01 | Held-out manifest of hashes and counts | D-65 |
+| HLD-02 | Score-once guard | D-65 |
+| HLD-03 | Exposure scan | D-65 |
+| HLD-04 | Hash-chained log; certified calibration tied to a logged line | D-65 |
 
 ### 11.5 Node lifecycle
 
