@@ -23,6 +23,10 @@
     "code_version": "1",
     "hash": "dac2ebbdc95a8c4e70292e066caaceb8d2ff34807feb38f224f69c8baa427949"
   },
+  "paraphrase_probe_call": {
+    "code_version": "1",
+    "hash": "5a2e57b6d29b83c24d6c487ded62e390c97640d19554f3b624c0b21aede9ec3a"
+  },
   "sim_user_turn": {
     "code_version": "1",
     "hash": "73cdece02f4bb2e4002688fe8a79b38c9944323570fc356985a25ad10daed73b"

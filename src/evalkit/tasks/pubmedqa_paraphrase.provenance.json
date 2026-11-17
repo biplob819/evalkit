@@ -1,0 +1,40 @@
+{
+  "built_spend_usd": 0.472607,
+  "check_model": "claude-opus-5-5",
+  "check_prompt_hash": "2331517ce31052a8",
+  "files": {
+    "pubmedqa_paraphrase.jsonl": {
+      "rows": 100,
+      "sha256": "8300d30a349b7b268dc2967bb9ab5d5d7bbbe0b7861666c81bfe05725b5d4707",
+      "source_path": "data/paraphrase_probe.jsonl"
+    },
+    "pubmedqa_paraphrase_rejects.jsonl": {
+      "rows": 1,
+      "sha256": "0279ecca32c8099e98d5f7796d15bfd4ce88f3ede0e249a817d6783eb8630963",
+      "source_path": "data/paraphrase_probe_rejects.jsonl"
+    }
+  },
+  "licence": "PubMedQA (Jin et al., 2019), MIT: questions, contexts and labels from PQA-L (qiaojin/PubMedQA, pqa_labeled)",
+  "method": "DATA_CARD DAT-06",
+  "paraphrase_model": "gpt-6.1-terra",
+  "paraphrase_prompt_hash": "1bb383c050490b51",
+  "sample": {
+    "dataset": "pubmedqa/pqa_l",
+    "label_mix": {
+      "maybe": 11,
+      "no": 34,
+      "yes": 55
+    },
+    "n": 100,
+    "sampler": "evalkit.sampling.stratified_sample",
+    "seed": 7
+  },
+  "source_commit": "c7d70d2317f9e8cc2bcbe194edfe5443205d0906",
+  "source_repo": "github.com/biplob819/gemma-grounded-health",
+  "spot_check": {
+    "by": null,
+    "on": null,
+    "required": "the owner checks 20 kept and every rejected paraphrase by hand (DATA_CARD DAT-06, D-68)",
+    "status": "pending"
+  }
+}

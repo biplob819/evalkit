@@ -220,6 +220,8 @@ def cmd_report(args: argparse.Namespace) -> int:
     from evalkit.pipeline.calibrate import PublishRefused, publish_guard
     from evalkit.schemas import RunSummary
 
+    if args.paraphrase:
+        return _paraphrase_report(args)
     if args.example:
         import shutil
 
@@ -271,6 +273,39 @@ def cmd_report(args: argparse.Namespace) -> int:
             else ""
         )
         + f"report {path}",
+    )
+    return 0
+
+
+def _paraphrase_report(args: argparse.Namespace) -> int:
+    """`evalkit report --paraphrase ORIGINAL_RUN PARAPHRASE_RUN` (B5.8, PAR-02)."""
+    from evalkit import paraphrase as P
+
+    if args.run_dir or args.example:
+        return _err("--paraphrase takes its two run folders; give no other run folder or --example")
+    original, para = (Path(p) for p in args.paraphrase)
+    try:
+        rep = P.contamination_report(original, para)
+    except (P.ProbeError, OSError, ValueError) as exc:
+        return _err(str(exc))
+    data = rep.model_dump(mode="json")
+    path = para / "contamination.json"
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.publish:
+        try:
+            P.require_final(rep)
+        except P.ProbeError as exc:
+            return _err(str(exc))
+    _emit(
+        args,
+        {
+            "contamination": data,
+            "report": str(path),
+            "status": rep.status,
+            "spot_check": rep.spot_check,
+            "published": bool(args.publish),
+        },
+        P.report_text(rep) + f"\nreport {path}",
     )
     return 0
 
@@ -689,6 +724,13 @@ def build_parser() -> argparse.ArgumentParser:
     rep.add_argument("--example", action="store_true", help="render the bundled example run")
     rep.add_argument("--out", default=None, help="folder for --example (default ./evalkit-example)")
     rep.add_argument("--publish", action="store_true", help="refuse unless dual and calibrated")
+    rep.add_argument(
+        "--paraphrase",
+        nargs=2,
+        metavar=("ORIGINAL_RUN", "PARAPHRASE_RUN"),
+        default=None,
+        help="contamination report: original vs paraphrased wording of the probe (B5.8)",
+    )
     rep.add_argument("--json", action="store_true")
     rep.set_defaults(func=cmd_report)
 
