@@ -1004,14 +1004,14 @@ def test_exposure_scan_sees_html_escapes_hyphenation_nfkc_and_binary_files(tmp_p
     files: dict[str, bytes | str] = {
         "html.html": "<p>" + _SYNTH.replace("'", "&#39;").replace(" ", "&nbsp;") + "</p>",
         "hyphen.md": _SYNTH.replace("migration", "migra-\ntion").replace("river", "ri-\n> ver"),
-        "nul.txt": _SYNTH.encode() + b"\0\x89PNG",
+        "zero_byte.txt": _SYNTH.encode() + b"\0\x89PNG",  # not "nul.txt": reserved on Windows
         "utf16.txt": _SYNTH.encode("utf-16"),
         "wide.txt": wide,
         "clean.txt": "Nothing private here at all, only a note about rivers and zebras.",
     }
     root = _secret_repo(tmp_path, files)
     found = {e.path for e in H.exposure_scan(_SYNTH_CASES, root)}
-    assert found == {"html.html", "hyphen.md", "nul.txt", "utf16.txt", "wide.txt"}, found
+    assert found == {"html.html", "hyphen.md", "zero_byte.txt", "utf16.txt", "wide.txt"}, found
 
 
 def test_exposure_scan_of_the_index_reads_staged_content(tmp_path, capsys):
