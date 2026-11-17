@@ -25,7 +25,13 @@ from pydantic import Field, model_validator
 
 from evalkit.schemas import Case, Completion
 from evalkit.schemas._base import FrozenMap, Model, Name, NonBlank
-from evalkit.scorers.base import FunctionScorer, Scorer, ScoreResult, _register
+from evalkit.scorers.base import (
+    FunctionScorer,
+    Scorer,
+    ScoreResult,
+    _register,
+    normalise_label,
+)
 
 MAX_PREDICATE = 300
 
@@ -197,6 +203,11 @@ class _Unreadable(Exception):
     """A value's type does not fit the comparison (only for untyped allow predicates)."""
 
 
+class _Refused(Exception):
+    """An untyped allow predicate orders values that are not numbers, or comparing them
+    raised TypeError."""
+
+
 def _evaluate(node: ast.AST, values: Mapping[str, Any], strict: bool) -> Any:
     if isinstance(node, ast.BoolOp):
         results = (_truth(_evaluate(v, values, strict), strict) for v in node.values)
@@ -212,10 +223,22 @@ def _evaluate(node: ast.AST, values: Mapping[str, Any], strict: bool) -> Any:
         left = _evaluate(node.left, values, strict)
         for op, comparator in zip(node.ops, node.comparators, strict=True):
             right = _evaluate(comparator, values, strict)
-            if not strict and _type(left) != _type(right):
-                raise _Unreadable
-            if not _OPS[type(op)](left, right):
-                return False
+            a, b = left, right
+            if not strict:
+                kind = _type(left)
+                if isinstance(op, _ORDERING) and (kind != "number" or _type(right) != "number"):
+                    raise _Refused
+                if kind != _type(right):
+                    raise _Unreadable
+                if kind == "text":  # "Clear" == "clear": NFKC, trimmed, case-folded
+                    a, b = normalise_label(left), normalise_label(right)
+            try:
+                if not _OPS[type(op)](a, b):
+                    return False
+            except TypeError as exc:
+                if strict:  # pragma: no cover - the type check prevents this
+                    raise
+                raise _Refused from exc
             left = right
         return True
     if isinstance(node, ast.Name):
@@ -302,25 +325,35 @@ class RuleSet(Model):
         for name in self.fields if names is None else names:
             if name not in record or _missing(record[name]):
                 continue
-            want, got = _kind_of(self.fields[name]), _type(record[name])
+            spec = self.fields[name]
+            want, got = _kind_of(spec), _type(record[name])
             if got != {"category": "text"}.get(want, want):
                 raise RuleError(
                     f"record field {name!r} is {type(record[name]).__name__}, the rule set "
                     f"declares {want}"
                 )
+            if want == "category" and record[name] not in spec:
+                raise RuleError(
+                    f"record field {name!r} is {record[name]!r}, not one of its declared "
+                    f"category values"
+                )
 
 
-def _is_allow(decision: Mapping[str, Any], tree: ast.Expression | None) -> bool:
-    """Whether the decision is an allow. Unreadable (a missing field or a type that does not
-    fit) counts as an allow, so the rules are checked: fail safe."""
+def _is_allow(decision: Mapping[str, Any], tree: ast.Expression | None) -> tuple[bool, bool]:
+    """(whether the decision is an allow, whether the predicate hit a type error). Unreadable
+    (a missing field or a type that does not fit) counts as an allow, so the rules are
+    checked: fail safe. A type error (ordering values that are not numbers, or a comparison
+    Python refuses) also counts as an allow and fails the decision."""
     if tree is None:
-        return True
+        return True, False
     if any(_missing(decision.get(n)) for n in _names(tree)):
-        return True
+        return True, False
     try:
-        return _truth(_evaluate(tree.body, decision, strict=False), strict=False)
+        return _truth(_evaluate(tree.body, decision, strict=False), strict=False), False
     except _Unreadable:
-        return True
+        return True, False
+    except (_Refused, TypeError):
+        return True, True
 
 
 def rule_compliance(
@@ -333,13 +366,31 @@ def rule_compliance(
 ) -> ScoreResult:
     """Check one decision against a rule set on the record it was made on.
 
+    `allow` is a predicate over the decision; its text values compare NFKC-casefolded and
+    trimmed (`"Clear" == "clear"`), and ordering (`< <= > >=`) reads numbers only.
+
     Reasons, in order: `unknown_rule:<id>` for each cited id not in the set and `bad_citations`
-    when `decision[cited_key]` is not a list of strings (any decision); then, on an allow only:
-    `no_allow_rule_cited`, or, when no cited allow rule holds, `predicate_false:<id>` or
-    `missing_value:<id>` per cited allow rule; then `never:<id>` for every never rule in the
-    set that holds, cited or not. 1.0 with no reasons, else 0.0."""
+    when `decision[cited_key]` is not a list of strings (any decision); `type_error:allow` when
+    the allow predicate orders values that are not numbers or cannot compare them (the decision
+    then counts as an allow); then, on an allow only: `no_allow_rule_cited`, or, when no cited
+    allow rule holds, `predicate_false:<id>` or `missing_value:<id>` per cited allow rule; then
+    `never:<id>` for every never rule in the set that holds, cited or not. 1.0 with no reasons,
+    else 0.0."""
     tree = parse_predicate(allow, None, "allow") if allow is not None else None
+    return _compliance((decision,), record, rules, cited_key, tree)
+
+
+def _compliance(
+    views: tuple[Mapping[str, Any], ...],
+    record: Mapping[str, Any],
+    rules: RuleSet,
+    cited_key: str,
+    tree: ast.Expression | None,
+) -> ScoreResult:
+    """`rule_compliance` over one or more readings of a decision: cited ids come from the
+    first; the decision is an allow when any reading is one (fail closed)."""
     rules.check_record(record)
+    decision = views[0]
     raw = decision.get(cited_key, ())
     reasons: list[str] = []
     if isinstance(raw, list | tuple) and all(isinstance(i, str) for i in raw):
@@ -350,7 +401,10 @@ def rule_compliance(
     reasons += [f"unknown_rule:{i}" for i in cited if i not in known]
     if not (isinstance(raw, list | tuple) and all(isinstance(i, str) for i in raw)):
         reasons.append("bad_citations")
-    is_allow = _is_allow(decision, tree)
+    readings = [_is_allow(v, tree) for v in views]
+    is_allow = any(a for a, _ in readings)
+    if any(e for _, e in readings):
+        reasons.append("type_error:allow")
     report: dict[str, dict[str, Any]] = {}
 
     def look(rule_id: str) -> bool:
@@ -382,25 +436,39 @@ def rule_compliance(
     )
 
 
-def decision_fields(completion: Completion) -> dict[str, Any]:
-    """A completion as a decision: its answer's `label`, `answer` and `citations`, plus every
-    key of a JSON object written as the answer text (those keys win)."""
+def _answer_json(completion: Completion) -> dict[str, Any]:
+    """The JSON object written as the answer text, else {}."""
+    assert completion.answer is not None
+    text = completion.answer.answer.strip()
+    if not text.startswith("{"):
+        return {}
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _structured(completion: Completion) -> dict[str, Any]:
     assert completion.answer is not None
     ans = completion.answer
-    out: dict[str, Any] = {
-        "label": ans.label,
-        "answer": ans.answer,
-        "citations": list(ans.citations),
-    }
-    text = ans.answer.strip()
-    if text.startswith("{"):
-        try:
-            data = json.loads(text)
-        except ValueError:
-            data = None
-        if isinstance(data, dict):
-            out.update(data)
-    return out
+    return {"label": ans.label, "answer": ans.answer, "citations": list(ans.citations)}
+
+
+def decision_fields(completion: Completion) -> dict[str, Any]:
+    """A completion as a decision: its answer's `label`, `answer` and `citations`, plus every
+    other key of a JSON object written as the answer text. The structured fields win: a JSON
+    `label`, `answer` or `citations` key does not replace them."""
+    return {**_answer_json(completion), **_structured(completion)}
+
+
+def _decision_views(completion: Completion) -> tuple[dict[str, Any], ...]:
+    """`decision_fields`, then (when the answer JSON repeats a structured key with another
+    value) the same with the JSON keys winning, so either reading can make it an allow."""
+    data = _answer_json(completion)
+    first = {**data, **_structured(completion)}
+    second = {**first, **data}
+    return (first,) if second == first else (first, second)
 
 
 def register_task_scorer(fn: Any, name: str, version: str) -> Scorer:
@@ -421,10 +489,11 @@ def rule_compliance_scorer(
     version: str = "1",
 ) -> Scorer:
     """Register a task scorer that runs `rule_compliance` on each record: the record from
-    `case.meta[record_key]`, the decision from the completion (`decision_fields`). A failed
-    call scores 0.0."""
-    if allow is not None:
-        parse_predicate(allow, None, "allow")  # refuse a bad predicate before registering
+    `case.meta[record_key]`, the decision from the completion (`decision_fields`: the
+    structured label, answer and citations win over the same keys in an answer JSON, and the
+    decision is an allow when either reading is one). A failed call scores 0.0."""
+    # refuse a bad predicate before registering
+    tree = parse_predicate(allow, None, "allow") if allow is not None else None
 
     def run(case: Case, completion: Completion, **_: Any) -> ScoreResult:
         if completion.error is not None or completion.answer is None:
@@ -432,9 +501,7 @@ def rule_compliance_scorer(
         record = case.meta.get(record_key)
         if not isinstance(record, Mapping):
             raise RuleError(f"case {case.id!r} has no {record_key!r} object in its meta")
-        return rule_compliance(
-            decision_fields(completion), record, rules, cited_key=cited_key, allow=allow
-        )
+        return _compliance(_decision_views(completion), record, rules, cited_key, tree)
 
     run.__doc__ = rule_compliance_scorer.__doc__
     return register_task_scorer(run, name, version)

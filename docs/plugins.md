@@ -83,8 +83,11 @@ function and a task scorer; none calls a model.
 - **Answer from rows.** `unsupported_numbers(answer, rows, question, *, top_n=None,
   year_range=None, rel_tol=0.005)` lists the numbers in an answer that its result rows
   (a `ResultSet`) do not back: cells to the precision written (`190k`, `£1.2m`), percents
-  against percent or share columns, `6.6x` as the ratio of two cells, numbers inside text
-  cells and column names, the question, `top_n` and the row count. Dates in words, times,
+  against percent or share columns, `6.6x` as the ratio of the cells of two rows the sentence
+  names ("Kensington is 6.6x Manchester"; with fewer than two named rows a multiple needs a
+  matching cell), numbers inside text cells and column names, the question, `top_n` and the
+  row count. A number written with a minus (`-4%`) needs a negative cell; an unsigned one
+  ("fell 3.2%") may match either sign. Dates in words, times,
   codes such as `M1` and list numbering are not claims; bare years are, unless you pass
   `year_range`. `answer_from_rows(...)` returns 1.0 or 0.0 with `unsupported` in the details.
   The task scorer `answer_from_rows` reads the rows from `case.meta["result"]`
@@ -94,6 +97,10 @@ function and a task scorer; none calls a model.
   (Clopper-Pearson) 95% interval. The task scorer `asked_back` is 1.0 when the answer's label
   is `clarify` (or `case.meta["clarify_label"]`); add `expected` (`clarify` or `answer`) to
   each case's meta and to the task's `slices` to see both rates in the summary.
+  The two give different intervals: `clarification_rates` gives exact Clopper-Pearson
+  intervals, while run slices in `summary.json` use the run's percentile bootstrap for every
+  task score. At small slice sizes, and at 0/n or n/n where the bootstrap collapses to a point,
+  report the exact interval from `clarification_rates` (computed from `records.jsonl`).
 - **Rule compliance.** Build a `RuleSet` from `Rule(id, kind, when)` with kind `allow`,
   `never` or `signal`, over typed fields (`"number"`, `"bool"`, `"text"` or a list of
   category values). Predicates such as `amount < 50 and not merchant_first_seen` are parsed
@@ -101,9 +108,14 @@ function and a task scorer; none calls a model.
   cited_key="policy_clauses", allow='action == "clear"')` checks that every cited id exists,
   that on an allow a cited allow rule holds and that no never rule holds, with one reason per
   failed rule (`unknown_rule:P42.1`, `predicate_false:P7.1`, `never:P3.9`). Missing values
-  fail safe. `rule_compliance_scorer(rules, name=..., cited_key=..., allow=...)` registers a
+  fail safe; a category value outside the field's declared values is a `RuleError`. In the
+  `allow` predicate text compares case-insensitively (`"Clear" == "clear"`) and only numbers
+  can be ordered: ordering anything else adds `type_error:allow` and fails the decision instead
+  of raising. `rule_compliance_scorer(rules, name=..., cited_key=..., allow=...)` registers a
   task scorer that reads the record from `case.meta["record"]` and the decision from the
-  answer (its label plus the keys of a JSON-object answer text).
+  answer: its label, answer and citations, plus the other keys of a JSON-object answer text.
+  The structured label wins over a `label` key in the JSON, and the decision counts as an
+  allow when either says allow, so the never rules are checked.
 - **Structured evidence.** `render_evidence(record, template)` turns a record into evidence
   sentences for `FaithfulnessItem.evidence`, so `faithfulness()` judges each reason against
   the record (`"The amount is {amt_vs_usual} times the card's usual spend."`,
@@ -111,6 +123,10 @@ function and a task scorer; none calls a model.
   `value_check(reason, record, *, phrases=(), tolerance=0.1)` checks the reason's numbers
   against the record's fields, and each `ValuePhrase(pattern, field=...)` or
   `ValuePhrase(pattern, holds="hour < 5")` you declare ("9x usual spend", "at night").
+  A comparison word before a number ("above 900", "at least 3") is checked as that
+  comparison; a minus sign must match a negative value; a phrase over a field the record
+  lacks fails with `missing_value:<field>`. Conditional texts may hold colons
+  (`{flag?yes: really|no}`).
   `value_check_scorer(phrases=..., name=...)` checks each string in a JSON answer's
   `reasons` list.
 
