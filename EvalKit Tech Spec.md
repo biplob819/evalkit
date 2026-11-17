@@ -510,7 +510,7 @@ scripts/status.py            # live one-table build status (D-13)
 
 Status vocabulary: `not-started | spec | building | green`.
 
-### 11.2 Build graph: 41 nodes in six waves
+### 11.2 Build graph: 42 nodes in six waves
 
 **First public release, v0.1.0 (all Must stories): 16 nodes.** W0.1, N1.1–N1.4, A2.1–A2.6, B2.1–B2.5.
 **Full scope: 26 nodes.**
@@ -557,6 +557,7 @@ Status vocabulary: `not-started | spec | building | green`.
 | **B5.11** | Agent security eval kit (D-64, D-70) | C3.4, B5.14 | Attack-case schema, pass^k, stopping layers, scripted attacker, held-out never reported | US11 |
 | **B5.12** | Per-sentence citation support (D-65) | A2.4, A2.5 | Citation-judge node, citation precision, aim-citation rate | US2, US6 |
 | **B5.13** | Agent and decision scorers (D-65) | A2.2, S2.4 | Answer-from-rows, clarification, rule compliance, structured-evidence faithfulness | US6, US11 |
+| **B5.15** | `sql_match` shape equivalences (D-71) | C3.4 | Opt-in percent_scale, pivot, empty_check, period_number | US6, US11 |
 | **B5.14** | Held-out discipline and tamper-evident logs (D-65) | A2.6, C3.1 | Manifest, score-once guard, exposure scan, hash-chained log | US3, US6 |
 
 Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo → **B4** v0.2 for downstream needs → **B5** one eval loop across the seven downstream projects (D-61, D-62). The first public release, v0.1.0 on PyPI, ships at B2.5.
@@ -979,6 +980,8 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | HLD-02 | Score-once guard | D-65 |
 | HLD-03 | Exposure scan | D-65 |
 | HLD-04 | Hash-chained log; certified calibration tied to a logged line | D-65 |
+| SQE-01 | Opt-in sql_match shape equivalences | D-71 |
+| SQE-02 | Strict default unchanged; matched equivalence recorded | D-71 |
 
 ### 11.5 Node lifecycle
 
