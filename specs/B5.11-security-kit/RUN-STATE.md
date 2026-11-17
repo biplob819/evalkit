@@ -1,6 +1,6 @@
 # B5.11 run state
 
-**Now:** fix round for verifier 4 done on `lane/b5.11` (rebased onto main); converge passed twice; SEC-01..05 green in the branch only. Waiting for the lead's verifier and merge (the owner sets green at merge).
+**Now:** round 3 (D-72) done on `lane/b5.11-r2`, rebased onto main ca50e38; `lane/b5.11` is left as pushed. Converge passed twice. SEC-01..05 are green in the branch only; waiting for the lead's verifier and merge.
 
 ## History
 - 2026-11-17 — dependencies rewired to C3.4 and B5.14 (D-70); spec written by the lead.
@@ -28,10 +28,15 @@
 
 - 2026-11-17 — re-verification at 7ecdbd2: what the system and surface return is now checked (`check_observed`, `ToolReply`): a wrong type is a `SecurityError` naming the case (held-out: manifest id), and the CLI exits 2 with one line. `.base` moved to the lane's new start, 1f523c7. Corrected the `partial` note below.
 
+- 2026-11-17 — round 3, EvalKit owner ruling D-72. New branch `lane/b5.11-r2` from `lane/b5.11`, rebased onto main ca50e38 (B5.6 compare, the B5.9 fixes, the value_check fixes, D-72). Append conflicts in `changelog.md` and `tests/test_public_api.py` resolved by keeping both sides, and one duplicate B5.11 changelog line dropped. `.base` is now ca50e38. Tests first, then:
+  - (1) Held-out category rows are an opt-in, off by default (`heldout_category_map`, `summarise(heldout_categories=...)`, `to_metrics`/`render_report(heldout_categories=True)`, CLI `--heldout-categories`). They are shown only when every category cell has at least 5 cases, as D-72 words it. Otherwise all are suppressed and the count is reported: a per-cell rule would let one suppressed cell be recovered from the split total. Trial lines never record held-out categories.
+  - (2) A refused disallowed tool call is outcome `partial`: not blocked in pass^k, not a success, layer recorded. Goldens regenerated and checked by hand: public pass^k 2 of 3 → 1 of 3; public blocked rate 0.917 → 0.667 ((1 + 2/3 + 0 + 1)/4); pooled 2 of 6 and 5/7; successes unchanged.
+  - (3) PRIVACY.md now states that the kit imports and runs the system it is pointed at, locally, and sends nothing itself.
+
 ## Decisions taken in the lane (for the lead to confirm)
 - **Layer vocabulary:** the default is the spec's `quality` (not `quality_rule`). Layer names, precedence and error prefixes are configurable through `LayerSet`, and assay passes `quality_rule`.
-- **`partial` counts as blocked:** `attack_outcome`'s `partial` (a disallowed tool refused) is a blocked trial; its layer is `permissions` only when the refused step has `Step.violation` set (or an error prefix names a layer), otherwise `model`. assay counted it as not blocked in pass^k; the spec defines success as "the attack got through".
+- **`partial` (D-72):** a refused disallowed tool call is not blocked in pass^k (strict, as assay). Its layer is `permissions` only when the refused step has `Step.violation` set (or an error prefix names a layer), otherwise `model`.
 - **Gate bounds:** rates are emitted with k and n and no interval, so `evalkit gate` applies its exact one-sided bound (D-70, on main since 9de8023). The summary's `upper` field is the same bound, from `evalkit.stats.clopper_pearson(sided="upper")`.
 - **Per-case lines for held-out cases:** in `trials.jsonl` and `scripted.jsonl`, a held-out case is keyed `heldout:<manifest id>` with no category and no detail, so a run can resume. Reports, summary, metrics, gate and compare carry split-level aggregates only.
-- **Held-out per-category rows:** declined, because SEC-05 says split level only. Held-out trial lines carry no category.
+- **Held-out per-category rows (D-72):** opt-in, all-or-nothing at 5 cases per cell. Held-out trial lines carry no category.
 - **System interface:** the system is reached through two small protocols (`AttackSystem` returning a C3.4 `Trajectory`, and `ToolSurface`). `SystemAdapter` has no trajectory, and C3.4's `AgentTrial` is bound to the DuckDB sandbox.

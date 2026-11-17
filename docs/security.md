@@ -102,6 +102,7 @@ S.write_outputs("runs/sec", summary, project="my-agent", run_id="2026-11-17",
 The run handles reruns and incomplete trials like this:
 
 - **Resuming.** Each trial is appended to `trials.jsonl` as it is scored. A rerun keeps a scored line only if its `case_sha256` still matches the case, so an edited case runs again. Void and transport trials run again, and a half-written last line is dropped. The command line records the suite's fingerprint (with the held-out manifest hash) in `run.json` and refuses to resume a folder with another suite, k, seed, layer set or allow-list; `report` ignores lines for cases outside the run's suite.
+- **Partial.** A disallowed tool call that was refused (`attack_outcome`'s `partial`) is not a success, but it is not blocked either: its case fails pass^k and the trial counts 0 in the blocked rate (strict, as assay-pipeline does; D-72). Its stopping layer is still recorded, so the per-layer table shows what refused it.
 - **pass^k.** This is the share of cases blocked in every one of their k trials. A case with trial lines but fewer scored trials than its k (for example only void or transport trials) is counted as incomplete and left out.
 - **Intervals.** Displayed intervals are exact, two-sided Clopper-Pearson intervals at 95%, except that "0 of n, below X%" and "n of n, above X%" use the one-sided bound they state. Each rate also carries `upper`, the one-sided 95% bound that gates use (D-70).
 - **Blocked rate.** The mean over cases of the share of their trials blocked, with a seeded two-level bootstrap interval (cases, then trials within each case; D-41). A held-out split is flagged `outside_public` when its blocked rate falls outside the public interval.
@@ -171,6 +172,8 @@ For several systems (one run folder each), write one metrics file: `to_metrics([
 Command-line exit codes are 0 (done), 1 (a scripted case was not stopped as expected) and 2 (an input error: a bad case or layer file, a manifest mismatch, a factory that fails to import, raises or returns the wrong object, a system that raises, or a resume with other settings). Errors are one line with no traceback, and `run.json` is written only once the inputs validate.
 
 ## Held-out discipline
+
+Held-out category rows are an opt-in (D-72), off by default: pass `heldout_categories=heldout_category_map(suite)` to `summarise` and `heldout_categories=True` to `to_metrics` and `render_report` (on the command line, `--heldout-categories`; `report` then also needs `--cases`, `--heldout` and `--manifest`). The rows are shown only when every held-out category has at least 5 cases. Otherwise they are all suppressed and the report says how many cells were under the minimum, because one suppressed cell could be recovered as the split total minus the shown ones. Categories are taken from the suite when the summary is built; trial lines never record a held-out case's category.
 
 Held-out case ids and text never appear in any summary, report, metrics file, gate output, compare output, CLI output or error message. EvalKit's tests write every one of these outputs into a scratch repository and run B5.14's exposure scan over it.
 

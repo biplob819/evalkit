@@ -232,6 +232,7 @@ PUBLIC: dict[str, list[str]] = {
         "case_hash",  # fix round
         "load_layers",  # fix round
         "two_level_interval",  # fix round
+        "heldout_category_map",  # D-72
         "main",
         "read_scripted",
         "read_trials",

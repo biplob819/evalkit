@@ -22,10 +22,14 @@ from .cases import AttackSuite, case_hash, case_key, load_suite
 from .errors import SecurityError
 from .layers import DEFAULT_ERROR_PREFIXES, LayerSet, load_layers
 from .scripted import SCRIPTED_FILE, read_scripted, run_scripted
-from .summary import summarise, to_metrics, write_outputs
+from .summary import heldout_category_map, summarise, to_metrics, write_outputs
 from .trials import DEFAULT_K, TRIALS_FILE, read_trials, run_attacks
 
 RUN_FILE = "run.json"
+HC_HELP = (
+    "opt-in (D-72): held-out category rows, shown only when every category cell has at "
+    "least 5 cases"
+)
 RUN_SCHEMA = "evalkit.security.run/1"
 _PINNED = ("k", "seed", "layers", "allowed_tools", "suite_sha256")
 
@@ -118,7 +122,7 @@ def _settings_layers(settings: Mapping[str, Any]) -> LayerSet:
     return LayerSet()
 
 
-def _summary_of(out: Path) -> dict[str, Any]:
+def _summary_of(out: Path, categories: Mapping[str, str] | None = None) -> dict[str, Any]:
     settings = _read_settings(out)
     trials_path, scripted_path = out / TRIALS_FILE, out / SCRIPTED_FILE
     if not trials_path.is_file() and not scripted_path.is_file():
@@ -136,15 +140,17 @@ def _summary_of(out: Path) -> dict[str, Any]:
         system=str(settings.get("system", "system")),
         scripted=scripted,
         seed=int(settings.get("seed", 0)),
+        heldout_categories=categories,
     )
 
 
-def _report(out: Path) -> int:
+def _report(out: Path, categories: Mapping[str, str] | None = None) -> int:
     settings = _read_settings(out)
-    summary = _summary_of(out)
+    summary = _summary_of(out, categories)
     write_outputs(
         out,
         summary,
+        heldout_categories=categories is not None,
         project=str(settings.get("project", "evalkit-security")),
         run_id=str(settings.get("run_id", out.name)),
         created_at=str(settings.get("created_at", _now())),
@@ -193,7 +199,7 @@ def _run(args: argparse.Namespace) -> int:
         heldout_log=args.log,
         rubric_hash=args.rubric_hash,
     )
-    return _report(out)
+    return _report(out, heldout_category_map(suite) if args.heldout_categories else None)
 
 
 def _scripted(args: argparse.Namespace) -> int:
@@ -210,6 +216,19 @@ def _scripted(args: argparse.Namespace) -> int:
         n = sum(r.split == split for r in failed)
         print(f"{split}: {n} case(s) not stopped as expected")
     return 1 if failed else 0
+
+
+def _report_cmd(args: argparse.Namespace) -> int:
+    categories = None
+    if args.heldout_categories:
+        if not (args.cases and args.heldout and args.manifest):
+            raise SecurityError("--heldout-categories needs --cases, --heldout and --manifest")
+        suite = _suite(args, _settings_layers(_read_settings(Path(args.out))))
+        settings = _read_settings(Path(args.out))
+        if settings.get("suite_sha256") not in (None, suite.fingerprint()):
+            raise SecurityError(f"{Path(args.out).name}: the attack suite differs from the run's")
+        categories = heldout_category_map(suite)
+    return _report(Path(args.out), categories)
 
 
 def _metrics(args: argparse.Namespace) -> int:
@@ -264,6 +283,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--system-name", help="the model label in metrics (default: system)")
     sp.add_argument("--log", help="B5.14 log: score each held-out case once per rubric")
     sp.add_argument("--rubric-hash", help="the rubric hash held-out scoring is logged under")
+    sp.add_argument("--heldout-categories", action="store_true", help=HC_HELP)
     sp.set_defaults(func=_run)
     sp = sub.add_parser("scripted", help="send each payload to the tools with no model")
     cases(sp)
@@ -272,7 +292,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=_scripted)
     sp = sub.add_parser("report", help="re-summarise a run folder")
     sp.add_argument("out", help="run folder")
-    sp.set_defaults(func=lambda a: _report(Path(a.out)))
+    sp.add_argument("--heldout-categories", action="store_true", help=HC_HELP)
+    sp.add_argument("--cases", help="public attack cases (needed with --heldout-categories)")
+    sp.add_argument("--heldout", help="held-out attack cases (needed with --heldout-categories)")
+    sp.add_argument("--manifest", help="the B5.14 manifest (needed with --heldout-categories)")
+    sp.add_argument("--layers", help=argparse.SUPPRESS)
+    sp.set_defaults(func=_report_cmd)
     sp = sub.add_parser("metrics", help="one metrics-1 file from several run folders")
     sp.add_argument("dirs", nargs="+", help="run folders, one system each")
     sp.add_argument("--out", required=True, help="the metrics-1 file to write")

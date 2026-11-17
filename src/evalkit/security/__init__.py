@@ -41,6 +41,7 @@ from .scripted import (
 )
 from .summary import (
     SUMMARY_SCHEMA,
+    heldout_category_map,
     render_compare,
     render_report,
     summarise,
@@ -81,6 +82,7 @@ __all__ = [
     "case_hash",
     "case_key",
     "check_cases",
+    "heldout_category_map",
     "load_attack_cases",
     "load_layers",
     "load_suite",
