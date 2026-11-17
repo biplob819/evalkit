@@ -956,8 +956,11 @@ def test_sev_written_signs_are_honoured():
     assert value_check("risk score of -0.83", rec).value == 0.0
     assert value_check("risk fell 0.83", {**rec, "risk_score": -0.83}).value == 1.0
     assert value_check("risk moved -0.83", {**rec, "risk_score": -0.83}).value == 1.0
-    assert value_check("risk above -0.9", {**rec, "risk_score": -0.83}).value == 1.0
-    assert value_check("risk below -0.9", {**rec, "risk_score": -0.83}).value == 0.0
+    assert value_check("risk score above -0.9", {**rec, "risk_score": -0.83}).value == 1.0
+    assert value_check("risk score below -0.9", {**rec, "risk_score": -0.83}).value == 0.0
+    # verifier pass 6: "risk" alone only partly names risk_score, so a comparison is unclear
+    partly = value_check("risk above -0.9", {**rec, "risk_score": -0.83})
+    assert partly.details["outcome"] == "unverifiable", partly.details
 
 
 def test_rul_allow_string_match_ignores_case():
@@ -996,14 +999,16 @@ def test_sev_conditional_text_may_hold_colons():
 @pytest.mark.parametrize(
     ("reason", "ok"),
     [
-        ("over 80% risk", True),
-        ("at most 1% risk", False),
-        ("below 85% risk", True),
-        ("above 90% risk", False),
-        ("not above 90% risk", True),
-        ("up to 85% risk", True),
-        ("higher than 80% risk", True),
-        ("lower than 80% risk", False),
+        ("risk score over 80%", True),
+        ("risk score at most 1%", False),
+        ("risk score below 85%", True),
+        ("risk score above 90%", False),
+        ("risk score not above 90%", True),
+        ("risk score up to 85%", True),
+        ("risk score higher than 80%", True),
+        ("risk score lower than 80%", False),
+        # pass 6: "risk" after the number is one word of risk_score, not a mention
+        ("over 80% risk", False),
     ],
 )
 def test_sev_percent_comparisons_against_a_fraction_field(reason, ok):
@@ -1041,11 +1046,15 @@ _REC = {"amount": 812.4, "card_history_n": 40}
         ("doesn't exceed $800", False),
         ("less than or equal to $800", False),
         ("$800 or less", False),
-        ("$800 or more", True),
-        ("not above $900", True),
-        ("does not exceed $900", True),
-        ("at least 39 transactions", True),
+        ("amount $800 or more", True),
+        ("amount not above $900", True),
+        ("amount does not exceed $900", True),
+        ("card history of at least 39", True),
         ("39 transactions or fewer", False),
+        # pass 6: no field named (or "transactions" names no field): never verified
+        ("$800 or more", False),
+        ("not above $900", False),
+        ("at least 39 transactions", False),
     ],
 )
 def test_sev_negated_and_postfix_comparisons(reason, ok):
@@ -1099,10 +1108,10 @@ def test_sev_valid_predicates_over_odd_values_never_raise(value):
         ("not, in fact, above $800", "unverifiable"),
         ("is not in fact above $800", "unverifiable"),
         ("no purchase above $800", "unverifiable"),
-        ("cannot exceed $800", "contradicted"),  # directly before: inverted, and false
+        ("amount cannot exceed $800", "contradicted"),  # directly before: inverted, false
         ("nothing above $800", "unverifiable"),
         ("without exceeding $800", "unverifiable"),
-        ("isn\u2018t above $800", "contradicted"),
+        ("amount isn\u2018t above $800", "contradicted"),
     ],
 )
 def test_sev_negations_with_words_between_still_invert(reason, outcome):
@@ -1154,8 +1163,8 @@ def test_sev_ambiguous_negation_is_named_and_a_clean_sentence_still_reads():
     assert got.details["unverified"] == ("$800",)
     # a negation in an earlier sentence does not touch this one
     assert value_check("No fraud flags. Amount above $800.", {"amount": 812.4}).value == 1.0
-    assert value_check("not above $900", {"amount": 812.4}).value == 1.0
-    exceed = value_check("doesn't exceed $800", {"amount": 812.4})
+    assert value_check("amount not above $900", {"amount": 812.4}).value == 1.0
+    exceed = value_check("amount doesn't exceed $800", {"amount": 812.4})
     assert exceed.value == 0.0 and exceed.details["outcome"] == "contradicted"
 
 
@@ -1185,11 +1194,12 @@ _FR_CONSTANTS = [5, 10, 200, 50, 0.9, 0.05]
     [
         ("risk score is below 0.9", {}, True),
         ("risk score is above 0.9", {}, False),
-        ("risk is below 0.3", {}, False),  # "risk" names risk_score (a distinctive first word)
+        ("risk is below 0.3", {}, False),  # "risk" only partly names risk_score: unclear
         ("The screening risk_score is 0.39, far below 0.9.", {}, True),
         ("Risk score is 0.39, well below the 0.9 never-clear threshold", {}, True),
         ("risk score is not above 0.9", {}, True),
         ("risk score is not below 0.9", {}, False),
+        # pass 6: the words after ", and" are another clause's subject, not candidates for 50
         (
             "Amount is 7.07 dollars, under 50, and 0.14 times the card's usual amount",
             {"amt_vs_usual": 0.14},
@@ -1201,12 +1211,17 @@ _FR_CONSTANTS = [5, 10, 200, 50, 0.9, 0.05]
         ("amount under 50", {}, True),
         ("amt_vs_usual of 13.26 is at or above 10, so P3.9 bars it", {"amt_vs_usual": 13.26}, True),
         ("amt_vs_usual of 4.43 is at or above 10", {}, False),
-        ("Card has only 3 earlier purchases, below the 5 needed", {"card_history_n": 3}, True),
+        # pass 6: "Card" is one word of card_history_n, not a mention: unclear
+        ("Card has only 3 earlier purchases, below the 5 needed", {"card_history_n": 3}, False),
     ],
 )
 def test_sev_threshold_claims_compare_with_the_named_field(reason, changes, ok):
     got = value_check(reason, {**_FR, **changes})
     assert (got.value == 1.0) is ok, (reason, got.details)
+    history = {"card_history_n": ["earlier purchases"]}
+    named = "Card has only 3 earlier purchases, below the 5 needed"
+    assert value_check(named, {**_FR, "card_history_n": 3}, aliases=history).value == 1.0
+    assert value_check(named, {**_FR, "card_history_n": 7}, aliases=history).value == 0.0
 
 
 def test_sev_a_named_field_beats_the_closest_value_and_aliases_name_fields():
@@ -1262,12 +1277,13 @@ def test_sev_a_multiple_names_only_a_ratio_field():
 @pytest.mark.parametrize(
     ("reason", "hour", "ok", "n_checked"),
     [
-        ("Purchase at hour 22 falls in the 10 p.m. to 6 a.m. window", 22, True, 1),
-        ("Purchase hour is 23 (11 p.m.), inside the 10 p.m.-6 a.m. window", 23, True, 2),
+        # pass 6: a window is checked against the hour field its clause names
+        ("Purchase at hour 22 falls in the 10 p.m. to 6 a.m. window", 22, True, 2),
+        ("Purchase hour is 23 (11 p.m.), inside the 10 p.m.-6 a.m. window", 23, True, 3),
         ("Purchase hour is 23 (10 p.m. local)", 23, False, 2),  # the model's slip, caught
         ("The purchase hour was 6am", 6, True, 1),
         ("The purchase hour was 6am", 18, False, 1),
-        ("The hour was 10:30 p.m.", 22, True, 1),
+        ("The hour was 10:30 p.m.", 22, None, 1),  # pass 6: hour 22 does not give minutes
         ("The hour was 22:00", 22, True, 1),
         ("The hour is after 10 p.m.", 23, True, 1),
         ("The hour is after 10 p.m.", 21, False, 1),
@@ -1275,8 +1291,8 @@ def test_sev_a_multiple_names_only_a_ratio_field():
         ("The hour is not 11 p.m.", 23, None, 1),  # a negation before a time: ambiguous
         ("Bought at 22:00", 3, None, 0),  # no hour field named: unchecked, not a failure
         ("Bought at 6am", 3, None, 0),
-        ("Hour 6 is after the midnight-to-5 a.m. signal window", 6, True, 1),
-        ("Hour is 7, outside the 10 to 6 a.m. window", 7, True, 1),
+        ("Hour 6 is after the midnight-to-5 a.m. signal window", 6, True, 2),
+        ("Hour is 7, outside the 10 to 6 a.m. window", 7, True, 2),
     ],
 )
 def test_sev_times_of_day_are_not_free_numbers(reason, hour, ok, n_checked):
@@ -1590,3 +1606,249 @@ def test_sev_value_check_new_readings_are_linear(text):
 def test_sev_coordinated_and_back_referring_comparisons(reason, record, ok):
     got = value_check(reason, record, aliases=_FR_ALIASES)
     assert (got.value == 1.0) is ok, (reason, got.details)
+
+
+# ---- B5.13 verifier pass 6: a false claim is never verified ------------------------------------
+# The verifier's generator (named fields, joins, comparison words; record below) had 2,616 of
+# 10,080 false claims verified. Governing rule (D-72): verified only when every statement the
+# checker reads was checked on a clear reading and held; anything unsure is unverifiable.
+
+_V6 = {
+    "amount": 812.4,
+    "amt_vs_usual": 9.1,
+    "hour": 3,
+    "card_history_n": 40,
+    "risk_score": 0.83,
+    "category_freq": 0.05,
+    "merchant_first_seen": True,
+}
+_OUTCOME = {True: "verified", False: "contradicted", None: "unverifiable"}
+
+
+def _v6(reason: str, ok: bool | None, record: dict[str, Any] | None = None, **kw: Any) -> None:
+    got = value_check(reason, _V6 if record is None else record, **kw)
+    assert got.details["outcome"] == _OUTCOME[ok], (reason, got.details)
+    assert got.value == (1.0 if ok else 0.0)
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        # a time no hour field backs: unverifiable, never verified with the amount beside it
+        ("Purchase at 7 p.m., amount $812.40", None),
+        ("Purchase at 9 p.m., amount $812.40", None),
+        ("Purchase at 11:15, amount $812.40", None),
+        # checked against the hour its clause names: false is contradicted
+        ("Purchase hour 7 p.m., amount $812.40", False),
+        ("Purchase hour 3 a.m., amount $812.40", True),
+        # a window no hour field backs, or one whose place the reason does not state
+        ("Purchase between 9 a.m. and 5 p.m., amount $812.40", None),
+        ("Purchase from 1 p.m. to 2 p.m., amount $812.40", None),
+        ("Hour 3 sits at the edge of the midnight to 5 a.m. window", None),
+        # a window the clause places an hour field in or out of is checked
+        ("Purchase during business hours, 9 a.m. to 5 p.m., amount $812.40", False),
+        ("Hour 3 falls in the 10 p.m. to 6 a.m. window", True),
+        ("Hour 3 is outside the 10 p.m. to 6 a.m. window", False),
+        ("Hour 3 is outside the 9 a.m. to 5 p.m. window", True),
+        ("Hour 3 falls in the midnight-to-5 a.m. window", True),
+        # a whole hour does not give the minutes
+        ("Purchase hour before 3:30 a.m.", None),
+        ("Purchase hour after 3:30 a.m.", None),
+        ("Purchase hour 3:45 a.m.", None),
+        ("Purchase hour before 4 a.m.", True),
+        ("Purchase hour after 4 a.m.", False),
+    ],
+)
+def test_sev_v6_unchecked_times_and_windows_are_never_verified(reason, ok):
+    _v6(reason, ok, phrases=PHRASES)
+
+
+def test_sev_v6_unchecked_times_are_listed_as_unverified():
+    got = value_check("Purchase at 7 p.m., amount $812.40", _V6, phrases=PHRASES)
+    assert got.details["n_checked"] == 1 and got.details["checks"][0]["status"] == "ok"
+    assert got.details["unchecked"] == ({"text": "7 p.m.", "kind": "time"},)
+    assert got.details["unverified"] == ("7 p.m.",)
+    # a window across midnight with a bare first hour ("10 to 6 a.m.") is read both ways
+    assert value_check("Hour 7 is outside the 10 to 6 a.m. window", {"hour": 7}).value == 1.0
+    two = value_check("Hour 11 is outside the 10 to 6 a.m. window", {"hour": 11})
+    assert two.details["outcome"] == "unverifiable"  # 10 a.m. or 10 p.m.: they disagree
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        # the clause names the amount and the claim is about "earlier transactions"
+        ("Amount of $812.40 with more than 50 earlier transactions on the card", None),
+        ("Amount $812.40 with over 50 transactions", None),
+        ("Risk score 0.83 with over 50 transactions", None),
+        ("The amount is high, with more than 50 card transactions", None),
+        # two fields named: the comparison must hold for both (and fail for both to fail)
+        ("The risk score, unlike the amount, is above 0.9", None),
+        ("The amount of the hour is below 270.8", None),
+        ("Card history with below 270.8 for the amount", None),
+        ("The risk score, unlike the amount, is below 900", True),
+        ("The risk score, unlike the amount, is above 1000", False),
+        # a field after a clause boundary is another clause's subject
+        ("Amount is 9.16, under 50, and the merchant is known to the card", True),
+    ],
+)
+def test_sev_v6_a_comparison_must_hold_for_every_field_its_clause_names(reason, ok):
+    _v6(reason, ok, record={**_V6, "amount": 9.16} if "9.16" in reason else None)
+    if "earlier transactions" in reason:
+        _v6(reason, ok, phrases=PHRASES)
+
+
+@pytest.mark.safety
+def test_sev_v6_the_verifiers_generator_verifies_no_false_claim():
+    """The verifier's generator (gen.py, pass 6): every claim is false on _V6."""
+    words = {
+        "amount": ["the amount", "amount"],
+        "risk_score": ["the risk score", "risk"],
+        "card_history_n": ["card history", "the card history"],
+        "hour": ["the hour"],
+    }
+    cmps = {">": ["above", "over", "more than", "exceeds"], "<": ["below", "under", "less than"]}
+    joins = [" with ", " and ", " while ", ", and ", ", like ", " compared with ", " next to "]
+    joins += [" unlike "]
+    verified = []
+    n = 0
+    for t, d in ((t, d) for t in words for d in words if t != d):
+        for op, cws in cmps.items():
+            v = _V6[t]
+            x = round(v * 2 + 1, 2) if op == ">" else round(v / 3, 3)
+            for cw in cws:
+                for j in joins:
+                    for tw in words[t]:
+                        for dw in words[d]:
+                            for s in (
+                                f"{dw.capitalize()} is high{j}{tw} {cw} {x}",
+                                f"{dw.capitalize()}{j}{cw} {x} for {tw}",
+                                f"{cw.capitalize()} {x} on {tw}{j}{dw} noted",
+                                f"{tw.capitalize()}, unlike {dw}, is {cw} {x}",
+                                f"{tw.capitalize()} of the {dw.split()[-1]} is {cw} {x}",
+                            ):
+                                n += 1
+                                if value_check(s, _V6).value == 1.0:
+                                    verified.append(s)
+    assert n == 10_080 and verified == [], verified[:10]
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        ("The card's usual spend is under 50", None),  # "card", "usual": one word each
+        ("card spend above 50", None),
+        ("risk is below 0.9", None),
+        ("Risk of the amount is above 2.66", None),
+        ("card history above 50", False),  # the whole name ("card history" of card_history_n)
+        ("card history below 50", True),
+        ("risk score is below 0.9", True),
+    ],
+)
+def test_sev_v6_one_shared_word_is_not_a_field_mention(reason, ok):
+    _v6(reason, ok)
+    _v6(reason, ok, phrases=PHRASES)
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        ("Spend is 3 X usual", False),
+        ("Spend is 3 x usual", False),
+        ("Spend is 3X usual", False),
+        ("Spend is 9 X usual", True),
+        ("Spend is 9 x the usual", True),
+    ],
+)
+def test_sev_v6_a_spaced_x_is_a_multiple(reason, ok):
+    """ "3 X" is a multiple: compared only with a ratio field, never with amount 3."""
+    _v6(reason, ok, record={**_V6, "amount": 3.0, "hour": 9})
+    check = value_check(reason, {**_V6, "amount": 3.0}).details["checks"][0]
+    assert check["field"] != "amount"
+
+
+@pytest.mark.parametrize(
+    ("reason", "constants", "ok"),
+    [
+        ("Spend crosses the 20x limit; amount $812.40", [20], None),
+        ("Spend reached the 20x limit; amount $812.40", [20], None),
+        ("Score sits on the 0.95 threshold; amount $812.40", [0.95], None),
+        ("Amount $812.40 hits the 10x never-auto-clear threshold", [10], None),
+        # a comparison with a named field is still checked
+        ("Risk score is below the 0.95 threshold", [0.95], True),
+        ("Risk score is above the 0.95 threshold", [0.95], False),
+    ],
+)
+def test_sev_v6_a_constant_never_makes_a_reason_verified(reason, constants, ok):
+    _v6(reason, ok, phrases=PHRASES, constants=constants)
+
+
+def test_sev_v6_a_recorded_constant_is_listed_as_unverified():
+    got = value_check("Score sits on the 0.95 threshold; amount $812.40", _V6, constants=[0.95])
+    assert got.details["unchecked"] == ({"text": "0.95", "kind": "constant", "value": 0.95},)
+    assert got.details["outcome"] == "unverifiable" and got.details["unverified"] == ("0.95",)
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        ("risk score exceeds the threshold of 0.9", False),
+        ("risk score is below the threshold of 0.9", True),
+        ("risk score is below the extreme-risk limit of 0.9", True),
+        ("amt_vs_usual is 10.02, which meets the extreme-spend threshold (10x)", True),
+        ("amount above USD 850", False),
+        ("amount above USD 800", True),
+        ("The amount is above both 800 and 900", False),
+        ("The amount is above both 800 and 810", True),
+        # a comparison word whose shape is not read: unclear, never an equality
+        ("Amount is above what the policy allows, 812.40", None),
+        ("Amount is higher than usual at 812.40", None),
+        ("Spend crosses 20x the usual", None),
+    ],
+)
+def test_sev_v6_a_comparison_word_away_from_its_number(reason, ok):
+    _v6(reason, ok, record={**_V6, "amt_vs_usual": 10.02} if "10.02" in reason else None)
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        ("Amount above $800 is not true", None),
+        ("Amount above $800 is not the case", None),
+        ("Risk score of 0.83 is not accurate", None),
+        ("Amount above $800, which is not true", None),
+        ("Amount above $800, which the record does not show", None),
+        ("Amount above $800 is untrue", None),
+        ("Amount is 812.40, not 900", None),
+        ("Purchase at night is not the case", None),
+        ("a new merchant? Not at all", None),
+        ("A new merchant. No.", None),
+        ("Hardly at night? no", None),
+        # a negation in a later clause with its own subject denies nothing
+        ("Amount above $800, which is not a small purchase", True),
+        ("A new merchant, so the routine clear clause does not apply", True),
+        ("Amount above $800 and the 10x never-auto-clear rule applies", True),
+    ],
+)
+def test_sev_v6_a_negation_after_the_claim_is_ambiguous(reason, ok):
+    _v6(reason, ok, phrases=PHRASES)
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Hour 3 falls in the 10 p.m. to 6 a.m. window, " * 1_000,
+        "card " * 5_000 + "above 5",
+        "5 not " * 3_000,
+        "risk above 0.5 for the amount " * 1_000,
+        "amount 5, which is not true " * 1_000,
+        "above both 1 and 2 and 3 " * 1_000,
+        "no. " * 5_000 + "a 5",
+    ],
+    ids=["windows", "partials", "negations-after", "candidates", "denials", "both", "responses"],
+)
+def test_sev_v6_new_readings_are_linear(text):
+    t0 = time.perf_counter()
+    value_check(text, {**_V6, "ts_hour": 3}, aliases=_FR_ALIASES, constants=_FR_CONSTANTS)
+    assert time.perf_counter() - t0 < 0.5
