@@ -7,19 +7,51 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections.abc import Mapping, Sequence
 from typing import Literal
 
 from evalkit.adapters import ModelAdapter
-from evalkit.cost import Price
-from evalkit.pipeline.extract import ClaimSet, extract_faithfulness_all
+from evalkit.cost import (
+    ClaimsAssumption,
+    CostEstimate,
+    CostLine,
+    Price,
+    TokenAssumptions,
+    call_cost,
+    claims_from_texts,
+    claims_in_text,
+    estimate_tokens,
+    measured_claims,
+    price_for,
+)
+from evalkit.pipeline.extract import (
+    FAITHFULNESS_EXTRACTOR_PROMPT,
+    FAITHFULNESS_QUESTION_RULE,
+    ClaimSet,
+    extract_faithfulness_all,
+)
 from evalkit.pipeline.generate import Generated
-from evalkit.pipeline.judge import groundedness, judge_claims, judge_claims_live
+from evalkit.pipeline.judge import (
+    JudgeInput,
+    groundedness,
+    judge_claims,
+    judge_claims_live,
+    redact,
+    render_judge_prompt,
+)
 from evalkit.runtime import Executor
 from evalkit.schemas import Answer, Case, Completion, RunConfig
 from evalkit.schemas._base import Fraction, Model, NonBlank, NonNegInt
 
-__all__ = ["FaithfulnessItem", "FaithfulnessResult", "JudgedClaim", "faithfulness"]  # since 0.3.0
+# Public since 0.3.0, plus estimate_faithfulness_cost (fraud-review-bedrock, D-61 rule 3).
+__all__ = [
+    "FaithfulnessItem",
+    "FaithfulnessResult",
+    "JudgedClaim",
+    "estimate_faithfulness_cost",
+    "faithfulness",
+]
 
 EXPLANATION = "explanation"  # the "model" name in claim ids: {item}:explanation:{i}
 
@@ -196,3 +228,89 @@ async def faithfulness(
             )
         )
     return out
+
+
+def estimate_faithfulness_cost(
+    items: Sequence[FaithfulnessItem],
+    *,
+    config: RunConfig,
+    prices: dict[str, Price],
+    judges: Sequence[str] | None = None,
+    live: bool = True,
+    question_words: bool = True,
+    claims_per_item: float | None = None,
+    claims_source: str = "a measured sample",
+    assumptions: TokenAssumptions | None = None,
+) -> CostEstimate:
+    """The expected cost of `faithfulness(items, ...)` with the same arguments, before any
+    call: one extraction per item and one judge call per claim per judge.
+
+    The explanations already exist, so claims are counted from them with no model call
+    (`claims_from_texts`: words at `WORDS_PER_CLAIM`, each item at least the planning default)
+    and each judge prompt is sized from the item's own evidence, which every claim is judged
+    against (FTH-02). `claims_per_item` replaces the count with a figure measured on a small
+    sample (`claims_source` says where it came from). `.claims` on the result states the
+    assumption; it is an expected cost, not an upper bound (the executor's cap is the bound)."""
+    if not items:
+        raise ValueError("no items to estimate")
+    a = assumptions or TokenAssumptions()
+    texts = [i.explanation for i in items]
+    claims: ClaimsAssumption
+    if claims_per_item is not None:
+        claims = measured_claims(claims_per_item, claims_source)
+        per_item = [claims_per_item] * len(items)
+    else:
+        claims = claims_from_texts(texts, default=a.claims_per_answer)
+        per_item = [claims_in_text(t, default=a.claims_per_answer) for t in texts]
+    free = frozenset(config.endpoints) | frozenset(config.systems)
+
+    def pf(model: str) -> Price:
+        return price_for(prices, model, free_if_unknown=model in free)
+
+    # Extraction output grows with the claims written out (the planning output covers 4.5).
+    out_per_claim = a.t_ext_out / a.claims_per_answer
+    rule = FAITHFULNESS_QUESTION_RULE if question_words else ""
+    ext_price = pf(config.extractor)
+    ext_usd = math.fsum(
+        call_cost(
+            ext_price,
+            tokens_in=estimate_tokens(FAITHFULNESS_EXTRACTOR_PROMPT, rule, i.question, t),
+            tokens_out=max(a.t_ext_out, math.ceil(n * out_per_claim)),
+            tokens_reasoning=a.t_ext_reason,
+        )
+        for i, t, n in zip(items, texts, per_item, strict=True)
+    )
+    lines = [
+        CostLine(
+            node="extract_faithfulness_claims",
+            model=config.extractor,
+            calls=len(items),
+            usd=ext_usd,
+        )
+    ]
+    n_claims = claims.calls(len(items))
+    for judge in tuple(judges or config.judges):
+        price = pf(judge)
+        usd = 0.0
+        for item, text, n in zip(items, texts, per_item, strict=True):
+            # A claim of this item's mean length, judged against all of its evidence.
+            claim = text[: math.ceil(len(text) / n)] or "claim"
+            prompt = render_judge_prompt(
+                JudgeInput(
+                    claim_id="estimate",
+                    claim_text=redact(claim),
+                    cited=tuple(range(1, len(item.evidence) + 1)),
+                    sentences=tuple(redact(s) for s in item.evidence),
+                    judge_id=judge,
+                    effort=config.judge_effort,
+                )
+            )
+            usd += n * call_cost(
+                price,
+                tokens_in=estimate_tokens(prompt),
+                tokens_out=a.t_j_out,
+                tokens_reasoning=a.t_j_reason,
+                batch=not live,
+            )
+        lines.append(CostLine(node="judge", model=judge, calls=n_claims, usd=usd))
+    return CostEstimate(lines=tuple(lines), total_usd=sum(ln.usd for ln in lines), claims=claims)

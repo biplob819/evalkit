@@ -1,0 +1,35 @@
+{
+  "planning_words_per_claim": 10.0,
+  "replay": {
+    "answers": 24,
+    "answers_with_claims": 24,
+    "claims": 105,
+    "claims_per_answer": 4.375,
+    "per_answer_words_per_claim_quartiles": [
+      10.75,
+      11.9,
+      14.5
+    ],
+    "words": 1281,
+    "words_per_claim": 12.2
+  },
+  "report": {
+    "answers": 579,
+    "answers_with_claims": 553,
+    "claims": 2663,
+    "claims_per_answer": 4.816,
+    "per_answer_words_per_claim_quartiles": [
+      10.2,
+      12.0,
+      14.5
+    ],
+    "words": 31744,
+    "words_per_claim": 11.92
+  },
+  "sources": {
+    "demo/replay.json": "the demo's 24 cached answers (6 abstracts x 4 models)",
+    "docs/results/report.html": "failure explorer of the published 200-case run r-e8dac378d2d3 (failed answers only; 26 had no claims and are left out)"
+  },
+  "why": "below the report's lower quartile of per-answer words per claim, so a text is planned at more claims than a typical answer of its length holds",
+  "word_count": "evalkit.cost.count_words (whitespace words; each CJK character is one)"
+}

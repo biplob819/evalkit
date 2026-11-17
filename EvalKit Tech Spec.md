@@ -463,6 +463,8 @@ total      = generation + extraction + judging
 | `t_ext_in` / `t_ext_out` | 500 / 200 |
 | `t_j_in` / `t_j_out` (abstract + claims / verdicts) | 900 / 300 |
 
+**Claims per item.** Since D-46 judging is counted per claim: `judging = Σ_judges claims × (t_j_in × p_in_j + (t_j_out + t_j_reason) × p_out_j) × batch_discount`. Every estimate states its claims assumption and its source (`CostEstimate.claims`, printed by the dry run): the planning default of 4.5 per answer (PubMedQA answers) when the texts do not exist yet; counted from the texts when they do (faithfulness on given explanations, re-judging saved answers): per text, the larger of words ÷ 10 and 4.5, summed, with 10 words per claim set below the 11.9 measured on EvalKit's own extractions (`scripts/measure_words_per_claim.py`); or a measured override (`--claims-per-answer`, `claims_per_item`). None is an upper bound. See [docs/cost.md](docs/cost.md#claims-per-answer).
+
 Prices come only from `prices.yaml`, checked against the provider pricing pages before each run. After each run, `evalkit report` reconciles `Σ cost_usd` with provider usage and flags any gap above 10%.
 
 ---

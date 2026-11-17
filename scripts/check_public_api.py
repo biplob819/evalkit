@@ -398,6 +398,12 @@ CLI["compare"] = {
     "--md",
 }
 
+# Claims per item behind every judge estimate (fraud-review-bedrock, D-61 rule 3): counted from
+# texts that already exist, or a measured override; the run's override on the command line.
+PUBLIC["evalkit.cost"] += ["ClaimsAssumption", "claims_from_texts", "measured_claims"]
+PUBLIC["evalkit.scorers.faithfulness"] += ["estimate_faithfulness_cost"]
+CLI["run"] |= {"--claims-per-answer"}
+
 
 def _subparsers(parser):
     import argparse

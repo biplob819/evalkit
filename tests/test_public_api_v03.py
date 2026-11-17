@@ -47,6 +47,13 @@ COMPANIONS = {
     # B5.3 (GAT-07, D-64): new capabilities in a public module, not promotions (D-62)
     "evalkit.stats.clopper_pearson",
     "evalkit.stats.rate_wording",
+    # Claims per item behind a judge estimate (fraud-review-bedrock, D-61 rule 3): new
+    # capabilities in public modules, not promotions (D-62); the faithfulness estimate serves
+    # every project that imports `faithfulness`.
+    "evalkit.cost.ClaimsAssumption",
+    "evalkit.cost.claims_from_texts",
+    "evalkit.cost.measured_claims",
+    "evalkit.scorers.faithfulness.estimate_faithfulness_cost",
 }
 
 
