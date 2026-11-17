@@ -1395,3 +1395,12 @@ def test_bar_floors_are_enforced_at_load_and_at_certification(tmp_path, capsys):
                    i.rubric_hash) for i in items]  # fmt: skip
     got = score(rows, flat, mm, tmp_path / "flat.jsonl", bar=I.ConsistencyBar(**floors))
     assert not got.certified and all(a.kappa.lo <= 0 for a in got.agreements)
+
+
+def test_public_log_writers_refuse_any_line_carrying_a_pair_id(tmp_path):
+    """B5.9 verifier pass 3: a public line reusing an honest pair id would deny certification."""
+    from evalkit import heldout as H
+
+    log = tmp_path / "log.jsonl"
+    with pytest.raises(H.HeldoutError, match="pair"):
+        H.append_entry(log, {"kind": "note", "pair": "0" * 64})

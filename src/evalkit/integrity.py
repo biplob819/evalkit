@@ -300,8 +300,12 @@ def load_criterion(path: str | Path) -> Criterion:
                 raise SheetError(f"criterion {p}: unknown bar field(s) {', '.join(bad)}")
             raw["bar"] = ConsistencyBar(**bar)
         return Criterion(**raw)
-    except TypeError as exc:
-        raise SheetError(f"criterion {p}: {exc}") from None
+    except (TypeError, ValueError) as exc:  # pydantic's ValidationError is a ValueError (NaN bars)
+        if isinstance(exc, SheetError):
+            raise
+        raise SheetError(
+            f"criterion {p}: {type(exc).__name__}: {str(exc).splitlines()[0]}"
+        ) from None
 
 
 # =============================== items (CIS-03) ===============================

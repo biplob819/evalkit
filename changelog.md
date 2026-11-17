@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.9] — Green after three verifier passes: calibration sheets for any criterion, blind repeats and planted items, certification that EvalKit's APIs cannot forge, bar floors. Spend: $0.
 - [HARNESS] [B5.13, B5.11] — D-72: value_check gains an "unverifiable" outcome; B5.11 held-out category rows opt-in with a minimum of 5, partial counts as not blocked, PRIVACY.md line on running the user's system. Spend: $0.
 - [FEAT] [B5.6] — Run-vs-run compare (lane build, merged): `evalkit compare OLD NEW` and `evalkit.compare` — paired two-level bootstrap on shared cases, case-only resampling, unpaired fallback labelled, Holm-adjusted flags, settings differences listed, baseline rules, held-out aggregates only; tested on assay-pipeline and respectful-offers fixtures. Spend: $0.
 - [FIX] [B5.9] — Forgery paths closed (verifier pass 2): EvalKit's public log API refuses calibration lines, certification re-applies the cross-rubric rule, the two scoring lines are one chained write, bar floors (`BAR_FLOORS`) enforced at load and at certification. Spend: $0.

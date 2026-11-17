@@ -621,6 +621,8 @@ def _reserved(entry: Mapping[str, Any]) -> str | None:
     do not). A calibration counts only as a pair written together by `evalkit.integrity`."""
     if entry.get("kind") == CALIBRATION_SCORED:
         return f"a {CALIBRATION_SCORED} entry"
+    if "pair" in entry:  # a public line carrying a pair id could block an honest pair's check
+        return "an entry carrying a calibration pair id"
     rubric = entry.get("rubric_hash")
     if (
         entry.get("kind") == SCORED
