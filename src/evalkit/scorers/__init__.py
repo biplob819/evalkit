@@ -10,14 +10,10 @@ from evalkit.scorers.base import (
 )
 from evalkit.scorers.clarify import ClarificationRates, clarification_rates
 from evalkit.scorers.deterministic import citation_valid, cost, label_correct, latency
-from evalkit.scorers.evidence import (
-    ValueCheckShares,
-    ValuePhrase,
-    render_evidence,
-    value_check,
-    value_check_scorer,
-    value_check_shares,
-)
+
+# D-74: only render_evidence is public in 0.3.0. value_check and its helpers stay in
+# evalkit.scorers.evidence (internal) until their strict redesign (B5.16) ships in 0.4.0.
+from evalkit.scorers.evidence import render_evidence
 from evalkit.scorers.retrieval import mrr, ndcg_at_k, recall_at_k
 from evalkit.scorers.rows import answer_from_rows, unsupported_numbers
 from evalkit.scorers.rules import Rule, RuleError, RuleSet, rule_compliance, rule_compliance_scorer
@@ -30,8 +26,6 @@ __all__ = [
     "RuleSet",
     "ScoreResult",
     "Scorer",
-    "ValueCheckShares",
-    "ValuePhrase",
     "answer_from_rows",
     "attack_outcome",
     "citation_valid",
@@ -50,7 +44,4 @@ __all__ = [
     "scorer",
     "sql_match",
     "unsupported_numbers",
-    "value_check",
-    "value_check_scorer",
-    "value_check_shares",
 ]

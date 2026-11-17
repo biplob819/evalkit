@@ -2,6 +2,71 @@
 
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
+## 0.3.0
+
+- [RELEASE] [B5.4] — v0.3.0 release candidate: version 0.3.0 in `pyproject.toml`,
+  `evalkit.__version__` and `uv.lock`; downstream migration guide
+  [docs/downstream.md](docs/downstream.md) (per project: pin, 0.3.0 requirement line, each
+  import to replace with its public name, behaviour changes, capabilities asked for); RC canary
+  `docs/measurements/downstream-canary-2026-11-17-rc.json`. Not yet tagged or published (V03-03
+  is the owner's step). The full contract is in [docs/versioning.md](docs/versioning.md).
+  Spend: $0.
+
+**Public additions** (each module's `__all__` is exactly its contract, `tests/test_public_api.py`)
+- [FEAT] [B5.2] — Names two or more projects import are public (D-61 rule 2): `evalkit.cost`
+  (`Price`, `load_prices`, `call_cost`, `estimate_tokens`), `evalkit.retry` (`with_retries`),
+  `evalkit.stats` (`Resamples`, `interval`, `paired`, `holm`, `percentile_ms`),
+  `evalkit.scorers.faithfulness` (`faithfulness`, `FaithfulnessItem`, `FaithfulnessResult`,
+  `JudgedClaim`); new homes `evalkit.calibration` (`CalibrationPair`, `cluster_kappa`,
+  `kappa_from`, `agreement_table`, `AgreementTable`, any label unit), `evalkit.errors`
+  (`SchemaError`) and `evalkit.identity` (`JUDGE_PROMPT_HASH`, `EXTRACTOR_VERSION`).
+- [FEAT] [B5.3] — `evalkit gate` and `evalkit.metrics` / `evalkit.gates`: the frozen
+  `metrics-1` format (labels, units, supplied intervals, `simulated`, standard efficiency
+  names), gates on any metric (`>=`, `<=`, `==`; point, lower or upper bound; `fail`/`warn`
+  severity; disparity gaps), exit codes 0/1/2/3/4 with precedence 2 > 3 > 4 > 1 > 0;
+  `evalkit.stats.clopper_pearson` and `rate_wording`.
+- [FEAT] [B5.6] — `evalkit compare` and `evalkit.compare`: per metric and label, new − old with
+  a 95% interval (paired two-level bootstrap on shared cases, case-only, or unpaired and
+  labelled), Holm-adjusted flags, settings differences, held-out rows as split aggregates;
+  exit codes 0/1/2.
+- [FEAT] [B5.12] — Citation support: task scorer `citation_support`, `evalkit.schemas.CitationVerdict`,
+  optional `Record.citation_support`, `ModelSummary`/`SliceSummary` `citation_precision` and
+  `aim_citation_rate` (omitted when empty).
+- [FEAT] [B5.13] — `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`,
+  `clarification_rates`, `ClarificationRates` (scorer `asked_back`), `Rule`, `RuleSet`,
+  `RuleError`, `rule_compliance`, `rule_compliance_scorer`, `render_evidence`.
+
+**Not in 0.3.0**
+- [FEAT] [B5.13, B5.16] — `value_check`, `value_check_scorer`, `value_check_shares`,
+  `ValuePhrase` and `ValueCheckShares` are withheld from the public API (OWNER D-74):
+  `from evalkit.scorers import value_check` fails; the code stays in the internal module
+  `evalkit.scorers.evidence` until the strict redesign (B5.16) ships in 0.4.0.
+  `scripts/check_public_api.py` fails if `evalkit.scorers` exports them.
+
+**Behaviour changes** (nothing that worked in 0.2 by a named import breaks)
+- `summary.json` gains an optional per-model `efficiency` object (EFF-02, D-70); every other
+  field keeps its bytes. A 0.2 reader that forbids unknown fields must drop it. Reports gain an
+  Efficiency section, and shares of exactly 0 or 1 read "0 of n, below X% at 95%".
+  `run.json` gains `stopped_at_cost_cap` only when a run stops at its cap.
+- Gate bounds (`bound: upper`/`lower`) are exact one-sided 95% Clopper-Pearson for every k
+  (D-70; n=150: k=0 → 0.0198, k=1 → 0.0312); displayed intervals stay two-sided.
+- `evalkit compare` claims a change only from at least `MIN_CASES` (10) shared cases and a
+  non-zero-width interval.
+- `sql_match` mismatch details are deterministic across hash seeds: gold's groups are reported
+  first; a group with no gold rows carries `example_predicted_row` instead of
+  `example_gold_row`. Scores are unchanged.
+- `RunConfig.systems` (added in 0.2.0) is a field a config spec that lists every `RunConfig`
+  field must name (gemma-grounded-health's `test_spec_covers_every_run_config_field`).
+- Moved paths warn: `evalkit.pipeline.calibrate._Pair`, `cluster_kappa` and `kappa_from` raise a
+  `DeprecationWarning` naming their `evalkit.calibration` home and are removed in 0.4.0.
+  `from x import *` is narrower for modules that gained an `__all__` (no registered project
+  uses it).
+
+**Also in this package ahead of 0.4.0** (listed under "0.4.0 additions" in docs/versioning.md):
+`evalkit.heldout` (B5.14), `evalkit.paraphrase` (B5.8), `evalkit.integrity` and
+`evalkit calibrate --criterion` (B5.9), `evalkit.security` (B5.11), and opt-in `sql_match`
+`equivalences` (B5.15, strict by default).
+
 ## 2026-11-17
 - [FIX] [B5.15] — Verifier pass 3 (no must-fix): empty_check refuses a total anywhere in a column name (`sales_total`, `overall_total_sales`, fullwidth letters), and a pivot refuses a run-together `grandtotal`; documented that a month at a quarter start reads as that quarter. Spend: $0.
 - [FEAT] [B5.15] — Text period labels for agentic-analytics (its OWNER D-89): "2023 Q1", "Q1 2023", "2023-Q1", bare "Q1" (only when the question names exactly one year) and "2023-03", "March 2023", "Mar 2023"; a quarter label never becomes a month; fiscal questions never convert. empty_check refuses a leading period/total word (`total_sales`), keeps `sales_in_requested_year`. Spend: $0.
