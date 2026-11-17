@@ -398,6 +398,179 @@ CLI["compare"] = {
     "--md",
 }
 
+# B5.7 (v0.4): run, experiment and spend ledgers, alarm bands, drift and calibration monitor.
+PUBLIC["evalkit.ledger"] = [
+    "ALARM_FRACTION",
+    "EXPERIMENTS_PATH",
+    "LEDGER_SCHEMA",
+    "MIN_HISTORY",
+    "RUNS_PATH",
+    "SPEND_PATH",
+    "WINDOW",
+    "Band",
+    "BandStatus",
+    "ExperimentResult",
+    "History",
+    "LedgerError",
+    "RunCheck",
+    "Series",
+    "SpendStatus",
+    "SpreadRow",
+    "band",
+    "bands",
+    "candidate_hash",
+    "check_run",
+    "check_spend",
+    "close_experiment",
+    "history",
+    "history_html",
+    "list_experiments",
+    "open_experiment",
+    "psi_svg",
+    "record_run",
+    "record_spend",
+    "reserve_look",
+    "reset_band",
+    "trend_svg",
+    "verify_ledger",
+]
+PUBLIC["evalkit.drift"] = [
+    "CAL_BINS",
+    "DRIFT_SCHEMA",
+    "PSI_ALARM",
+    "PSI_EPSILON",
+    "PSI_WARN",
+    "REF_SCHEMA",
+    "TOLERANCES",
+    "DriftError",
+    "DriftReport",
+    "calibration",
+    "calibration_drift",
+    "check",
+    "freeze_reference",
+    "load_config",
+    "load_reference",
+    "psi",
+    "psi_from_shares",
+    "psi_level",
+    "to_metrics",
+]
+CLI["report"] |= {"--history"}  # B5.7
+CLI["history add"] = {
+    "run",
+    "--ledger",
+    "--gates",
+    "--heldout-split",
+    "--manifest",
+    "--note",
+    "--json",
+}
+CLI["history check"] = {"run", "--ledger", "--gates", "--heldout-split", "--json"}
+CLI["history show"] = {
+    "--ledger",
+    "--metric",
+    "--gates",
+    "--heldout-split",
+    "--md",
+    "--html",
+    "--json",
+}
+CLI["history reset"] = {"--metric", "--labels", "--reason", "--ledger", "--project", "--json"}
+CLI["history verify"] = {
+    "files",
+    "--rev",
+    "--base",
+    "--default-branch",
+    "--chain-only",
+    "--json",
+}
+CLI["experiment open"] = {
+    "--hypothesis",
+    "--change",
+    "--metric",
+    "--labels",
+    "--direction",
+    "--baseline",
+    "--experiments",
+    "--manifest",
+    "--json",
+}
+CLI["experiment close"] = {
+    "id",
+    "--before",
+    "--after",
+    "--gates",
+    "--manifest",
+    "--heldout-split",
+    "--heldout",
+    "--seed",
+    "--resamples",
+    "--experiments",
+    "--json",
+}
+CLI["experiment look"] = {
+    "id",
+    "--candidate",
+    "--manifest",
+    "--split",
+    "--cases",
+    "--log",
+    "--experiments",
+    "--json",
+}
+CLI["experiment show"] = {"--experiments", "--json"}
+CLI["drift reference"] = {
+    "--data",
+    "--metrics",
+    "--features",
+    "--categorical",
+    "--prob",
+    "--label",
+    "--calibration-prefix",
+    "--out",
+    "--manifest",
+    "--heldout-split",
+    "--seed",
+    "--resamples",
+    "--json",
+}
+CLI["drift check"] = {
+    "--reference",
+    "--data",
+    "--metrics",
+    "--config",
+    "--out",
+    "--emit-metrics",
+    "--project",
+    "--run-id",
+    "--prefix",
+    "--manifest",
+    "--heldout-split",
+    "--seed",
+    "--resamples",
+    "--json",
+}
+CLI["spend add"] = {
+    "--kind",
+    "--usd",
+    "--project",
+    "--run-id",
+    "--model",
+    "--n-cases",
+    "--note",
+    "--spend-ledger",
+    "--json",
+}
+CLI["spend check"] = {
+    "--cap",
+    "--window",
+    "--alarm-fraction",
+    "--add-estimate",
+    "--map",
+    "--spend-ledger",
+    "--json",
+}
+
 
 def _subparsers(parser):
     import argparse

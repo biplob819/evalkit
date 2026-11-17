@@ -57,24 +57,26 @@ LEDGER = Path(__file__).resolve().parents[2] / "docs" / "measurements" / "spend-
 def record_spend(
     kind: str, spent_usd: float, detail: dict[str, Any], ledger: Path = LEDGER
 ) -> float:
-    """Append one real-API run to the spend ledger and return the running total in USD."""
-    ledger.parent.mkdir(parents=True, exist_ok=True)
-    entry = {
-        "at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "kind": kind,
-        "spent_usd": round(spent_usd, 6),
-        **detail,
-    }
-    with ledger.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, sort_keys=True) + "\n")
-    return round(
-        sum(
-            json.loads(line)["spent_usd"]
-            for line in ledger.read_text(encoding="utf-8").splitlines()
-            if line
-        ),
-        6,
+    """Append one real-API run to the spend ledger and return the running total in USD.
+
+    B5.7 (LED-06, OWNER D-73): the line is a hash-chained `spend` entry written under the
+    ledger's lock by `evalkit.ledger.record_spend`; `run_id`, `model`, `n_cases` and `note` in
+    `detail` keep their own fields, any other detail (judges, item counts) goes under `detail`.
+    The legacy lines before the first chained one are kept byte for byte and sealed by it."""
+    from evalkit.ledger import record_spend as write
+    from evalkit.ledger.spend import running_total
+
+    known = {k: detail[k] for k in ("run_id", "model", "n_cases", "note") if k in detail}
+    rest = {k: v for k, v in detail.items() if k not in known}
+    write(
+        ledger,
+        spend_kind=kind,
+        spent_usd=spent_usd,
+        project="evalkit",
+        detail=rest or None,
+        **known,
     )
+    return running_total(ledger)
 
 
 def assumptions_from(path: Path, base: TokenAssumptions | None = None) -> TokenAssumptions:

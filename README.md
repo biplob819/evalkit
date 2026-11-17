@@ -107,6 +107,8 @@ flowchart LR
 | [Control cost](https://github.com/biplob819/evalkit/blob/main/docs/cost.md) | Estimates, the cost cap, free resume, batch versus live judging, exit codes |
 | [Calibrate the judges](https://github.com/biplob819/evalkit/blob/main/docs/calibrate-your-task.md) | Hand-label claims, measure judge agreement, mark a run calibrated |
 | [Scorers and adapters](https://github.com/biplob819/evalkit/blob/main/docs/plugins.md) | Add a scorer or a model adapter as a plugin |
+| [Run history, experiments and spend](https://github.com/biplob819/evalkit/blob/main/docs/ledger.md) | Alarm bands against each metric's own history, a trend page, an experiment ledger with a held-out freeze guard, a spend cap alarm |
+| [Drift and calibration](https://github.com/biplob819/evalkit/blob/main/docs/drift.md) | PSI per feature and Brier, ECE and reliability-bin changes against a frozen reference |
 | [Run it in CI](https://github.com/biplob819/evalkit/blob/main/examples/github-action/evalkit.yml) | A GitHub Actions workflow that fails the job when a threshold fails |
 | [Versioning](https://github.com/biplob819/evalkit/blob/main/docs/versioning.md) | What is public API, and how releases follow semver |
 

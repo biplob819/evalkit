@@ -170,3 +170,22 @@ def test_security_module_is_public_with_its_command_line():
     assert done.returncode == 0
     for command in ("check", "run", "scripted", "report"):
         assert command in done.stdout
+
+
+def test_ledger_and_drift_modules_are_public_with_their_command_lines():
+    """B5.7: `evalkit.ledger` and `evalkit.drift` are public, their `__all__` is exactly the
+    contract, and `evalkit history|experiment|drift|spend` with exit codes 0-4 and `evalkit
+    report --history` are part of the CLI contract."""
+    import evalkit.drift as drift
+    import evalkit.ledger as ledger
+    from evalkit.ledger.cli import LEDGER_EXIT_CODES
+
+    assert sorted(ledger.__all__) == sorted(PUBLIC["evalkit.ledger"])
+    assert sorted(drift.__all__) == sorted(PUBLIC["evalkit.drift"])
+    assert "--history" in CLI["report"]
+    groups = {"history": 5, "experiment": 4, "drift": 2, "spend": 2}
+    for group, n in groups.items():
+        assert sum(1 for path in CLI if path.split()[0] == group) == n
+        assert all("--json" in CLI[p] for p in CLI if p.split()[0] == group)
+    for code in ("0", "1", "2", "3", "4"):
+        assert f"  {code}  " in LEDGER_EXIT_CODES

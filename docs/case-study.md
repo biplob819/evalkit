@@ -9,7 +9,7 @@ correct and fully grounded on 57.5% <!-- docs/results/summary.json: models[2].he
 GPT-6.1 Sol judge (which was rating its own answers), and separated from every other model after a Holm correction under both <!-- docs/results/summary.json: comparisons[7,9,11,13,15,17].separated = true (metric headline) -->.
 Claude Sonnet 5.5 was the most accurate, 77.0% <!-- docs/results/summary.json: models[0].accuracy.point --> correct labels, yet correct and fully
 grounded on only 38.5% <!-- docs/results/summary.json: models[0].headline.claude-opus-5-5.point --> by the Claude judge. The benchmark cost $23.87 <!-- docs/results/run.json: spent_usd (23.8710259) -->, the whole
-project $31.56 <!-- docs/measurements/spend-ledger.jsonl: sum of spent_usd over all 22 lines (31.557859) --> in API calls. The judges are not yet calibrated, so these numbers are
+project $31.56 <!-- docs/measurements/spend-ledger.jsonl: sum of spent_usd over the 22 legacy lines (31.557859); line 23 is the $0 seal (D-73) --> in API calls. The judges are not yet calibrated, so these numbers are
 provisional <!-- docs/results/summary.json: calibration_status = "uncalibrated"; README.md headline block: "Treat these numbers as provisional." -->. EvalKit is on PyPI (v0.1.0 and v0.2.0 <!-- docs/measurements/release-v0.1.0-2026-11-15.json; docs/measurements/release-v0.2.0-2026-11-16.json -->), with a public report, a live demo, and
 seven <!-- docs/downstream.tsv: 7 project rows --> projects that build on it.
 
