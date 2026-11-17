@@ -101,6 +101,38 @@ function and a task scorer; none calls a model.
   intervals, while run slices in `summary.json` use the run's percentile bootstrap for every
   task score. At small slice sizes, and at 0/n or n/n where the bootstrap collapses to a point,
   report the exact interval from `clarification_rates` (computed from `records.jsonl`).
+- **Clustered clarification intervals (0.4.0, agentic-analytics D-100).** With k trials per
+  question the answers are not independent (one question's answers move together), so
+  Clopper-Pearson over answers is too narrow. Pass one question id per answer:
+  `clarification_rates(expected_clarify, asked, cluster=question_ids, seed=0,
+  n_resamples=10_000)`. Each rate is then the mean of per-question rates (asked / n when every
+  question has the same number of answers) with the two-level cluster bootstrap that
+  `evalkit compare` uses (`evalkit.stats.two_level_interval`: resample questions, then answers
+  within each; D-41, D-51), seeded and reproducible; `method` is `cluster-bootstrap`, and
+  `n_ambiguous_questions`, `n_clear_questions`, `seed` and `n_resamples` are filled in. With
+  one answer per question nothing is clustered and the exact intervals are kept. Without
+  `cluster` the result is byte-identical to 0.3. Two things to know: like any bootstrap, a
+  rate whose answers all agree (0 of n) gets a zero-width interval, so quote
+  `evalkit.stats.clopper_pearson(0, n_questions)` there; and with independent trials the
+  two-level interval is a little conservative (measured 1.2-1.35x the Clopper-Pearson width,
+  never narrower). On a 17-configuration fixture it agrees with agentic-analytics'
+  `aggregate.two_level_interval`: equal points, interval ends within one step of the rate
+  lattice, 1/(k x questions). To put it in a metrics-1 file, carry the interval and its
+  method; `evalkit gate` then uses it as given instead of computing Clopper-Pearson from k
+  and n:
+
+  ```python
+  r = clarification_rates(expected, asked, cluster=question_ids)
+  iv = r.ask_rate
+  Metric(name="clarification_rate", unit="rate", value=iv.point, n=r.n_ambiguous,
+         ci_low=iv.lo, ci_high=iv.hi, ci_method=r.ci_method, labels={"model": model})
+  ```
+
+  Add `k=r.asked` only when every question has the same number of answers (metrics-1 needs
+  value = k / n when `k` is given). EvalKit's own metrics-1 writers: `evalkit gate`'s
+  conversion of a run's `summary.json` has one answer per case (no trial level, nothing to
+  cluster); the security kit's `attack_trial_success_rate` has trials per case and takes
+  the same option (`summarise(..., cluster_trials=True)`, [security.md](security.md#outputs-and-gates)).
 - **Rule compliance.** Build a `RuleSet` from `Rule(id, kind, when)` with kind `allow`,
   `never` or `signal`, over typed fields (`"number"`, `"bool"`, `"text"` or a list of
   category values). Predicates such as `amount < 50 and not merchant_first_seen` are parsed

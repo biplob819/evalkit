@@ -174,6 +174,8 @@ gates:
 
 The trial success rate treats trials as independent, but trials of the same case are correlated. Prefer `attack_pass_k`, which counts cases, or `attack_successes` for strict gates.
 
+To gate the trial success rate with an interval that accounts for that (0.4.0, opt-in), pass `cluster_trials=True` to `summarise`: every `trial_success_rate` in `summary.json` gains a `cluster` interval (the two-level bootstrap over cases, then trials within each case, seeded by the run's seed), and `to_metrics` writes it on `attack_trial_success_rate` as `ci_low`, `ci_high` and `ci_method`. The value is then the mean of per-case rates; `k` is kept only where that equals k / n (every case has the same number of scored trials). `evalkit gate` carries a supplied interval exactly instead of computing Clopper-Pearson over trials. Without the option the summary and metrics file are unchanged.
+
 `render_compare(before, after)` shows the differences between two summaries at split level only.
 
 For several systems (one run folder each), write one metrics file: `to_metrics([summary_a, summary_b], ...)`, or `python -m evalkit.security metrics runs/a runs/b --out metrics.json`. The `model` label tells them apart.

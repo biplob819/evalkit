@@ -91,6 +91,7 @@ def _block(
     ls: LayerSet,
     seed: int,
     n_resamples: int,
+    cluster_trials: bool = False,
 ) -> dict[str, Any]:
     cases: dict[str, list[TrialResult]] = {}
     for t in trials:
@@ -101,9 +102,11 @@ def _block(
     scored = [t for t in in_k if t.status == "scored"]
     complete = blocked_all = 0
     by_case: dict[str, list[float]] = {}
+    succeeded_by_case: dict[str, list[float]] = {}
     for case, rows in cases.items():
         s = [t for t in rows if t.trial <= t.k and t.status == "scored"]
         by_case[case] = [1.0 if t.outcome == "blocked" else 0.0 for t in s]
+        succeeded_by_case[case] = [1.0 if t.outcome == "succeeded" else 0.0 for t in s]
         if rows and len(s) == rows[0].k:
             complete += 1
             blocked_all += all(t.outcome == "blocked" for t in s)
@@ -115,6 +118,11 @@ def _block(
         raise SecurityError(f"trials carry layers {unknown} outside the layer set {list(ls.all)}")
     sc = scripted_counts(scripted)
     with_trials = sum(1 for rows in cases.values() if rows)
+    trial_rate = _rate(successes, len(scored))
+    if cluster_trials and trial_rate is not None:  # opt-in (D-100): trials cluster by case
+        trial_rate["cluster"] = two_level_interval(
+            succeeded_by_case, seed=seed, n_resamples=n_resamples
+        )
     return {
         "cases": len(cases),
         "complete_cases": complete,
@@ -124,7 +132,7 @@ def _block(
         "successes": successes,
         "partial": partial,
         "pass_k": _rate(blocked_all, complete),
-        "trial_success_rate": _rate(successes, len(scored)),
+        "trial_success_rate": trial_rate,
         "blocked_rate": two_level_interval(by_case, seed=seed, n_resamples=n_resamples),
         "layers": {x: layers.get(x, 0) for x in ls.all},
         "scripted": {**sc, "stopped": _rate(sc["passed"], sc["cases"])},
@@ -139,6 +147,7 @@ def _heldout_categories(
     ls: LayerSet,
     seed: int,
     n_resamples: int,
+    cluster_trials: bool = False,
 ) -> dict[str, Any]:
     """Held-out rows per category, all or nothing: shown only when every category cell has at
     least `min_cell` cases, so no suppressed cell can be recovered from the split total."""
@@ -153,6 +162,7 @@ def _heldout_categories(
             ls,
             seed,
             n_resamples,
+            cluster_trials,
         )
         for cat in sorted({categories[k] for k in keys})
     }
@@ -186,10 +196,16 @@ def summarise(
     n_resamples: int = N_RESAMPLES,
     heldout_categories: Mapping[str, str] | None = None,
     min_cell: int = MIN_CELL,
+    cluster_trials: bool = False,
 ) -> dict[str, Any]:
     """Split-level figures for every split and pooled over all splits; per-case and
     per-category rows for public only. `k` is the run's trials per case, shown in the report;
-    each case's completeness uses its own k (recorded on its trial lines)."""
+    each case's completeness uses its own k (recorded on its trial lines).
+
+    `cluster_trials=True` (0.4.0, opt-in) adds a `cluster` interval to every trial success
+    rate: the two-level bootstrap over cases, then trials within each case (the trials of one
+    case are not independent), which `to_metrics` then writes as the metric's interval. Off,
+    the summary is unchanged."""
     ls = layers if layers is not None else LayerSet()
     # one line per (case, trial), the last wins, as read_trials does
     trials = list({(t.case, t.trial): t for t in trials}.values())
@@ -211,6 +227,7 @@ def summarise(
             ls,
             seed,
             n_resamples,
+            cluster_trials,
         )
     pub = out["splits"].get("public", {}).get("blocked_rate")
     held = out["splits"].get("heldout")
@@ -230,9 +247,10 @@ def summarise(
             ls,
             seed,
             n_resamples,
+            cluster_trials,
         )
     if splits:  # nothing to pool in an empty run
-        out["pooled"] = _block(trials, scripted, ls, seed, n_resamples)
+        out["pooled"] = _block(trials, scripted, ls, seed, n_resamples, cluster_trials)
     pub_t = [t for t in trials if t.split == "public"]
     pub_s = [r for r in scripted if r.split == "public"]
     owasp = {t.case: str(t.owasp) for t in pub_t} | {r.case: str(r.owasp) for r in pub_s}
@@ -268,6 +286,7 @@ def summarise(
                 ls,
                 seed,
                 n_resamples,
+                cluster_trials,
             ),
         }
         for cat in sorted(set(owasp.values()))
@@ -281,6 +300,24 @@ def summarise(
 def _rate_metric(name: str, r: Mapping[str, Any] | None, labels: dict[str, Any]) -> list[Metric]:
     if r is None:
         return []
+    c = r.get("cluster")
+    if c is not None:  # summarise(cluster_trials=True): the clustered interval, carried as is
+        # the value is the mean of per-case rates; k is written only where that equals k / n
+        # (every case has the same number of scored trials), as metrics-1 requires
+        same = abs(c["point"] - r["k"] / r["n"]) <= 5e-7
+        return [
+            Metric(
+                name=name,
+                unit="rate",
+                value=c["point"],
+                k=r["k"] if same else None,
+                n=r["n"],
+                ci_low=c["lo"],
+                ci_high=c["hi"],
+                ci_method=c["method"],
+                labels=labels,
+            )
+        ]
     return [
         Metric(name=name, unit="rate", value=r["k"] / r["n"], k=r["k"], n=r["n"], labels=labels)
     ]

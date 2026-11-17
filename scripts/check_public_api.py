@@ -404,6 +404,10 @@ PUBLIC["evalkit.cost"] += ["ClaimsAssumption", "claims_from_texts", "measured_cl
 PUBLIC["evalkit.scorers.faithfulness"] += ["estimate_faithfulness_cost"]
 CLI["run"] |= {"--claims-per-answer"}
 
+# Clustered intervals (agentic-analytics OWNER D-100, L-36): the two-level bootstrap `evalkit
+# compare` uses, public so clustered rates (clarification_rates(cluster=...)) share it.
+PUBLIC["evalkit.stats"] += ["two_level_interval"]
+
 
 def _subparsers(parser):
     import argparse
