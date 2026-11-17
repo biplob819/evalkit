@@ -1076,11 +1076,13 @@ def _change(
             if k < MIN_CASES:
                 row.interval_status = TOO_FEW
                 row.note = f"too few cases: {k} shared (a claim needs {MIN_CASES})"
-            elif iv.lo == iv.hi:
-                row.interval_status = DEGENERATE
-                row.note = "degenerate: zero-width interval (every shared case moved alike)"
             else:
+                # with enough shared cases a zero-width interval means every case moved by the
+                # same amount: the strongest evidence, not a degenerate one (e.g. every case
+                # going from right to wrong must be flagged)
                 row.interval_status = OK
+                if iv.lo == iv.hi:
+                    row.note = f"every one of the {k} shared cases moved by the same amount"
             return row
         row.partial_overlap = True
         overlap = (

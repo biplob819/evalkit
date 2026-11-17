@@ -105,7 +105,7 @@ Each row's `interval_status` says whether its interval may carry a claim:
 | --- | --- |
 | `ok` | enough cases and a non-zero-width interval: takes part in Holm, can be flagged and can exit 1 |
 | `too_few_cases` | a paired row with fewer than **10 shared cases**, or an unpaired side bootstrapped from fewer than 10 cases with no exact interval to use instead |
-| `degenerate` | a zero-width interval: every resample gave the same change (for example, every shared case moved by the same amount), or a run's bootstrap had zero width with no exact interval to use instead |
+| `degenerate` | an unpaired side whose bootstrap had zero width with no exact interval to use instead. A *paired* row with at least 10 shared cases whose cases all moved by the same amount is `ok`, not degenerate: that is the strongest evidence of a change (for example, every case going from right to wrong) and it is flagged |
 | `null` | no interval (a true/false metric, or no interval on a side) |
 
 Rows that are `too_few_cases` or `degenerate` show their change, interval and p-value, but

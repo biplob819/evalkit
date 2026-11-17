@@ -807,7 +807,9 @@ def test_two_shared_cases_are_too_few_to_claim_a_regression(tmp_path):
     assert "too few cases" in text
 
 
-def test_a_zero_width_paired_interval_is_degenerate_not_certain(tmp_path):
+def test_every_shared_case_moving_alike_is_a_claim_not_degenerate(tmp_path):
+    """Lead's review: with enough shared cases a zero-width paired interval is the strongest
+    evidence (every case went from right to wrong) and must be flagged, not hidden."""
     ids = [f"c{i}" for i in range(12)]
     gates = tmp_path / "g.yaml"
     gates.write_text(GATE_ACC, "utf-8")
@@ -815,9 +817,14 @@ def test_a_zero_width_paired_interval_is_degenerate_not_certain(tmp_path):
     new = _acc_run(tmp_path / "n", 0.0, [(i, 0.0) for i in ids])
     c = compare_runs(old, new, gates=gates)
     row = one(c, "acc")
-    assert row["interval_status"] == "degenerate" and row["ci_low"] == row["ci_high"]
-    assert row["flagged"] is False and c.exit_code == EXIT_PASS
-    assert "degenerate" in render_markdown(c)
+    assert row["interval_status"] == "ok" and row["ci_low"] == row["ci_high"] == -1.0
+    assert row["flagged"] is True and c.exit_code == EXIT_REGRESSION
+    # and with fewer than MIN_CASES shared cases the same move is never a claim
+    few = [f"f{i}" for i in range(3)]
+    old3 = _acc_run(tmp_path / "o3", 1.0, [(i, 1.0) for i in few])
+    new3 = _acc_run(tmp_path / "n3", 0.0, [(i, 0.0) for i in few])
+    c3 = compare_runs(old3, new3, gates=gates)
+    assert one(c3, "acc")["flagged"] is False and c3.exit_code == EXIT_PASS
 
 
 def test_partial_overlap_is_compared_unpaired_and_states_the_unpartnered_cases(tmp_path):
