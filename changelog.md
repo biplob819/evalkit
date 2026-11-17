@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.13] — Agent and decision scorers (lane build, merged): `answer_from_rows`, `clarification_rates`/`asked_back`, `rule_compliance` (AST allow-list predicates, never eval; configurable cited key and allow predicate) and `render_evidence`/`value_check`, each tested on its asking project's cases (agentic-analytics, fraud-review-bedrock). Spend: $0.
 - [FEAT] [B5.2] — Public API 0.3 (lane build, merged): cost, retry, stats, faithfulness and calibration names promoted by the two-project rule; `evalkit.calibration` (CalibrationPair, cluster_kappa, kappa_from, agreement_table) for ai-visibility; `evalkit.errors`, `evalkit.identity`; moved calibration paths warn until 0.4.0; 55 single-project names listed with recommendations. Spend: $0.
 - [FEAT] [B5.14] — Held-out discipline (lane build, merged): `evalkit.heldout` manifest, score-once guard, exposure scan (EvalKit's own held-out agent tasks scan clean against 444 tracked files) and hash-chained append-only log with `is_certified`. Spend: $0.
 - [FEAT] [B5.12] — Green after verification: citation support confirmed; verifier fixes (empty per-judge lists omitted, `calibrate score` keeps an unfinished run pending, unjudged citation claims shown, CIT-03 fixture replies labelled as hand-written). Spend: $0.

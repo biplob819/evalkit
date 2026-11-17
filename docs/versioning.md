@@ -55,6 +55,7 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 ## 0.3.0 additions
 
+- `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer`, `render_evidence`, `ValuePhrase`, `value_check`, `value_check_scorer` (B5.13, D-65).
 - `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 
 ## 0.4.0 additions (on main ahead of the release)
