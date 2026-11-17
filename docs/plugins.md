@@ -247,21 +247,29 @@ split at camelCase (`newBuildPct` is not a percent column), but an excluding wor
   Any other predicted column must be a numeric 0 and look like a label the gold left out
   (`unknown = 0`). So it may not be a summary or metric word (`total`, `grand_total`, `sum`,
   `all`, `overall`, `count`, `n`, `avg`, `pct`, `share`, ...). It may not be one of the gold's
-  column names. It may use only the kinds of character the gold's labels use: `unknown` beside
-  year labels `2023`, `2024` is rejected, `2025` is accepted.
+  column names. It may use only the kinds of character the gold's labels use, and must start
+  with a digit when any label does: `unknown` beside year labels `2023`, `2024` (or beside
+  `2023 Q1`, `2023 Q2`) is rejected, `2025` is accepted.
 - `empty_check`: an empty gold matches one predicted row that is a zero count with only
   dates and nulls beside it (`earliest, latest, sales_in_1994 = 0`). Every number must be 0
   and sit in a count column. A count column is named with count, cnt, n, num, number, rows,
   records, sales, transactions, orders or items, and with none of avg, average, mean, median,
-  min, max, sum, price, amount, value, revenue, pct, ratio, rate or share. Every other cell
-  must be null or an ISO date or timestamp. So `total_sales = 0` counts, while
-  `avg_price = 0.0`, `total = 0` and an error message do not. Name this rule only for
-  questions whose answer is "no data".
-- `period_number`: predicted month-start or quarter-start dates in one calendar year can
-  match gold numbers. They match month numbers (1–12) in a gold column named `month`, or
-  quarter numbers (1–4) in a column named `quarter` or `qtr`, when the question names months
-  or quarters. When the question names a year (19xx or 20xx), the dates must fall in a named
-  year. A count of 1–12 is never read as a month.
+  min, max, sum, price, amount, value, revenue, pct, ratio, rate or share, and its first word
+  is not year, q, quarter, month, day, id, rank, total or grand (such a column is a period,
+  an id or a total, not a count). Every other cell must be null or an ISO date or timestamp.
+  So `sales_in_1994 = 0` and `sales_in_requested_year = 0` count, while `total_sales = 0`,
+  `year_count = 0`, `avg_price = 0.0`, `total = 0` and an error message do not. Name this
+  rule only for questions whose answer is "no data".
+- `period_number`: predicted periods in one calendar year can match gold numbers: month-start
+  dates (`2023-03-01`), month labels (`2023-03`, `March 2023`, `Mar 2023`) and quarter labels
+  (`2023 Q1`, `Q1 2023`, `2023-Q1`, `Q1`). They match month numbers (1–12) in a gold column
+  named `month`, or quarter numbers (1–4) in a column named `quarter` or `qtr`, when the
+  question names months or quarters. A quarter label never becomes a month number. When the
+  question names a year (19xx or 20xx), the periods must fall in a named year. A bare `Q1`
+  has no year, so it is read only when the question names exactly one year (as that year);
+  with no year or several named it stays wrong. Fiscal questions (`FY2024`, "fiscal") never
+  convert. `Q5`, `2023-13` and week labels (`2023-W05`) are not periods. A count of 1–12 (or
+  a `week_of_month`, `month_count`) is never read as a month.
 
 The strict match runs first; only when it fails is each named reshaping of `predicted`
 matched strictly in turn (same tolerance apart from the scaled percent column, same columns,
