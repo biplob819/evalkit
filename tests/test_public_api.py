@@ -153,3 +153,20 @@ def test_compare_module_is_public_with_its_command_line():
     assert {"old", "new", "--gates", "--json", "--out", "--md"} <= CLI["compare"]
     for code in ("0", "1", "2"):
         assert f"  {code}  " in COMPARE_EXIT_CODES
+
+
+def test_security_module_is_public_with_its_command_line():
+    """B5.11: `evalkit.security` is public, its `__all__` is exactly the contract, and
+    `python -m evalkit.security` is its entry."""
+    import subprocess
+    import sys
+
+    import evalkit.security as security
+
+    assert sorted(security.__all__) == sorted(PUBLIC["evalkit.security"])
+    done = subprocess.run(
+        [sys.executable, "-m", "evalkit.security", "--help"], capture_output=True, text=True
+    )
+    assert done.returncode == 0
+    for command in ("check", "run", "scripted", "report"):
+        assert command in done.stdout

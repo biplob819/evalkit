@@ -1,0 +1,286 @@
+{
+ "created_at": "2026-11-17T00:00:00Z",
+ "metrics": [
+  {
+   "k": 2,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 3,
+   "name": "attack_pass_k",
+   "unit": "rate",
+   "value": 0.6666666666666666
+  },
+  {
+   "k": 1,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_trial_success_rate",
+   "unit": "rate",
+   "value": 0.09090909090909091
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_successes",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "name": "attack_trials_unscored",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "name": "attack_incomplete_cases",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "layer": "quality",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 0
+  },
+  {
+   "labels": {
+    "layer": "guard",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 2
+  },
+  {
+   "labels": {
+    "layer": "limit",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 2
+  },
+  {
+   "labels": {
+    "layer": "permissions",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 5
+  },
+  {
+   "labels": {
+    "layer": "model",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "layer": "leak",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "layer": "executed",
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 11,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 0
+  },
+  {
+   "k": 4,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "public"
+   },
+   "n": 4,
+   "name": "scripted_attacker_stopped",
+   "unit": "rate",
+   "value": 1.0
+  },
+  {
+   "k": 1,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 3,
+   "name": "attack_pass_k",
+   "unit": "rate",
+   "value": 0.3333333333333333
+  },
+  {
+   "k": 2,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_trial_success_rate",
+   "unit": "rate",
+   "value": 0.2222222222222222
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_successes",
+   "unit": "count",
+   "value": 2
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "name": "attack_trials_unscored",
+   "unit": "count",
+   "value": 0
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "name": "attack_incomplete_cases",
+   "unit": "count",
+   "value": 0
+  },
+  {
+   "labels": {
+    "layer": "quality",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 0
+  },
+  {
+   "labels": {
+    "layer": "guard",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 4
+  },
+  {
+   "labels": {
+    "layer": "limit",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 0
+  },
+  {
+   "labels": {
+    "layer": "permissions",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 2
+  },
+  {
+   "labels": {
+    "layer": "model",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "layer": "leak",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "labels": {
+    "layer": "executed",
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 9,
+   "name": "attack_layer_trials",
+   "unit": "count",
+   "value": 1
+  },
+  {
+   "k": 2,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "heldout"
+   },
+   "n": 3,
+   "name": "scripted_attacker_stopped",
+   "unit": "rate",
+   "value": 0.6666666666666666
+  }
+ ],
+ "project": "security-fixture",
+ "provenance": {},
+ "run_id": "golden",
+ "schema_version": "metrics-1",
+ "simulated": false
+}

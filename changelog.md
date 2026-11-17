@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.11] — Agent security eval kit (lane build on `lane/b5.11`, D-70): `evalkit.security` — attack-case schema with OWASP category, canaries, expected stopping layers and split; held-out cases verified against a B5.14 manifest before any call; k trials and pass^k with exact intervals; a canary in an answer, tool argument or exposed text is a `leak`; configurable stopping-layer attribution; a model-free scripted attacker; split-level summary, metrics-1 for `evalkit gate`, report and compare; `python -m evalkit.security check|run|scripted|report`. Lifted from assay-pipeline (MIT); its four cases are tests. Spend: $0.
 - [FEAT] [B5.15] — Green after two verifier passes: opt-in sql_match equivalences that never turn a wrong answer into a match on any probe; stricter than agentic-analytics' reference. Spend: $0.
 - [FIX] [B5.15] — sql_match equivalences made stricter after verification (aligned with agentic-analytics' reference fixes, stricter wherever they differ): whole-word percent names (never percentile), negated-percent questions, month/quarter columns by name and the question's year, count-only empty checks, label-like pivot extras, per-column percent tolerance. Spend: $0.
 - [FEAT] [B5.6] — Green after two verifier passes: `evalkit compare` claims a change only with ≥ 10 shared cases, pairs only when most cases are shared, flags every-case-moved-alike regressions, refuses contradictory sidecars, and shows held-out splits only as aggregates. Spend: $0.

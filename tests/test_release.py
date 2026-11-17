@@ -292,6 +292,9 @@ ALLOWED = {
     "evalkit/heldout.py": "reads the local git repository for the held-out checks",
 }
 DYNAMIC_IMPORT_OK = {"evalkit/runtime/versions.py"}  # walks evalkit's own modules to hash them
+# B5.11: `python -m evalkit.security run|scripted` imports the user's own system or tool
+# surface factory named by --system/--surface (MODULE:FACTORY); the kit itself calls no network.
+DYNAMIC_IMPORT_OK.add("evalkit/security/cli.py")
 
 
 def _network_uses(path: Path) -> set[str]:

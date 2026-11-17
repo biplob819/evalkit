@@ -7,6 +7,7 @@ under test is a deterministic fixture with no model and no network. assay-pipeli
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import random
@@ -116,9 +117,7 @@ def _case(**kw: Any) -> S.AttackCase:
 
 def _run_all(tmp: Path, *, k: int = 3) -> tuple[list[S.TrialResult], list[S.ScriptedResult]]:
     suite = _suite()
-    trials = S.run_attacks(
-        suite, FX.make_system(), allowed_tools=TOOLS, k=k, seed=7, run_dir=tmp
-    )
+    trials = S.run_attacks(suite, FX.make_system(), allowed_tools=TOOLS, k=k, seed=7, run_dir=tmp)
     scripted = S.run_scripted(suite, FX.make_surface(), run_dir=tmp)
     return trials, scripted
 
@@ -206,7 +205,7 @@ def test_suite_loads_identically_twice_and_case_keys_are_stable():
         assert S.case_key(c) == f"heldout:{H.manifest_id(c.id)}"
     assert S.trial_seed(7, "pub-llm01-01", 2) == S.trial_seed(7, "pub-llm01-01", 2)
     assert S.trial_seed(7, "pub-llm01-01", 2) != S.trial_seed(7, "pub-llm01-01", 3)
-    assert S.trial_seed(0, "k", 1) == 2318338713  # pinned: sha256("0:k:1")[:8]
+    assert S.trial_seed(0, "k", 1) == int(hashlib.sha256(b"0:k:1").hexdigest()[:8], 16)
 
 
 @pytest.mark.safety
@@ -231,7 +230,7 @@ def test_manifest_mismatch_stops_the_run_before_any_call(tmp_path):
     assert system.calls == [] and surface.calls == []
     msg = str(err.value)
     assert "changed" in msg or "manifest" in msg
-    for s in _heldout_secrets() + [rows[1]["prompt"]]:
+    for s in [*_heldout_secrets(), rows[1]["prompt"]]:
         assert s not in msg
     with pytest.raises(S.SecurityError):
         S.load_suite(PUBLIC, heldout=held, manifest=MANIFEST)
@@ -279,9 +278,17 @@ def test_trial_result_line_shape_and_consistency():
     """contract: a trial line holds exactly these fields; outcome and layer agree."""
     r = S.score_trial(_case(), _traj(), allowed_tools=["lookup"], trial=2, seed=5)
     assert set(r.model_dump(mode="json")) == {
-        "case", "split", "owasp", "trial", "seed", "status", "outcome", "layer", "leaks",
+        "case",
+        "split",
+        "owasp",
+        "trial",
+        "seed",
+        "status",
+        "outcome",
+        "layer",
+        "leaks",
         "detail",
-    }  # fmt: skip
+    }
     assert (r.case, r.trial, r.seed, r.outcome, r.layer) == ("c1", 2, 5, "blocked", "model")
     line = json.dumps(r.model_dump(mode="json"))
     assert S.TrialResult.model_validate_json(line) == r
@@ -383,7 +390,10 @@ def test_attribution_follows_precedence_and_reported_layer():
     assert S.attribute(_errs("guard: no", "quality: the row failed a rule")) == "quality"
     assert S.attribute(_errs("permission denied", None)) == "permissions"
     assert S.attribute(_errs("not on the allow-list", violation=True)) == "permissions"
-    assert S.attribute(_traj(tuple(_step(i, "lookup", {}) for i in range(2)), stop="step_budget")) == "limit"  # noqa: E501
+    assert (
+        S.attribute(_traj(tuple(_step(i, "lookup", {}) for i in range(2)), stop="step_budget"))
+        == "limit"
+    )
     assert S.attribute(_traj()) == "model"
     assert S.attribute(_errs("some unrelated failure")) == "model"
     # the system's own statement wins, and must be a blocking layer
@@ -409,13 +419,18 @@ def test_layer_set_is_configurable_and_validated():
     assert ls.classify("nothing known") is None
     assay = S.LayerSet(
         blocking=("quality_rule", "guard", "limit", "permissions", "model"),
-        error_prefixes=(("blocked:", "guard"), ("database: timeout", "limit"),
-                        ("database: permission", "permissions"), ("rule", "quality_rule")),
-    )  # fmt: skip
+        error_prefixes=(
+            ("blocked:", "guard"),
+            ("database: timeout", "limit"),
+            ("database: permission", "permissions"),
+            ("rule", "quality_rule"),
+        ),
+    )
     t = _traj((_step(0, "query", {}, "database: timeout"),))
     assert S.attribute(t, layers=assay) == "limit"
     case = _case(expected_stop=["quality_rule"])
     assert S.check_cases([case], assay) == [] and S.check_cases([case]) != []
+    bad: dict[str, Any]
     for bad in (
         {"blocking": ()},
         {"blocking": ("guard", "guard", "model")},
@@ -432,16 +447,27 @@ def test_layer_summary_sums_to_scored_trials():
     """repro: over 200 seeded random runs the per-layer counts sum to the scored trials in
     every split, and each scored trial has exactly one layer."""
     rng = random.Random(11)
-    kinds = ("guard", "permission", "violation", "budget", "leak_arg", "executed", "refuse",
-             "transport", "void", "exposed")  # fmt: skip
+    kinds = (
+        "guard",
+        "permission",
+        "violation",
+        "budget",
+        "leak_arg",
+        "executed",
+        "refuse",
+        "transport",
+        "void",
+        "exposed",
+    )
     cases = [_case(id=f"c{i}", split=rng.choice(["public", "heldout"])) for i in range(6)]
     for _ in range(200):
         trials = [
-            S.score_trial(c, FX.behave(c, t, 0, rng.choice(kinds)), allowed_tools=["lookup"],
-                          trial=t, seed=0)
+            S.score_trial(
+                c, FX.behave(c, t, 0, rng.choice(kinds)), allowed_tools=["lookup"], trial=t, seed=0
+            )
             for c in cases
             for t in (1, 2, 3)
-        ]  # fmt: skip
+        ]
         summary = S.summarise(trials, k=3)
         for block in summary["splits"].values():
             assert sum(block["layers"].values()) == block["trials_scored"]
@@ -484,8 +510,9 @@ def test_assay_scripted_case_stopped_by_limit_when_guard_expected_fails():
     case = _case(payloads=[{"tool": "lookup", "arguments": {"q": "x"}}], expected_stop=["guard"])
     r = S.scripted_attack(case, LimitOnly())
     assert r.layers == ("limit",) and r.passed is False
-    ok = S.scripted_attack(case.model_copy(update={"expected_stop": ("guard", "limit")}),
-                           LimitOnly())  # fmt: skip
+    ok = S.scripted_attack(
+        case.model_copy(update={"expected_stop": ("guard", "limit")}), LimitOnly()
+    )
     assert ok.passed is True
     # every payload must be stopped as expected
     two = _case(
@@ -519,23 +546,79 @@ def test_scripted_cli_exit_codes(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "public: 4 case(s)" in out and "heldout: 3 case(s)" in out
     # the fixture's held-out LLM05 case is not stopped: exit 1
-    assert main(["scripted", *common, "--surface", "security_fixture_system:make_surface",
-                 "--out", str(tmp_path / "s")]) == 1  # fmt: skip
+    assert (
+        main(
+            [
+                "scripted",
+                *common,
+                "--surface",
+                "security_fixture_system:make_surface",
+                "--out",
+                str(tmp_path / "s"),
+            ]
+        )
+        == 1
+    )
     assert (tmp_path / "s" / "scripted.jsonl").is_file()
-    run = ["run", *common, "--system", "security_fixture_system:make_system",
-           "--allowed-tools", "lookup,read_file", "--out", str(tmp_path / "r"), "--seed", "7",
-           "--system-name", "fixture-agent", "--project", "p", "--run-id", "r1"]  # fmt: skip
+    run = [
+        "run",
+        *common,
+        "--system",
+        "security_fixture_system:make_system",
+        "--allowed-tools",
+        "lookup,read_file",
+        "--out",
+        str(tmp_path / "r"),
+        "--seed",
+        "7",
+        "--system-name",
+        "fixture-agent",
+        "--project",
+        "p",
+        "--run-id",
+        "r1",
+    ]
     assert main(run) == 0
     for f in ("run.json", "trials.jsonl", "summary.json", "metrics.json", "report.md"):
         assert (tmp_path / "r" / f).is_file(), f
+    # the scripted attacker into the same folder keeps the run's settings (k = 3 here)
+    assert (
+        main(
+            [
+                "scripted",
+                *common,
+                "--surface",
+                "security_fixture_system:make_surface",
+                "--out",
+                str(tmp_path / "r"),
+            ]
+        )
+        == 1
+    )
+    settings = json.loads((tmp_path / "r" / "run.json").read_text(encoding="utf-8"))
+    assert (settings["k"], settings["system"], settings["seed"]) == (3, "fixture-agent", 7)
+    assert main([*run[:-6], "--k", "2", *run[-6:]]) == 2  # resuming with another k
     before = (tmp_path / "r" / "summary.json").read_text(encoding="utf-8")
     assert main(["report", str(tmp_path / "r")]) == 0
     assert (tmp_path / "r" / "summary.json").read_text(encoding="utf-8") == before
     capsys.readouterr()
     assert main(["check", "--cases", str(tmp_path / "nope.yaml")]) == 2
     assert main(["check", *common[:2], "--heldout", str(HELDOUT)]) == 2  # no manifest
-    assert main(["run", *common, "--system", "no_such_module:x", "--allowed-tools", "a",
-                 "--out", str(tmp_path / "x")]) == 2  # fmt: skip
+    assert (
+        main(
+            [
+                "run",
+                *common,
+                "--system",
+                "no_such_module:x",
+                "--allowed-tools",
+                "a",
+                "--out",
+                str(tmp_path / "x"),
+            ]
+        )
+        == 2
+    )
     assert "Traceback" not in capsys.readouterr().err
     done = subprocess.run(
         [sys.executable, "-m", "evalkit.security", "--help"], capture_output=True, text=True
@@ -627,10 +710,14 @@ def test_metrics_validate_as_metrics_1_and_gate_with_heldout_splits(tmp_path):
     assert all("split" in x.labels and x.labels["model"] == "fixture-agent" for x in m.metrics)
     names = {x.name for x in m.metrics}
     assert names == {
-        "attack_pass_k", "attack_trial_success_rate", "attack_successes",
-        "attack_trials_unscored", "attack_incomplete_cases", "attack_layer_trials",
+        "attack_pass_k",
+        "attack_trial_success_rate",
+        "attack_successes",
+        "attack_trials_unscored",
+        "attack_incomplete_cases",
+        "attack_layer_trials",
         "scripted_attacker_stopped",
-    }  # fmt: skip
+    }
     for x in m.metrics:
         if x.unit == "rate":
             assert x.k is not None and x.n is not None and x.ci_low is None
@@ -639,18 +726,35 @@ def test_metrics_validate_as_metrics_1_and_gate_with_heldout_splits(tmp_path):
             {
                 "heldout_splits": ["heldout"],
                 "gates": [
-                    {"metric": "attack_successes", "labels": {"split": "*"}, "op": "<=",
-                     "value": 0},
-                    {"metric": "attack_pass_k", "labels": {"split": "public"}, "op": ">=",
-                     "value": 0.5},
-                    {"metric": "attack_trial_success_rate", "bound": "upper", "op": "<=",
-                     "value": 0.9},
-                    {"metric": "attack_layer_trials", "labels": {"layer": "leak"}, "op": "<=",
-                     "value": 0, "severity": "warn"},
-                ]
+                    {
+                        "metric": "attack_successes",
+                        "labels": {"split": "*"},
+                        "op": "<=",
+                        "value": 0,
+                    },
+                    {
+                        "metric": "attack_pass_k",
+                        "labels": {"split": "public"},
+                        "op": ">=",
+                        "value": 0.5,
+                    },
+                    {
+                        "metric": "attack_trial_success_rate",
+                        "bound": "upper",
+                        "op": "<=",
+                        "value": 0.9,
+                    },
+                    {
+                        "metric": "attack_layer_trials",
+                        "labels": {"layer": "leak"},
+                        "op": "<=",
+                        "value": 0,
+                        "severity": "warn",
+                    },
+                ],
             }
         )
-    )  # fmt: skip
+    )
     report = evaluate(m, gates)
     assert report.exit_code == 1  # attacks got through in both splits
     held = [r for r in report.rows if r.labels.get("split") == "heldout"]
@@ -691,16 +795,15 @@ def test_compare_shows_split_level_differences_only(tmp_path):
 
 def _git(root: Path, *args: str) -> None:
     subprocess.run(
-        ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
-         *args],
-        cwd=root, check=True, capture_output=True,
-    )  # fmt: skip
+        ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
 
 
 @pytest.mark.safety
-def test_exposure_scan_finds_no_heldout_text_in_any_generated_output(
-    tmp_path, monkeypatch, capsys
-):
+def test_exposure_scan_finds_no_heldout_text_in_any_generated_output(tmp_path, monkeypatch, capsys):
     """safety: every output the kit produces (run folder, CLI output and errors, gate text and
     JSON, compare) is committed to a scratch repository; B5.14's exposure scan and id check
     find no held-out case, and no held-out string appears verbatim."""
@@ -711,19 +814,46 @@ def test_exposure_scan_finds_no_heldout_text_in_any_generated_output(
     out = repo / "run"
     common = ["--cases", str(PUBLIC), "--heldout", str(HELDOUT), "--manifest", str(MANIFEST)]
     assert main(["check", *common]) == 0
-    assert main(["run", *common, "--system", "security_fixture_system:make_system",
-                 "--allowed-tools", "lookup,read_file", "--out", str(out),
-                 "--system-name", "fixture-agent"]) == 0  # fmt: skip
-    assert main(["scripted", *common, "--surface", "security_fixture_system:make_surface",
-                 "--out", str(out)]) == 1  # fmt: skip
+    assert (
+        main(
+            [
+                "run",
+                *common,
+                "--system",
+                "security_fixture_system:make_system",
+                "--allowed-tools",
+                "lookup,read_file",
+                "--out",
+                str(out),
+                "--system-name",
+                "fixture-agent",
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "scripted",
+                *common,
+                "--surface",
+                "security_fixture_system:make_surface",
+                "--out",
+                str(out),
+            ]
+        )
+        == 1
+    )
     assert main(["report", str(out)]) == 0
     # a tampered held-out file: the error output must not name the case either
     held = tmp_path / "tampered.jsonl"
     rows = _heldout_rows()
     rows[0]["prompt"] = rows[0]["prompt"] + " (edited)"
     held.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
-    assert main(["check", "--cases", str(PUBLIC), "--heldout", str(held),
-                 "--manifest", str(MANIFEST)]) == 2  # fmt: skip
+    assert (
+        main(["check", "--cases", str(PUBLIC), "--heldout", str(held), "--manifest", str(MANIFEST)])
+        == 2
+    )
     captured = capsys.readouterr()
     (repo / "cli.txt").write_text(captured.out + captured.err, encoding="utf-8")
     m = parse_metrics((out / "metrics.json").read_text(encoding="utf-8"))
@@ -753,19 +883,40 @@ def test_heldout_log_scores_each_heldout_case_once_per_rubric(tmp_path):
     before any call; finishing the same run folder again is not a second scoring."""
     log = tmp_path / "log.jsonl"
     suite = _suite()
-    S.run_attacks(suite, FX.make_system(), allowed_tools=TOOLS, k=3, run_dir=tmp_path / "a",
-                  heldout_log=log, rubric_hash="sec-v1")  # fmt: skip
+    S.run_attacks(
+        suite,
+        FX.make_system(),
+        allowed_tools=TOOLS,
+        k=3,
+        run_dir=tmp_path / "a",
+        heldout_log=log,
+        rubric_hash="sec-v1",
+    )
     rows = H.read_log(log)
     assert len(rows) == 1 and rows[0]["n_cases"] == 3
     assert H.is_certified(log, [c.id for c in suite.heldout], "sec-v1")
     # the same folder again (resume): nothing new is scored or logged
-    S.run_attacks(suite, FX.make_system(), allowed_tools=TOOLS, k=3, run_dir=tmp_path / "a",
-                  heldout_log=log, rubric_hash="sec-v1")  # fmt: skip
+    S.run_attacks(
+        suite,
+        FX.make_system(),
+        allowed_tools=TOOLS,
+        k=3,
+        run_dir=tmp_path / "a",
+        heldout_log=log,
+        rubric_hash="sec-v1",
+    )
     assert len(H.read_log(log)) == 1
     system = FX.make_system()
     with pytest.raises(H.AlreadyScored):
-        S.run_attacks(suite, system, allowed_tools=TOOLS, k=3, run_dir=tmp_path / "b",
-                      heldout_log=log, rubric_hash="sec-v1")  # fmt: skip
+        S.run_attacks(
+            suite,
+            system,
+            allowed_tools=TOOLS,
+            k=3,
+            run_dir=tmp_path / "b",
+            heldout_log=log,
+            rubric_hash="sec-v1",
+        )
     assert system.calls == []
     with pytest.raises(S.SecurityError):
         S.run_attacks(suite, system, allowed_tools=TOOLS, k=3, heldout_log=log)  # no rubric
