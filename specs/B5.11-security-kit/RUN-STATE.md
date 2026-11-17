@@ -23,6 +23,7 @@
   11. `to_metrics([summary, ...])` builds one file for several systems (a repeated system is refused), and `python -m evalkit.security metrics DIR... --out`.
   12. Restored the blocked rate with a seeded two-level bootstrap (`two_level_interval`, lifted from assay `attack/stats.py`) and the held-out `outside_public` flag. The report states that the trial-rate interval assumes independent trials.
   13. The incomplete-case rule is written into the Interface.
+  - Converge on the rebased branch (main 1f523c7): an earlier pass failed `tests/harness/test_text_encoding.py`, because three file calls in the new tests did not name an encoding (fixed). Then two passes in a row: 12/12, unit 1848 passed, golden 17, safety 170.
   - Declined 12c (held-out per-category rows): it conflicts with SEC-05 "only split-level aggregates" (question for the owner). Kept `step_budget → limit` per SEC-03; assay sets `budget="model"`.
 
 ## Decisions taken in the lane (for the lead to confirm)
