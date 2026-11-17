@@ -138,15 +138,30 @@ def test_rc_canary_covers_every_registered_project_with_tests():
     assert "--all" in rec["command"]
 
 
-def test_rc_canary_statuses_are_pass_known_drift_or_no_tests_each_explained():
+def _withheld_import_break(p: dict) -> bool:
+    """A failure made only of collection errors on a name D-74 withheld from evalkit.scorers."""
+    names = "|".join(WITHHELD["evalkit.scorers"])
+    hits = re.findall(rf"cannot import name '(?:{names})' from 'evalkit\.scorers'", p["detail"])
+    c = p["counts"]
+    return bool(hits) and c["failed"] == 0 and c["errors"] == len(p["failures"]) > 0
+
+
+def test_rc_canary_statuses_are_ok_or_a_d74_break_named_in_the_guide():
+    """Every project passes, drifts only by its registered known ids, or has no tests. The one
+    allowed exception is a project broken only by D-74's withheld value_check names: it must
+    say so in its finding and in its section of docs/downstream.md (the owner's call)."""
     rec = _rc()
+    sections = _sections()
     for name, p in rec["projects"].items():
-        assert p["status"] in STATUSES_OK, (name, p["status"], p.get("finding"))
         if p["status"] != "pass":
             assert p.get("finding"), f"{name}: {p['status']} needs a finding"
         if p["status"] == "known-drift":
             row = next(r for r in REGISTRY if r.project == name)
             assert set(p["failures"]) <= set(row.known_failures())
+        if p["status"] not in STATUSES_OK:
+            assert p["status"] == "fail" and _withheld_import_break(p), (name, p["status"])
+            assert p["finding"].startswith("D-74"), name
+            assert "fail, caused by 0.3.0 (D-74)" in sections[name], name
 
 
 # ---- V03-02 migration guide -------------------------------------------------------------------
@@ -269,8 +284,24 @@ def test_behaviour_changes_and_offers_are_named():
     sections = _sections()
     assert "systems" in sections["gemma-grounded-health"]
     assert "test_spec_covers_every_run_config_field" in sections["gemma-grounded-health"]
-    assert "equal-width" in sections["respectful-offers"] and "D-73" in sections["respectful-offers"]
+    offers = sections["respectful-offers"]
+    assert "equal-width" in offers and "D-73" in offers
     assert "D-74" in sections["fraud-review-bedrock"]
     text = GUIDE.read_text(encoding="utf-8")
     for needed in ("D-70", "efficiency", "MIN_CASES", "sql_match", "example_predicted_row"):
         assert needed in text, needed
+
+
+def test_every_capability_named_for_a_project_imports_and_is_public():
+    """The capabilities each project asked for are named by their public names."""
+    seen = 0
+    for row in REGISTRY:
+        body = _sections()[row.project]
+        assert "Capabilities it asked for" in body, row.project
+        caps = body.split("Capabilities it asked for", 1)[1]
+        for span in re.findall(r"`([^`]+)`", caps):
+            if DOTTED.match(span):
+                seen += 1
+                assert _resolve(span) is not None, (row.project, span)
+                assert _is_public(span), f"{row.project}: capability {span} is not public"
+    assert seen > 30

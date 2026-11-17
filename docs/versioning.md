@@ -114,6 +114,9 @@ efficiency section (D-67, B5.3) and the GAT-07 wording for shares of exactly 0 o
 | `evalkit.pipeline.extract.EXTRACTOR_VERSION` | `evalkit.identity.EXTRACTOR_VERSION` | works, internal |
 | `evalkit.cost`, `evalkit.retry`, `evalkit.stats`, `evalkit.scorers.faithfulness` names above | same path | now public |
 
+Each registered project's exact list of changes, with its 0.3.0 requirement line, is in
+[downstream.md](downstream.md).
+
 `CalibrationPair` takes its fields in `_Pair`'s order, so a positional `_Pair(key, human,
 judge)` only changes the class name; `cluster_kappa` and `agreement_table` accept either.
 
