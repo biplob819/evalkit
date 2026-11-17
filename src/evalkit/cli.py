@@ -741,9 +741,20 @@ def cmd_compare(args: argparse.Namespace) -> int:
         )
     problems = [p for p in (_write_gate_json(Path(args.out), report_json(c)),) if p]
     if args.md and not problems:
-        problems += [p for p in (_write_gate_json(Path(args.md), render_markdown(c)),) if p]
-    if problems:
+        md_problem = _write_gate_json(Path(args.md), render_markdown(c))
+        if md_problem:
+            # compare.json was written before the markdown failed: rewrite it with exit 2, so
+            # the file never says a run passed when the command did not
+            problems.append(md_problem)
+            c.errors.append(md_problem)
+            c.exit_code, c.verdict = EXIT_INPUT, "error"
+            again = _write_gate_json(Path(args.out), report_json(c))
+            if again:
+                problems.append(again)
+                c.errors.append(again)
+    elif problems:
         c.errors += problems
+    if problems:
         c.exit_code, c.verdict = EXIT_INPUT, "error"
     if args.json:
         print(report_json(c), end="")

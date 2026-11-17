@@ -366,8 +366,14 @@ def test_heldout_rows_are_split_level_aggregates_only(tmp_path):
         assert ch["labels"]["split"] == "heldout"
         assert ch["pairing"] == "unpaired"  # held-out rows are never paired
     pk = [ch for ch in held if ch["metric"] == "attack_pass_k" and ch["labels"]["model"] == G]
-    # the sidecar's held-out rows carry no case id: unpaired, from the per-case bootstrap
-    assert pk[0]["interval_sources"] == {"old": "bootstrap", "new": "bootstrap"}
+    # the sidecar's held-out rows carry no case id: unpaired, from the per-case values; every
+    # case passes on both sides, so the bootstrap has zero width and the exact interval over
+    # the cases (Clopper-Pearson) stands in: never a zero-width "certain" interval
+    assert pk[0]["interval_sources"] == {
+        "old": "clopper-pearson (cases)",
+        "new": "clopper-pearson (cases)",
+    }
+    assert pk[0]["interval_status"] == "ok" and pk[0]["ci_low"] < 0 < pk[0]["ci_high"]
 
 
 def test_heldout_case_ids_are_never_printed_exposure_check(tmp_path):
@@ -456,13 +462,13 @@ def test_course_assistant_fewer_than_two_shared_cases_exits_2(tmp_path):
     gates.write_text(CA_GATES, "utf-8")
     old = write_run(
         tmp_path / "old",
-        _ca_metrics(0.9, 0.0),
+        _ca_metrics(2 / 3, 0.0, n=3),  # the sidecar must average to the metric's value
         _ca_cases("rubric_pass_rate", [1.0, 1.0, 0.0], ["a", "b", "c"])
         + _ca_cases("hallucination_rate", [0.0, 0.0, 0.0], ["a", "b", "c"]),
     )
     new = write_run(
         tmp_path / "new",
-        _ca_metrics(0.9, 0.0),
+        _ca_metrics(1.0, 0.0, n=3),
         _ca_cases("rubric_pass_rate", [1.0, 1.0, 1.0], ["c", "d", "e"])  # one shared case
         + _ca_cases("hallucination_rate", [0.0, 0.0, 0.0], ["a", "b", "c"]),
     )
@@ -556,7 +562,8 @@ def test_sidecar_is_optional_and_heldout_rows_without_case_id_fall_back_to_unpai
         compare_runs(tmp_path / "old", tmp_path / "new"), "attack_pass_k", model=G, split="public"
     )
     assert row["pairing"] == "unpaired"
-    assert row["interval_sources"] == {"old": "bootstrap", "new": "bootstrap"}
+    # old passes all 40: a zero-width bootstrap, so its exact interval over the cases stands in
+    assert row["interval_sources"] == {"old": "clopper-pearson (cases)", "new": "bootstrap"}
 
 
 def test_missing_metrics_and_labels_are_listed_never_skipped():
@@ -761,3 +768,197 @@ def test_docs_state_the_exit_codes_sidecar_and_methods():
     for word in ("MOVER", "Holm", "unpaired", "at least 2 shared case ids", "never paired"):
         assert word in text
     assert "compare.md" in (ROOT / "docs" / "versioning.md").read_text(encoding="utf-8")
+
+
+# ---- verifier findings (B5.6 pass 2): claims need enough data, and agree with the summary ------
+
+
+GATE_ACC = "gates:\n  - {metric: acc, op: '>=', value: 0.5, severity: fail}\n"
+
+
+def _acc_run(folder: Path, value: float, cases: list[tuple[str, float]]) -> Path:
+    m = [{"name": "acc", "unit": "rate", "value": value, "n": len(cases)}]
+    return write_run(folder, m, [{"case_id": i, "metric": "acc", "value": v} for i, v in cases])
+
+
+def test_one_case_per_side_is_never_flagged(tmp_path):
+    """Probe A: one case each side, unpaired: the bootstrap of one value has zero width."""
+    old = _acc_run(tmp_path / "o", 0.0, [("x", 0.0)])
+    new = _acc_run(tmp_path / "n", 1.0, [("y", 1.0)])
+    row = one(compare_runs(old, new), "acc")
+    assert row["flagged"] is False
+    assert row["ci_low"] < row["ci_high"]  # never a zero-width interval passed off as certain
+
+
+def test_two_shared_cases_are_too_few_to_claim_a_regression(tmp_path):
+    """Probe B: 2 shared cases that both drop: RVR-03 is met (>= 2), but no claim is made."""
+    gates = tmp_path / "g.yaml"
+    gates.write_text(GATE_ACC, "utf-8")
+    old = _acc_run(tmp_path / "o", 1.0, [("c0", 1.0), ("c1", 1.0)])
+    new = _acc_run(tmp_path / "n", 0.0, [("c0", 0.0), ("c1", 0.0)])
+    code, data, text = cli_compare(tmp_path, old, new, "--gates", str(gates))
+    assert code == EXIT_PASS and data["errors"] == []
+    row = one_from(data, "acc")
+    assert row["pairing"] == "paired" and row["n_shared"] == 2
+    assert row["interval_status"] == "too_few_cases"
+    assert (row["ci_low"], row["ci_high"]) == (-1.0, -1.0)  # shown, not claimed
+    assert row["flagged"] is False and row["regression"] is False and row["p_holm"] is None
+    assert data["holm"]["family"] == 0
+    assert "too few cases" in text
+
+
+def test_a_zero_width_paired_interval_is_degenerate_not_certain(tmp_path):
+    ids = [f"c{i}" for i in range(12)]
+    gates = tmp_path / "g.yaml"
+    gates.write_text(GATE_ACC, "utf-8")
+    old = _acc_run(tmp_path / "o", 1.0, [(i, 1.0) for i in ids])
+    new = _acc_run(tmp_path / "n", 0.0, [(i, 0.0) for i in ids])
+    c = compare_runs(old, new, gates=gates)
+    row = one(c, "acc")
+    assert row["interval_status"] == "degenerate" and row["ci_low"] == row["ci_high"]
+    assert row["flagged"] is False and c.exit_code == EXIT_PASS
+    assert "degenerate" in render_markdown(c)
+
+
+def test_partial_overlap_is_compared_unpaired_and_states_the_unpartnered_cases(tmp_path):
+    """Probe C: 2 of 100 cases shared: no paired claim from 2 cases, never exit 1."""
+    gates = tmp_path / "g.yaml"
+    gates.write_text(GATE_ACC, "utf-8")
+    shared_old = [("s1", 1.0), ("s2", 1.0)]
+    shared_new = [("s1", 0.0), ("s2", 0.0)]
+    old = _acc_run(tmp_path / "o", 1.0, [(f"o{i}", 1.0) for i in range(98)] + shared_old)
+    new = _acc_run(tmp_path / "n", 0.98, [(f"n{i}", 1.0) for i in range(98)] + shared_new)
+    code, data, text = cli_compare(tmp_path, old, new, "--gates", str(gates))
+    assert code == EXIT_PASS and data["errors"] == []
+    row = one_from(data, "acc")
+    assert row["pairing"] == "unpaired" and row["partial_overlap"] is True
+    assert row["n_shared"] == 2 and row["not_paired"] == {"old": 98, "new": 98}
+    assert row["flagged"] is False and row["regression"] is False
+    assert row["ci_low"] < row["diff"] < row["ci_high"]
+    line = next(ln for ln in text.splitlines() if ln.startswith("| acc"))
+    assert "partial overlap" in line and "98 old" in line and "98 new" in line
+
+
+def test_paired_needs_the_shared_cases_to_be_most_of_each_side(tmp_path):
+    # 40 shared of 100 on the new side: below half, so unpaired; 40 of 60: paired
+    base = [(f"c{i}", float(i % 2)) for i in range(40)]
+    old = _acc_run(tmp_path / "o", 0.5, base)
+    extra = [(f"x{i}", float(i % 2)) for i in range(60)]
+    row = one(compare_runs(old, _acc_run(tmp_path / "n", 0.5, base + extra)), "acc")
+    assert row["pairing"] == "unpaired" and row["partial_overlap"] is True
+    row2 = one(compare_runs(old, _acc_run(tmp_path / "n2", 0.5, base + extra[:20])), "acc")
+    assert row2["pairing"] == "paired" and row2["partial_overlap"] is False
+    assert row2["not_paired"] == {"old": 0, "new": 20}
+
+
+def test_count_metrics_refuse_a_per_case_sidecar(tmp_path):
+    m = [{"name": "atk", "unit": "count", "value": 1, "n": 40}]
+    cases = [{"case_id": f"c{i}", "metric": "atk", "value": int(i == 0)} for i in range(40)]
+    with pytest.raises(CompareError, match="count"):
+        load_input(write_run(tmp_path / "n", m, cases))
+    c = compare_runs(write_run(tmp_path / "o", m), tmp_path / "n" / "metrics.json")
+    assert c.exit_code == EXIT_INPUT
+    assert any("count" in e and "cases.jsonl" in e for e in c.errors)
+    # a count without a sidecar: the change on the count scale (new count - old count)
+    old = write_run(tmp_path / "o2", [{"name": "atk", "unit": "count", "value": 0, "n": 40}])
+    new = write_run(tmp_path / "n2", [{"name": "atk", "unit": "count", "value": 1, "n": 40}])
+    assert one(compare_runs(old, new), "atk")["diff"] == 1
+
+
+def test_a_sidecar_that_contradicts_its_metric_value_is_refused(tmp_path):
+    """Probe D: value 0.9 but every per-case value 0."""
+    old = write_run(
+        tmp_path / "o",
+        [{"name": "acc", "unit": "rate", "value": 0.9, "n": 4}],
+        [{"case_id": f"c{i}", "metric": "acc", "value": 0} for i in range(4)],
+    )
+    with pytest.raises(CompareError, match="do not average"):
+        load_input(old)
+    assert compare_runs(old, old).exit_code == EXIT_INPUT
+    # within the metrics-1 rate tolerance (a value rounded to 6 decimals) is accepted
+    ok = write_run(
+        tmp_path / "ok",
+        [{"name": "acc", "unit": "rate", "value": 0.333333, "n": 3}],
+        [{"case_id": f"c{i}", "metric": "acc", "value": int(i == 0)} for i in range(3)],
+    )
+    assert load_input(ok).cases is not None
+
+
+def test_model_ids_are_listed_per_model_within_the_shown_limit(tmp_path):
+    old = tmp_path / "old"
+    new = tmp_path / "new"
+    shutil.copytree(EXAMPLE_RUN, old)
+    shutil.copytree(EXAMPLE_RUN, new)
+    out = []
+    for ln in (new / "records.jsonl").read_text("utf-8").splitlines():
+        r = json.loads(ln)
+        if r["completion"]["model"] == S:
+            r["completion"]["model_snapshot"] = "claude-sonnet-5-5-snap2"
+        out.append(json.dumps(r))
+    (new / "records.jsonl").write_text("\n".join(out) + "\n", "utf-8")
+    c = compare_runs(old, new)
+    diffs = {d.setting: d for d in c.settings}
+    d = diffs[f"model_ids.{S}"]
+    assert d.new == "claude-sonnet-5-5-snap2" and d.old and "not shown" not in d.old
+    assert not any(k.startswith("model_ids.gpt") for k in diffs)  # unchanged: not listed
+    assert "not shown" not in render_markdown(c)
+
+
+def test_typed_labels_are_told_apart_in_json_and_markdown(tmp_path):
+    old = write_run(
+        tmp_path / "o",
+        [{"name": "acc", "unit": "rate", "value": 0.5, "n": 10, "labels": {"cohort": 2024}}],
+    )
+    new = write_run(
+        tmp_path / "n",
+        [{"name": "acc", "unit": "rate", "value": 0.5, "n": 10, "labels": {"cohort": "2024"}}],
+    )
+    c = compare_runs(old, new)
+    shown = {m["side"]: m["labels"]["cohort"] for m in c.as_dict()["missing"]}
+    assert shown == {"new": "2024", "old": '"2024"'}  # missing from old: the text "2024"
+    md = render_markdown(c)
+    assert "cohort=2024" in md and 'cohort="2024"' in md
+
+
+def test_a_heldout_group_of_one_never_shows_category_figures(tmp_path):
+    held = {"split": "heldout"}
+
+    def acc(value: float, **labels: Any) -> dict[str, Any]:
+        return {"name": "acc", "unit": "rate", "value": value, "n": 50, "labels": labels}
+
+    old = write_run(tmp_path / "o", [acc(0.2, **held, cat="A"), acc(0.9, **held, cat="B")])
+    new = write_run(tmp_path / "n", [acc(0.6, **held, cat="A")])
+    c = compare_runs(old, new)
+    data = c.as_dict()
+    (row,) = data["changes"]
+    assert row["labels"] == held and row["heldout_rows"] == 1
+    assert (row["old"], row["new"], row["diff"], row["ci_low"]) == (None, None, None, None)
+    (miss,) = data["missing"]
+    assert miss["labels"] == held and miss["heldout_rows"] == 1
+    md = render_markdown(c)
+    for figure in ("0.2", "0.6", "0.9"):
+        assert figure not in md
+    # a split-level row (no other label) is already an aggregate: it keeps its figures
+    a = write_run(tmp_path / "a", [acc(0.2, **held)])
+    b = write_run(tmp_path / "b", [acc(0.6, **held)])
+    assert one(compare_runs(a, b), "acc")["new"] == 0.6
+
+
+def test_an_unwritable_markdown_report_records_exit_2_in_compare_json(tmp_path):
+    out = tmp_path / "compare.json"
+    blocker = tmp_path / "file"
+    blocker.write_text("x", "utf-8")
+    code = cli.main(
+        ["compare", str(RO_OLD), str(RO_NEW), "--out", str(out), "--md", str(blocker / "x.md")]
+    )
+    data = json.loads(out.read_text("utf-8"))
+    assert code == EXIT_INPUT and data["exit_code"] == EXIT_INPUT and data["verdict"] == "error"
+    assert data["errors"]
+
+
+def test_a_run_folder_without_an_evalkit_version_lists_it_as_unrecorded():
+    c = compare_runs(EXAMPLE_RUN, EXAMPLE_RUN)
+    diffs = {d.setting: d.as_dict() for d in c.settings}
+    assert diffs["evalkit"]["old"] is None and diffs["evalkit"]["new"] is None
+    assert "unrecorded" in diffs["evalkit"]["note"]
+    assert "`evalkit`: unrecorded → unrecorded" in render_markdown(c)
