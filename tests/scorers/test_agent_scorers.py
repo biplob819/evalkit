@@ -1085,3 +1085,406 @@ def test_sev_ambiguous_negation_is_named_and_a_clean_sentence_still_reads():
     assert value_check("No fraud flags. Amount above $800.", {"amount": 812.4}).value == 1.0
     assert value_check("not above $900", {"amount": 812.4}).value == 1.0
     assert value_check("doesn't exceed $800", {"amount": 812.4}).value == 0.0
+
+
+# ---- B5.13 fraud-review integration: false negatives on real model reasons ----------------------
+# fraud-review-bedrock ran value_check (add5af9) on its eval2 reasons: 2,303 of 3,536 passed, most
+# failures true claims. The reasons below are theirs (simulated card data); the records are cut
+# down to the fields the reasons talk about.
+
+_FR = {
+    "amount": 7.07,
+    "risk_score": 0.39,
+    "amt_vs_usual": 4.43,
+    "hour": 23,
+    "ts_hour": 23,
+    "ts_dow": 5,
+    "category_freq": 0.06,
+    "card_history_n": 2165,
+    "merchant_first_seen": False,
+    "category": "misc_pos",
+}
+_FR_ALIASES = {"amt_vs_usual": ["usual", "usual amount", "card's usual"]}
+_FR_CONSTANTS = [5, 10, 200, 50, 0.9, 0.05]
+
+
+@pytest.mark.parametrize(
+    ("reason", "changes", "ok"),
+    [
+        ("risk score is below 0.9", {}, True),
+        ("risk score is above 0.9", {}, False),
+        ("risk is below 0.3", {}, False),  # "risk" names risk_score (a distinctive first word)
+        ("The screening risk_score is 0.39, far below 0.9.", {}, True),
+        ("Risk score is 0.39, well below the 0.9 never-clear threshold", {}, True),
+        ("risk score is not above 0.9", {}, True),
+        ("risk score is not below 0.9", {}, False),
+        (
+            "Amount is 7.07 dollars, under 50, and 0.14 times the card's usual amount",
+            {"amt_vs_usual": 0.14},
+            True,
+        ),
+        ("Amount is 7.07 dollars, over 200", {}, False),
+        ("amount over 200", {"amount": 336.46}, True),
+        ("amount over 200", {"amount": 150.0}, False),
+        ("amount under 50", {}, True),
+        ("amt_vs_usual of 13.26 is at or above 10, so P3.9 bars it", {"amt_vs_usual": 13.26}, True),
+        ("amt_vs_usual of 4.43 is at or above 10", {}, False),
+        ("Card has only 3 earlier purchases, below the 5 needed", {"card_history_n": 3}, True),
+    ],
+)
+def test_sev_threshold_claims_compare_with_the_named_field(reason, changes, ok):
+    got = value_check(reason, {**_FR, **changes})
+    assert (got.value == 1.0) is ok, (reason, got.details)
+
+
+def test_sev_a_named_field_beats_the_closest_value_and_aliases_name_fields():
+    # the v0.3 reading compared with the first field within tolerance: amount 0.85 is near 0.9,
+    # so "risk score below 0.9" passed although risk_score is 0.95 (a false pass, now caught)
+    rec = {"amount": 0.85, "risk_score": 0.95}
+    got = value_check("risk score is below 0.9", rec)
+    assert got.value == 0.0
+    assert got.details["checks"][0]["field"] == "risk_score"
+    assert got.details["checks"][0]["via"] == "name"
+    spend = {"amount": 7.07, "card_history_n": 3}
+    assert value_check("spend is under 50", spend).value == 0.0  # names nothing: fails
+    assert value_check("spend is under 50", spend, aliases={"amount": ["spend"]}).value == 1.0
+    assert value_check("spend is over 50", spend, aliases={"amount": ["spend"]}).value == 0.0
+    # a named missing value, or an alias for a field the record lacks, fails the claim
+    missing = value_check("risk score below 0.9", {"risk_score": None, "amount": 0.85})
+    assert missing.value == 0.0
+    assert missing.details["checks"][0]["reason"] == "missing_value:risk_score"
+    absent = value_check("the score is below 0.9", {"amount": 0.85}, aliases={"risk": ["score"]})
+    assert absent.details["checks"][0]["reason"] == "missing_value:risk"
+    # documented: a comparison naming no field, with no field within tolerance, fails
+    assert value_check("well below 0.9", {"risk_score": 0.39}).value == 0.0
+    # a field named in another clause is not this number's field
+    two = value_check("Risk score is 0.39; well below 0.9", {"risk_score": 0.39})
+    assert two.value == 0.0
+    same = value_check("Risk score is 0.39, and well below 0.9", {"risk_score": 0.39})
+    assert same.value == 1.0
+
+
+def test_sev_a_multiple_names_only_a_ratio_field():
+    """ "5x" is a ratio: "Amount is 4.1 times usual, above the 5x threshold" is false even
+    though the amount (318) is above 5."""
+    rec = {"amount": 318.04, "amt_vs_usual": 4.14}
+    false = "Amount is 4.1 times the card's usual, a spend signal above the 5x threshold."
+    assert value_check(false, rec, aliases=_FR_ALIASES).value == 0.0
+    true = "Amount is 4.1 times the card's usual, a spend signal below the 5x threshold."
+    assert value_check(true, rec, aliases=_FR_ALIASES).value == 1.0
+    assert value_check("Spend at 10 or more times usual", rec, aliases=_FR_ALIASES).value == 0.0
+    big = {**rec, "amt_vs_usual": 30.9}
+    assert value_check("Spend at 10 or more times usual", big, aliases=_FR_ALIASES).value == 1.0
+
+
+@pytest.mark.parametrize(
+    ("reason", "hour", "ok", "n_checked"),
+    [
+        ("Purchase at hour 22 falls in the 10 p.m. to 6 a.m. window", 22, True, 1),
+        ("Purchase hour is 23 (11 p.m.), inside the 10 p.m.-6 a.m. window", 23, True, 2),
+        ("Purchase hour is 23 (10 p.m. local)", 23, False, 2),  # the model's slip, caught
+        ("The purchase hour was 6am", 6, True, 1),
+        ("The purchase hour was 6am", 18, False, 1),
+        ("The hour was 10:30 p.m.", 22, True, 1),
+        ("The hour was 22:00", 22, True, 1),
+        ("The hour is after 10 p.m.", 23, True, 1),
+        ("The hour is after 10 p.m.", 21, False, 1),
+        ("The hour is before 6 a.m.", 3, True, 1),
+        ("The hour is not 11 p.m.", 23, False, 1),  # a negation before a time: ambiguous
+        ("Bought at 22:00", 3, True, 0),  # no hour field named: unchecked, not a failure
+        ("Bought at 6am", 3, True, 0),
+        ("Hour 6 is after the midnight-to-5 a.m. signal window", 6, True, 1),
+        ("Hour is 7, outside the 10 to 6 a.m. window", 7, True, 1),
+    ],
+)
+def test_sev_times_of_day_are_not_free_numbers(reason, hour, ok, n_checked):
+    got = value_check(reason, {"hour": hour, "amount": 10.0, "card_history_n": 6})
+    assert (got.value == 1.0) is ok, (reason, got.details)
+    assert got.details["n_checked"] == n_checked, got.details
+
+
+def test_sev_times_are_recorded_and_a_phrase_may_claim_one():
+    got = value_check("Bought at 22:00, in the 10 p.m. to 6 a.m. window", {"n": 22, "hour": 3})
+    kinds = sorted(u["kind"] for u in got.details["unchecked"])
+    assert kinds == ["time", "time_window"] and got.details["n_checked"] == 0
+    phrase = ValuePhrase(pattern=r"at \d{1,2} ?[ap]\.?m\.?", field="hour")
+    assert value_check("Bought at 3 a.m.", {"hour": 3}, phrases=[phrase]).value == 1.0
+    assert value_check("Bought at 3 a.m.", {"hour": 15}, phrases=[phrase]).value == 0.0
+    assert value_check("Bought at 3 p.m.", {"hour": 15}, phrases=[phrase]).value == 1.0
+    # "ts_hour" is hour-like too; a 24-hour clock past 23 is not a time
+    assert value_check("ts_hour is 23 (11 p.m.)", {"ts_hour": 23}).value == 1.0
+    assert value_check("ts_hour is 23 (11 p.m.)", {"ts_hour": 13}).value == 0.0
+    assert value_check("hour 25:00", {"hour": 25}).value == 1.0
+
+
+def test_sev_policy_constants_rule_ids_and_ignored_spans():
+    rec = {"amount": 212.01, "amt_vs_usual": 4.43, "risk_score": 0.1}
+    signal = "This trips the 7x fraud signal"
+    assert value_check(signal, rec).value == 0.0
+    got = value_check(signal, rec, constants=[7])
+    assert got.value == 1.0 and got.details["n_checked"] == 0
+    assert got.details["unchecked"] == ({"text": "7x", "kind": "constant", "value": 7.0},)
+    assert value_check("the threshold of 0.9 applies", rec, constants=[0.9]).value == 1.0
+    # a constant needs a threshold word next to it, and a clause that names no field for it
+    assert value_check("it is 7", rec, constants=[7]).value == 0.0
+    false = "The risk score is above the 0.9 threshold"
+    assert value_check(false, rec, constants=_FR_CONSTANTS).value == 0.0
+    assert value_check("risk score is at the 0.9 threshold", rec, constants=[0.9]).value == 0.0
+    assert value_check("The risk score is below the 0.9 threshold", rec).value == 1.0
+    # fraud-review: the multiples compare with amt_vs_usual, named by its alias "usual"
+    reason = (
+        "Amount is 4.43 times the card's usual, which is elevated but below the 5x fraud "
+        "signal threshold, and well below the 10x no-clear threshold."
+    )
+    phrased = value_check(reason, rec, aliases=_FR_ALIASES, constants=_FR_CONSTANTS)
+    assert phrased.value == 1.0, phrased.details
+    # clause and rule ids are never numbers
+    for text in ("rule 7.1 applies", "P7.1 applies", "clause P5.9 bars it", "see §4.2", "(P5.9)."):
+        got = value_check(text, {"x": 1.0})
+        assert got.value == 1.0 and got.details["n_checked"] == 0, text
+    # ignore: numbers in the matched spans are not checked
+    got = value_check("version 3 of the policy says so", rec, ignore=[r"version \d+"])
+    assert got.value == 1.0 and got.details["unchecked"][0]["kind"] == "ignored"
+    with pytest.raises(ValueError):
+        value_check("x", rec, ignore=["("])
+    with pytest.raises(ValueError):
+        value_check("x", rec, ignore="policy")
+    with pytest.raises(ValueError):
+        value_check("x", rec, constants=[math.inf])
+    with pytest.raises(ValueError):
+        value_check("x", rec, aliases={"amount": "spend"})
+
+
+@pytest.mark.safety
+def test_sev_ignored_spans_and_constants_never_hide_a_negation():
+    rec = {"amount": 812.4}
+    reason = "the never-auto-clear rule: amount is above $800"
+    for got in (
+        value_check(reason, rec),
+        value_check(reason, rec, ignore=[r"never-auto-clear"]),
+        value_check(reason, rec, constants=[800]),
+    ):
+        assert got.value == 0.0 and got.details["checks"][0]["reason"] == "ambiguous_negation"
+
+
+_FIRST = ValuePhrase(pattern=r"first purchase at this merchant", holds="merchant_first_seen")
+_NIGHT = ValuePhrase(pattern=r"at night", holds="hour >= 22 or hour < 6")
+_NEVER = ValuePhrase(pattern=r"never (?:been )?used at this merchant", holds="merchant_first_seen")
+
+
+@pytest.mark.parametrize(
+    ("reason", "record", "ok"),
+    [
+        ("A first purchase at this merchant", {"merchant_first_seen": True}, True),
+        ("A first purchase at this merchant", {"merchant_first_seen": False}, False),
+        ("This is not a first purchase at this merchant", {"merchant_first_seen": False}, True),
+        ("This is not a first purchase at this merchant", {"merchant_first_seen": True}, False),
+        ("It isn't at night", {"hour": 14}, True),
+        ("never at night", {"hour": 3}, False),
+        # any other negation earlier in the sentence: ambiguous, fails either way
+        ("It is not true that the purchase was at night", {"hour": 3}, False),
+        ("It is not true that the purchase was at night", {"hour": 14}, False),
+        ("No flags, but a first purchase at this merchant", {"merchant_first_seen": True}, False),
+        (
+            "Not, as the analyst wrote in this morning's long note, made at night",
+            {"hour": 3},
+            False,
+        ),
+        # a negation in an earlier sentence does not count; a phrase's own words do not either
+        ("No fraud flags. Purchase at night.", {"hour": 3}, True),
+        ("The card has never been used at this merchant", {"merchant_first_seen": True}, True),
+        ("The card has never been used at this merchant", {"merchant_first_seen": False}, False),
+    ],
+)
+def test_sev_negated_condition_phrases(reason, record, ok):
+    got = value_check(reason, record, phrases=[_FIRST, _NIGHT, _NEVER])
+    assert (got.value == 1.0) is ok, (reason, got.details)
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Not, as the analyst wrote in this morning's long note, above $800",
+        "It is not the case that, as claimed in the earlier review, the amount is 812.40",
+        "Nothing suggests that the purchase, which came late in the evening, was over $800",
+    ],
+)
+def test_sev_a_negation_far_back_in_the_sentence_is_still_ambiguous(reason):
+    """v0.3 looked 40 characters back for a negation; a longer gap let a false claim pass."""
+    got = value_check(reason, {"amount": 812.4})
+    assert got.value == 0.0, got.details
+    assert got.details["checks"][0]["reason"] == "ambiguous_negation"
+
+
+def test_sev_value_check_scorer_keeps_each_checks_reason(registry):
+    s = value_check_scorer(phrases=PHRASES, name="alert_values_idx", record_key="alert")
+    texts = ["Purchase at night", "Amount is 9x this card's usual spend", "no doubt above $800"]
+    rec = {**SEV["record"], "amt_vs_usual": None}
+    res = s(case({"alert": rec}), completion("hold", json.dumps({"reasons": texts})))
+    checks = res.details["checks"]
+    assert [c["reason_index"] for c in checks] == [0, 1, 2]
+    assert checks[1]["reason"] == "missing_value:amt_vs_usual"
+    assert checks[2]["reason"] == "ambiguous_negation"
+    assert "reason" not in checks[0]
+    timed = value_check_scorer(name="alert_values_time", record_key="alert", constants=[5])
+    answer = json.dumps({"reasons": ["x", "at 22:00"]})
+    res = timed(case({"alert": {"hour": 3}}), completion("hold", answer))
+    assert res.details["unchecked"] == ({"text": "22:00", "kind": "time", "reason_index": 1},)
+    with pytest.raises(ValueError):
+        value_check_scorer(name="bad_ignore", ignore=["("])
+
+
+# fraud-review's own reasons and records (eval2, simulated), with the options it would pass
+_FR_CASES = [
+    (
+        "Purchase hour is 23 (11 p.m.), which falls in the 10 p.m. to 6 a.m. window where P5.9 "
+        "requires a person to review, so this alert cannot be cleared.",
+        {"hour": 23, "amount": 15.37, "risk_score": 0.005},
+        True,
+    ),
+    (
+        "Amount is 4.431647157190635 times the card's usual, which is elevated but below the 5x "
+        "fraud signal threshold, and well below the 10x no-clear threshold.",
+        {"amount": 212.01, "amt_vs_usual": 4.431647157190635, "ts_dow": 5},
+        True,
+    ),
+    (
+        "Purchase of 336.46 is a first purchase at this merchant (merchant_first_seen is true) "
+        "and the amount is 200 or more, so P4.9 forbids clearing.",
+        {"amount": 336.46, "merchant_first_seen": True},
+        True,
+    ),
+    (
+        "Hour is 7, outside the 10 p.m. to 6 a.m. no-clear window. The screening risk_score is "
+        "0.0037, far below 0.9.",
+        {"hour": 7, "risk_score": 0.003689352418426931, "amount": 11.76},
+        True,
+    ),
+    (
+        "Amount is 7.07 dollars, under 50, and 0.14 times the card's usual amount",
+        {"amount": 7.07, "amt_vs_usual": 0.13706863125242344},
+        True,
+    ),
+    (
+        "amt_vs_usual of 13.26 is at or above 10, so P3.9 bars auto-clearing and the alert "
+        "needs a person",
+        {"amt_vs_usual": 13.261725216111824, "amount": 721.04},
+        True,
+    ),
+    (
+        "Amount is 11.58 times the card's usual, which is at or above the 10x never-auto-clear "
+        "threshold",
+        {"amount": 558.99, "amt_vs_usual": 11.58288437629507},
+        True,
+    ),
+    # false variants of the same reasons stay caught
+    (
+        "Purchase hour is 23 (11 p.m.), which falls in the 10 p.m. to 6 a.m. window",
+        {"hour": 14},
+        False,
+    ),
+    (
+        "Amount is 4.43 times the card's usual, which is above the 5x fraud signal threshold.",
+        {"amount": 212.01, "amt_vs_usual": 4.431647157190635, "ts_dow": 5},
+        False,
+    ),
+    ("Amount is 7.07 dollars, over 50", {"amount": 7.07}, False),
+    ("The screening risk_score is 0.0037, far above 0.9.", {"risk_score": 0.0037}, False),
+]
+
+
+@pytest.mark.parametrize(
+    ("reason", "record", "ok"), _FR_CASES, ids=[r[:40] for r, _, _ in _FR_CASES]
+)
+def test_sev_fraud_review_reasons(reason, record, ok):
+    phrase = ValuePhrase(
+        pattern=r"\d[\d.,]*\s*(?:x|×|times)\s+(?:\S+\s+){0,3}?(?:usual|normal|typical|median)",
+        field="amt_vs_usual",
+    )
+    got = value_check(
+        reason, record, phrases=[phrase], aliases=_FR_ALIASES, constants=_FR_CONSTANTS
+    )
+    assert (got.value == 1.0) is ok, (reason, got.details)
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "text",
+    [
+        "risk score below 0.9 " * 2_000,
+        "10 p.m. to 6 a.m. " * 2_000,
+        "rule 7.1 " * 3_000,
+        "22:00 " * 4_000,
+        "the 5x signal threshold " * 2_000,
+        "not " * 5_000 + "above 5",
+    ],
+    ids=["named", "windows", "ids", "clock", "constants", "negations"],
+)
+def test_sev_value_check_new_readings_are_linear(text):
+    t0 = time.perf_counter()
+    value_check(text, _FR, aliases=_FR_ALIASES, constants=_FR_CONSTANTS, ignore=[r"v\d"])
+    assert time.perf_counter() - t0 < 0.5
+
+
+@pytest.mark.parametrize(
+    ("reason", "record", "ok"),
+    [
+        # "and the 10x" shares the comparison of "above the 5x"
+        (
+            "Amount is 26.49 times the card's usual, well above the 5x fraud signal (P3.1) and "
+            "the 10x never-auto-clear limit (P3.9).",
+            {"amount": 1026.66, "amt_vs_usual": 26.49},
+            True,
+        ),
+        (
+            "Amount is 7.43 times the card's usual, above both the 5x signal and the 10x limit.",
+            {"amount": 389.32, "amt_vs_usual": 7.43},
+            False,
+        ),
+        (
+            "Amount is 2.05 times the card's usual, well below the 5x signal level and the 10x "
+            "never-clear level.",
+            {"amount": 98.35, "amt_vs_usual": 2.05},
+            True,
+        ),
+        (
+            "Amount is 27.6 times the card's usual, which meets the 5x fraud signal (P3.1) and "
+            "the 10x never-auto-clear limit (P3.9), so this cannot be cleared.",
+            {"amount": 1401.35, "amt_vs_usual": 27.6074, "ts_dow": 5},
+            True,
+        ),
+        (
+            "Amount is 7.4 times the card's usual, which meets the 5x fraud signal (P3.1) and "
+            "the 10x never-auto-clear limit (P3.9).",
+            {"amount": 389.32, "amt_vs_usual": 7.43, "ts_dow": 5},
+            False,
+        ),
+        (
+            "Amount is 7.4 times usual, which does not meet the 10x limit",
+            {"amt_vs_usual": 7.4},
+            True,
+        ),
+        # a different kind of number is not joined: "under 50, and the 0.14 times usual"
+        (
+            "Amount is 7.07, under 50, and the 0.14 times usual",
+            {"amount": 7.07, "amt_vs_usual": 0.14},
+            True,
+        ),
+        # ", which is at least 200" refers back to the number before it
+        ("First purchase here for 801.52, which is at least 200", {"amount": 801.52}, True),
+        ("First purchase here for 150.00, which is at least 200", {"amount": 150.0}, False),
+        ("for 986.73, which is 200 or more", {"amount": 986.73}, True),
+        ("for 186.73, which is 200 or more", {"amount": 186.73}, False),
+        # not after a negation, and not across a named field
+        ("It is not 801.52, which is at least 200", {"amount": 801.52}, False),
+        (
+            "Paid 801.52 with risk 0.01, which is at least 200",
+            {"amount": 801.52, "risk_score": 0.01},
+            False,
+        ),
+    ],
+)
+def test_sev_coordinated_and_back_referring_comparisons(reason, record, ok):
+    got = value_check(reason, record, aliases=_FR_ALIASES)
+    assert (got.value == 1.0) is ok, (reason, got.details)
