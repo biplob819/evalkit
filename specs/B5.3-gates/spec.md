@@ -44,6 +44,10 @@ Rules:
 - **No case or member ids anywhere in the file.** Held-out splits appear only as split-level metrics.
 - `evalkit gate` also reads EvalKit's own `summary.json`, converting its model metrics to this shape (labels `model`, and `judge` where per judge; slices as extra labels).
 
+## 1b. Efficiency block (EFF-01, EFF-02, D-67)
+Standard metric names every project uses per model (label `model`), so cost, tokens and latency compare across projects:
+`tokens_in_per_case`, `tokens_out_per_case`, `tokens_reasoning_per_case`, `tokens_cached_per_case` (unit `count`, means with `n`), `cache_hit_share` (`rate`), `cost_per_case` and `cost_per_correct` (currency unit), `latency_p50`, `latency_p95`, `latency_p99` (`ms`), `retry_rate` and `error_rate` (`rate`, with `k` and `n`), `eval_overhead_cost` and `system_cost` (currency; judges and extractor against the system under test), plus metric-level labels `mode` (`batch` or `live`) and `price_date`. EvalKit's own runs emit these per model in `summary.json` and the report with 95% bootstrap intervals over cases for cost per case, cost per correct and the latency percentiles; existing summary fields keep their bytes.
+
 ## 2. Gates file (GAT-01, GAT-06, GAT-08, GAT-10)
 
 ```yaml

@@ -941,6 +941,7 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | V03-03 | Owner-tagged v0.3.0 on PyPI, recorded and checked | D-61 |
 | IDX-01 | Cross-project index page from pinned `summary.json` files | D-61, US5 |
 | IDX-02 | Unreadable summaries shown as missing | D-61 |
+| EFF-04 | Per-project, per-model efficiency view on the index | D-67 |
 | RVR-01 | `evalkit compare` with paired two-level bootstrap intervals | D-62 |
 | RVR-02 | Holm-adjusted flags, version differences stated, held-out aggregates only | D-62 |
 | LED-01 | Run history and `evalkit history` | D-62 |
@@ -961,9 +962,12 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | PUB-04 | Public calibration API at any label unit | D-65 |
 | GAT-09 | Release-gate rigour: exit precedence, input classes, domains, gate.json always | D-65 |
 | GAT-10 | Latency and per-case cost gates | D-65 |
+| EFF-01 | Standard efficiency metric names in metrics-1, gateable | D-67 |
+| EFF-02 | Efficiency block with intervals in EvalKit summaries and report | D-67 |
 | RVR-03 | Baselines never skip silently; case-only resampling; optional sidecar | D-65 |
 | LED-05 | Trend chart and PSI drift defaults | D-65 |
 | LED-06 | Spend ledger with a cap alarm | D-65 |
+| EFF-03 | Run-to-run variation and alarm bands for the efficiency block | D-67 |
 | CIT-01 | Citation-judge node: supports and role per cited sentence | D-65 |
 | CIT-02 | Citation precision and aim-citation rate with CIs | D-65 |
 | CIT-03 | Gemma's aim-sentence cases as tests | D-65 |

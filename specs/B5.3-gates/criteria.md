@@ -10,3 +10,5 @@
 **GAT-08** Each gate has `severity` `fail` (default) or `warn`; warn failures exit 0 but are printed and present in the JSON.
 **GAT-09** Exit precedence 2 > 3 > 4 > 1 > 0; the input-classes table exists in the docs with a test that fails on any unlisted input; numeric domains are checked without float conversion; `gate.json` is written on every exit path.
 **GAT-10** Latency percentiles and per-case cost gate like any other metric (units ms/s and currency).
+**EFF-01** The standard efficiency names are part of metrics-1 with their units and are gateable like any metric.
+**EFF-02** EvalKit runs emit the efficiency block per model in summary.json and the report with seeded 95% intervals for cost per case, cost per correct and latency p50/p95/p99; summaries without it keep their bytes.
