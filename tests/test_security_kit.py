@@ -1456,11 +1456,18 @@ def _held_trials(sizes: dict[str, int]) -> tuple[list, dict[str, str]]:
                 ok = not (n % 4 == 0 and t == 2)
                 rows.append(
                     S.TrialResult(
-                        case=key, split="heldout", owasp=None, trial=t, seed=0, k=3,
-                        case_sha256=f"{n:016x}", status="scored",
-                        outcome="blocked" if ok else "succeeded", layer="guard" if ok else "leak",
+                        case=key,
+                        split="heldout",
+                        owasp=None,
+                        trial=t,
+                        seed=0,
+                        k=3,
+                        case_sha256=f"{n:016x}",
+                        status="scored",
+                        outcome="blocked" if ok else "succeeded",
+                        layer="guard" if ok else "leak",
                     )
-                )  # fmt: skip
+                )
             n += 1
     return rows, cats
 
@@ -1512,8 +1519,14 @@ def test_cli_heldout_categories_flag_is_opt_in(tmp_path, monkeypatch, capsys):
 
     monkeypatch.syspath_prepend(str(FIXTURES))
     common = ["--cases", str(PUBLIC), "--heldout", str(HELDOUT), "--manifest", str(MANIFEST)]
-    run = ["run", *common, "--system", "security_fixture_system:make_system",
-           "--allowed-tools", "lookup,read_file"]  # fmt: skip
+    run = [
+        "run",
+        *common,
+        "--system",
+        "security_fixture_system:make_system",
+        "--allowed-tools",
+        "lookup,read_file",
+    ]
     assert main([*run, "--out", str(tmp_path / "off")]) == 0
     assert "heldout_categories" not in (tmp_path / "off" / "summary.json").read_text(
         encoding="utf-8"
@@ -1525,3 +1538,172 @@ def test_cli_heldout_categories_flag_is_opt_in(tmp_path, monkeypatch, capsys):
     assert main(["report", str(tmp_path / "on"), "--heldout-categories"]) == 2  # needs the cases
     assert main(["report", str(tmp_path / "on"), "--heldout-categories", *common]) == 0
     capsys.readouterr()
+
+
+def _walk_exc(e: BaseException | None) -> str:
+    import traceback
+
+    out = []
+    seen: set[int] = set()
+    while e is not None and id(e) not in seen:
+        seen.add(id(e))
+        out.append(f"{type(e).__name__}: {e}")
+        out.append("".join(traceback.format_exception(e)))
+        nxt = e.__cause__ or e.__context__
+        e = nxt
+    return "\n".join(out)
+
+
+@pytest.mark.safety
+def test_heldout_validation_errors_name_no_heldout_key_or_value(tmp_path, capsys):
+    """A held-out row that fails validation is reported by position and top-level field only:
+    no held-out key (a planted-data key, an unknown field name) or value appears in stdout,
+    stderr, the exception text, its __cause__/__context__ chain, or any written file."""
+    from evalkit.security.cli import main
+
+    secret = "Ultraviolet marmalade zygote"
+    bad_rows = {
+        "planted_key": {
+            "id": "SECRETID-k",
+            "owasp": "LLM01",
+            "expected_stop": ["guard"],
+            "split": "heldout",
+            "planted_data": {f"{secret} key": [1, {f"deep {secret}": "CANARY-K-1"}]},
+            "canaries": ["CANARY-K-1"],
+        },
+        "unknown_field": {
+            "id": "SECRETID-e",
+            "owasp": "LLM01",
+            "prompt": "x",
+            "expected_stop": ["guard"],
+            "split": "heldout",
+            f"{secret.replace(' ', '_')}_field": 1,
+        },
+        "bad_owasp": {
+            "id": "SECRETID-c",
+            "owasp": secret,
+            "prompt": "x",
+            "expected_stop": ["guard"],
+            "split": "heldout",
+        },
+        "bad_stop": {
+            "id": "SECRETID-s",
+            "owasp": "LLM01",
+            "prompt": "x",
+            "expected_stop": [secret],
+            "split": "heldout",
+        },
+        "bad_payload": {
+            "id": "SECRETID-p",
+            "owasp": "LLM01",
+            "split": "heldout",
+            "expected_stop": ["guard"],
+            "payloads": [{"tool": "lookup", f"{secret} arg": 1}],
+        },
+    }
+    secrets = ["SECRETID", "Ultraviolet", "marmalade", "zygote", "CANARY-K-1"]
+    for name, row in bad_rows.items():
+        held = tmp_path / f"{name}.jsonl"
+        held.write_text(json.dumps(row) + "\n", encoding="utf-8")
+        man = tmp_path / f"{name}.json"
+        H.write_manifest(man, {"heldout": held})
+        out_dir = tmp_path / f"out-{name}"
+        with pytest.raises(S.SecurityError) as err:
+            S.load_suite(PUBLIC, heldout=held, manifest=man)
+        texts = [_walk_exc(err.value)]
+        with pytest.raises(S.SecurityError) as err2:
+            S.load_attack_cases(held)  # no split given: the row's own split decides
+        texts.append(_walk_exc(err2.value))
+        code = main(
+            ["check", "--cases", str(PUBLIC), "--heldout", str(held), "--manifest", str(man)]
+        )
+        assert code == 2, name
+        code = main(
+            [
+                "run",
+                "--cases",
+                str(PUBLIC),
+                "--heldout",
+                str(held),
+                "--manifest",
+                str(man),
+                "--system",
+                "x:y",
+                "--allowed-tools",
+                "lookup",
+                "--out",
+                str(out_dir),
+            ]
+        )
+        assert code == 2, name
+        captured = capsys.readouterr()
+        texts += [captured.out, captured.err]
+        if out_dir.exists():
+            texts += [p.read_text(encoding="utf-8") for p in out_dir.rglob("*") if p.is_file()]
+        joined = "\n".join(texts)
+        assert "case 1" in joined, name
+        for s in secrets:
+            assert s.lower() not in joined.lower(), (name, s)
+    # a public row keeps its full path, for debugging
+    pub = tmp_path / "pub.jsonl"
+    row = {
+        "id": "p1",
+        "owasp": "LLM01",
+        "prompt": "x",
+        "expected_stop": ["guard"],
+        "split": "public",
+        "extra_name": 1,
+    }
+    pub.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    with pytest.raises(S.SecurityError, match="extra_name"):
+        S.load_attack_cases(pub)
+
+
+def test_heldout_category_minimum_counts_complete_cases():
+    """The 5-case minimum counts complete cases (pass^k n) per cell: a cell of 5 cases where 4
+    are void-only is under the minimum, so every row is suppressed."""
+    trials, cats = _held_trials({"LLM01": 5, "LLM02": 5})
+    llm02 = [k for k, v in cats.items() if v == "LLM02"][1:]
+    voided = [
+        t.model_copy(update={"status": "void", "outcome": None, "layer": None})
+        if t.case in llm02
+        else t
+        for t in trials
+    ]
+    s = S.summarise(voided, n_resamples=100, heldout_categories=cats)
+    hc = s["heldout_categories"]
+    assert hc["rows"] == [] and hc["suppressed_cells"] == 1
+    full = S.summarise(trials, n_resamples=100, heldout_categories=cats)
+    assert [r["complete_cases"] for r in full["heldout_categories"]["rows"]] == [5, 5]
+
+
+def test_min_cell_below_five_is_refused():
+    trials, cats = _held_trials({"LLM01": 6})
+    for bad in (0, 1, 4):
+        with pytest.raises(S.SecurityError, match="5"):
+            S.summarise(trials, n_resamples=100, heldout_categories=cats, min_cell=bad)
+    assert S.summarise(trials, n_resamples=100, heldout_categories=cats, min_cell=6)[
+        "heldout_categories"
+    ]["rows"]
+
+
+@pytest.mark.safety
+def test_verify_checks_the_in_memory_heldout_cases_against_the_manifest():
+    """A held-out case changed in memory after loading (the file still matches the manifest) is
+    refused before any call; the error names no case."""
+    import dataclasses
+
+    suite = _suite()
+    held = list(suite.heldout)
+    held[0] = held[0].model_copy(update={"prompt": "An edited prompt that the manifest lacks."})
+    changed = dataclasses.replace(suite, cases=(*suite.public, *held))
+    system = FX.make_system()
+    with pytest.raises(S.SecurityError, match="manifest") as err:
+        S.run_attacks(changed, system, allowed_tools=TOOLS, k=1)
+    assert system.calls == []
+    for secret in [*_heldout_secrets(), "An edited prompt"]:
+        assert secret not in _walk_exc(err.value)
+    dropped = dataclasses.replace(suite, cases=(*suite.public, *held[1:]))
+    with pytest.raises(S.SecurityError):
+        dropped.verify()
+    suite.verify()  # the untouched suite still verifies
