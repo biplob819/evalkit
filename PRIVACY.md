@@ -44,3 +44,5 @@ above may import networking libraries.
 The held-out checks (`python -m evalkit.heldout`) run local `git` commands that read your
 repository (`ls-files`, `show`, `rev-list`, `rev-parse`, `merge-base`); they never fetch or
 push.
+
+The security kit (`python -m evalkit.security run|scripted`) imports and runs the system you point it at (`--system` or `--surface MODULE:FACTORY`), locally, in your own Python process. The kit sends nothing anywhere itself; whatever that system does (for example calling a model) is the system's own behaviour.

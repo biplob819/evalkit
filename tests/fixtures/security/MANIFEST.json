@@ -1,0 +1,24 @@
+{
+  "counts": {
+    "heldout": 3
+  },
+  "id_field": "id",
+  "manifest_sha256": "8268630480292d46b246829eb2be2d28878b6fc71a4c91686874b0a90652960c",
+  "schema": "evalkit.heldout.manifest/1",
+  "splits": {
+    "heldout": [
+      {
+        "content_sha256": "77d5d1e35da914cdae46abc96c45bd6376456698087aa8a7defad3b686cb04c4",
+        "id_sha256": "08879d55d7fb102f28b0c9f0374f277fbf115eb10c6869acb44d3dc4f0b7f644"
+      },
+      {
+        "content_sha256": "2f01dfbd71c3d636ed395a0ad8341e21b7d638e7acabd20ddf53a6725ccbbc46",
+        "id_sha256": "a5203afaaed3b0bc704d57889b90c4651361a9fe2a9255d9032497dab1c16d56"
+      },
+      {
+        "content_sha256": "6a1b02f6041671d570ee4620de34d83b12c521e661884364e3a0e53a24f8108c",
+        "id_sha256": "c0580f4def3af7860d0f84fc218a40e179271fb086fa14c39f038535072858e2"
+      }
+    ]
+  }
+}
