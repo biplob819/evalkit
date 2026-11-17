@@ -378,7 +378,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
         return cli_calibrate(args)
     only = [
         o
-        for o in ("manifest", "planted", "context", "log", "rubric_hash")
+        for o in ("manifest", "planted", "context", "log", "rubric_hash", "model")
         if getattr(args, o, None)
     ]
     if only or (args.action == "import" and getattr(args, "relabel", False)):
@@ -771,6 +771,7 @@ def build_parser() -> argparse.ArgumentParser:
         a.add_argument("--criterion", default=None, help="criterion YAML (B5.9 criterion sheet)")
         if name in ("export", "score"):
             a.add_argument("--manifest", default=None, help="B5.14 held-out manifest (--criterion)")
+            a.add_argument("--model", default=None, help="one model's records (--criterion)")
         if name == "export":
             a.add_argument(
                 "--planted", default=None, help="planted known-answer items (--criterion)"
