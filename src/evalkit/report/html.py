@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from evalkit.pipeline.aggregate import stamp_lines
-from evalkit.report.svg import Point, money, scatter, use_log_scale
+from evalkit.report.svg import Point, bounded_rate, money, scatter, use_log_scale
 from evalkit.schemas import Case, Interval, ModelSummary, Record, RunSummary, SliceSummary
 from evalkit.schemas.calibration import CalibrationReport
 
@@ -88,9 +88,14 @@ GUIDE_URL = "https://github.com/biplob819/evalkit/blob/main/docs/calibrate-your-
 PENDING_SUFFIX = "(judging pending)"
 
 
-def _pct(iv: Interval | None) -> str:
+def _pct(iv: Interval | None, n: int | None = None) -> str:
+    """A share with its 95% CI; exactly 0 or 1 over n cases reads "0 of n, below X% at 95%"
+    (GAT-07), never "0.0% (0.0%–0.0%)"."""
     if iv is None:
         return "—"
+    bounded = bounded_rate(iv.point, iv.lo, iv.hi, n)
+    if bounded is not None:
+        return escape(bounded)
     return f"{iv.point:.1%} <span class=muted>({iv.lo:.1%}–{iv.hi:.1%})</span>"
 
 
@@ -109,50 +114,66 @@ def _ms(v: int | None) -> str:
     return "—" if v is None else f"{v:,} ms"
 
 
-def _efficiency(records: Sequence[Record]) -> str:
-    """Per-model efficiency block (B5.3, EFF-02, spec §1b) from the run's records: cost per
-    case and per correct answer and latency p50/p95/p99, each with a seeded 95% bootstrap
-    interval over cases; token means per case and the error rate (k of n)."""
-    if not records:
+def _efficiency(summary: RunSummary, records: Sequence[Record]) -> str:
+    """Per-model efficiency block (EFF-02, D-70): the `efficiency` each model carries in
+    summary.json (computed from the records for a summary written before 0.3): cost per case
+    and per correct answer and latency p50/p95/p99, each with a seeded 95% bootstrap interval
+    over cases; token means per case; the error rate (k of n); generation (system) cost
+    against the extractor and judges (eval overhead)."""
+    from evalkit.metrics import efficiency_block
+    from evalkit.stats import Resamples, rate_wording
+
+    blocks = {m.model: m.efficiency for m in summary.models if m.efficiency is not None}
+    if not blocks and records:
+        by: dict[str, list[Record]] = {}
+        for r in records:
+            by.setdefault(r.completion.model, []).append(r)
+        for model in sorted(by):
+            rows_ = sorted(by[model], key=lambda r: r.case_id)
+            blocks[model] = efficiency_block(rows_, Resamples(len(rows_), seed=rows_[0].seed))
+    if not blocks:
         return ""
-    from evalkit.metrics import efficiency_metrics
-    from evalkit.stats import rate_wording
 
-    by: dict[str, dict[str, Any]] = {}
-    for m in efficiency_metrics(records):
-        by.setdefault(str(m.labels["model"]), {})[m.name] = m
-
-    def ci(m: Any, fmt: Any) -> str:
-        if m is None:
+    def ci(iv: Interval | None, fmt: Any) -> str:
+        if iv is None:
             return "—"
-        if m.ci_low is None:
-            return fmt(m.value)
-        return f"{fmt(m.value)} <span class=muted>({fmt(m.ci_low)} to {fmt(m.ci_high)})</span>"
+        return f"{fmt(iv.point)} <span class=muted>({fmt(iv.lo)} to {fmt(iv.hi)})</span>"
 
     def ms(v: float) -> str:
         return f"{round(v):,} ms"
 
     rows = []
-    for model, ms_ in by.items():
-        err = ms_["error_rate"]
-        lat = " / ".join(ci(ms_.get(f"latency_p{q}"), ms) for q in (50, 95, 99))
-        tokens = f"{ms_['tokens_in_per_case'].value:,.0f} / {ms_['tokens_out_per_case'].value:,.0f}"
+    for model, e in blocks.items():
+        lat = " / ".join(
+            ci(iv, ms) for iv in (e.latency_p50_ms, e.latency_p95_ms, e.latency_p99_ms)
+        )
+        tokens = f"{e.tokens_in_per_case:,.0f} / {e.tokens_out_per_case:,.0f}"
+        overhead = "—" if e.eval_overhead_cost_usd is None else money(e.eval_overhead_cost_usd)
         rows.append(
             f"<tr><th scope=row>{escape(model)}</th>"
-            f"<td>{ci(ms_.get('cost_per_case'), money)}</td>"
-            f"<td>{ci(ms_.get('cost_per_correct'), money)}</td>"
+            f"<td>{ci(e.cost_per_case_usd, money)}</td>"
+            f"<td>{ci(e.cost_per_correct_usd, money)}</td>"
             f"<td>{lat}</td><td>{tokens}</td>"
-            f"<td>{escape(rate_wording(err.k, err.n))}</td></tr>"
+            f"<td>{escape(rate_wording(e.n_errored, e.n))}</td>"
+            f"<td>{money(e.system_cost_usd)} / {overhead}</td></tr>"
         )
     return (
         "<h2 id=eff-h>Efficiency</h2><div class=card><table id=efficiency><caption>Per model, "
-        "generation calls (live). 95% bootstrap intervals over cases, seeded.</caption><thead><tr>"
+        "generation calls (live). 95% bootstrap intervals over cases, seeded. System cost is "
+        "generation; eval overhead is the extractor and judges for that model's answers."
+        "</caption><thead><tr>"
         "<th scope=col>Model</th><th scope=col>Cost per case</th>"
         "<th scope=col>Cost per correct</th><th scope=col>Latency p50 / p95 / p99</th>"
-        "<th scope=col>Tokens in / out per case</th><th scope=col>Errors</th></tr></thead><tbody>"
+        "<th scope=col>Tokens in / out per case</th><th scope=col>Errors</th>"
+        "<th scope=col>System cost / eval overhead</th></tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table></div>"
     )
+
+
+def _point_ci(p: Point) -> str:
+    bounded = bounded_rate(p.y, p.lo, p.hi, p.n)
+    return escape(bounded) if bounded else f"{p.y:.1%} ({p.lo:.1%}–{p.hi:.1%})"
 
 
 def _p(p: float) -> str:
@@ -161,7 +182,7 @@ def _p(p: float) -> str:
 
 def headline_points(summary: RunSummary) -> list[Point]:
     return [
-        Point(m.model, judge, m.cost_per_100_usd, iv.point, iv.lo, iv.hi)
+        Point(m.model, judge, m.cost_per_100_usd, iv.point, iv.lo, iv.hi, m.n)
         for m in summary.models
         for judge, iv in sorted(m.headline.items())
     ]
@@ -216,13 +237,13 @@ def _model_table(summary: RunSummary) -> str:
     for m in summary.models:
         failed = "".join(f"<div class=muted>{escape(f)}</div>" for f in m.failed_thresholds)
         errors = ", ".join(f"{escape(k)} {v}" for k, v in sorted(m.n_errors.items())) or "none"
-        cells = "".join(f"<td>{_pct(m.headline.get(j))}</td>" for j in judges)
-        cells += "".join(f"<td>{_pct(m.groundedness_mean.get(j))}</td>" for j in judges)
+        cells = "".join(f"<td>{_pct(m.headline.get(j), m.n)}</td>" for j in judges)
+        cells += "".join(f"<td>{_pct(m.groundedness_mean.get(j), m.n)}</td>" for j in judges)
         cells += _cite_cells(m, cite)
         rows.append(
             f"<tr><th scope=row>{escape(m.model)}<div class=muted>{escape(m.family)}</div></th>"
-            f"<td>{_badge(m)}{failed}</td>{cells}<td>{_pct(m.accuracy)}</td>"
-            f"<td>{_pct(m.citation_validity)}</td><td>{_pct(m.coverage)}</td>"
+            f"<td>{_badge(m)}{failed}</td>{cells}<td>{_pct(m.accuracy, m.n)}</td>"
+            f"<td>{_pct(m.citation_validity, m.n)}</td><td>{_pct(m.coverage, m.n)}</td>"
             f"<td>{_usd(m.cost_per_correct_usd)}</td><td>{_usd(m.cost_per_100_usd)}</td>"
             f"<td>{_ms(m.latency_p50_ms)} / {_ms(m.latency_p95_ms)}</td>"
             f"<td>{m.n} cases<div class=muted>errors: {errors}</div></td>"
@@ -257,15 +278,15 @@ def _slices(summary: RunSummary) -> str:
         rows = []
         for s in (s for s in summary.slices if s.field == field):
             errors = ", ".join(f"{escape(k)} {v}" for k, v in sorted(s.n_errors.items())) or "none"
-            cells = "".join(f"<td>{_pct(s.headline.get(j))}</td>" for j in judges)
-            cells += "".join(f"<td>{_pct(s.groundedness_mean.get(j))}</td>" for j in judges)
+            cells = "".join(f"<td>{_pct(s.headline.get(j), s.n)}</td>" for j in judges)
+            cells += "".join(f"<td>{_pct(s.groundedness_mean.get(j), s.n)}</td>" for j in judges)
             cells += _cite_cells(s, cite)
             cells += "".join(f"<td>{_num(s.task_scores.get(t))}</td>" for t in tasks)
             rows.append(
                 f"<tr><th scope=row>{escape(s.value)}</th><td>{escape(s.model)}</td>"
                 f"<td>{s.n}<div class=muted>errors: {errors}</div></td>{cells}"
-                f"<td>{_pct(s.accuracy)}</td><td>{_pct(s.citation_validity)}</td>"
-                f"<td>{_pct(s.coverage)}</td><td>{_usd(s.cost_per_100_usd)}</td>"
+                f"<td>{_pct(s.accuracy, s.n)}</td><td>{_pct(s.citation_validity, s.n)}</td>"
+                f"<td>{_pct(s.coverage, s.n)}</td><td>{_usd(s.cost_per_100_usd)}</td>"
                 f"<td>{_ms(s.latency_p50_ms)} / {_ms(s.latency_p95_ms)}</td></tr>"
             )
         tables.append(
@@ -345,9 +366,10 @@ def _self_preference(summary: RunSummary) -> str:
         return "<p class=muted>Single judge (or judging pending): self-preference not measured.</p>"
     fams = sorted({f for row in summary.self_preference.values() for f in row})
     head = "".join(f"<th scope=col>{escape(f)} answers</th>" for f in fams)
+    n_cases = summary.models[0].n if summary.models else None  # every model answers every case
     rows = "".join(
         f"<tr><th scope=row>{escape(j)}</th>"
-        + "".join(f"<td>{_pct(row.get(f))}</td>" for f in fams)
+        + "".join(f"<td>{_pct(row.get(f), n_cases)}</td>" for f in fams)
         + "</tr>"
         for j, row in sorted(summary.self_preference.items())
     )
@@ -481,7 +503,7 @@ def render_report(
             "<th scope=col>Cost per 100</th></tr></thead><tbody>"
             + "".join(
                 f"<tr><th scope=row>{escape(p.label)}</th><td>{escape(p.series)}</td>"
-                f"<td>{p.y:.1%} ({p.lo:.1%}–{p.hi:.1%})</td><td>{money(p.x)}</td></tr>"
+                f"<td>{_point_ci(p)}</td><td>{money(p.x)}</td></tr>"
                 for p in points
             )
             + "</tbody></table>"
@@ -501,7 +523,7 @@ def render_report(
         f"<h1>{escape(summary.task)} · run {escape(summary.run_id)}</h1>{meta}{stamp_html}"
         f"<h2 id=headline>Headline</h2>{headline}"
         f"<h2 id=models-h>Models</h2><div class=card>{_model_table(summary)}</div>"
-        f"{_efficiency(records)}"
+        f"{_efficiency(summary, records)}"
         f"{_slices(summary)}"
         f"<h2 id=pairs-h>Pairwise comparisons</h2><div class=card>{_pairs_table(summary)}</div>"
         f"<h2 id=cal-h>Judge calibration</h2><div class=card>"

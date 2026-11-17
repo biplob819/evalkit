@@ -691,6 +691,42 @@ class CitationRubric(Rubric[CitationInput, tuple[CitationVerdict, ...]]):
 CITATIONS = CitationRubric()
 
 
+def cached_judge_costs(
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    judge: str,
+    config: RunConfig,
+    *,
+    citations: bool = False,
+) -> dict[str, float]:
+    """Claim id -> the stored cost of its judge call (claim judge, or with `citations=True`
+    the B5.12 citation judge), read from the cache: the same figure on every rerun, whether
+    this invocation paid for the call or not. Claims settled by the precheck (no call) and
+    claims not yet judged are left out. For the efficiency block's eval overhead (D-70)."""
+    if citations:
+        return _stored_costs(CITATIONS, _CitationCached, executor, items, judge, config)
+    return _stored_costs(CLAIMS, _Cached, executor, items, judge, config)
+
+
+def _stored_costs(
+    rubric: Rubric[InT, V],
+    stored: type[_Cached] | type[_CitationCached],
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    judge: str,
+    config: RunConfig,
+) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for case, claim in items:
+        if rubric.pre(claim, case, judge) is not None:
+            continue
+        key = rubric.cache_key(rubric.make_input(claim, case, judge, config.judge_effort))
+        hit = executor.store.get(key, stored)
+        if hit is not None:
+            out[claim.id] = hit.cost_usd
+    return out
+
+
 # A batch holds budget for thousands of claims at once, so its hold uses the expected output
 # (measured, D-46) with a margin rather than the worst-case cap; a live call reserves the cap.
 BATCH_HOLD_FACTOR = 1.5

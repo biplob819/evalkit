@@ -19,6 +19,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Literal
 
+from evalkit.metrics import efficiency_block
 from evalkit.pipeline.extract import ClaimSet
 from evalkit.pipeline.extract import coverage as coverage_score
 from evalkit.pipeline.generate import Generated, provider_for
@@ -254,10 +255,15 @@ def aggregate(
     n_resamples: int = 10_000,
     cases: Mapping[str, Case] | None = None,
     slices: Sequence[str] = (),
+    price_dates: Mapping[str, str] | None = None,
+    eval_overhead_usd: Mapping[str, float] | None = None,
 ) -> RunSummary:
     """Build the run summary. The stamps are derived, never passed in (AGG-08):
     `judge_mode` from the judge selection, `judging_status` from the judging results, and
-    `calibration_status` from whether held-out agreement exists for every judge (A2.6)."""
+    `calibration_status` from whether held-out agreement exists for every judge (A2.6).
+    Each model gains its efficiency block (EFF-02, D-70) from its records and the same case
+    resamples; `price_dates` (model -> the price table's `checked_on`) and `eval_overhead_usd`
+    (model -> extractor and judge cost for its answers) fill the two figures records lack."""
     judges = selection.judges
     judge_mode = selection.judge_mode
     judging_status = judging_status_of(judges, judging)
@@ -347,6 +353,12 @@ def aggregate(
             },
             citation_precision=precision,
             aim_citation_rate=aim_rate,
+            efficiency=efficiency_block(
+                rows,
+                rs,
+                price_date=(price_dates or {}).get(m),
+                eval_overhead_usd=(eval_overhead_usd or {}).get(m),
+            ),
         )
         failed = []
         all_failed = sum(errors.values()) == n

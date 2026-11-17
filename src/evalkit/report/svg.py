@@ -29,6 +29,21 @@ class Point:
     y: float  # headline point
     lo: float
     hi: float
+    n: int | None = None  # cases behind the point (for the GAT-07 wording at 0 and 1)
+
+
+def bounded_rate(point: float, lo: float, hi: float, n: int | None) -> str | None:
+    """GAT-07: a share of n cases that is exactly 0 or 1 is never written as "0.0% (0.0% to
+    0.0%)". With n it reads "0 of n, below X% at 95%" (exact one-sided bound; a mean of values
+    in [0, 1] that is 0 over n cases obeys the same bound); without n, "none observed (no
+    interval)". None when the point is strictly between 0 and 1 (the bootstrap CI applies)."""
+    if point not in (0.0, 1.0) or lo != hi:
+        return None
+    if n:
+        from evalkit.stats import rate_wording
+
+        return rate_wording(0 if point == 0.0 else n, n)
+    return "none observed (no interval)" if point == 0.0 else "all observed (no interval)"
 
 
 def _fmt(v: float) -> str:
@@ -200,10 +215,8 @@ def scatter(
     for p in points:
         cx, cy = cx_of(p), sy(p.y)
         cls = f"s{series.index(p.series) % len(SHAPES)}"
-        tip = (
-            f"{p.label} by {p.series}: {p.y:.1%} (95% CI {p.lo:.1%} to {p.hi:.1%}), "
-            f"{money(p.x)} per 100 cases"
-        )
+        shown = bounded_rate(p.y, p.lo, p.hi, p.n) or f"{p.y:.1%} (95% CI {p.lo:.1%} to {p.hi:.1%})"
+        tip = f"{p.label} by {p.series}: {shown}, {money(p.x)} per 100 cases"
         out.append(
             f'<g class="pt {cls}" data-model="{escape(p.label)}" data-judge="{escape(p.series)}" '
             f'data-x="{p.x!r}" data-y="{p.y!r}" data-lo="{p.lo!r}" data-hi="{p.hi!r}" '

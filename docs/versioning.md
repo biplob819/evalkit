@@ -63,8 +63,8 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 - The `evalkit gate` command (B5.3, D-62..D-65), with a summary file and the options `--config`, `--json` and `--out`: gates on any named metric from a `metrics-1` file or an EvalKit `summary.json`; exit codes 0/1/2/3/4 with precedence 2 > 3 > 4 > 1 > 0; no model or network call. See [gates.md](gates.md).
 - `evalkit.metrics` (B5.3): the frozen `metrics-1` format (`MetricsSummary`, `Metric`, `Provenance`, `parse_metrics`, `load_metrics`, `MetricsError`, `SCHEMA`), the standard efficiency names (`EFFICIENCY_NAMES`, D-67), `from_run_summary` and `efficiency_metrics`, and `safe_text`.
 - `evalkit.gates` (B5.3): `Gate`, `GatesFile`, `parse_gates`, `load_gates`, `evaluate`, `run_gate`, `GateReport`, `GateRow`, `RunStatus`, `disparity_gap`, `render_text`, the input-classes table `INPUTS` and the exit-code constants.
-- `evalkit.stats.clopper_pearson` and `evalkit.stats.rate_wording` (B5.3, GAT-07): exact binomial intervals and the "0 of n, below X% at 95%" wording.
-- The run report gains an Efficiency section (cost per case and per correct, latency p50/p95/p99 with seeded 95% bootstrap intervals, tokens per case, error rate); `summary.json` is unchanged. `run.json` gains `stopped_at_cost_cap`, written only when a run stops at its cap (omitted otherwise, so run folders keep their bytes).
+- `evalkit.stats.clopper_pearson` and `evalkit.stats.rate_wording` (B5.3, GAT-07): exact binomial intervals, two-sided by default and one-sided with `sided="upper"` or `sided="lower"` (the bounds gates check, D-70), and the "0 of n, below X% at 95%" wording.
+- `summary.json` gains an optional per-model `efficiency` object (EFF-02, OWNER D-70): token means per case, cache-hit share, cost per case and per correct answer and latency p50/p95/p99 with seeded 95% bootstrap intervals, error rate with its count, system cost and eval overhead (extractor and judges), mode and price date; `retry_rate` is null (not recorded). It is omitted when absent, so a summary without it reads as before. The run report gains an Efficiency section with the same figures, and shares that are exactly 0 or 1 read "0 of n, below X% at 95%" instead of a zero-width interval. See [gates.md](gates.md#efficiency-in-summaryjson-03-eff-02-d-70). `run.json` gains `stopped_at_cost_cap`, written only when a run stops at its cap (omitted otherwise, so run folders keep their bytes).
 
 ## 0.4.0 additions (on main ahead of the release)
 
@@ -93,9 +93,10 @@ v0.1 runs whose tasks name only the six benchmark scorers are byte-identical und
 
 ## 0.2 → 0.3 migration
 
-Nothing breaks in 0.3: every named import that worked in 0.2 still works (`from x import *` is narrower: modules that gained an `__all__` — `cost`, `stats`, `retry`, `scorers.faithfulness` — export only their public names, and `pipeline.calibrate` no longer exports `cluster_kappa` or `kappa_from` by `*`; no registered project uses `*`), and run outputs (summaries,
-records, cache keys) are byte-identical. Reports gain an efficiency section (D-67, B5.3) and
-runs stopped at the cost cap record `stopped_at_cost_cap` in `run.json`; nothing else in a report changes. Some imports change home
+Nothing breaks in 0.3: every named import that worked in 0.2 still works (`from x import *` is narrower: modules that gained an `__all__` — `cost`, `stats`, `retry`, `scorers.faithfulness` — export only their public names, and `pipeline.calibrate` no longer exports `cluster_kappa` or `kappa_from` by `*`; no registered project uses `*`), and run outputs (records,
+cache keys) are byte-identical. `summary.json` gains one optional field per model, `efficiency` (D-70); every other field keeps its bytes, and a 0.2 reader that forbids unknown fields must drop it (`ModelSummary` in 0.3 reads it). Reports gain an
+efficiency section (D-67, B5.3) and the GAT-07 wording for shares of exactly 0 or 1, and runs stopped at the cost cap record
+`stopped_at_cost_cap` in `run.json`; nothing else in a report changes. Some imports change home
 (`python scripts/downstream_imports.py <checkout>` lists yours as `public-elsewhere`):
 
 | 0.2 import | 0.3 public import | Old path |

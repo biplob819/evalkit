@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, ClassVar, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, StringConstraints, model_validator
 
 from evalkit.schemas._base import (
     Fraction,
@@ -34,6 +34,58 @@ class Interval(Model):
         return self
 
 
+class Efficiency(Model):
+    """One model's efficiency block (EFF-02, OWNER D-70), from its records: generation calls
+    only (the system under test). Point figures are over every case; the four intervals are
+    seeded 95% percentile bootstraps from the run's shared case resamples. Costs are USD,
+    latencies ms. Figures the records cannot give are null (see docs/gates.md, "Efficiency in
+    summary.json"): `retry_rate`/`n_retried` (retries are not recorded per call),
+    `eval_overhead_cost_usd` when the run's judge and extractor costs were not passed, and
+    `price_date` when the model has no price-table entry."""
+
+    mode: Literal["batch", "live"]  # how generation calls were made (EvalKit: live)
+    price_date: Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}$")] | None
+    n: NonNegInt  # cases
+    tokens_in_per_case: NonNegFloat
+    tokens_out_per_case: NonNegFloat
+    tokens_reasoning_per_case: NonNegFloat
+    tokens_cached_per_case: NonNegFloat
+    cache_hit_share: Fraction | None  # cached / input tokens; None with no input tokens
+    cost_per_case_usd: Interval
+    cost_per_correct_usd: Interval | None  # None when nothing was correct
+    n_correct: NonNegInt
+    latency_p50_ms: Interval | None  # nearest rank, over calls that reached the provider
+    latency_p95_ms: Interval | None
+    latency_p99_ms: Interval | None
+    n_latency: NonNegInt  # calls with a latency (transport failures excluded)
+    error_rate: Fraction
+    n_errored: NonNegInt
+    retry_rate: Fraction | None
+    n_retried: NonNegInt | None
+    eval_overhead_cost_usd: NonNegFloat | None  # extractor and judges, for this model's answers
+    system_cost_usd: NonNegFloat  # generation: the system under test
+
+    @model_validator(mode="after")
+    def _counts(self) -> Efficiency:
+        for name, k in (
+            ("n_correct", self.n_correct),
+            ("n_errored", self.n_errored),
+            ("n_latency", self.n_latency),
+        ):
+            if k > self.n:
+                raise ValueError(f"{name} cannot exceed n")
+        if self.n and abs(self.error_rate - self.n_errored / self.n) > 1e-12:
+            raise ValueError("error_rate must be n_errored / n")
+        if (self.retry_rate is None) != (self.n_retried is None):
+            raise ValueError("retry_rate and n_retried are both set or both None")
+        lat = (self.latency_p50_ms, self.latency_p95_ms, self.latency_p99_ms)
+        if len({x is None for x in lat}) != 1 or (lat[0] is None) != (self.n_latency == 0):
+            raise ValueError("latency percentiles are all set (with n_latency > 0) or all None")
+        if (self.cost_per_correct_usd is None) != (self.n_correct == 0):
+            raise ValueError("cost_per_correct_usd is None exactly when nothing was correct")
+        return self
+
+
 class ModelSummary(Model):
     model: NonBlank
     family: Literal["anthropic", "openai", "other"]
@@ -56,11 +108,14 @@ class ModelSummary(Model):
     # cited sentences, and the share of answers citing a non-supporting `aim` sentence.
     citation_precision: FrozenMap[Interval] = Field(default_factory=FrozenDict)
     aim_citation_rate: FrozenMap[Interval] = Field(default_factory=FrozenDict)
+    # 0.3 (EFF-02, OWNER D-70): optional, omitted when absent (no records to compute it from).
+    efficiency: Efficiency | None = None
 
     _omit_if_default: ClassVar[tuple[str, ...]] = (
         "task_scores",
         "citation_precision",
         "aim_citation_rate",
+        "efficiency",
     )
 
     @model_validator(mode="after")

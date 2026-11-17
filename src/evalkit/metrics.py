@@ -33,7 +33,9 @@ from pydantic import (
 )
 
 if TYPE_CHECKING:
-    from evalkit.schemas import Record, RunSummary
+    from evalkit.schemas import Interval, Record, RunSummary
+    from evalkit.schemas.summary import Efficiency
+    from evalkit.stats import Resamples
 
 __all__ = [
     "EFFICIENCY_NAMES",
@@ -50,10 +52,15 @@ __all__ = [
 ]
 
 SCHEMA = "metrics-1"
-NAME_RE = re.compile(r"^[a-z][a-z0-9_.]*$")
-CODE_RE = re.compile(r"^[A-Z][A-Z0-9]*$")  # USD, NTD, EUR, ...: an upper-case unit code
+# \Z, not $: "$" also matches before a trailing newline, so "x\n" would pass.
+NAME_RE = re.compile(r"^[a-z][a-z0-9_.]*\Z")
+CODE_RE = re.compile(r"^[A-Z][A-Z0-9]*\Z")  # USD, NTD, EUR, ...: an upper-case unit code
 FIXED_UNITS = ("count", "rate", "bool", "ratio", "ms", "s")
 MAX_SHOWN = 64  # free-text label values longer than this are never echoed (GAT-04)
+MAX_INT_DIGITS = 4300  # Python's int/str conversion limit: a longer JSON integer is refused
+# A rate's value must equal k / n: within 1e-6 relative, or 5e-7 absolute (half a unit in the
+# sixth decimal, so a value rounded to 6 decimals, as assay-pipeline writes, always passes).
+RATE_REL_TOL, RATE_ABS_TOL = 1e-6, 5e-7
 
 # Spec §1b (EFF-01, D-67): standard efficiency names and the unit each must carry. "currency" is
 # any upper-case code; latency is in ms (s accepted too, GAT-10).
@@ -186,6 +193,10 @@ class Metric(_Strict):
                 raise ValueError("k needs n")
             if not 0 <= self.k <= self.n:
                 raise ValueError("k must satisfy 0 <= k <= n")
+            if self.n and not math.isclose(
+                v, self.k / self.n, rel_tol=RATE_REL_TOL, abs_tol=RATE_ABS_TOL
+            ):
+                raise ValueError("a rate with k and n must have value k / n (within 1e-6)")
         lo, hi = self.ci_low, self.ci_high
         if (lo is None) != (hi is None):
             raise ValueError("ci_low and ci_high are given together or not at all")
@@ -196,6 +207,10 @@ class Metric(_Strict):
                 raise ValueError("interval bounds must be finite")
             if not lo <= v <= hi:  # type: ignore[operator]
                 raise ValueError("the interval must satisfy ci_low <= value <= ci_high")
+            if kind == "rate" and not 0 <= lo <= hi <= 1:
+                raise ValueError("a rate's interval must lie in [0, 1]")
+            if kind == "count" and lo < 0:
+                raise ValueError("a count's ci_low must be >= 0")
             if self.ci_method is None or not self.ci_method.strip():
                 raise ValueError("ci_method is required when an interval is given")
         want = EFFICIENCY_NAMES.get(self.name)
@@ -248,6 +263,11 @@ class MetricsSummary(_Strict):
     def _created(cls, v: str) -> str:
         return _timestamp(v)
 
+    @field_validator("provenance", mode="before")
+    @classmethod
+    def _null_provenance(cls, v: Any) -> Any:
+        return {} if v is None else v  # `"provenance": null` means none given
+
     @model_validator(mode="after")
     def _unique(self) -> MetricsSummary:
         seen: dict[tuple[Any, ...], int] = {}
@@ -295,12 +315,29 @@ def _no_constants(name: str) -> Any:
     raise MetricsError([f"{name} is not a JSON number"])
 
 
+def _bounded_int(text: str) -> int:
+    digits = len(text.lstrip("-"))
+    if digits > MAX_INT_DIGITS:
+        raise MetricsError(
+            [f"an integer of {digits} digits is too large (at most {MAX_INT_DIGITS})"]
+        )
+    return int(text)
+
+
 def loads_json(text: str) -> Any:
-    """Strict JSON: duplicate keys and NaN/Infinity refused; ints stay ints."""
+    """Strict JSON: duplicate keys and NaN/Infinity refused; ints stay ints; integers over
+    4300 digits and nesting deeper than Python's recursion limit are refused with a message."""
     try:
-        return json.loads(text, object_pairs_hook=_no_duplicates, parse_constant=_no_constants)
+        return json.loads(
+            text,
+            object_pairs_hook=_no_duplicates,
+            parse_constant=_no_constants,
+            parse_int=_bounded_int,
+        )
     except json.JSONDecodeError as exc:
         raise MetricsError([f"not valid JSON (line {exc.lineno}, column {exc.colno})"]) from None
+    except RecursionError:
+        raise MetricsError(["JSON nested too deeply"]) from None
 
 
 def validate_metrics(data: Any) -> MetricsSummary:
@@ -434,9 +471,11 @@ def from_run_summary(
 ) -> MetricsSummary:
     """EvalKit's `summary.json` as metrics-1: per-model metrics labelled `model` (and `judge`
     where per judge), slices as extra labels, the v0.2 threshold verdict as the bool
-    `passes_threshold`. With the run's records, the efficiency block (spec §1b) is added with
-    seeded bootstrap intervals; without them, `error_rate`, `cost_per_100_usd` and the latency
-    points are still there. Intervals from the summary are carried as computed."""
+    `passes_threshold`. The efficiency block (spec §1b) comes from each model's `efficiency`
+    in the summary (0.3, D-70), so the gate sees exactly what summary.json says; a summary
+    written before 0.3 has none, and then, when the run's records are given, it is computed
+    from them with the same seeded resamples. Intervals from the summary are carried as
+    computed."""
     metrics: list[Metric] = []
     for m in summary.models:
         metrics += _row_metrics(m, {"model": m.model}, model_level=True)
@@ -444,14 +483,20 @@ def from_run_summary(
         metrics += _row_metrics(
             s, {"model": s.model, _slice_label(s.field): s.value}, model_level=False
         )
-    if records:
+    efficiency: list[Metric] = []
+    for m in summary.models:
+        if m.efficiency is not None:
+            efficiency += _efficiency_as_metrics(m.model, m.efficiency)
+    if not efficiency and records:
+        efficiency = efficiency_metrics(records, n_resamples=n_resamples)
+    if efficiency:
         # the efficiency block carries the model-level error rate (same k and n): keep one
         metrics = [
             x
             for x in metrics
             if not (x.name == "error_rate" and set(x.labels) == {"model", "mode"})
         ]
-        metrics += efficiency_metrics(records, n_resamples=n_resamples)
+        metrics += efficiency
     created = summary.finished_at or summary.started_at
     return MetricsSummary(
         schema_version=SCHEMA,
@@ -464,10 +509,12 @@ def from_run_summary(
     )
 
 
-# ---- efficiency block (spec §1b, EFF-02) --------------------------------------------------------
+# ---- efficiency block (spec §1b, EFF-02, OWNER D-70) ------------------------------------------
 
 
-def _latency_interval(lat: Sequence[int | None], rows: Sequence[Sequence[int]]) -> dict[float, Any]:
+def _latency_intervals(
+    lat: Sequence[int | None], rows: Sequence[Sequence[int]]
+) -> dict[float, Interval]:
     """Nearest-rank p50/p95/p99 over calls that reached the provider, each with a percentile
     bootstrap interval from the same case resamples."""
     from evalkit.stats import interval_from, percentile_ms
@@ -476,7 +523,7 @@ def _latency_interval(lat: Sequence[int | None], rows: Sequence[Sequence[int]]) 
     qs = (0.50, 0.95, 0.99)
     boots: dict[float, list[float]] = {q: [] for q in qs}
     for row in rows:
-        xs = sorted(lat[i] for i in row if lat[i] is not None)  # type: ignore[misc]
+        xs = sorted(x for i in row if (x := lat[i]) is not None)
         if not xs:
             continue
         for q in qs:
@@ -488,14 +535,149 @@ def _latency_interval(lat: Sequence[int | None], rows: Sequence[Sequence[int]]) 
     return out
 
 
+def efficiency_block(
+    rows: Sequence[Record],
+    resamples: Resamples,
+    *,
+    price_date: str | None = None,
+    eval_overhead_usd: float | None = None,
+) -> Efficiency:
+    """One model's efficiency block (EFF-02, D-70) from its records in resample order (cases
+    sorted by id, as `aggregate` draws them): token means per case, cache-hit share, error
+    rate with its count, generation (system) cost, cost per case and per correct answer and
+    latency p50/p95/p99, the last five with seeded 95% bootstrap intervals over cases. Mode is
+    `live` (generation calls are not batched). Retries are not recorded per call, so
+    `retry_rate` is None; `eval_overhead_usd` (extractor and judges for these answers) and
+    `price_date` are passed in by the caller when known."""
+    from evalkit.schemas.summary import Efficiency
+    from evalkit.stats import interval, ratio_interval
+
+    n = len(rows)
+    if n == 0 or n != resamples.n:
+        raise ValueError("an efficiency block needs one record per resampled case")
+    c = [r.completion for r in rows]
+    total_in = sum(x.tokens_in for x in c)
+    total_cached = sum(x.tokens_cached for x in c)
+    costs = [x.cost_usd for x in c]
+    correct = [1.0 if r.scores is not None and r.scores.label_correct else 0.0 for r in rows]
+    n_correct = int(sum(correct))
+    lat = [x.latency_ms if x.error != "transport" else None for x in c]
+    n_lat = sum(1 for x in lat if x is not None)
+    ivs = _latency_intervals(lat, resamples.rows) if n_lat else {}
+    errors = sum(1 for x in c if x.error is not None)
+    return Efficiency(
+        mode="live",
+        price_date=price_date,
+        n=n,
+        tokens_in_per_case=math.fsum(x.tokens_in for x in c) / n,
+        tokens_out_per_case=math.fsum(x.tokens_out for x in c) / n,
+        tokens_reasoning_per_case=math.fsum(x.tokens_reasoning for x in c) / n,
+        tokens_cached_per_case=math.fsum(x.tokens_cached for x in c) / n,
+        cache_hit_share=total_cached / total_in if total_in and total_cached <= total_in else None,
+        cost_per_case_usd=interval(costs, resamples),
+        cost_per_correct_usd=ratio_interval(costs, correct, resamples) if n_correct else None,
+        n_correct=n_correct,
+        latency_p50_ms=ivs.get(0.50),
+        latency_p95_ms=ivs.get(0.95),
+        latency_p99_ms=ivs.get(0.99),
+        n_latency=n_lat,
+        error_rate=errors / n,
+        n_errored=errors,
+        retry_rate=None,
+        n_retried=None,
+        eval_overhead_cost_usd=eval_overhead_usd,
+        system_cost_usd=math.fsum(costs),
+    )
+
+
+def _efficiency_as_metrics(model: str, eff: Efficiency) -> list[Metric]:
+    """The efficiency block as metrics-1 metrics with the standard names (spec §1b), labelled
+    `model` and `mode` (and `price_date` when known). Figures that are None are left out."""
+    labels: dict[str, Any] = {"model": model, "mode": eff.mode}
+    if eff.price_date is not None:
+        labels["price_date"] = eff.price_date
+    n = eff.n
+    out = [
+        Metric(name=name, unit="count", value=value, n=n, labels=labels)
+        for name, value in (
+            ("tokens_in_per_case", eff.tokens_in_per_case),
+            ("tokens_out_per_case", eff.tokens_out_per_case),
+            ("tokens_reasoning_per_case", eff.tokens_reasoning_per_case),
+            ("tokens_cached_per_case", eff.tokens_cached_per_case),
+        )
+    ]
+    if eff.cache_hit_share is not None:
+        out.append(
+            Metric(
+                name="cache_hit_share", unit="rate", value=eff.cache_hit_share, n=n, labels=labels
+            )
+        )
+    out.append(
+        Metric(
+            name="error_rate",
+            unit="rate",
+            value=eff.error_rate,
+            n=n,
+            k=eff.n_errored,
+            labels=labels,
+        )
+    )
+    if eff.retry_rate is not None and eff.n_retried is not None:
+        out.append(
+            Metric(
+                name="retry_rate",
+                unit="rate",
+                value=eff.retry_rate,
+                n=n,
+                k=eff.n_retried,
+                labels=labels,
+            )
+        )
+    out.append(_iv_metric("cost_per_case", "USD", eff.cost_per_case_usd, n, labels))
+    if eff.cost_per_correct_usd is not None:
+        out.append(
+            _iv_metric("cost_per_correct", "USD", eff.cost_per_correct_usd, eff.n_correct, labels)
+        )
+    for name, iv in (
+        ("latency_p50", eff.latency_p50_ms),
+        ("latency_p95", eff.latency_p95_ms),
+        ("latency_p99", eff.latency_p99_ms),
+    ):
+        if iv is not None:
+            out.append(
+                Metric(
+                    name=name,
+                    unit="ms",
+                    value=int(iv.point),
+                    n=eff.n_latency,
+                    ci_low=iv.lo,
+                    ci_high=iv.hi,
+                    ci_method=BOOT_METHOD,
+                    labels=labels,
+                )
+            )
+    out.append(
+        Metric(name="system_cost", unit="USD", value=eff.system_cost_usd, n=n, labels=labels)
+    )
+    if eff.eval_overhead_cost_usd is not None:
+        out.append(
+            Metric(
+                name="eval_overhead_cost",
+                unit="USD",
+                value=eff.eval_overhead_cost_usd,
+                n=n,
+                labels=labels,
+            )
+        )
+    return out
+
+
 def efficiency_metrics(records: Sequence[Record], *, n_resamples: int = 10_000) -> list[Metric]:
-    """The efficiency block per model from a run's records (spec §1b, D-67): token means per
-    case, cache-hit share, error rate (k of n), cost per case and per correct answer, and
-    latency p50/p95/p99, the last five with seeded 95% bootstrap intervals over cases (the run's
-    seed, cases in id order, as `aggregate` draws them). Labels: `model` and `mode: live`
-    (generation calls are not batched). Retry rate and eval overhead are not recorded per case,
-    so they are left out."""
-    from evalkit.stats import Resamples, interval, ratio_interval
+    """The efficiency block per model from a run's records (spec §1b, D-67, D-70), as metrics:
+    the same figures `aggregate` writes to `summary.json` under `efficiency` (the run's seed,
+    cases in id order), labelled `model` and `mode: live`. The eval overhead and price date
+    are not in the records, so they are left out here; `from_run_summary` carries them."""
+    from evalkit.stats import Resamples
 
     by_model: dict[str, list[Record]] = {}
     for r in records:
@@ -503,56 +685,6 @@ def efficiency_metrics(records: Sequence[Record], *, n_resamples: int = 10_000) 
     out: list[Metric] = []
     for model in sorted(by_model):
         rows = sorted(by_model[model], key=lambda r: r.case_id)
-        n = len(rows)
-        labels: dict[str, Any] = {"model": model, "mode": "live"}
-        c = [r.completion for r in rows]
-
-        for name, xs in (
-            ("tokens_in_per_case", [x.tokens_in for x in c]),
-            ("tokens_out_per_case", [x.tokens_out for x in c]),
-            ("tokens_reasoning_per_case", [x.tokens_reasoning for x in c]),
-            ("tokens_cached_per_case", [x.tokens_cached for x in c]),
-        ):
-            out.append(Metric(name=name, unit="count", value=math.fsum(xs) / n, n=n, labels=labels))
-        total_in = sum(x.tokens_in for x in c)
-        total_cached = sum(x.tokens_cached for x in c)
-        if total_in and total_cached <= total_in:
-            out.append(
-                Metric(
-                    name="cache_hit_share",
-                    unit="rate",
-                    value=total_cached / total_in,
-                    n=n,
-                    labels=labels,
-                )
-            )
-        errors = sum(1 for x in c if x.error is not None)
-        out.append(
-            Metric(name="error_rate", unit="rate", value=errors / n, n=n, k=errors, labels=labels)
-        )
-        rs = Resamples(n, n_resamples, seed=rows[0].seed)
-        costs = [x.cost_usd for x in c]
-        out.append(_iv_metric("cost_per_case", "USD", interval(costs, rs), n, labels))
-        scored = all(r.scores is not None for r in rows)
-        correct = [1.0 if r.scores is not None and r.scores.label_correct else 0.0 for r in rows]
-        if scored and any(correct):
-            iv = ratio_interval(costs, correct, rs)
-            out.append(_iv_metric("cost_per_correct", "USD", iv, int(sum(correct)), labels))
-        lat = [x.latency_ms if x.error != "transport" else None for x in c]
-        n_lat = sum(1 for x in lat if x is not None)
-        if n_lat:
-            for q, iv in _latency_interval(lat, rs.rows).items():
-                name = f"latency_p{round(q * 100)}"
-                out.append(
-                    Metric(
-                        name=name,
-                        unit="ms",
-                        value=int(iv.point),
-                        n=n_lat,
-                        ci_low=iv.lo,
-                        ci_high=iv.hi,
-                        ci_method=BOOT_METHOD,
-                        labels=labels,
-                    )
-                )
+        rs = Resamples(len(rows), n_resamples, seed=rows[0].seed)
+        out += _efficiency_as_metrics(model, efficiency_block(rows, rs))
     return out

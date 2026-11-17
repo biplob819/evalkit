@@ -90,8 +90,8 @@ INPUTS: dict[str, str] = {
     "metrics.simulated": INPUT_ONLY,
     "metrics.provenance": INPUT_ONLY,
     "metrics.metrics": INPUT_ONLY,
-    "metrics.metrics[].name": COMPLETION,  # a gate naming no metric: unknown metric
-    "metrics.metrics[].labels": COMPLETION,  # a gate whose labels match nothing
+    "metrics.metrics[].name": INPUT_ONLY,  # a gate naming no metric: unknown metric
+    "metrics.metrics[].labels": INPUT_ONLY,  # a gate whose labels match nothing
     "metrics.metrics[].unit": INPUT_ONLY,
     "metrics.metrics[].value": INPUT_ONLY,
     "metrics.metrics[].n": INPUT_ONLY,
@@ -135,15 +135,19 @@ INPUTS: dict[str, str] = {
             "latency_p50_ms",
             "latency_p95_ms",
             "model",
-            "headline",
-            "groundedness_mean",
-            "citation_precision",
-            "aim_citation_rate",
             "task_scores",
             "accuracy",
             "citation_validity",
             "coverage",
         )
+    },
+    # per-judge figures are empty until every judge finishes: a gate on `headline`,
+    # `groundedness`, `citation_precision` or `aim_citation_rate` that matches nothing in an
+    # unfinished run exits 3 or 4 (any other unknown metric is input-only, exit 2)
+    **{
+        f"summary.{row}.{f}": COMPLETION
+        for row in ("models[]", "slices[]")
+        for f in ("headline", "groundedness_mean", "citation_precision", "aim_citation_rate")
     },
     **{
         f"summary.{row}.{f}.{b}": INPUT_ONLY
@@ -164,6 +168,44 @@ INPUTS: dict[str, str] = {
         for b in ("point", "lo", "hi")
     },
     "summary.models[].cost_per_correct_usd": INPUT_ONLY,
+    "summary.models[].efficiency": INPUT_ONLY,  # optional (0.3, D-70): the efficiency block
+    **{
+        f"summary.models[].efficiency.{f}": INPUT_ONLY
+        for f in (
+            "mode",
+            "price_date",
+            "n",
+            "tokens_in_per_case",
+            "tokens_out_per_case",
+            "tokens_reasoning_per_case",
+            "tokens_cached_per_case",
+            "cache_hit_share",
+            "cost_per_case_usd",
+            "cost_per_correct_usd",
+            "n_correct",
+            "latency_p50_ms",
+            "latency_p95_ms",
+            "latency_p99_ms",
+            "n_latency",
+            "error_rate",
+            "n_errored",
+            "retry_rate",
+            "n_retried",
+            "eval_overhead_cost_usd",
+            "system_cost_usd",
+        )
+    },
+    **{
+        f"summary.models[].efficiency.{f}.{b}": INPUT_ONLY
+        for f in (
+            "cost_per_case_usd",
+            "cost_per_correct_usd",
+            "latency_p50_ms",
+            "latency_p95_ms",
+            "latency_p99_ms",
+        )
+        for b in ("point", "lo", "hi")
+    },
     "summary.models[].passes_threshold": INPUT_ONLY,  # the v0.2 thresholds verdict
     "summary.slices[].field": INPUT_ONLY,
     "summary.slices[].value": INPUT_ONLY,
@@ -232,7 +274,17 @@ class Gate(_Strict):
 
 class GatesFile(_Strict):
     gates: Annotated[list[Gate], Field(min_length=1)]
-    heldout_splits: list[StrictStr] = Field(default_factory=list)
+    # Compared as canonical strings (GAT-04): `heldout_splits: [2024]` or `["2024"]` hides a
+    # `split` label stored as 2024 or "2024" alike, so a number never slips past as public.
+    heldout_splits: list[StrictStr | StrictInt | StrictBool] = Field(default_factory=list)
+
+
+def canonical(value: object) -> str:
+    """A label value as one string for held-out matching: strings as is, integers in decimal,
+    booleans as JSON (`true`/`false`)."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return value if isinstance(value, str) else str(value)
 
 
 class _NoDupLoader:  # built lazily so yaml stays an import-time detail
@@ -247,10 +299,16 @@ def _yaml_loader() -> Any:
             pass
 
         def mapping(loader: Any, node: Any, deep: bool = False) -> dict[Any, Any]:
-            keys = [loader.construct_object(k, deep=deep) for k, _ in node.value]
-            dup = {k for k in keys if keys.count(k) > 1}
-            if dup:
-                raise ValueError(f"duplicate key {safe_text(str(sorted(map(str, dup))[0]))!r}")
+            seen: set[str] = set()
+            for k, _ in node.value:
+                key = loader.construct_object(k, deep=deep)
+                text = repr(key)
+                if text in seen:
+                    raise ValueError(
+                        f"duplicate key {safe_text(str(key))!r} (line {k.start_mark.line + 1}); "
+                        "each key may appear once in a mapping"
+                    )
+                seen.add(text)
             return yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
 
         Loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
@@ -264,10 +322,17 @@ def parse_gates(text: str) -> GatesFile:
 
     try:
         data = yaml.load(text, Loader=_yaml_loader())
+    except RecursionError:
+        raise MetricsError(["gates file: nested too deeply"]) from None
     except (yaml.YAMLError, ValueError) as exc:
         where = getattr(exc, "problem_mark", None)
         at = f" (line {where.line + 1})" if where is not None else ""
-        detail = str(exc) if isinstance(exc, ValueError) else "not valid YAML"
+        if isinstance(exc, yaml.YAMLError):
+            detail = "not valid YAML"
+        elif "integer string conversion" in str(exc):  # Python's 4300-digit limit
+            detail = "an integer is too large (at most 4300 digits)"
+        else:
+            detail = str(exc)
         raise MetricsError([f"gates file: {detail}{at}"]) from None
     if not isinstance(data, dict):
         raise MetricsError(["gates file: expected a mapping with a `gates` list"])
@@ -408,17 +473,39 @@ def _compare(observed: bool | int | float, op: str, threshold: bool | int | floa
     return observed <= threshold
 
 
+CP_METHOD = "clopper-pearson"
+
+
+def _exact(m: Any) -> bool:
+    """A rate with k and n and no supplied interval: EvalKit computes it exactly."""
+    return (
+        m.ci_low is None and m.unit == "rate" and m.k is not None and m.n is not None and m.n >= 1
+    )
+
+
 def _interval(m: Any) -> tuple[Any, Any, str] | None:
-    """The metric's 95% interval: supplied (carried exactly) or, for a rate with k and n,
-    exact Clopper-Pearson (GAT-07)."""
+    """The metric's displayed 95% interval: supplied (carried exactly) or, for a rate with k
+    and n, the standard two-sided exact Clopper-Pearson interval (GAT-07, D-70)."""
     from evalkit.stats import clopper_pearson
 
     if m.ci_low is not None and m.ci_high is not None:
         return m.ci_low, m.ci_high, m.ci_method
-    if m.unit == "rate" and m.k is not None and m.n is not None and m.n >= 1:
+    if _exact(m):
         iv = clopper_pearson(m.k, m.n)
-        return iv.lo, iv.hi, "clopper-pearson"
+        return iv.lo, iv.hi, CP_METHOD
     return None
+
+
+def _bound(m: Any, side: str, iv: tuple[Any, Any, str]) -> Any:
+    """What `bound: lower|upper` gates: a supplied interval's own bound, or for a rate with k
+    and n the exact one-sided 95% Clopper-Pearson bound (D-70: n = 150, k = 0 -> 0.0198,
+    k = 1 -> 0.0312), which gives the stated 95% for every count."""
+    from evalkit.stats import clopper_pearson
+
+    if _exact(m):
+        one = clopper_pearson(m.k, m.n, sided="upper" if side == "upper" else "lower")
+        return one.hi if side == "upper" else one.lo
+    return iv[1] if side == "upper" else iv[0]
 
 
 def _cp_draw(rng: random.Random, k: int, n: int) -> float:
@@ -474,19 +561,23 @@ def _check_type(metric: Any, gate: Any) -> str | None:
     return None
 
 
-def _hidden_heldout(labels: Mapping[str, Any], heldout: Sequence[str]) -> bool:
-    split = labels.get("split")
-    return isinstance(split, str) and split in heldout
+def _hidden_heldout(labels: Mapping[str, Any], heldout: frozenset[str]) -> bool:
+    """A row from a held-out split: its `split` label, as a canonical string, is listed."""
+    return "split" in labels and canonical(labels["split"]) in heldout
+
+
+PER_JUDGE = frozenset({"headline", "groundedness", "citation_precision", "aim_citation_rate"})
 
 
 def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
     """Check every gate against a validated MetricsSummary. Never raises for bad gates: their
     problems are errors in the report. Exit precedence 2 > 3 > 4 > 1 > 0."""
     status = status if status is not None else RunStatus()
-    heldout = tuple(gates.heldout_splits)
+    heldout = frozenset(canonical(v) for v in gates.heldout_splits)
+    unfinished = status.judging == "pending" or status.stopped_at_cost_cap
     rows: list[GateRow] = []
     input_errors: list[str] = []
-    missing: list[str] = []
+    missing: list[str] = []  # per-judge metrics an unfinished EvalKit run has not reported yet
     all_metrics = tuple(metrics.metrics)
     for gi, gate in enumerate(gates.gates, start=1):
         g_metric, g_labels, g_op, g_value = gate.metric, gate.labels, gate.op, gate.value
@@ -500,9 +591,17 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
             "threshold": g_value,
             "severity": g_severity,
         }
+        # Only per-judge figures can still appear once an EvalKit run finishes; any other
+        # name or label that matches nothing is bad input (exit 2) even while judging is
+        # pending or the run stopped at its cost cap.
+        later = (
+            missing
+            if unfinished and status.kind == "evalkit-summary" and g_metric in PER_JUDGE
+            else input_errors
+        )
         named = [m for m in all_metrics if m.name == g_metric]
         if not named:
-            missing.append(f"{where}: no metric named {safe_text(g_metric)}")
+            later.append(f"{where}: no metric named {safe_text(g_metric)}")
             rows.append(
                 GateRow(
                     labels=_shown_labels(g_labels or {}),
@@ -516,7 +615,7 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
         if g_disp:
             matched = [m for m in matched if g_disp in m.labels]
         if not matched:
-            missing.append(f"{where}: matches no metric")
+            later.append(f"{where}: matches no metric")
             rows.append(
                 GateRow(
                     labels=_shown_labels(g_labels or {}),
@@ -537,8 +636,8 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
             continue
         fail_as: Result = "fail" if g_severity == "fail" else "warn"
         if g_disp:
-            for row in _disparity_rows(matched, g_disp, base, where, fail_as, input_errors):
-                if row.labels.get("split") in heldout:
+            for row, combo in _disparity_rows(matched, g_disp, base, where, fail_as, input_errors):
+                if _hidden_heldout(combo, heldout):
                     row.heldout_rows = 1  # a held-out combination is folded like any row
                 rows.append(row)
             continue
@@ -548,27 +647,26 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
             if g_bound != "point" and iv is None:
                 msg = f"{where}: bound {g_bound} on a metric without an interval"
                 input_errors.append(msg)
-                rows.append(
-                    GateRow(
-                        labels=_shown_labels(labels),
-                        result="error",
-                        unit=unit,
-                        observed=value,
-                        note="no interval",
-                        **base,
-                    )
+                row = GateRow(
+                    labels=_shown_labels(labels),
+                    result="error",
+                    unit=unit,
+                    observed=value,
+                    note="no interval",
+                    **base,
                 )
-                continue
-            observed = value if g_bound == "point" else iv[0] if g_bound == "lower" else iv[1]  # type: ignore[index]
-            ok = _compare(observed, g_op, g_value)
-            n, k = m.n, m.k
-            note = ""
-            if unit == "rate" and k is not None and n:
-                from evalkit.stats import rate_wording
+            else:
+                observed = value if g_bound == "point" or iv is None else _bound(m, g_bound, iv)
+                ok = _compare(observed, g_op, g_value)
+                n, k = m.n, m.k
+                note = ""
+                if unit == "rate" and k is not None and n:
+                    from evalkit.stats import rate_wording
 
-                note = rate_wording(k, n)
-            rows.append(
-                GateRow(
+                    note = rate_wording(k, n)
+                    if g_bound != "point" and _exact(m):
+                        note += f"; gated on the one-sided 95% {g_bound} bound {observed:.4g}"
+                row = GateRow(
                     labels=_shown_labels(labels),
                     result="pass" if ok else fail_as,
                     observed=observed,
@@ -581,12 +679,11 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
                     note=note,
                     **base,
                 )
-            )
             if _hidden_heldout(labels, heldout):
-                rows[-1].heldout_rows = 1
+                row.heldout_rows = 1  # folded below: never printed with its other labels
+            rows.append(row)
     rows = _fold_heldout(rows)
-    complete = status.judging == "complete" and not status.stopped_at_cost_cap
-    if input_errors or (missing and complete):
+    if input_errors:
         code = EXIT_INPUT
     elif status.stopped_at_cost_cap:
         code = EXIT_COST_CAP
@@ -597,7 +694,7 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
     else:
         code = EXIT_PASS
     errors = input_errors + missing
-    if missing and not complete:
+    if missing:
         errors.append(
             "the metrics above may appear once the run completes"
             + (" (stopped at the cost cap)" if status.stopped_at_cost_cap else " (judging pending)")
@@ -616,6 +713,14 @@ def evaluate(metrics: Any, gates: Any, status: Any = None) -> GateReport:
     )
 
 
+def _group_name(value: Any, mixed: bool) -> str:
+    """A disparity group as shown: when one disparity mixes label types, strings are quoted so
+    the group 1 and the group "1" stay told apart."""
+    if mixed and isinstance(value, str):
+        return safe_text(json.dumps(value))
+    return safe_text(value)
+
+
 def _disparity_rows(
     matched: Sequence[Any],
     label: str,
@@ -623,12 +728,15 @@ def _disparity_rows(
     where: str,
     fail_as: Result,
     input_errors: list[str],
-) -> list[GateRow]:
+) -> list[tuple[GateRow, dict[str, Any]]]:
+    """One row per combination of the other labels, with that combination's raw labels (for
+    the held-out check). Groups are keyed by the label's type and value, so 1 and "1" (and
+    true) are different groups, as everywhere else in metrics-1."""
     combos: dict[tuple[Any, ...], list[Any]] = {}
     for m in matched:
         rest = tuple(sorted((k, type(v).__name__, v) for k, v in m.labels.items() if k != label))
         combos.setdefault(rest, []).append(m)
-    out = []
+    out: list[tuple[GateRow, dict[str, Any]]] = []
     for rest, ms in sorted(combos.items(), key=lambda kv: repr(kv[0])):
         labels = {k: v for k, _, v in rest}
         shown = {**_shown_labels(labels), safe_text(label): "max - min"}
@@ -636,35 +744,45 @@ def _disparity_rows(
         if len(ms) < 2 or len(units) != 1:
             why = "needs at least two groups" if len(ms) < 2 else "groups carry different units"
             input_errors.append(f"{where}: disparity over {safe_text(label)} {why}")
-            out.append(GateRow(labels=shown, result="error", note=why, **base))
+            out.append((GateRow(labels=shown, result="error", note=why, **base), labels))
             continue
-        groups = {
-            str(m.labels[label]): (m.value, m.k, m.n if m.unit == "rate" else None) for m in ms
+        mixed = len({type(m.labels[label]) for m in ms}) > 1
+        keyed = {
+            (type(m.labels[label]).__name__, m.labels[label]): (
+                m.value,
+                m.k,
+                m.n if m.unit == "rate" else None,
+            )
+            for m in ms
         }
+        names = {key: _group_name(key[1], mixed) for key in keyed}
+        groups = {repr(key): v for key, v in keyed.items()}
         gap, iv = disparity_gap(groups, seed=f"{base['metric']}|{label}|{rest!r}")
         if base["bound"] != "point" and iv is None:
             msg = f"{where}: bound {base['bound']} on a disparity without group counts (n)"
             input_errors.append(msg)
             out.append(
-                GateRow(labels=shown, result="error", observed=gap, note="no interval", **base)
+                (
+                    GateRow(labels=shown, result="error", observed=gap, note="no interval", **base),
+                    labels,
+                )
             )
             continue
         observed = gap if base["bound"] == "point" else iv[0] if base["bound"] == "lower" else iv[1]  # type: ignore[index]
-        hi_g = max(groups, key=lambda g: groups[g][0])
-        lo_g = min(groups, key=lambda g: groups[g][0])
-        out.append(
-            GateRow(
-                labels=shown,
-                result="pass" if _compare(observed, base["op"], base["threshold"]) else fail_as,
-                observed=observed,
-                unit=units.pop(),
-                ci_low=None if iv is None else iv[0],
-                ci_high=None if iv is None else iv[1],
-                ci_method=None if iv is None else "bootstrap of Clopper-Pearson draws (seeded)",
-                note=f"{len(groups)} groups; highest {safe_text(hi_g)}, lowest {safe_text(lo_g)}",
-                **base,
-            )
+        hi_g = max(keyed, key=lambda g: keyed[g][0])
+        lo_g = min(keyed, key=lambda g: keyed[g][0])
+        row = GateRow(
+            labels=shown,
+            result="pass" if _compare(observed, base["op"], base["threshold"]) else fail_as,
+            observed=observed,
+            unit=units.pop(),
+            ci_low=None if iv is None else iv[0],
+            ci_high=None if iv is None else iv[1],
+            ci_method=None if iv is None else "bootstrap of Clopper-Pearson draws (seeded)",
+            note=f"{len(keyed)} groups; highest {names[hi_g]}, lowest {names[lo_g]}",
+            **base,
         )
+        out.append((row, labels))
     return out
 
 
