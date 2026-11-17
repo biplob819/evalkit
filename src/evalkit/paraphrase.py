@@ -13,8 +13,10 @@ paraphrased, and reports per model how much accuracy drops, with a paired bootst
   cached in the store, prompts and models recorded by hash, the estimate printed before any
   call, the cost cap honoured.
 - PAR-02 the report: `contamination_report(original_run, paraphrase_run)`, also
-  `evalkit report --paraphrase ORIGINAL_RUN PARAPHRASE_RUN`. Provisional until the owner's
-  spot-check of 20 kept and every rejected paraphrase is recorded as passed in the provenance.
+  `evalkit report --paraphrase ORIGINAL_RUN PARAPHRASE_RUN`. Pairs are questions where both
+  runs produced an answer (errors are counted and excluded, never a flag); a flag from runs
+  whose settings differ is "confounded". Provisional until the owner's spot-check of 20
+  kept and every rejected paraphrase is recorded as passed in the provenance.
 
     python -m evalkit.paraphrase verify
     python -m evalkit.paraphrase build --out probe-set --dry-run
@@ -27,7 +29,7 @@ import asyncio
 import hashlib
 import json
 import sys
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -108,9 +110,21 @@ CHECK_PROMPT = (
     "the original, so that the same answer (yes, no or maybe) is correct for both? Reply with "
     "one word, SAME or DIFFERENT, then a short reason on the next line."
 )
+# Call settings, aligned with gemma-grounded-health's build (src/ggh/evals/probe.py, c7d70d2):
+# the paraphraser at reasoning effort low; the checker with max_tokens 200 and no effort sent,
+# which on Opus 5.5 is its default, medium (D-24; EvalKit's adapters send effort explicitly).
+# One difference stays: gemma set no output limit on the paraphraser, EvalKit caps it so the
+# spend cap has an upper bound; a reply cut off at the cap stops the build (it would have been
+# longer in gemma's build), so a capped reply never enters a set.
+PARAPHRASE_EFFORT = "low"
 PARAPHRASE_MAX_TOKENS = 1024  # reasoning tokens count as output on the paraphraser
-CHECK_MAX_TOKENS = 512
-EFFORT = "low"
+CHECK_EFFORT = "medium"
+CHECK_MAX_TOKENS = 200
+# The longest paraphrase the builder sends to the checker, in `estimate_tokens` units (about
+# 3,000 ASCII characters for a one-line question); the build estimate sizes every check with
+# it, so a longer paraphrase stops the build instead of spending past the estimate.
+PARAPHRASE_MAX_PROMPT_TOKENS = PARAPHRASE_MAX_TOKENS
+TRUNCATED = frozenset({"length", "max_tokens"})  # provider stop reasons at the output cap
 SPOT_CHECK_RULE = (
     "the owner checks 20 kept and every rejected paraphrase by hand (DATA_CARD DAT-06, D-68)"
 )
@@ -265,21 +279,31 @@ def _queues(cases: Sequence[Case], n: int, seed: int) -> tuple[list[Case], dict[
 
 
 def _kept(row: ProbeRecord, case: Case) -> bool:
-    """Only a SAME verdict on a rewrite that is not the original's own words is kept."""
+    """Only a SAME verdict on a rewrite that is not the original's own words is kept (gemma's
+    rule: `para.lower() != question.strip().lower()`)."""
     return (
         row.check_verdict == "same"
         and bool(row.paraphrase.strip())
-        and row.paraphrase.strip().casefold() != case.question.strip().casefold()
+        and row.paraphrase.strip().lower() != case.question.strip().lower()
     )
+
+
+def default_max_rejects(n: int) -> int:
+    """The builder's reject cap: a tenth of the questions, at least 5 (gemma rejected 1 of
+    101). Past it the paraphraser or checker is failing, so the build stops for a look."""
+    return max(5, n // 10)
 
 
 async def _select(
     first: Sequence[Case],
     spare: Mapping[str, Sequence[Case]],
     decide: Callable[[list[Case]], Awaitable[list[ProbeRecord]]],
+    max_rejects: int | None = None,
 ) -> tuple[list[ProbeRecord], list[ProbeRecord]]:
     """DAT-06 in rounds: decide every pending question, replace each reject with the next
-    question of its label. Same as one FIFO queue: replacements join in rejection order."""
+    question of its label. Same as one FIFO queue: replacements join in rejection order.
+    With `max_rejects`, one reject more stops the build (ProbeError) before its replacement
+    is drawn; the selection itself is unchanged, so a finished build is the method's."""
     queues = {k: list(v) for k, v in spare.items()}
     kept: list[ProbeRecord] = []
     rejected: list[ProbeRecord] = []
@@ -292,6 +316,13 @@ async def _select(
                 kept.append(row)
                 continue
             rejected.append(row)
+            if max_rejects is not None and len(rejected) > max_rejects:
+                raise ProbeError(
+                    f"{len(rejected)} questions rejected, over the cap of {max_rejects} "
+                    f"(latest {row.pubid}: {row.check_reason or row.check_verdict}); the "
+                    "paraphraser or checker is failing: inspect the replies (cached) before "
+                    "rerunning with a higher --max-rejects"
+                )
             label = case.reference_label or "<unlabelled>"
             if not queues.get(label):
                 raise ProbeError(f"no replacement question left for label {label!r}")
@@ -471,7 +502,7 @@ def paraphrase_input(case: Case, model_id: str = PARAPHRASE_MODEL) -> ProbeCallI
         model_id=model_id,
         provider=_provider(model_id),
         prompt=PARAPHRASE_PROMPT.format(question=case.question),
-        effort=EFFORT,
+        effort=PARAPHRASE_EFFORT,
         max_output_tokens=PARAPHRASE_MAX_TOKENS,
     )
 
@@ -484,7 +515,7 @@ def check_input(case: Case, paraphrase: str, model_id: str = CHECK_MODEL) -> Pro
         model_id=model_id,
         provider=_provider(model_id),
         prompt=prompt,
-        effort=EFFORT,
+        effort=CHECK_EFFORT,
         max_output_tokens=CHECK_MAX_TOKENS,
     )
 
@@ -493,26 +524,58 @@ def context(step: str = "probe") -> RunContext:
     return RunContext(run_id=f"paraphrase-probe-{step}")
 
 
-def _paraphrase_text(raw: RawCompletion) -> str:
-    """The first non-empty line, without a leading 'Rewritten:'-style label."""
+def _paraphrase_text(raw: RawCompletion, case: Case) -> str:
+    """The reply's first line, stripped, kept verbatim as gemma's build kept it
+    (`content.strip().splitlines()[0]`). A refused, empty or cut-off reply, or one longer than
+    the estimate allows, stops the build: gemma's build crashed on an empty reply and set no
+    output cap, so the method has no rule for these and the owner decides."""
     if raw.refusal:
-        return ""
-    for line in raw.raw_text.splitlines():
-        line = line.strip()
-        if line:
-            head, sep, rest = line.partition(":")
-            if sep and head.strip().casefold() in ("rewritten", "rewritten question", "question"):
-                line = rest.strip()
-            return line
-    return ""
+        raise ProbeError(f"{case.id}: the paraphraser refused (reply cached; the build stops)")
+    if raw.stop_reason in TRUNCATED:
+        raise ProbeError(
+            f"{case.id}: the paraphrase reply hit the {PARAPHRASE_MAX_TOKENS}-token output cap "
+            "(gemma's build set none, so its reply would have been longer); the build stops"
+        )
+    lines = raw.raw_text.strip().splitlines()
+    text = lines[0].strip() if lines else ""
+    if not text:
+        raise ProbeError(f"{case.id}: the paraphraser returned no text; the build stops")
+    if estimate_tokens(text) > PARAPHRASE_MAX_PROMPT_TOKENS:
+        raise ProbeError(
+            f"{case.id}: the paraphrase is longer than the {PARAPHRASE_MAX_PROMPT_TOKENS} "
+            "estimated tokens the build estimate allows for; the build stops"
+        )
+    return text
 
 
-def _verdict(raw: RawCompletion) -> tuple[bool, str]:
+def _verdict(raw: RawCompletion, case: Case) -> tuple[bool, str]:
+    """gemma's parse_verdict: the first line must be SAME or DIFFERENT, else the build stops
+    (the reply is cached; a rerun with a fresh --store asks again)."""
     first, _, rest = raw.raw_text.strip().partition("\n")
     word = first.strip().strip("*. ").upper()
     if word not in ("SAME", "DIFFERENT"):
-        return False, f"check reply does not start with SAME or DIFFERENT: {first[:60]!r}"
+        raise ProbeError(
+            f"{case.id}: check reply does not start with SAME or DIFFERENT: {first[:60]!r}; "
+            "the build stops (gemma's method has no rule for it)"
+        )
     return word == "SAME", rest.strip()
+
+
+def _question_bound(
+    node: ProbeCall, case: Case, paraphrase_model: str, check_model: str, ctx: RunContext
+) -> float:
+    """Upper bound on what the executor reserves for one question: its paraphrase call, and
+    a check whose prompt holds the longest paraphrase the builder accepts. `estimate_tokens`
+    is subadditive (each part's floor loses under one token and every count adds one), so
+    the check prompt with the paraphrase in place never estimates above the prompt with an
+    empty paraphrase plus PARAPHRASE_MAX_PROMPT_TOKENS."""
+    empty = check_input(case, "", check_model)
+    check = call_cost(
+        price_for(node.prices, check_model),
+        tokens_in=estimate_tokens(empty.prompt) + PARAPHRASE_MAX_PROMPT_TOKENS,
+        tokens_out=empty.max_output_tokens,
+    )
+    return node.estimate_cost(paraphrase_input(case, paraphrase_model), ctx) + check
 
 
 def estimate_build(
@@ -521,19 +584,29 @@ def estimate_build(
     *,
     n: int = N,
     seed: int = SEED,
+    max_rejects: int | None = None,
     paraphrase_model: str = PARAPHRASE_MODEL,
     check_model: str = CHECK_MODEL,
 ) -> float:
-    """Upper-bound USD for the first `n` questions: one paraphrase and one check each (the
-    check prompt is sized with the original in place of the not-yet-written paraphrase)."""
+    """Strict upper-bound USD on what a build can reserve (and so spend): the first `n`
+    questions, each with its paraphrase call and a worst-case check (the longest paraphrase
+    the builder accepts), plus a replacement for every reject up to the reject cap
+    (`default_max_rejects(n)` unless given): the costliest `max_rejects` of the questions
+    that could be drawn (the first `max_rejects` spares of each label)."""
+    k = default_max_rejects(n) if max_rejects is None else max_rejects
     node = ProbeCall({}, prices)
     ctx = context()
-    first = stratified_sample(cases, n, seed).cases
-    return sum(
-        node.estimate_cost(paraphrase_input(c, paraphrase_model), ctx)
-        + node.estimate_cost(check_input(c, c.question, check_model), ctx)
-        for c in first
+    first, spare = _queues(cases, n, seed)
+    total = sum(_question_bound(node, c, paraphrase_model, check_model, ctx) for c in first)
+    candidates = sorted(
+        (
+            _question_bound(node, c, paraphrase_model, check_model, ctx)
+            for queue in spare.values()
+            for c in queue[:k]
+        ),
+        reverse=True,
     )
+    return total + sum(candidates[:k])
 
 
 @dataclass(frozen=True)
@@ -548,6 +621,7 @@ class BuildResult:
     spent_usd: float
     calls: int
     cache_hits: int
+    max_rejects: int = 0
 
 
 async def build_probe(
@@ -559,6 +633,7 @@ async def build_probe(
     n: int = N,
     seed: int = SEED,
     max_cost_usd: float | None = 2.0,
+    max_rejects: int | None = None,
     paraphrase_model: str = PARAPHRASE_MODEL,
     check_model: str = CHECK_MODEL,
     concurrency: int = 8,
@@ -566,17 +641,25 @@ async def build_probe(
 ) -> BuildResult:
     """Build (or extend, with a larger `n`) the set by DAT-06. The estimate and cap are passed
     to `echo` before the first call; the executor stops at the cap with BudgetExceeded and
-    every finished call stays cached, so the same command resumes."""
+    every finished call stays cached, so the same command resumes. More than `max_rejects`
+    rejections (default `default_max_rejects(n)`), or a reply the method cannot use, stops
+    the build with ProbeError (the round's calls stay cached and counted)."""
+    k = default_max_rejects(n) if max_rejects is None else max_rejects
     first, spare = _queues(cases, n, seed)
     est = estimate_build(
-        cases, prices, n=n, seed=seed, paraphrase_model=paraphrase_model, check_model=check_model
+        cases,
+        prices,
+        n=n,
+        seed=seed,
+        max_rejects=k,
+        paraphrase_model=paraphrase_model,
+        check_model=check_model,
     )
-    per_question = est / n
     cap = "no cap" if max_cost_usd is None else f"cap ${max_cost_usd:.2f}"
     echo(
         f"paraphrase probe: {n} questions (seed {seed}), {paraphrase_model} paraphrases, "
-        f"{check_model} checks; estimate ${est:.2f} upper bound (each rejected question adds "
-        f"about ${per_question:.4f}); {cap}; cached calls are free"
+        f"{check_model} checks; estimate ${est:.2f} upper bound (worst-case checks and up to "
+        f"{k} replacement draws; more rejects stop the build); {cap}; cached calls are free"
     )
     if max_cost_usd is not None and est > max_cost_usd:
         echo(
@@ -594,15 +677,15 @@ async def build_probe(
         raws = await ex.map(
             node, [paraphrase_input(c, paraphrase_model) for c in todo], context("paraphrase")
         )
-        paras = [_paraphrase_text(r) for r in raws]
-        to_check = [(c, p) for c, p in zip(todo, paras, strict=True) if p]
+        paras = [_paraphrase_text(r, c) for r, c in zip(raws, todo, strict=True)]
         checks = await ex.map(
-            node, [check_input(c, p, check_model) for c, p in to_check], context("check")
+            node,
+            [check_input(c, p, check_model) for c, p in zip(todo, paras, strict=True)],
+            context("check"),
         )
-        verdicts = {c.id: _verdict(raw) for (c, _), raw in zip(to_check, checks, strict=True)}
         rows = []
-        for c, para in zip(todo, paras, strict=True):
-            same, reason = verdicts.get(c.id, (False, "no paraphrase returned"))
+        for c, para, raw in zip(todo, paras, checks, strict=True):
+            same, reason = _verdict(raw, c)
             rows.append(
                 ProbeRecord(
                     pubid=c.id,
@@ -619,7 +702,7 @@ async def build_probe(
             )
         return rows
 
-    kept, rejected = await _select(first, spare, decide)
+    kept, rejected = await _select(first, spare, decide, max_rejects=k)
     return BuildResult(
         kept=tuple(kept),
         rejected=tuple(rejected),
@@ -631,6 +714,7 @@ async def build_probe(
         spent_usd=ex.spent_usd,
         calls=ex.calls,
         cache_hits=ex.cache_hits,
+        max_rejects=k,
     )
 
 
@@ -683,16 +767,32 @@ def write_probe(out_dir: Path, result: BuildResult) -> Provenance:
 
 # --- the report -----------------------------------------------------------------------------------
 
+EXCLUSION_WARNING = 0.05  # warn when errors exclude more than 5% of a model's pairs
+# What each run did for a model, compared between the two runs. Task names are not compared:
+# they differ by design (pubmedqa or pubmedqa-paraphrase-original vs pubmedqa-paraphrase); the
+# prompt template a task contributes is compared by its hash.
+SETTINGS = ("prompt template hash", "completion params", "model snapshot")
+
 
 class ModelContamination(Model):
     model: NonBlank
-    n: PosInt
+    n: PosInt  # pairs where both wordings produced an answer: the comparison's n
+    n_missing_original: NonNegInt  # probe questions in both runs without this model's record
+    n_missing_paraphrase: NonNegInt
+    n_excluded_errors: NonNegInt  # pairs left out because either side's completion errored
+    errors_original: NonNegInt  # errored completions on the shared probe questions
+    errors_paraphrase: NonNegInt
+    exclusion_warning: bool  # errors excluded more than 5% of the pairs with both records
     accuracy_original: Interval
     accuracy_paraphrase: Interval
     drop: Interval  # original - paraphrase; positive means accuracy fell on the new wording
     p_value: float
     flagged: bool  # the 95% interval on the drop excludes zero
     direction: Literal["drop", "rise", "none"]
+    settings_differences: tuple[str, ...]  # what the two runs did differently for this model
+    # How to read a flag: "confounded" when the settings differ (unless allowed), else the
+    # direction ("contamination" for a drop, "rise"), "none" when not flagged.
+    signal: Literal["contamination", "rise", "confounded", "none"]
 
 
 class ContaminationReport(Model):
@@ -700,8 +800,10 @@ class ContaminationReport(Model):
     paraphrase_run: NonBlank
     original_run_id: NonBlank
     paraphrase_run_id: NonBlank
+    original_tasks: tuple[str, ...]
+    paraphrase_tasks: tuple[str, ...]
     n_probe: NonNegInt
-    n_paired: NonNegInt
+    n_shared: NonNegInt  # probe questions present in both runs' cases (per-model n is below)
     n_resamples: PosInt
     seed: int
     set_sha256: NonBlank
@@ -709,8 +811,9 @@ class ContaminationReport(Model):
     source_commit: str | None
     spot_check: Literal["pending", "passed", "failed"]
     status: Literal["provisional", "final"]
+    allow_different_settings: bool
     models: tuple[ModelContamination, ...]
-    unpaired_models: tuple[str, ...]
+    unpaired_models: tuple[str, ...]  # in one run only, or no pair where both sides answered
 
 
 def _read_run(run_dir: Path) -> tuple[str, dict[str, Case], list[Record]]:
@@ -731,19 +834,48 @@ def _read_run(run_dir: Path) -> tuple[str, dict[str, Case], list[Record]]:
     return run_id, cases, records
 
 
-def _correct(
-    run_dir: Path, cases: Mapping[str, Case], records: Sequence[Record], ids: set[str]
-) -> dict[str, dict[str, float]]:
-    """model -> case id -> 1.0 / 0.0 label_correct, for the given case ids."""
-    out: dict[str, dict[str, float]] = {}
+def _by_model(
+    run_dir: Path, records: Sequence[Record], ids: set[str]
+) -> dict[str, dict[str, Record]]:
+    """model -> case id -> record, for the given case ids."""
+    out: dict[str, dict[str, Record]] = {}
     for r in records:
         if r.case_id not in ids:
             continue
         per = out.setdefault(r.completion.model, {})
         if r.case_id in per:
             raise ProbeError(f"{run_dir}: duplicate record {r.case_id}/{r.completion.model}")
-        per[r.case_id] = label_correct(cases[r.case_id], r.completion).value
+        per[r.case_id] = r
     return out
+
+
+def _settings(records: Iterable[Record]) -> dict[str, tuple[str, ...]]:
+    """The distinct values of each setting across a model's records in one run. A transport
+    failure records no snapshot and adds its exception name to params; both are ignored."""
+    seen: dict[str, set[str]] = {k: set() for k in SETTINGS}
+    for r in records:
+        c = r.completion
+        seen["prompt template hash"].add(r.prompt_hash)
+        params = {k: v for k, v in c.params.items() if k != "transport_error"}
+        seen["completion params"].add(json.dumps(params, sort_keys=True))
+        if c.model_snapshot:
+            seen["model snapshot"].add(c.model_snapshot)
+    return {k: tuple(sorted(v)) for k, v in seen.items()}
+
+
+def _differences(
+    original: Mapping[str, tuple[str, ...]], paraphrase: Mapping[str, tuple[str, ...]]
+) -> tuple[str, ...]:
+    out = []
+    for key in SETTINGS:
+        a, b = original[key], paraphrase[key]
+        if a and b and a != b:  # a side with no value (every call failed) cannot be compared
+            out.append(f"{key}: original {' | '.join(a)} vs paraphrase {' | '.join(b)}")
+    return tuple(out)
+
+
+def _errored(r: Record) -> bool:
+    return r.completion.error is not None
 
 
 def contamination_report(
@@ -753,9 +885,14 @@ def contamination_report(
     probe: ProbeSet | None = None,
     n_resamples: int = N_RESAMPLES,
     seed: int = SEED,
+    allow_different_settings: bool = False,
 ) -> ContaminationReport:
-    """Original-vs-paraphrase accuracy per model on the probe pubids both runs answered, with
-    a paired bootstrap 95% interval on the drop (DATA_CARD DAT-06)."""
+    """Original-vs-paraphrase accuracy per model, with a paired bootstrap 95% interval on the
+    drop (DATA_CARD DAT-06), on the probe pubids where both runs produced an answer. Errored
+    completions (transport, schema, refusal) are counted per wording and their pairs are
+    excluded, never scored as wrong, so an error cannot create a flag. Each model's settings
+    in the two runs are compared; a flag with different settings is "confounded", not a
+    contamination signal, unless `allow_different_settings`."""
     probe = probe or load_set()
     spot = probe.provenance.spot_check.status
     if spot == "failed":
@@ -783,44 +920,65 @@ def contamination_report(
         if (o.context, o.reference_label) != (p.context, p.reference_label):
             raise ProbeError(f"{cid}: contexts or labels differ between the two runs")
     ids = set(shared)
-    o_acc = _correct(original_run, o_cases, o_recs, ids)
-    p_acc = _correct(paraphrase_run, p_cases, p_recs, ids)
+    o_by = _by_model(original_run, o_recs, ids)
+    p_by = _by_model(paraphrase_run, p_recs, ids)
     resamples: dict[int, Resamples] = {}
     models = []
-    for m in sorted(set(o_acc) & set(p_acc)):
-        pair_ids = sorted(set(o_acc[m]) & set(p_acc[m]))
+    unpaired = []
+    for m in sorted(set(o_by) | set(p_by)):
+        o_m, p_m = o_by.get(m, {}), p_by.get(m, {})
+        both = sorted(set(o_m) & set(p_m))
+        pair_ids = [c for c in both if not _errored(o_m[c]) and not _errored(p_m[c])]
         if not pair_ids:
+            unpaired.append(m)
             continue
         n = len(pair_ids)
+        excluded = len(both) - n
         rs = resamples.get(n) or resamples.setdefault(n, Resamples(n, n_resamples, seed=seed))
-        a = [o_acc[m][c] for c in pair_ids]
-        b = [p_acc[m][c] for c in pair_ids]
+        a = [label_correct(o_cases[c], o_m[c].completion).value for c in pair_ids]
+        b = [label_correct(p_cases[c], p_m[c].completion).value for c in pair_ids]
         drop, pv = paired(a, b, rs)
         direction: Literal["drop", "rise", "none"] = (
             "drop" if drop.lo > 0 else "rise" if drop.hi < 0 else "none"
         )
+        diffs = _differences(_settings(o_m.values()), _settings(p_m.values()))
+        signal: Literal["contamination", "rise", "confounded", "none"]
+        if direction == "none":
+            signal = "none"
+        elif diffs and not allow_different_settings:
+            signal = "confounded"
+        else:
+            signal = "contamination" if direction == "drop" else "rise"
         models.append(
             ModelContamination(
                 model=m,
                 n=n,
+                n_missing_original=len(ids - set(o_m)),
+                n_missing_paraphrase=len(ids - set(p_m)),
+                n_excluded_errors=excluded,
+                errors_original=sum(_errored(r) for r in o_m.values()),
+                errors_paraphrase=sum(_errored(r) for r in p_m.values()),
+                exclusion_warning=excluded > EXCLUSION_WARNING * len(both),
                 accuracy_original=interval(a, rs),
                 accuracy_paraphrase=interval(b, rs),
                 drop=drop,
                 p_value=pv,
                 flagged=direction != "none",
                 direction=direction,
+                settings_differences=diffs,
+                signal=signal,
             )
         )
-    paired_names = {m.model for m in models}
-    unpaired = tuple(sorted((set(o_acc) | set(p_acc)) - paired_names))
     kept_sha = probe.provenance.files.get(KEPT_FILE)
     return ContaminationReport(
         original_run=str(original_run),
         paraphrase_run=str(paraphrase_run),
         original_run_id=o_id,
         paraphrase_run_id=p_id,
+        original_tasks=tuple(sorted({r.task for r in o_recs if r.case_id in ids})),
+        paraphrase_tasks=tuple(sorted({r.task for r in p_recs if r.case_id in ids})),
         n_probe=len(probe.kept),
-        n_paired=len(shared),
+        n_shared=len(shared),
         n_resamples=n_resamples,
         seed=seed,
         set_sha256=kept_sha.sha256
@@ -830,8 +988,9 @@ def contamination_report(
         source_commit=probe.provenance.source_commit,
         spot_check=spot,
         status="final" if spot == "passed" else "provisional",
+        allow_different_settings=allow_different_settings,
         models=tuple(models),
-        unpaired_models=unpaired,
+        unpaired_models=tuple(unpaired),
     )
 
 
@@ -847,6 +1006,14 @@ def _pts(x: float) -> str:
     return f"{x * 100:+.1f}"
 
 
+FLAGS = {
+    "contamination": "  FLAG: contamination signal",
+    "rise": "  FLAG: accuracy rose on the paraphrase (check the set)",
+    "confounded": "  FLAG: confounded (the runs' settings differ; not a contamination signal)",
+    "none": "",
+}
+
+
 def report_text(report: ContaminationReport) -> str:
     if report.status == "final":
         head = "FINAL: owner spot-check passed (DATA_CARD DAT-06)."
@@ -855,31 +1022,68 @@ def report_text(report: ContaminationReport) -> str:
             f"PROVISIONAL: owner spot-check {report.spot_check} ({SPOT_CHECK_RULE}); "
             "not final, do not publish."
         )
-    cover = (
-        f"{report.n_paired} of {report.n_probe} probe questions paired"
-        if report.n_paired != report.n_probe
-        else f"all {report.n_probe} probe questions paired"
+    complete = (
+        report.n_shared == report.n_probe
+        and not report.unpaired_models
+        and all(m.n == report.n_probe for m in report.models)
     )
+    cover = (
+        f"all {report.n_probe} probe questions paired for every model"
+        if complete
+        else f"{report.n_shared} of {report.n_probe} probe questions in both runs; "
+        "pairs per model below"
+    )
+    tasks = f"{', '.join(report.original_tasks)} vs {', '.join(report.paraphrase_tasks)}"
     lines = [
         head,
         f"paraphrase probe: {cover} (original {report.original_run_id}, paraphrase "
-        f"{report.paraphrase_run_id}); paired bootstrap, {report.n_resamples:,} resamples, "
-        f"seed {report.seed}",
-        f"{'model':<24} {'n':>4}  {'original':>8}  {'paraphrase':>10}  drop in points [95% CI]",
+        f"{report.paraphrase_run_id}; tasks {tasks}); paired bootstrap, "
+        f"{report.n_resamples:,} resamples, seed {report.seed}",
+        "n counts the questions both runs answered without an error; errored completions are "
+        "counted and their pairs excluded, never scored as wrong",
     ]
     for m in report.models:
-        flag = {
-            "drop": "  FLAG: contamination signal",
-            "rise": "  FLAG: accuracy rose on the paraphrase (check the set)",
-            "none": "",
-        }[m.direction]
+        if m.settings_differences:
+            tail = (
+                "--allow-different-settings given: flags are read as signals anyway"
+                if report.allow_different_settings
+                else "A flag is labelled confounded, not a contamination signal "
+                "(--allow-different-settings overrides)"
+            )
+            lines.append(
+                f"SETTINGS DIFFER for {m.model}: {'; '.join(m.settings_differences)}. {tail}"
+            )
+    lines.append(
+        f"{'model':<24} {'n':>4}  {'original':>8}  {'paraphrase':>10}  drop in points [95% CI]"
+    )
+    for m in report.models:
         lines.append(
             f"{m.model:<24} {m.n:>4}  {m.accuracy_original.point:>8.1%}  "
             f"{m.accuracy_paraphrase.point:>10.1%}  {_pts(m.drop.point)} "
-            f"[{_pts(m.drop.lo)}, {_pts(m.drop.hi)}]{flag}"
+            f"[{_pts(m.drop.lo)}, {_pts(m.drop.hi)}]{FLAGS[m.signal]}"
         )
+    lines.append("coverage:")
+    for m in report.models:
+        lines.append(
+            f"  {m.model}: {m.n} paired of {report.n_shared}; missing {m.n_missing_original} "
+            f"original, {m.n_missing_paraphrase} paraphrase; {m.n_excluded_errors} excluded "
+            f"for errors (errors: original {m.errors_original}, paraphrase "
+            f"{m.errors_paraphrase})"
+        )
+    for m in report.models:
+        if m.exclusion_warning:
+            pairs = m.n + m.n_excluded_errors
+            lines.append(
+                f"WARNING: {m.model}: {m.n_excluded_errors} of {pairs} pairs "
+                f"({m.n_excluded_errors / pairs:.1%}) excluded for errors, over "
+                f"{EXCLUSION_WARNING:.0%}; the comparison covers only the {m.n} where both "
+                "wordings produced an answer"
+            )
     if report.unpaired_models:
-        lines.append(f"not in both runs: {', '.join(report.unpaired_models)}")
+        lines.append(
+            "not in both runs, or no pair where both wordings answered: "
+            + ", ".join(report.unpaired_models)
+        )
     return "\n".join(lines)
 
 
@@ -909,6 +1113,12 @@ def _parser() -> argparse.ArgumentParser:
     b.add_argument("--n", type=int, default=N, help=f"questions to keep (default {N})")
     b.add_argument("--seed", type=int, default=SEED)
     b.add_argument("--max-cost", type=float, default=2.0, help="USD cap (default 2)")
+    b.add_argument(
+        "--max-rejects",
+        type=int,
+        default=None,
+        help="stop after this many rejections (default: a tenth of --n, at least 5)",
+    )
     b.add_argument("--store", default=".evalkit/store", help="cache folder")
     b.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
     b.add_argument("--json", action="store_true", help="print one JSON object")
@@ -933,17 +1143,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         prices = load_prices()
         if args.dry_run:
-            est = estimate_build(cases, prices, n=args.n, seed=args.seed)
+            k = default_max_rejects(args.n) if args.max_rejects is None else args.max_rejects
+            est = estimate_build(cases, prices, n=args.n, seed=args.seed, max_rejects=k)
             payload = {
                 "dry_run": True,
                 "n": args.n,
                 "seed": args.seed,
+                "max_rejects": k,
                 "estimate_usd": round(est, 4),
                 "max_cost_usd": args.max_cost,
             }
             text = (
                 f"paraphrase probe: {args.n} questions (seed {args.seed}); estimate "
-                f"${est:.2f} upper bound; cap ${args.max_cost:.2f} (no API calls made)"
+                f"${est:.2f} upper bound (worst-case checks, up to {k} replacement draws); "
+                f"cap ${args.max_cost:.2f} (no API calls made)"
             )
             print(json.dumps(payload, sort_keys=True) if args.json else text)
             return 0
@@ -957,6 +1170,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 n=args.n,
                 seed=args.seed,
                 max_cost_usd=args.max_cost,
+                max_rejects=args.max_rejects,
                 echo=lambda s: print(s, file=sys.stderr),
             )
         )

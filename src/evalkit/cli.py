@@ -285,17 +285,16 @@ def _paraphrase_report(args: argparse.Namespace) -> int:
         return _err("--paraphrase takes its two run folders; give no other run folder or --example")
     original, para = (Path(p) for p in args.paraphrase)
     try:
-        rep = P.contamination_report(original, para)
+        rep = P.contamination_report(
+            original, para, allow_different_settings=args.allow_different_settings
+        )
+        if args.publish:  # refused before anything is written
+            P.require_final(rep)
     except (P.ProbeError, OSError, ValueError) as exc:
         return _err(str(exc))
     data = rep.model_dump(mode="json")
     path = para / "contamination.json"
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    if args.publish:
-        try:
-            P.require_final(rep)
-        except P.ProbeError as exc:
-            return _err(str(exc))
     _emit(
         args,
         {
@@ -730,6 +729,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar=("ORIGINAL_RUN", "PARAPHRASE_RUN"),
         default=None,
         help="contamination report: original vs paraphrased wording of the probe (B5.8)",
+    )
+    rep.add_argument(
+        "--allow-different-settings",
+        action="store_true",
+        help="--paraphrase: read flags as signals even when the two runs' settings differ",
     )
     rep.add_argument("--json", action="store_true")
     rep.set_defaults(func=cmd_report)
