@@ -81,6 +81,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -346,7 +347,7 @@ def _char_kinds(text: str) -> frozenset[str]:
 
 def _omitted_label(name: str, labels: Collection[str], gold: ResultSet) -> bool:
     """A predicted column name that could be a label the gold's GROUP BY left out."""
-    if SUMMARY_WORDS & any_words(name):
+    if SUMMARY_WORDS & any_words(name) or _has_summary_word(name):
         return False
     if _label_key(name) in {_label_key(c) for c in gold.columns}:
         return False
@@ -416,7 +417,21 @@ def is_count_column(name: str) -> bool:
     ``year_count``)."""
     if not words(name) & COUNT_WORDS or any_words(name) & NOT_COUNT_WORDS:
         return False
+    if _has_summary_word(name):  # sales_total, overall_total_sales, all_sales, grandtotal
+        return False
     return not _leading_words(name) & NOT_A_COUNT_LEADS
+
+
+def _has_summary_word(name: str) -> bool:
+    """A total, sum or overall figure anywhere in the name, as a word or run together
+    (``grandtotal``), after NFKC (fullwidth letters); a zero total is not a no-data check."""
+    folded = unicodedata.normalize("NFKC", name).casefold()
+    return bool(TOTAL_WORDS & any_words(folded)) or any(
+        w in folded for w in ("total", "grand", "overall")
+    )
+
+
+TOTAL_WORDS = frozenset({"total", "totals", "subtotal", "sum", "all", "overall", "grand"})
 
 
 def empty_check(predicted: ResultSet, gold: ResultSet) -> ResultSet | None:

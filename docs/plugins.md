@@ -264,7 +264,7 @@ split at camelCase (`newBuildPct` is not a percent column), but an excluding wor
   dates (`2023-03-01`), month labels (`2023-03`, `March 2023`, `Mar 2023`) and quarter labels
   (`2023 Q1`, `Q1 2023`, `2023-Q1`, `Q1`). They match month numbers (1–12) in a gold column
   named `month`, or quarter numbers (1–4) in a column named `quarter` or `qtr`, when the
-  question names months or quarters. A quarter label never becomes a month number. When the
+  question names months or quarters. A quarter label never becomes a month number (a month label or month-start date at a quarter start, such as "April 2023", does read as that quarter, the same as the date 2023-04-01). empty_check refuses a total anywhere in a column name (`sales_total`, `grandtotal`). When the
   question names a year (19xx or 20xx), the periods must fall in a named year. A bare `Q1`
   has no year, so it is read only when the question names exactly one year (as that year);
   with no year or several named it stays wrong. Fiscal questions (`FY2024`, "fiscal") never

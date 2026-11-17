@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FIX] [B5.15] — Verifier pass 3 (no must-fix): empty_check refuses a total anywhere in a column name (`sales_total`, `overall_total_sales`, fullwidth letters), and a pivot refuses a run-together `grandtotal`; documented that a month at a quarter start reads as that quarter. Spend: $0.
 - [FEAT] [B5.15] — Text period labels for agentic-analytics (its OWNER D-89): "2023 Q1", "Q1 2023", "2023-Q1", bare "Q1" (only when the question names exactly one year) and "2023-03", "March 2023", "Mar 2023"; a quarter label never becomes a month; fiscal questions never convert. empty_check refuses a leading period/total word (`total_sales`), keeps `sales_in_requested_year`. Spend: $0.
 - [DECISION] — D-74 (owner): `value_check` leaves v0.3.0 after seven verifier passes; new node B5.16 redesigns it strict for v0.4.0 (verified only when a whole field name or alias is bound to its number). SEV-01 moves to B5.16. Spend: $0.
 - [FEAT] [B5.11] — Green after four passes of EvalKit's independent verification (built by assay-pipeline in its lane, D-70/D-72): agent security eval kit with OWASP categories, pass^k with exact bounds, one stopping layer per trial, a scripted attacker that makes no model call, and held-out cases shown only as all-or-nothing aggregates. Spend: $0.

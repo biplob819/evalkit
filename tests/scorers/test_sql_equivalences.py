@@ -979,10 +979,9 @@ def test_empty_check_refuses_a_count_column_with_a_leading_period_or_total_word(
     assert rescue(rs(("earliest", name), (("1995-01-01", 0),)), EMPTY, EMPTY_Q) == ()
 
 
-@pytest.mark.parametrize(
-    "name", ["sales_in_requested_year", "sales_in_1994", "n_sales_per_month", "count_total"]
-)
-def test_empty_check_keeps_a_count_column_whose_period_or_total_word_comes_later(name):
+@pytest.mark.parametrize("name", ["sales_in_requested_year", "sales_in_1994", "n_sales_per_month"])
+def test_empty_check_keeps_a_count_column_whose_period_word_comes_later(name):
+    """A total anywhere (``count_total``) is refused since verifier pass 3."""
     pred = rs(("earliest", name), (("1995-01-01", 0),))
     assert rescue(pred, EMPTY, EMPTY_Q) == ("empty_check",)
 
@@ -998,3 +997,22 @@ def test_pivot_extra_label_beside_digit_labels_must_start_with_a_digit():
     gold = rs(("period", "n"), (("2023 Q1", 4), ("2023 Q2", 5)))
     pred = rs(("2023 Q1", "2023 Q2", "2023 Q3"), ((4, 5, 0),))
     assert rescue(pred, gold, "Sales by period?") == ("pivot",)
+
+
+# ---- B5.15 verifier pass 3 ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name", ["sales_total", "overall_total_sales", "all_sales", "ｔｏｔａｌ_sales"]
+)
+def test_a_total_anywhere_in_the_name_is_not_an_empty_count(name):
+    from evalkit.scorers.sql_equivalences import is_count_column
+
+    assert is_count_column(name) is False
+    assert is_count_column("sales_in_requested_year") is True
+
+
+def test_a_run_together_grandtotal_is_not_an_omitted_pivot_label():
+    from evalkit.scorers.sql_equivalences import _has_summary_word
+
+    assert _has_summary_word("grandtotal") and not _has_summary_word("Other")
