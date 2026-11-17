@@ -1,5 +1,5 @@
 {
- "source": "sql_match at ca50e38 (before B5.15), no equivalences named, PYTHONHASHSEED=0 (its failure details depend on the hash seed)",
+ "source": "sql_match at ca50e38 (before B5.15), no equivalences named; values and reasons unchanged from ca50e38, failure details deliberately regenerated once B5.15 made them deterministic (the same bytes under every hash seed)",
  "cases": [
   {
    "name": "identical",
@@ -2236,5 +2236,5 @@
    "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":3,\"gold\":2,\"assignments_tried\":0}}"
   }
  ],
- "note": "Values and reasons are those sql_match gave on ca50e38; failure details regenerated after B5.15 made them independent of PYTHONHASHSEED (gold groups first; example_predicted_row when no gold row exists)."
+ "note": "Values and reasons are unchanged from ca50e38. Failure details (unmatched_*, example_gold_row) were deliberately regenerated after B5.15 made them deterministic: gold groups are checked in gold row order, so the first difference reported is the same under every PYTHONHASHSEED."
 }

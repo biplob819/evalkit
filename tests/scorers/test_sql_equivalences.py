@@ -139,10 +139,14 @@ def test_fraction_passes_only_when_the_question_asks_for_a_percentage():
         assert rescue(pred, PCT_GOLD, text, tol=PCT) == ()
 
 
-def test_fraction_needs_a_percent_unit_tolerance_on_a_percent_named_column():
+def test_fraction_needs_a_percent_named_column_and_gets_a_percent_unit_tolerance():
+    """The percent column alone is compared with a percent-unit abs (0.01), whatever the
+    caller's abs_tol (agentic-analytics' per-column tolerance); no abs_tol >= 0.01 is needed."""
     pred = rs(("new_build_pct",), ((0.113892,),))
-    assert rescue(pred, PCT_GOLD, PCT_TEXT, tol=(0.005, 0.0001)) == ()
-    assert rescue(pred, PCT_GOLD, PCT_TEXT, tol=EXACT) == ()
+    assert rescue(pred, PCT_GOLD, PCT_TEXT, tol=(0.005, 0.0001)) == ("percent_scale",)
+    assert rescue(pred, PCT_GOLD, PCT_TEXT, tol=EXACT) == ("percent_scale",)
+    # 0.02 percentage points off is outside the percent-unit tolerance
+    assert rescue(rs(("new_build_pct",), ((0.113692,),)), PCT_GOLD, PCT_TEXT, tol=EXACT) == ()
     # a column whose name is not a percentage (a median) is never rescaled
     gold = rs(("median_2023", "pct_change"), ((290000, 1.5),))
     text = "Show the median in 2023 and the percentage change."
@@ -158,15 +162,23 @@ def test_wrong_fraction_and_already_percent_values_stay_as_they_are():
 
 
 def test_percent_scale_leaves_other_columns_exact():
-    """agentic-analytics compares the count columns exactly; sql_match has one tolerance for
-    every column, so this uses the percent-unit abs alone (no relative slack on counts)."""
+    """agentic-analytics compares the count columns exactly; so does sql_match here: the
+    percent-unit abs widens the scaled column alone, and the caller's tolerance is exact."""
     case = next(c for c in CASES if c["question_id"] == "q-085")
     pred, gold, text, _ = case_args(case)
-    tol = (0.0, 0.01)
-    assert rescue(pred, gold, text, tol=tol) == ("percent_scale",)
+    assert rescue(pred, gold, text, tol=EXACT) == ("percent_scale",)
     rows = [list(r) for r in case["predicted"]["rows"]]
     rows[0][2] += 1  # one sales count off by one
-    assert rescue(rs(case["predicted"]["columns"], rows), gold, text, tol=tol) == ()
+    assert rescue(rs(case["predicted"]["columns"], rows), gold, text, tol=EXACT) == ()
+
+
+def test_percent_unit_tolerance_widens_only_the_scaled_column_on_a_percent_gold_column():
+    """A second percent column that was not scaled keeps the caller's tolerance, and a
+    percent-named gold column takes the scaled values only where the predicted column maps."""
+    gold = rs(("a_pct", "b_pct"), ((11.389191233977966, 50.0),))
+    text = "What percentage of sales were new builds, and what percentage freehold?"
+    assert rescue(rs(("a_pct", "b_pct"), ((0.113892, 50.0),)), gold, text) == ("percent_scale",)
+    assert rescue(rs(("a_pct", "b_pct"), ((0.113892, 50.009),)), gold, text) == ()
 
 
 # 2. pivot
@@ -461,6 +473,180 @@ def test_a_strict_pass_is_never_relabelled_as_an_equivalence():
     small = rs(("pct",), ((0.1,),))
     res = run(small, rs(("pct",), ((0.2,),)), PCT_TEXT, tol=(0.0, 0.2))
     assert res.value == 1.0 and res.details["correct_strict"] is True
+
+
+# Stricter than the reference (B5.15 verifier): an equivalence never makes a wrong answer right
+
+
+def test_percent_columns_are_named_by_whole_words_not_percentile_or_points():
+    """`percentile` is not a percent column, and `points` is one only when the question asks
+    for percentage points: a latency or a loyalty average 100x off stays wrong."""
+    gold = rs(("pct_over", "latency_percentile_95"), ((12.5, 1.23),))
+    pred = rs(gold.columns, ((12.5, 0.0123),))
+    text = "What percentage of requests exceed the SLA and what is the 95th percentile latency?"
+    assert rescue(pred, gold, text, tol=PCT) == ()
+    gold = rs(("pct", "avg_loyalty_points"), ((40.0, 1230.0),))
+    pred = rs(gold.columns, ((40.0, 12.3),))
+    text = "What percent of members are active and their avg loyalty points?"
+    assert rescue(pred, gold, text, tol=PCT) == ()
+    # percentage points asked for: a points column is a percent column
+    gold = rs(("year", "change_points"), ((2024, 1.5),))
+    text = "By how many percentage points did the new-build share change in 2024?"
+    assert rescue(rs(gold.columns, ((2024, 0.015),)), gold, text) == ("percent_scale",)
+    # whole words, any case; a camelCase name is one word (agentic-analytics D-91, stricter)
+    for name in ("NEW_BUILD_PCT", "new-build percent", "Percentage", "pct2023"):
+        gold = rs((name,), ((11.389191233977966,),))
+        assert rescue(rs((name,), ((0.113892,),)), gold, PCT_TEXT) == ("percent_scale",), name
+    not_percent = ("newBuildPct", "pctile", "pcnt", "percentile_90", "rate", "points")
+    not_percent += ("appointments",)
+    for name in not_percent:
+        gold = rs((name,), ((11.389191233977966,),))
+        assert rescue(rs((name,), ((0.113892,),)), gold, PCT_TEXT) == (), name
+
+
+def test_a_question_that_negates_percent_does_not_ask_for_one():
+    gold = rs(("ratio_pct",), ((25.0,),))
+    pred = rs(("ratio_pct",), ((0.25,),))
+    for text in (
+        "Give the ratio as a fraction (not %)",
+        "Give the ratio as a fraction, not a percentage.",
+        "Return the share as a decimal rather than as a percent.",
+        "Return the share as a decimal instead of a percentage.",
+    ):
+        assert rescue(pred, gold, text, tol=PCT) == (), text
+    # a negation elsewhere does not hide a request for a percentage
+    text = "Not counting refunds, what percentage of orders shipped late?"
+    assert rescue(pred, gold, text, tol=PCT) == ("percent_scale",)
+
+
+def test_quarter_reading_needs_a_gold_column_named_quarter():
+    """April read as quarter 2 must not match a gold month 2 (February)."""
+    gold = rs(("month", "sales"), ((2, 10),))
+    pred = rs(("month", "sales"), (("2024-04-01", 10),))
+    assert rescue(pred, gold, "Which month of the first quarter had the most sales?") == ()
+    # the month reading still applies to the gold month column
+    feb = rs(("month", "sales"), (("2024-02-01", 10),))
+    text = "Which month of the first quarter of 2024 had the most sales?"
+    assert rescue(feb, gold, text) == ("period_number",)
+
+
+def test_month_dates_in_a_year_the_question_does_not_name_stay_wrong():
+    gold = rs(("month",), ((3,),))
+    pred = rs(("month",), (("2023-03-01",),))
+    assert rescue(pred, gold, "Which month of 2024 had the highest revenue?") == ()
+    assert rescue(pred, gold, "Which month of 2023 had the highest revenue?") == ("period_number",)
+    # no year named: any one calendar year
+    assert rescue(pred, gold, "Which month had the highest revenue?") == ("period_number",)
+
+
+def test_period_numbers_land_only_on_a_gold_column_named_month_or_quarter():
+    """A count of 1..12 is not a month number."""
+    gold = rs(("region_count", "n"), ((5, 3),))
+    pred = rs(("d", "n"), (("2024-05-01", 3),))
+    assert rescue(pred, gold, "How many regions per month?") == ()
+    gold = rs(("qtr", "n"), ((2, 3),))
+    assert rescue(rs(("d", "n"), (("2024-04-01", 3),)), gold, "Sales per quarter?") == (
+        "period_number",
+    )
+    # the converted column must be the one compared with the month column
+    gold = rs(("month", "stores"), ((5, 3),))
+    pred = rs(("stores", "month"), (("2024-03-01", 5),))  # by name: dates land on stores
+    assert rescue(pred, gold, "How many stores opened per month?") == ()
+
+
+def test_empty_check_needs_count_columns_and_no_stray_text():
+    """An error message beside a zero, or a zero average, is not a no-data check."""
+    error = rs(("msg", "n"), (("ERROR: table missing", 0),))
+    assert rescue(error, rs(("n",), ()), "Sales in 1994?") == ()
+    avg = rs(("avg_price",), ((0.0,),))
+    assert rescue(avg, rs(("avg_price",), ()), "Average price in 1994?") == ()
+    for name in ("total", "total_revenue", "median_price", "value", "year", "SalesIn1994"):
+        assert rescue(rs((name,), ((0,),)), EMPTY, EMPTY_Q) == (), name
+    # an excluding word is found at a case change too
+    assert rescue(rs(("sales_avgPrice",), ((0,),)), EMPTY, EMPTY_Q) == ()
+    for name in ("n", "count", "num_sales", "sales_count", "SALES_IN_1994", "total_sales", "rows"):
+        assert rescue(rs((name,), ((0,),)), EMPTY, EMPTY_Q) == ("empty_check",), name
+    stamp = rs(("earliest", "n"), (("1995-01-01T00:00:00Z", 0),))
+    assert rescue(stamp, EMPTY, EMPTY_Q) == ("empty_check",)
+
+
+def test_pivot_extra_zero_column_must_look_like_an_omitted_label():
+    """`total = 0` (a summary), the gold's own column names, and a name unlike the gold's
+    labels are not labels the GROUP BY left out."""
+    gold = rs(("region", "n"), (("east", 1), ("west", 2)))
+    for extra in ("total", "grand_total", "grandTotal", "n", "count", "region", "avg", "pct"):
+        pred = rs(("east", "west", extra), ((1, 2, 0),))
+        assert rescue(pred, gold, "by region") == (), extra
+    assert rescue(rs(("East", "West", "unknown"), ((1, 2, 0),)), gold, "by region") == ("pivot",)
+    years = rs(("year", "n"), (("2023", 4), ("2024", 5)))
+    assert rescue(rs(("2023", "2024", "2025"), ((4, 5, 0),)), years, "by year") == ("pivot",)
+    assert rescue(rs(("2023", "2024", "unknown"), ((4, 5, 0),)), years, "by year") == ()
+
+
+def test_a_rows_differ_failure_always_names_a_gold_row():
+    """Equal row counts mean a gold group fails before any predicted-only group is reached."""
+    gold = rs(("k", "v"), (("a", 1), ("b", 2)))
+    res = sql_match(rs(("k", "v"), (("a", 1), ("c", 2))), gold)
+    assert res.details["reason"] == "rows_differ"
+    assert tuple(res.details["example_gold_row"]) == ("b", 2)
+    assert "example_predicted_row" not in res.details
+
+
+# agentic-analytics D-91 (a638db9): its tests for the same false passes, ported
+
+
+def test_d91_percentile_and_points_columns_are_not_percent_columns():
+    p95 = rs(("latency_percentile_95",), ((1.23,),))
+    pred = rs(("latency_percentile_95",), ((0.0123,),))
+    assert rescue(pred, p95, "What percentage latency was the 95th?", tol=PCT) == ()
+    loyalty = rs(("avg_loyalty_points",), ((1230.0,),))
+    pred = rs(("avg_loyalty_points",), ((12.3,),))
+    assert rescue(pred, loyalty, "What % of points?", tol=PCT) == ()
+    change = rs(("change_points",), ((1.5,),))
+    pred = rs(("change_points",), ((0.015,),))
+    assert rescue(pred, change, "By how many percentage points?", tol=PCT) == ("percent_scale",)
+
+
+def test_d91_a_question_saying_not_percent_does_not_ask_for_one():
+    text = "What share of 2023 sales were new builds (as a fraction, not %)?"
+    assert rescue(rs(("new_build_pct",), ((0.113892,),)), PCT_GOLD, text, tol=PCT) == ()
+
+
+def test_d91_quarter_reading_needs_a_gold_quarter_column():
+    gold = rs(("month", "sales"), ((2, 10),))
+    text = "Which month of the first quarter of 2024 had the most sales?"
+    assert rescue(rs(("month", "sales"), (("2024-04-01", 10),)), gold, text) == ()
+
+
+def test_d91_dates_must_be_in_a_year_the_question_names():
+    gold = rs(("month", "sales"), ((3, 70),))
+    text = "How many sales in each month of 2024?"
+    assert rescue(rs(("month", "sales"), (("2023-03-01", 70),)), gold, text) == ()
+    ok = rs(("month", "sales"), (("2024-03-01", 70),))
+    assert rescue(ok, gold, text) == ("period_number",)
+
+
+def test_d91_month_numbers_must_land_on_a_gold_month_column():
+    gold = rs(("rank", "sales"), ((3, 70),))
+    pred = rs(("month", "sales"), (("2024-03-01", 70),))
+    assert rescue(pred, gold, "Sales by month of 2024?") == ()
+
+
+def test_d91_empty_check_rejects_error_text_and_zero_measures():
+    empty = rs(("month", "median_price"), ())
+    text = "What was the median price in each month of 1993?"
+    assert rescue(rs(("status", "n"), (("ERROR: table missing", 0),)), empty, text) == ()
+    assert rescue(rs(("avg_price",), ((0.0,),)), empty, text) == ()
+    ok = rs(("earliest_sale_date", "sales_in_1993"), (("1995-01-01", 0),))
+    assert rescue(ok, empty, text) == ("empty_check",)
+
+
+def test_d91_pivot_rejects_a_zero_total_column():
+    gold = rs(("duration", "sales"), (("freehold", 5), ("leasehold", 3)))
+    text = "How many sales for each tenure?"
+    assert rescue(rs(("freehold", "leasehold", "total"), ((5, 3, 0),)), gold, text) == ()
+    ok = rs(("freehold", "leasehold", "unknown"), ((5, 3, 0),))
+    assert rescue(ok, gold, text) == ("pivot",)
 
 
 # Reproducibility and hostile inputs
