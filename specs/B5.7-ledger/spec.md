@@ -124,3 +124,6 @@ Synthetic fixtures only; no model or network call (a test fails on any); no `.en
 
 ## Out of scope
 The cross-project index (B5.5); alert delivery (mail, chat); a hosted or streaming monitor; an overall budget of held-out looks across candidates; off-policy estimator coverage (D-63); keyed or signed ledgers (B5.14's limit); migrating downstream repos' existing files (their own builds); computing features from raw production data beyond reading CSV/JSONL columns.
+
+## Owner rulings (D-73)
+The three open questions are resolved as recommended: calibration tolerances Brier 0.01, ECE 0.02 and bin 0.10, overridable per project; legacy spend lines kept and sealed by the first chained line; Respectful Offers asked for equal-width bins, with Brier and ECE only until then.
