@@ -26,8 +26,14 @@ def test_chart_marks_match_the_summary_and_carry_every_caveat(summary):
     assert svg == readme_chart(summary)  # deterministic
     assert svg.startswith("<svg") and "<script" not in svg and "http" not in svg.split(">", 1)[1]
     tips = re.findall(r"<g><title>([^<]+)</title>", svg)
-    expected = {
-        f"{m.model} by {j}: {iv.point:.1%} ({iv.lo:.1%} to {iv.hi:.1%})"
+    from evalkit.report.svg import bounded_rate
+
+    expected = {  # GAT-07: a headline of exactly 0 or 1 reads "0 of n, below X% at 95%"
+        f"{m.model} by {j}: "
+        + (
+            bounded_rate(iv.point, iv.lo, iv.hi, m.n)
+            or f"{iv.point:.1%} ({iv.lo:.1%} to {iv.hi:.1%})"
+        )
         for m in summary.models
         for j, iv in m.headline.items()
     }

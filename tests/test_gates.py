@@ -155,11 +155,39 @@ def _binom_cdf(k: int, n: int, p: float) -> float:
 
 
 def test_clopper_pearson_assay_bounds_n150():
-    """assay-pipeline: n=150, k=0 -> about 0.0198 (passes 0.03); k=1 -> about 0.0365 (fails)."""
-    zero, one = clopper_pearson(0, 150), clopper_pearson(1, 150)
+    """assay-pipeline, OWNER D-70: the gate's one-sided 95% upper bound at n=150 is 0.0198 for
+    k=0 (passes 0.03) and about 0.0312 for k=1 (fails); the displayed interval is the
+    standard two-sided one (k=0: 1 - 0.025**(1/150) = 0.0243; k=1: about 0.0366)."""
+    zero, one = clopper_pearson(0, 150, sided="upper"), clopper_pearson(1, 150, sided="upper")
     assert zero.hi == pytest.approx(1 - 0.05 ** (1 / 150), abs=1e-15)
     assert round(zero.hi, 4) == 0.0198 and zero.lo == 0.0 and zero.point == 0.0
-    assert 0.0365 <= one.hi <= 0.0367 and one.hi > 0.03 > zero.hi
+    assert round(one.hi, 4) == 0.0312 and one.hi > 0.03 > zero.hi and one.lo == 0.0
+    two0, two1 = clopper_pearson(0, 150), clopper_pearson(1, 150)
+    assert two0.hi == pytest.approx(1 - 0.025 ** (1 / 150), abs=1e-15) and two0.lo == 0.0
+    assert 0.0365 <= two1.hi <= 0.0367
+
+
+@pytest.mark.parametrize(("k", "n"), [(0, 150), (1, 150), (5, 20), (0, 3), (3, 3), (149, 150)])
+def test_clopper_pearson_one_sided_bounds_match_binomial_tails(k, n):
+    """D-70: `sided="upper"|"lower"` put the whole alpha in one tail for every k, checked by
+    exact binomial sums; `sided="two"` puts alpha/2 in each tail, k = 0 and k = n included."""
+    up, low = clopper_pearson(k, n, sided="upper"), clopper_pearson(k, n, sided="lower")
+    if k < n:
+        assert _binom_cdf(k, n, up.hi) == pytest.approx(0.05, abs=1e-9)
+    else:
+        assert up.hi == 1.0
+    if k > 0:
+        assert 1 - _binom_cdf(k - 1, n, low.lo) == pytest.approx(0.05, abs=1e-9)
+    else:
+        assert low.lo == 0.0
+    assert up.lo == 0.0 and low.hi == 1.0
+    two = clopper_pearson(k, n)
+    if k < n:
+        assert _binom_cdf(k, n, two.hi) == pytest.approx(0.025, abs=1e-9)
+    if k > 0:
+        assert 1 - _binom_cdf(k - 1, n, two.lo) == pytest.approx(0.025, abs=1e-9)
+    with pytest.raises(ValueError):
+        clopper_pearson(k, n, sided="both")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(("k", "n"), [(1, 150), (5, 20), (3, 7), (149, 150), (50, 100)])
@@ -173,7 +201,8 @@ def test_clopper_pearson_matches_independent_binomial_tails(k, n):
 
 
 def test_clopper_pearson_k_equals_n_and_reruns_identically():
-    assert clopper_pearson(150, 150).lo == pytest.approx(0.05 ** (1 / 150))
+    assert clopper_pearson(150, 150).lo == pytest.approx(0.025 ** (1 / 150))  # two-sided
+    assert clopper_pearson(150, 150, sided="lower").lo == pytest.approx(0.05 ** (1 / 150))
     assert clopper_pearson(7, 33) == clopper_pearson(7, 33)
 
 
@@ -427,8 +456,10 @@ def test_assay_one_success_fails_both_gates_with_exit_1(tmp_path):
     code, gate_json = gate_cli(tmp_path, write(tmp_path, "m.json", doc(one)), ASSAY_GATES_MIN)
     assert code == EXIT_FAIL
     assert [g["result"] for g in gate_json["gates"]] == ["fail", "fail"]
-    assert 0.0365 <= gate_json["gates"][1]["observed"] <= 0.0367
-    assert gate_json["gates"][1]["ci_method"] == "clopper-pearson"
+    row = gate_json["gates"][1]
+    assert round(row["observed"], 4) == 0.0312  # one-sided 95% upper bound (D-70)
+    assert row["ci_method"] == "clopper-pearson" and 0.0365 <= row["ci_high"] <= 0.0367
+    assert "one-sided 95% upper bound 0.0312" in row["note"]
 
 
 def test_assay_real_export_passes_its_gates(tmp_path):
@@ -701,8 +732,13 @@ PASSING = [{"name": "x", "unit": "ratio", "value": 1}]
             EXIT_INPUT,
         ),  # input-only beats all
         ('gates: [{metric: nothere, op: "<=", value: 2}]', RunStatus(), EXIT_INPUT),
-        (
+        (  # an unknown metric is input-only: exit 2 even while unfinished
             'gates: [{metric: nothere, op: "<=", value: 2}]',
+            RunStatus("evalkit-summary", "pending", True),
+            EXIT_INPUT,
+        ),
+        (  # a per-judge metric can still appear: completion-dependent
+            'gates: [{metric: headline, op: "<=", value: 2}]',
             RunStatus("evalkit-summary", "pending", True),
             EXIT_COST_CAP,
         ),
@@ -714,8 +750,14 @@ PASSING = [{"name": "x", "unit": "ratio", "value": 1}]
         (
             'gates: [{metric: nothere, op: "<=", value: 2}]',
             RunStatus("evalkit-summary", "pending", False),
+            EXIT_INPUT,
+        ),
+        (
+            'gates: [{metric: groundedness, op: "<=", value: 2}]',
+            RunStatus("evalkit-summary", "pending", False),
             EXIT_PENDING,
         ),
+        ('gates: [{metric: headline, op: "<=", value: 2}]', RunStatus(), EXIT_INPUT),
         (
             'gates: [{metric: x, op: "<=", value: 0}]',
             RunStatus("evalkit-summary", "pending", False),
@@ -1056,12 +1098,43 @@ def test_efficiency_block_from_a_run_has_seeded_intervals(golden_run):
         assert by["error_rate", ms.model].k == sum(ms.n_errors.values())
 
 
-def test_summary_json_keeps_its_bytes_and_gains_no_field(golden_run):
+def test_summary_json_gains_only_the_efficiency_field(golden_run):
+    """D-70: summary.json gains the optional per-model `efficiency` (omitted when absent) and
+    every other field keeps its bytes; gate conversion and the records agree with it."""
     from evalkit.pipeline.aggregate import summary_json
+    from evalkit.schemas import RunSummary
 
-    summary, _, _ = golden_run
-    assert summary_json(summary) == GOLDEN_SUMMARY.read_text(encoding="utf-8")
-    assert "efficiency" not in summary_json(summary)
+    summary, records, _ = golden_run
+    text = summary_json(summary)
+    assert text == GOLDEN_SUMMARY.read_text(encoding="utf-8")
+    data = json.loads(text)
+    for m in data["models"]:
+        eff = m.pop("efficiency")
+        assert eff["mode"] == "live" and eff["price_date"] == "2026-11-14"
+        assert eff["retry_rate"] is None and eff["eval_overhead_cost_usd"] > 0
+    old = RunSummary.model_validate(data)  # a 0.2-shaped summary: no field, same bytes
+    assert all(m.efficiency is None for m in old.models)
+    assert "efficiency" not in summary_json(old)
+    # the gate reads the block from summary.json alone, as the records give it
+    from_summary = {(m.name, m.labels["model"]): m for m in from_run_summary(summary).metrics}
+    for m in efficiency_metrics(records):
+        twin = from_summary[m.name, m.labels["model"]]
+        assert (twin.value, twin.ci_low, twin.ci_high, twin.n, twin.k) == (
+            m.value,
+            m.ci_low,
+            m.ci_high,
+            m.n,
+            m.k,
+        )
+    for ms in summary.models:
+        assert ms.efficiency is not None
+        assert from_summary["eval_overhead_cost", ms.model].value == (
+            ms.efficiency.eval_overhead_cost_usd
+        )
+        assert from_summary["system_cost", ms.model].value == pytest.approx(
+            ms.cost_per_100_usd * ms.n / 100
+        )
+        assert from_summary["cost_per_case", ms.model].labels["price_date"] == "2026-11-14"
 
 
 def test_report_shows_the_efficiency_block(golden_run):
@@ -1095,3 +1168,211 @@ gates:
     assert all(r.ci_method == "percentile bootstrap over cases (seeded)" for r in report.rows)
     shown = json.dumps(report.as_dict())
     assert not any(r.case_id in shown for r in records)  # aggregates only
+
+
+# ---- verifier findings (D-70): held-out numbers, typed disparity groups, wording, domains ------
+
+
+def test_heldout_split_stored_as_a_number_is_still_held_out():
+    """GAT-04: `split: 2024` (a number) matches `heldout_splits: ['2024']` (and [2024]) as a
+    canonical string, so its other labels never print, including on an error row."""
+    metrics = [
+        {"name": "acc", "unit": "count", "value": 0, "labels": {"split": 2024, "category": c}}
+        for c in ("secret-cat-a", "secret-cat-b")
+    ] + [{"name": "acc", "unit": "count", "value": 0, "labels": {"split": True, "category": "t"}}]
+    for listed in ("['2024', 'true']", "[2024, true]"):
+        report = check(
+            metrics, f'gates: [{{metric: acc, op: "<=", value: 0}}]\nheldout_splits: {listed}'
+        )
+        shown = render_text(report) + json.dumps(report.as_dict())
+        assert "secret-cat" not in shown and "category" not in shown, listed
+        assert [r.heldout_rows for r in report.rows] == [2, 1]
+    bound = check(
+        metrics, 'gates: [{metric: acc, bound: upper, op: "<=", value: 0}]\nheldout_splits: [2024]'
+    )
+    assert bound.exit_code == EXIT_INPUT  # no interval: an error, still folded
+    assert "secret-cat" not in render_text(bound) + json.dumps(bound.as_dict())
+
+
+def test_disparity_groups_keep_their_label_type():
+    """GAT-06: groups are keyed by label type and value, so 1 and "1" are two groups and the
+    true gap (0.9 - 0.1) is reported, not a gap computed after one overwrote the other."""
+    metrics = [
+        {"name": "rt", "unit": "rate", "value": v, "n": 100, "k": round(v * 100), "labels": lab}
+        for v, lab in ((0.1, {"g": 1}), (0.9, {"g": "1"}), (0.5, {"g": "2"}))
+    ]
+    report = check(metrics, 'gates: [{metric: rt, disparity: g, op: "<=", value: 0.5}]')
+    row = report.rows[0]
+    assert row.observed == pytest.approx(0.8) and report.exit_code == EXIT_FAIL
+    assert row.note == '3 groups; highest "1", lowest 1'
+
+
+GOLDEN_REPORT = ROOT / "tests" / "fixtures" / "golden" / "report_pubmedqa_mini.html"
+
+
+def test_run_report_states_zero_of_n_never_a_zero_interval(golden_run):
+    """GAT-07: gpt-6-luna's headline is 0 of 12; the report (tables, chart tooltips) reads
+    "0 of 12, below X% at 95%", never "0.0% (95% CI 0.0% to 0.0%)" or "0.0% (0.0%–0.0%)"."""
+    from evalkit.report.html import render_report
+
+    summary, records, cases = golden_run
+    html = render_report(summary, records, cases)
+    assert "0.0% (95% CI 0.0% to 0.0%)" not in html
+    assert "0.0% (0.0%–0.0%)" not in html and "0.0% <span class=muted>(0.0%–0.0%)" not in html
+    assert "gpt-6-luna by claude-opus-5-5: 0 of 12, below 22.1% at 95%" in html
+
+
+NAME_AND_DOMAIN_CASES: dict[str, dict[str, Any]] = {
+    "name with a trailing newline": {"name": "x\n", "unit": "count", "value": 0},
+    "unit with a trailing newline": {"name": "x", "unit": "USD\n", "value": 1},
+    "rate interval above 1": {
+        "name": "r", "unit": "rate", "value": 0.5, "ci_low": 0.1, "ci_high": 1.5, "ci_method": "m"
+    },
+    "rate interval below 0": {
+        "name": "r", "unit": "rate", "value": 0.0, "ci_low": -0.1, "ci_high": 0.2, "ci_method": "m"
+    },
+    "count ci_low below 0": {
+        "name": "c", "unit": "count", "value": 1, "ci_low": -3, "ci_high": 2, "ci_method": "m"
+    },
+    "rate value not k / n": {"name": "r", "unit": "rate", "value": 0.9, "n": 10, "k": 1},
+}  # fmt: skip
+
+
+@pytest.mark.parametrize("case", sorted(NAME_AND_DOMAIN_CASES))
+def test_anchored_names_and_interval_domains_are_checked(case):
+    with pytest.raises(MetricsError):
+        parse_metrics(json.dumps(doc([NAME_AND_DOMAIN_CASES[case]])))
+
+
+def test_rates_rounded_to_six_decimals_and_null_provenance_pass():
+    """assay-pipeline writes rates rounded to 6 decimals (7/12 -> 0.583333, 1/150 ->
+    0.006667); they pass the k/n check. `provenance: null` means none given."""
+    ok = parse_metrics(
+        json.dumps(
+            doc(
+                [
+                    {"name": "a", "unit": "rate", "value": 0.583333, "n": 12, "k": 7},
+                    {"name": "b", "unit": "rate", "value": 0.006667, "n": 150, "k": 1},
+                ],
+                provenance=None,
+            )
+        )
+    )
+    assert ok.provenance.code_version is None and len(ok.metrics) == 2
+    data = json.loads(ASSAY_METRICS.read_text(encoding="utf-8"))
+    assert any(m["unit"] == "rate" and m.get("k") for m in data["metrics"])
+    parse_metrics(ASSAY_METRICS.read_text(encoding="utf-8"))  # still valid
+    parse_metrics(RO_METRICS.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        (
+            json.dumps(doc([{"name": "c", "unit": "count", "value": 0}])).replace(
+                '"value": 0', '"value": ' + "9" * 5000
+            ),
+            "integer of 5000 digits is too large",
+        ),
+        (
+            '{"schema_version": "metrics-1", "provenance": ' + "[" * 100_000 + "]" * 100_000 + "}",
+            "nested too deeply",
+        ),
+    ],
+)
+def test_huge_integers_and_deep_nesting_get_clear_messages(text, message):
+    with pytest.raises(MetricsError, match=message):
+        parse_metrics(text)
+
+
+@pytest.mark.parametrize(
+    ("gates", "message"),
+    [
+        (
+            "gates:\n- metric: x\n  op: '<='\n  value: 1\n  op: '>='\n",
+            "duplicate key 'op' (line 5)",
+        ),
+        ("gates:\n- {metric: x, op: '<=', value: " + "9" * 5000 + "}\n", "integer is too large"),
+        ("gates: " + "[" * 5000 + "]" * 5000 + "\n", "nested too deeply"),
+    ],
+)
+def test_gates_file_problems_get_clear_messages(gates, message):
+    with pytest.raises(MetricsError, match=re.escape(message)):
+        parse_gates(gates)
+
+
+def test_out_naming_a_folder_exits_2_and_leaves_no_temporary_file(tmp_path, capsys):
+    path = write(tmp_path, "m.json", doc(PASSING))
+    cfg = write(tmp_path, "g.yaml", 'gates: [{metric: x, op: "<=", value: 1}]')
+    folder = tmp_path / "outdir"
+    folder.mkdir()
+    before = sorted(p.name for p in tmp_path.iterdir())
+    code = cli.main(["gate", str(path), "--config", str(cfg), "--out", str(folder)])
+    assert code == EXIT_INPUT and "it is a folder" in capsys.readouterr().out
+    assert sorted(p.name for p in tmp_path.iterdir()) == before
+    assert list(folder.iterdir()) == []
+
+
+def test_a_bad_command_line_still_writes_gate_json(tmp_path, capsys):
+    out = tmp_path / "o" / "gate.json"
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["gate", "--out", str(out), "--no-such-option"])
+    assert exc.value.code == EXIT_INPUT
+    gate_json = json.loads(out.read_text(encoding="utf-8"))
+    assert gate_json["exit_code"] == EXIT_INPUT and gate_json["verdict"] == "error"
+    assert gate_json["errors"] == ["bad command line (see `evalkit gate --help`)"]
+    assert [p.name for p in out.parent.iterdir()] == ["gate.json"]
+    capsys.readouterr()
+
+
+def test_unknown_metric_on_a_pending_run_exits_2(tmp_path):
+    """GAT-09: an unknown metric name is input-only (exit 2) even while judging is pending;
+    only a per-judge figure (headline, groundedness, ...) may still appear (exit 4)."""
+    golden = json.loads(GOLDEN_SUMMARY.read_text(encoding="utf-8"))
+    path = write(tmp_path, "summary.json", _pending(golden))
+    nosuch = write(tmp_path, "a.yaml", 'gates: [{metric: nosuch, op: ">=", value: 0.9}]')
+    assert run_gate(path, nosuch).exit_code == EXIT_INPUT
+    absent = write(
+        tmp_path, "b.yaml", 'gates: [{metric: accuracy, labels: {model: zz}, op: ">=", value: 0}]'
+    )
+    assert run_gate(path, absent).exit_code == EXIT_INPUT
+    head = write(tmp_path, "c.yaml", 'gates: [{metric: headline, op: ">=", value: 0.9}]')
+    assert run_gate(path, head).exit_code == EXIT_PENDING
+
+
+def test_a_real_run_records_eval_overhead_and_price_date(tmp_path, monkeypatch, capsys):
+    """EFF-02 end to end with scripted models (no API): `evalkit run` writes each model's
+    efficiency with the extractor and judge cost and the price date; a re-summary (as after
+    calibration) keeps it; the gate reads it."""
+    from evalkit import run as R
+    from evalkit.datasets.pubmedqa import parse_pqa_l
+    from evalkit.schemas import RunSummary
+    from tests.cli.test_cli import CONFIG
+    from tests.golden.test_golden_run import MINI, reply
+    from tests.pipeline.fakes import ScriptedBatchAdapter
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-test-key-1234567890")
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-test-key-1234567890")
+    rows = json.loads(MINI.read_text(encoding="utf-8"))
+    monkeypatch.setattr(R, "load_pqa_l", lambda: parse_pqa_l(rows))
+    fake = ScriptedBatchAdapter(reply)
+    monkeypatch.setattr(R, "make_adapters", lambda c, p: {"anthropic": fake, "openai": fake})
+    (tmp_path / "evalkit.yaml").write_text(CONFIG, encoding="utf-8")
+    assert cli.main(["run", "evalkit.yaml", "--n", "12", "--json"]) in (0, 1)
+    run_dir = tmp_path / json.loads(capsys.readouterr().out)["run_dir"]
+    summary = RunSummary.model_validate_json((run_dir / "summary.json").read_text("utf-8"))
+    for m in summary.models:
+        e = m.efficiency
+        assert e is not None and e.eval_overhead_cost_usd and e.eval_overhead_cost_usd > 0
+        assert e.price_date == "2026-11-14"
+        assert e.system_cost_usd == pytest.approx(m.cost_per_100_usd * m.n / 100)
+    again = R.summarise(run_dir, R.read_manifest(run_dir), R.read_records(run_dir), "complete")
+    assert [m.efficiency for m in again.models] == [m.efficiency for m in summary.models]
+    cfg = write(
+        tmp_path,
+        "g.yaml",
+        'gates: [{metric: eval_overhead_cost, labels: {model: "*"}, op: "<=", value: 1}]',
+    )
+    report = run_gate(run_dir / "summary.json", cfg)
+    assert report.exit_code == EXIT_PASS and len(report.rows) == len(summary.models)

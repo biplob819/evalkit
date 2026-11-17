@@ -27,6 +27,7 @@ from evalkit.pipeline.aggregate import (
 from evalkit.pipeline.extract import extract_all
 from evalkit.pipeline.generate import generate_and_validate
 from evalkit.pipeline.judge import judge_claims, select_judges
+from evalkit.run import eval_overhead
 from evalkit.runtime import Executor, Store
 from evalkit.schemas import RunConfig, RunSummary
 from evalkit.tasks import builtin_task
@@ -124,6 +125,12 @@ async def _run(
         finished_at=T1,
         n_resamples=10_000,  # the published default
         agreements=agreements,
+        # the efficiency block's two figures records lack (EFF-02, D-70), as `evalkit run`
+        # passes them: price-table dates and the extractor and judge cost per model
+        price_dates={m: p.checked_on.isoformat() for m, p in prices.items()},
+        eval_overhead_usd=eval_overhead(
+            ex, generated, claim_sets, items, selection.judges, CFG, citations=False
+        ),
     )
     return summary, records, judging, {c.id: c for c in cases}
 

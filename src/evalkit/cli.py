@@ -637,6 +637,53 @@ def cmd_demo_cache(args: argparse.Namespace) -> int:
     return 3 if stopped else 0
 
 
+def _write_gate_json(out: Path, text: str) -> str | None:
+    """Write gate.json atomically (a temporary file beside it, then a rename); on failure
+    leave nothing behind and return the problem. `--out` naming a folder is refused."""
+    import os
+    import tempfile
+
+    if out.is_dir():
+        return f"cannot write {out}: it is a folder (give a file path such as {out / 'gate.json'})"
+    tmp: str | None = None
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=out.parent, prefix=f".{out.name}.", suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        os.replace(tmp, out)
+        tmp = None
+    except OSError as exc:
+        return f"cannot write {out}: {type(exc).__name__}"
+    finally:
+        if tmp is not None:
+            Path(tmp).unlink(missing_ok=True)
+    return None
+
+
+def _gate_usage_error(argv: list[str]) -> None:
+    """A command-line error in `evalkit gate` (argparse exits 2 before the command runs):
+    when `--out` was given, still write gate.json with the error (GAT-09)."""
+    from evalkit.gates import EXIT_INPUT, GateReport, report_json
+
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--out", default=None)
+    try:
+        known, _ = pre.parse_known_args(argv[1:])
+    except SystemExit:  # `--out` given without a value: nowhere to write
+        return
+    if not known.out:
+        return
+    report = GateReport(
+        EXIT_INPUT,
+        "error",
+        None,
+        errors=["bad command line (see `evalkit gate --help`)"],
+        source={},
+    )
+    _write_gate_json(Path(known.out), report_json(report))
+
+
 def cmd_gate(args: argparse.Namespace) -> int:
     """B5.3: gate a metrics-1 file or an EvalKit summary.json. No model call, no network.
     gate.json is written on every exit path, including exit 2 (GAT-09)."""
@@ -653,13 +700,9 @@ def cmd_gate(args: argparse.Namespace) -> int:
             source={"path": str(args.summary)},
         )
     out = Path(args.out)
-    try:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        tmp = out.with_name(f".{out.name}.tmp")
-        tmp.write_text(report_json(report), encoding="utf-8", newline="\n")
-        tmp.replace(out)
-    except OSError as exc:
-        report.errors.append(f"cannot write {out}: {type(exc).__name__}")
+    problem = _write_gate_json(out, report_json(report))
+    if problem:
+        report.errors.append(problem)
         report.exit_code, report.verdict = EXIT_INPUT, "error"
     if args.json:
         print(report_json(report), end="")
@@ -850,7 +893,13 @@ def main(argv: list[str] | None = None) -> int:
             with contextlib.suppress(ValueError, OSError):
                 reconfigure(encoding="utf-8", errors="replace")
     parser = build_parser()
-    args = parser.parse_args(argv)
+    raw = list(sys.argv[1:] if argv is None else argv)
+    try:
+        args = parser.parse_args(raw)
+    except SystemExit as exc:
+        if exc.code == EXIT_ERROR and raw[:1] == ["gate"]:
+            _gate_usage_error(raw)
+        raise
     if not getattr(args, "func", None):
         parser.print_help()
         return 0

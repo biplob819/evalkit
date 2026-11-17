@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import random
 from collections.abc import Hashable, Mapping, Sequence
-from typing import TypeVar
+from typing import Literal, TypeVar
 
 from evalkit.schemas import Interval
 
@@ -222,22 +222,31 @@ def _check_counts(k: int, n: int, alpha: float) -> None:
         raise ValueError(f"alpha must be in (0, 1), got {alpha}")
 
 
-def clopper_pearson(k: int, n: int, alpha: float = ALPHA) -> Interval:
+Sided = Literal["two", "upper", "lower"]
+
+
+def clopper_pearson(k: int, n: int, alpha: float = ALPHA, sided: Sided = "two") -> Interval:
     """Exact (Clopper-Pearson) 1 - alpha interval for k successes in n trials, point k / n.
 
-    Convention (GAT-07, OWNER D-64): at k = 0 the lower bound is fixed at 0, so the whole alpha
-    goes to the upper side: upper = 1 - alpha**(1/n) (n = 150: 0.0198). At k = n, symmetrically,
-    lower = alpha**(1/n). Otherwise the tails are equal (alpha/2 each) and the bounds are beta
-    quantiles: lower = B(alpha/2; k, n-k+1), upper = B(1-alpha/2; k+1, n-k) (n = 150, k = 1:
-    0.0365). The beta quantile is found by bisection on the regularized incomplete beta."""
+    `sided="two"` (the default, for displayed intervals; OWNER D-70) is the standard two-sided
+    interval with alpha/2 in each tail for every k, k = 0 and k = n included:
+    lower = B(alpha/2; k, n-k+1) (0 at k = 0), upper = B(1-alpha/2; k+1, n-k) (1 at k = n);
+    at k = 0 the upper bound is 1 - (alpha/2)**(1/n) (n = 150: 0.0243).
+
+    `sided="upper"` and `sided="lower"` are exact one-sided 1 - alpha bounds, the whole alpha in
+    one tail, for every k (gates' `bound: upper|lower`, D-70): upper = B(1-alpha; k+1, n-k),
+    which is 1 - alpha**(1/n) at k = 0 (n = 150: 0.0198; k = 1: 0.0312), with lower = 0; and
+    lower = B(alpha; k, n-k+1), alpha**(1/n) at k = n, with upper = 1. The beta quantile is
+    found by bisection on the regularized incomplete beta; k = 0 and k = n use closed forms."""
     _check_counts(k, n, alpha)
-    if k == 0:
-        lo, hi = 0.0, 1.0 - alpha ** (1.0 / n)
-    elif k == n:
-        lo, hi = alpha ** (1.0 / n), 1.0
-    else:
-        lo = _beta_quantile(alpha / 2, k, n - k + 1)
-        hi = _beta_quantile(1 - alpha / 2, k + 1, n - k)
+    if sided not in ("two", "upper", "lower"):
+        raise ValueError(f"sided must be 'two', 'upper' or 'lower', got {sided!r}")
+    tail = alpha / 2 if sided == "two" else alpha
+    lo, hi = 0.0, 1.0
+    if sided in ("two", "upper") and k < n:
+        hi = 1.0 - tail ** (1.0 / n) if k == 0 else _beta_quantile(1 - tail, k + 1, n - k)
+    if sided in ("two", "lower") and k > 0:
+        lo = tail ** (1.0 / n) if k == n else _beta_quantile(tail, k, n - k + 1)
     point = k / n
     return Interval(point=point, lo=min(lo, point), hi=max(hi, point))
 
@@ -247,13 +256,14 @@ def _pct(x: float) -> str:
 
 
 def rate_wording(k: int, n: int, alpha: float = ALPHA) -> str:
-    """How a report states k of n with its exact interval. Zero is never written as "0%":
-    `0 of 150, below 1.98% at 95%`; `150 of 150, above 98% at 95%`; otherwise
-    `1 of 150 (0.667%, 95% CI 0.0169%–3.65%)`."""
-    iv = clopper_pearson(k, n, alpha)
+    """How a report states k of n with its exact interval. Zero is never written as "0%".
+    "Below X% at 95%" is a one-sided statement, so k = 0 uses the one-sided upper bound
+    (`0 of 150, below 1.98% at 95%`) and k = n the one-sided lower bound (`150 of 150, above
+    98% at 95%`); otherwise the two-sided interval: `1 of 150 (0.667%, 95% CI 0.0169%–3.65%)`."""
     level = f"{(1 - alpha) * 100:g}%"
     if k == 0:
-        return f"0 of {n}, below {_pct(iv.hi)} at {level}"
+        return f"0 of {n}, below {_pct(clopper_pearson(k, n, alpha, 'upper').hi)} at {level}"
     if k == n:
-        return f"{n} of {n}, above {_pct(iv.lo)} at {level}"
+        return f"{n} of {n}, above {_pct(clopper_pearson(k, n, alpha, 'lower').lo)} at {level}"
+    iv = clopper_pearson(k, n, alpha)
     return f"{k} of {n} ({_pct(iv.point)}, {level} CI {_pct(iv.lo)}–{_pct(iv.hi)})"

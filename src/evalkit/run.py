@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import math
 import os
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
@@ -45,6 +46,7 @@ from evalkit.pipeline.judge import (
     CitationResult,
     JudgeSelection,
     JudgingResult,
+    cached_judge_costs,
     judge_citations,
     judge_citations_live,
     judge_claims,
@@ -409,14 +411,64 @@ def read_calibration(run_dir: Path) -> CalibrationReport | None:
     return CalibrationReport.model_validate(data["current"]) if data.get("current") else None
 
 
+def _previous_overhead(run_dir: Path) -> dict[str, float] | None:
+    """The eval overhead per model from the run folder's summary.json, if it has one: a
+    re-summary (after calibration) has no claim sets or judging results to recompute it."""
+    path = run_dir / "summary.json"
+    if not path.is_file():
+        return None
+    try:
+        old = RunSummary.model_validate_json(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return None
+    return {
+        m.model: m.efficiency.eval_overhead_cost_usd
+        for m in old.models
+        if m.efficiency is not None and m.efficiency.eval_overhead_cost_usd is not None
+    }
+
+
+def eval_overhead(
+    ex: Executor,
+    generated: Sequence[Any],
+    claim_sets: Sequence[Any],
+    items: Sequence[tuple[Case, Any]],
+    judges: Sequence[str],
+    config: RunConfig,
+    *,
+    citations: bool,
+) -> dict[str, float]:
+    """Model -> extractor plus judge cost for its answers (EFF-02, D-70): each claim set's
+    extraction cost and each claim's stored judge (and B5.12 citation-judge) cost, so the
+    figure is the same on every rerun, whether this invocation paid for the calls or not."""
+    model_of: dict[str, str] = {}
+    parts: dict[str, list[float]] = {m: [] for m in config.models}
+    for g, cs in zip(generated, claim_sets, strict=True):
+        parts.setdefault(g.model, []).append(cs.cost_usd)
+        for c in cs.claims:
+            model_of[c.id] = g.model
+    for judge in judges:
+        for cite in (False, True) if citations else (False,):
+            for cid, cost in cached_judge_costs(ex, items, judge, config, citations=cite).items():
+                parts[model_of[cid]].append(cost)
+    return {m: math.fsum(xs) for m, xs in parts.items()}
+
+
 def summarise(
     run_dir: Path,
     manifest: RunManifest,
     records: Sequence[Record],
     judging_status: Literal["pending", "complete"],
+    *,
+    eval_overhead_usd: Mapping[str, float] | None = None,
 ) -> RunSummary:
-    """Aggregate a run folder's records, using calibration that still certifies this task."""
+    """Aggregate a run folder's records, using calibration that still certifies this task.
+    The efficiency block's eval overhead is passed in by a run, or kept from the folder's
+    summary.json on a re-summary; its price date is the price table's `checked_on`."""
     calibration = read_calibration(run_dir)
+    if eval_overhead_usd is None:
+        eval_overhead_usd = _previous_overhead(run_dir)
+    price_dates = {m: p.checked_on.isoformat() for m, p in load_prices().items()}
     cases = read_cases(run_dir) if manifest.slices else None
     selection = JudgeSelection(
         judges=manifest.judges, judge_mode=manifest.judge_mode, n_available=len(manifest.judges)
@@ -438,6 +490,8 @@ def summarise(
         finished_at=manifest.finished_at,
         cases=cases,
         slices=manifest.slices,
+        price_dates=price_dates,
+        eval_overhead_usd=eval_overhead_usd,
     )
 
 
@@ -635,7 +689,22 @@ async def _graph(
     except TaskScorerError as exc:
         raise RunError(f"{exc} (completed calls are cached: fix it and rerun for free)") from None
     _atomic_write(run_dir / "records.jsonl", _jsonl(records))
-    summary = summarise(run_dir, manifest, records, "complete" if complete else "pending")
+    overhead = eval_overhead(
+        ex,
+        generated,
+        claim_sets,
+        items,
+        selection.judges,
+        config,
+        citations=wants_citation_support(plan.task),
+    )
+    summary = summarise(
+        run_dir,
+        manifest,
+        records,
+        "complete" if complete else "pending",
+        eval_overhead_usd=overhead,
+    )
     write_summary(summary, run_dir / "summary.json")
     render(run_dir)
     return Outcome(summary, exit_code_for(summary), ex.spent_usd, run_dir)

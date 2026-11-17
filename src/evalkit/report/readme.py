@@ -8,8 +8,8 @@ from __future__ import annotations
 from html import escape
 
 from evalkit.pipeline.aggregate import stamp_lines
-from evalkit.report.svg import short
-from evalkit.schemas import RunSummary
+from evalkit.report.svg import bounded_rate, short
+from evalkit.schemas import Interval, RunSummary
 
 START = "<!-- evalkit:headline:start -->"
 END = "<!-- evalkit:headline:end -->"
@@ -28,6 +28,13 @@ CSS = """
 text{font:13px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
 .title{font-size:16px;font-weight:600}
 """
+
+
+def _headline(iv: Interval, n: int) -> str:
+    """GAT-07: exactly 0 or 1 reads "0 of n, below X% at 95%", never "0.0% (0.0%–0.0%)"."""
+    return bounded_rate(iv.point, iv.lo, iv.hi, n) or (
+        f"{iv.point:.1%} (95% CI {iv.lo:.1%}–{iv.hi:.1%})"
+    )
 
 
 def _x(v: float) -> float:
@@ -87,7 +94,8 @@ def readme_chart(summary: RunSummary) -> str:
             if iv is None:
                 continue
             yy = y + (k - (len(judges) - 1) / 2) * 12
-            tip = f"{m.model} by {j}: {iv.point:.1%} ({iv.lo:.1%} to {iv.hi:.1%})"
+            shown = bounded_rate(iv.point, iv.lo, iv.hi, m.n)
+            tip = f"{m.model} by {j}: {shown or f'{iv.point:.1%} ({iv.lo:.1%} to {iv.hi:.1%})'}"
             mark = _mark(SHAPES[k % 2], _x(iv.point), yy, f"j{k % 2}")
             out.append(
                 f'<g><title>{escape(tip)}</title><line class="ci" x1="{_x(iv.lo):.2f}" '
@@ -128,8 +136,7 @@ def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
     else:
         best = max(summary.models, key=lambda m: min(iv.point for iv in m.headline.values()))
         ivs = ", ".join(
-            f"{iv.point:.1%} (95% CI {iv.lo:.1%}–{iv.hi:.1%}) by {j}"
-            for j, iv in sorted(best.headline.items())
+            f"{_headline(iv, best.n)} by {j}" for j, iv in sorted(best.headline.items())
         )
         ties = [
             c

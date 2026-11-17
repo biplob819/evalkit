@@ -144,6 +144,49 @@
         "lo": 0.3333333333333333,
         "point": 0.5833333333333334
       },
+      "efficiency": {
+        "cache_hit_share": 0.0,
+        "cost_per_case_usd": {
+          "hi": 0.001,
+          "lo": 0.001,
+          "point": 0.001
+        },
+        "cost_per_correct_usd": {
+          "hi": 0.012,
+          "lo": 0.002,
+          "point": 0.004
+        },
+        "error_rate": 0.08333333333333333,
+        "eval_overhead_cost_usd": 0.033,
+        "latency_p50_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p95_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p99_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "mode": "live",
+        "n": 12,
+        "n_correct": 3,
+        "n_errored": 1,
+        "n_latency": 12,
+        "n_retried": null,
+        "price_date": "2026-11-14",
+        "retry_rate": null,
+        "system_cost_usd": 0.012,
+        "tokens_cached_per_case": 0.0,
+        "tokens_in_per_case": 600.0,
+        "tokens_out_per_case": 60.0,
+        "tokens_reasoning_per_case": 200.0
+      },
       "failed_thresholds": [
         "headline >= 0.6 (observed 0.1667)"
       ],
@@ -199,6 +242,49 @@
         "lo": 0.25,
         "point": 0.5
       },
+      "efficiency": {
+        "cache_hit_share": 0.0,
+        "cost_per_case_usd": {
+          "hi": 0.001,
+          "lo": 0.001,
+          "point": 0.001
+        },
+        "cost_per_correct_usd": {
+          "hi": 0.004,
+          "lo": 0.0013333333333333333,
+          "point": 0.002
+        },
+        "error_rate": 0.08333333333333333,
+        "eval_overhead_cost_usd": 0.033,
+        "latency_p50_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p95_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p99_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "mode": "live",
+        "n": 12,
+        "n_correct": 6,
+        "n_errored": 1,
+        "n_latency": 12,
+        "n_retried": null,
+        "price_date": "2026-11-14",
+        "retry_rate": null,
+        "system_cost_usd": 0.012,
+        "tokens_cached_per_case": 0.0,
+        "tokens_in_per_case": 600.0,
+        "tokens_out_per_case": 60.0,
+        "tokens_reasoning_per_case": 200.0
+      },
       "failed_thresholds": [
         "headline >= 0.6 (observed 0.5)"
       ],
@@ -253,6 +339,45 @@
         "hi": 0.75,
         "lo": 0.25,
         "point": 0.5
+      },
+      "efficiency": {
+        "cache_hit_share": 0.0,
+        "cost_per_case_usd": {
+          "hi": 0.001,
+          "lo": 0.001,
+          "point": 0.001
+        },
+        "cost_per_correct_usd": null,
+        "error_rate": 0.16666666666666666,
+        "eval_overhead_cost_usd": 0.03,
+        "latency_p50_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p95_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p99_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "mode": "live",
+        "n": 12,
+        "n_correct": 0,
+        "n_errored": 2,
+        "n_latency": 12,
+        "n_retried": null,
+        "price_date": "2026-11-14",
+        "retry_rate": null,
+        "system_cost_usd": 0.012,
+        "tokens_cached_per_case": 0.0,
+        "tokens_in_per_case": 600.0,
+        "tokens_out_per_case": 60.0,
+        "tokens_reasoning_per_case": 200.0
       },
       "failed_thresholds": [
         "headline >= 0.6 (observed 0)"
