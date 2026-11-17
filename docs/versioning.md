@@ -42,6 +42,10 @@ listing exactly these in its `__all__` (its other names stay internal):
   values a current `Record` carries as `judge_prompt_hash` and `extractor_version`.
 - **`evalkit.compare`** (since 0.3.0, B5.6): every name in its `__all__` (run-vs-run compare
   and `evalkit compare`; see [compare.md](compare.md)).
+- **Claims per item** (0.4.0, fraud-review-bedrock, D-61 rule 3): in `evalkit.cost`,
+  `ClaimsAssumption`, `claims_from_texts` and `measured_claims`; in
+  `evalkit.scorers.faithfulness`, `estimate_faithfulness_cost`; the run command's
+  `--claims-per-answer` option. See [cost.md](cost.md#claims-per-answer).
 
 Everything else, including `evalkit.pipeline`, `evalkit.runtime` and `evalkit.demo`, is
 internal and may change in any release.
@@ -78,6 +82,7 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 - `evalkit.integrity` (B5.9, D-69): calibration sheets for any declared two-way criterion (opaque keys per export, labeller-only context pane, per-judge held-out kappa with a bootstrap CI) and labeller consistency (blind repeats and planted items in a second pass), certified only through a `calibration_scored` line in the B5.14 log; the `evalkit calibrate` subcommands `export`, `label`, `import` and `score` take `--criterion FILE`, with `--manifest`, `--planted`, `--context`, `--relabel`, `--log` and `--rubric-hash`. See [calibrate-your-task.md](calibrate-your-task.md#calibrate-any-criterion).
 - `sql_match` keyword arguments `question=None` and `equivalences=()` (B5.15, D-71): opt-in shape equivalences `percent_scale`, `pivot`, `empty_check`, `period_number`, tried only after a strict miss; with any named, `details` gains `correct_strict`, `equivalences` and (on a rescue) `strict_reason`. With none named the result is unchanged. See [plugins.md](plugins.md#sql_match-shape-equivalences-040-b515).
 - `evalkit.security` (B5.11, D-64, D-70): the agent security eval kit — attack-case schema and suites with held-out cases pinned by a B5.14 manifest, k trials and pass^k, configurable stopping-layer attribution, a model-free scripted attacker, split-level summary, metrics-1 output for `evalkit gate`, report and compare; `python -m evalkit.security check|run|scripted|report` (exit codes 0, 1, 2). See [security.md](security.md).
+- Claims per item behind every judge estimate (fraud-review-bedrock, D-61 rule 3): `evalkit.cost.ClaimsAssumption`, `claims_from_texts` (claims counted from texts that already exist at 10 words per claim, each item at least the planning default 4.5, no model call) and `measured_claims` (an explicit figure from a small sample); `evalkit.scorers.faithfulness.estimate_faithfulness_cost`; the run command's `--claims-per-answer N` option; the dry run prints the assumption and its `--json` gains a top-level `claims` object. `CostEstimate` gains `claims`, left out of its JSON while it is the planning default, so existing estimates keep their bytes. See [cost.md](cost.md#claims-per-answer).
 
 ## Deprecation
 

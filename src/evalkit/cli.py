@@ -114,8 +114,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     except R.RunError as exc:
         return _err(str(exc))
     prices = R.default_prices()
+    claims = None
+    if args.claims_per_answer is not None:
+        from evalkit.cost import measured_claims
+
+        claims = measured_claims(args.claims_per_answer, "--claims-per-answer")
     try:
-        est = R.estimate(plan, prices, live_judges=args.live_judges)
+        est = R.estimate(plan, prices, live_judges=args.live_judges, claims=claims)
     except KeyError as exc:  # unknown price surfaces with a clear message below
         est = None
         unknown = str(exc)
@@ -130,9 +135,16 @@ def cmd_run(args: argparse.Namespace) -> int:
         ]
         _emit(
             args,
-            {"dry_run": True, "run_id": plan.run_id, "n": plan.n, "estimate": est.model_dump()},
+            {
+                "dry_run": True,
+                "run_id": plan.run_id,
+                "n": plan.n,
+                "estimate": est.model_dump(),
+                "claims": est.claims.model_dump(),  # the claims-per-answer assumption, always
+            },
             f"dry run for {plan.task.name}, {plan.n} cases → {plan.run_dir}\n"
             + "\n".join(lines)
+            + f"\n{est.claims.describe()}"
             + f"\nestimated total ${est.total_usd:.2f} (no API calls made)",
         )
         return 0
@@ -143,7 +155,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     if est is not None and cap is not None and est.total_usd > cap:
         print(
             f"note: estimate ${est.total_usd:.2f} exceeds the cap ${cap:.2f}; the run stops at the "
-            "cap and can be resumed with a higher --max-cost",
+            f"cap and can be resumed with a higher --max-cost ({est.claims.describe()})",
             file=sys.stderr,
         )
     try:
@@ -780,6 +792,18 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return c.exit_code
 
 
+def _positive_float(text: str) -> float:
+    import math
+
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a number") from None
+    if not (math.isfinite(value) and value > 0):
+        raise argparse.ArgumentTypeError(f"{text!r} must be a positive number")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="evalkit",
@@ -810,6 +834,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="total USD this run folder may spend, across resumes (default: config max_cost_usd)",
     )
     r.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
+    r.add_argument(
+        "--claims-per-answer",
+        type=_positive_float,
+        default=None,
+        metavar="N",
+        help="plan judging at N claims per answer, measured on a small sample (default: the "
+        "planning default 4.5, from PubMedQA answers; see docs/cost.md)",
+    )
     r.add_argument(
         "--wait", type=float, default=30, help="minutes to wait for judge batches (default 30)"
     )

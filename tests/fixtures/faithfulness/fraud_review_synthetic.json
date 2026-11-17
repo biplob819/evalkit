@@ -1,0 +1,227 @@
+{
+  "_source": "SYNTHETIC, written for EvalKit's claims-per-item estimate (fraud-review-bedrock's failing case, D-61 rule 3). No real transactions, cardholders or model output. Each explanation is the fraud-review shape: a reviewer's reasons for one decision, about 12 claims long. `claims` lists the atomic claims each explanation makes, by construction, so the true count is len(claims).",
+  "items": [
+    {
+      "id": "txn-001",
+      "question": "Should transaction txn-001 be approved or declined?",
+      "evidence": [
+        "Amount: 1240.00 USD.",
+        "Card median spend over 90 days: 136.00 USD.",
+        "Merchant first seen: 2 days before the transaction; category electronics resale.",
+        "Local time of purchase: 03:12.",
+        "Cardholder purchases between 00:00 and 05:00 in the last 365 days: 0.",
+        "Shipping address differs from billing address: true; shipping address added 40 minutes before purchase.",
+        "Device fingerprint seen on this account before: false.",
+        "Failed CVV attempts in the prior hour: 3.",
+        "Model risk score: 0.91."
+      ],
+      "explanation": "The transaction amount of $1,240.00 is 9.1 times the card's usual spend. It went to an electronics reseller that was first seen only two days ago. The purchase was made at 03:12 local time, and the cardholder has never transacted between midnight and 5 am. Goods ship to an address that differs from the billing address and was added to the account 40 minutes before the purchase. The device fingerprint is new to this account, and three failed CVV attempts came before the approval. With a risk score of 0.91, the transaction should be declined and the card blocked until the cardholder is contacted.",
+      "claims": [
+        "The transaction amount is $1,240.00.",
+        "The amount is 9.1 times the card's usual spend.",
+        "The merchant is an electronics reseller.",
+        "The merchant was first seen two days ago.",
+        "The purchase was made at 03:12 local time.",
+        "The cardholder has never transacted between midnight and 5 am.",
+        "The shipping address differs from the billing address.",
+        "The shipping address was added 40 minutes before the purchase.",
+        "The device fingerprint is new to this account.",
+        "Three failed CVV attempts came before the approval.",
+        "The risk score is 0.91.",
+        "The transaction should be declined and the card blocked until the cardholder is contacted."
+      ]
+    },
+    {
+      "id": "txn-002",
+      "question": "Should transaction txn-002 be approved or declined?",
+      "evidence": [
+        "Amount: 42.50 USD.",
+        "Merchant: grocery store, 214 earlier purchases on this card.",
+        "Distance from the cardholder's home postcode: 3 km.",
+        "Local time of purchase: 18:40.",
+        "Card present, chip read: true.",
+        "PIN verified: true.",
+        "Model risk score: 0.04."
+      ],
+      "explanation": "This is a routine purchase. The amount is $42.50, which is in line with the cardholder's normal grocery spending. The merchant is a grocery store where this card has made 214 earlier purchases, so it is well established. The store is about 3 km from the cardholder's home postcode, and the purchase happened at 18:40, a time when the cardholder often shops. The card was present and read by chip, and the PIN was verified, which makes counterfeit or card-not-present fraud unlikely. The model gives a risk score of 0.04, far below the review threshold. Nothing here suggests account takeover, so I would approve the transaction without contacting the cardholder.",
+      "claims": [
+        "The amount is $42.50.",
+        "The amount is in line with the cardholder's normal grocery spending.",
+        "The merchant is a grocery store.",
+        "The card has made 214 earlier purchases at this merchant.",
+        "The store is about 3 km from the cardholder's home postcode.",
+        "The purchase happened at 18:40.",
+        "The cardholder often shops at that time.",
+        "The card was present and read by chip.",
+        "The PIN was verified.",
+        "The risk score is 0.04, far below the review threshold.",
+        "Nothing suggests account takeover.",
+        "The transaction should be approved without contacting the cardholder."
+      ]
+    },
+    {
+      "id": "txn-003",
+      "question": "Should transaction txn-003 be approved or declined?",
+      "evidence": [
+        "Amount: 899.99 USD; merchant category: gift cards.",
+        "Gift card purchases on this card in the last 365 days: 0.",
+        "Account email changed: 3 hours before the transaction.",
+        "Account phone number changed: 2 hours before the transaction.",
+        "IP address country: different from the billing country.",
+        "Transactions on this card in the prior 30 minutes: 4, all declined.",
+        "Model risk score: 0.87."
+      ],
+      "explanation": "Gift cards worth $899.99 were bought on a card with no gift card purchases in the past year. The account email was changed three hours earlier and the phone number two hours earlier. The IP address is in a different country from the billing address. Four other attempts in the previous 30 minutes were all declined. The risk score is 0.87. Gift cards are easy to resell, the contact details were changed just before the purchase, and the declines suggest card testing. Decline it and lock the account until identity is verified.",
+      "claims": [
+        "The purchase was gift cards.",
+        "The gift cards were worth $899.99.",
+        "The card has no gift card purchases in the past year.",
+        "The account email was changed three hours earlier.",
+        "The phone number was changed two hours earlier.",
+        "The IP address is in a different country from the billing address.",
+        "Four other attempts in the previous 30 minutes were all declined.",
+        "The risk score is 0.87.",
+        "Gift cards are easy to resell.",
+        "The contact details were changed just before the purchase.",
+        "The declines suggest card testing.",
+        "The transaction should be declined and the account locked until identity is verified."
+      ]
+    },
+    {
+      "id": "txn-004",
+      "question": "Should transaction txn-004 be approved or declined?",
+      "evidence": [
+        "Amount: 2150.00 USD; merchant: airline.",
+        "Card median spend over 90 days: 310.00 USD.",
+        "Travel purchases on this card in the last 365 days: 6.",
+        "Passenger name matches the cardholder name: true.",
+        "Booking made from a device seen on this account 41 times: true.",
+        "Departure city: the cardholder's home city.",
+        "Model risk score: 0.38."
+      ],
+      "explanation": "The $2,150.00 airline ticket is large compared with the card's median spend of $310.00, which is why it was flagged. However, the card has six travel purchases in the last year, so airline spending is not unusual for this cardholder. The passenger name matches the cardholder's name. The booking came from a device that has been used on this account 41 times. The flight departs from the cardholder's home city. The risk score is a moderate 0.38. Taken together, the size of the amount is explained by the purchase type, and the identity signals are strong. I recommend approving the transaction.",
+      "claims": [
+        "The airline ticket cost $2,150.00.",
+        "The card's median spend is $310.00.",
+        "The amount is large compared with the median spend.",
+        "The size of the amount is why the transaction was flagged.",
+        "The card has six travel purchases in the last year.",
+        "Airline spending is not unusual for this cardholder.",
+        "The passenger name matches the cardholder's name.",
+        "The booking came from a device used on this account 41 times.",
+        "The flight departs from the cardholder's home city.",
+        "The risk score is 0.38.",
+        "The size of the amount is explained by the purchase type.",
+        "The transaction should be approved."
+      ]
+    },
+    {
+      "id": "txn-005",
+      "question": "Should transaction txn-005 be approved or declined?",
+      "evidence": [
+        "Amount: 18.00 USD; merchant: online streaming subscription.",
+        "Same merchant, same amount, charged monthly for 14 months.",
+        "Card reported lost: 6 days before the transaction.",
+        "Replacement card issued: 5 days before the transaction.",
+        "Transaction made with the old card number: true.",
+        "Model risk score: 0.22."
+      ],
+      "explanation": "An $18.00 charge from a streaming subscription. The same merchant has charged the same amount every month for 14 months. The card was reported lost six days ago and replaced five days ago. This charge used the old card number. That alone would normally be a red flag. Here it is a recurring billing update, not a thief using the card. The risk score is low at 0.22. No new merchant or device is involved. Approve it. Remind the cardholder to update the card on file.",
+      "claims": [
+        "The charge is $18.00.",
+        "The charge is from a streaming subscription.",
+        "The same merchant has charged the same amount every month for 14 months.",
+        "The card was reported lost six days ago.",
+        "The card was replaced five days ago.",
+        "This charge used the old card number.",
+        "Using the old number would normally be a red flag.",
+        "The charge is a recurring billing update, not a thief using the card.",
+        "The risk score is 0.22.",
+        "No new merchant or device is involved.",
+        "The transaction should be approved.",
+        "The cardholder should be reminded to update the card on file."
+      ]
+    },
+    {
+      "id": "txn-006",
+      "question": "Should transaction txn-006 be approved or declined?",
+      "evidence": [
+        "Amount: 3.00 USD; merchant: charity donation page, first seen 1 day before.",
+        "Transactions on this card in the prior 10 minutes: 9, amounts 1.00 to 3.00 USD, at 9 different merchants.",
+        "Card-not-present: true.",
+        "Billing postcode check: failed on 7 of the 9 attempts.",
+        "Model risk score: 0.79."
+      ],
+      "explanation": "Although the amount is only $3.00, this looks like card testing rather than a genuine donation, and I want to explain why in some detail. The payment went to a charity donation page whose merchant record was created just one day ago. In the ten minutes before it, the same card was used nine times, each time for between $1.00 and $3.00, and each time at a different merchant. All of these were card-not-present payments. The billing postcode check failed on seven of the nine attempts, which suggests that whoever is using the card does not know the cardholder's address. Small payments to brand-new merchants in a rapid burst are the usual pattern when stolen card numbers are being checked before a larger fraud. The model risk score of 0.79 agrees with this reading. I would decline the transaction and reissue the card.",
+      "claims": [
+        "The amount is $3.00.",
+        "The payment went to a charity donation page.",
+        "The merchant record was created one day ago.",
+        "The card was used nine times in the ten minutes before.",
+        "Each of those payments was between $1.00 and $3.00.",
+        "Each of those payments was at a different merchant.",
+        "All of the payments were card-not-present.",
+        "The billing postcode check failed on seven of the nine attempts.",
+        "Whoever is using the card does not know the cardholder's address.",
+        "Small payments to new merchants in a rapid burst are the usual card-testing pattern.",
+        "The risk score is 0.79.",
+        "The transaction should be declined and the card reissued."
+      ]
+    },
+    {
+      "id": "txn-007",
+      "question": "Should transaction txn-007 be approved or declined?",
+      "evidence": [
+        "Amount: 560.00 USD; merchant: furniture store, 3 earlier purchases on this card.",
+        "Local time of purchase: 11:05.",
+        "Card present, contactless: true.",
+        "Distance from the cardholder's home postcode: 1,900 km.",
+        "Cardholder purchases in the same city in the prior 3 days: 5.",
+        "Hotel charge on this card in the same city: 2 days before.",
+        "Model risk score: 0.46."
+      ],
+      "explanation": "$560.00 at a furniture store, card present, contactless, 11:05. The card has three earlier purchases at this merchant. The store is 1,900 km from the home postcode, the main reason for the flag. But the cardholder has made five purchases in the same city over the past three days. A hotel in that city was charged two days ago. So the cardholder is travelling there. Risk score 0.46, mid-range. Distance is explained; the merchant is known. Approve.",
+      "claims": [
+        "The amount is $560.00.",
+        "The merchant is a furniture store.",
+        "The card was present and paid contactless.",
+        "The purchase was at 11:05.",
+        "The card has three earlier purchases at this merchant.",
+        "The store is 1,900 km from the home postcode.",
+        "The distance is the main reason for the flag.",
+        "The cardholder made five purchases in the same city in the past three days.",
+        "A hotel in that city was charged two days ago.",
+        "The cardholder is travelling there.",
+        "The risk score is 0.46.",
+        "The transaction should be approved."
+      ]
+    },
+    {
+      "id": "txn-008",
+      "question": "Should transaction txn-008 be approved or declined?",
+      "evidence": [
+        "Amount: 4999.00 USD; merchant: cryptocurrency exchange, first purchase on this card.",
+        "Card median spend over 90 days: 85.00 USD.",
+        "Account password reset: 25 minutes before the transaction.",
+        "Login from a new device and a new IP range: true.",
+        "Two-factor challenge: bypassed through a recovery code.",
+        "Model risk score: 0.95."
+      ],
+      "explanation": "The customer bought $4,999.00 of cryptocurrency, which is close to sixty times their median spend of $85.00, and it is the first time this card has ever been used at a crypto exchange. Twenty-five minutes before the purchase, the account password was reset, and the next login came from a device and an IP range that the account has never used before. The two-factor challenge on that login was not completed normally but bypassed with a recovery code. Crypto purchases cannot be reversed once the funds move, so the cost of a wrong approval is the full amount. A risk score of 0.95 is the highest in this batch. This is very likely an account takeover, and the transaction should be declined, the session ended and the recovery codes revoked.",
+      "claims": [
+        "The customer bought $4,999.00 of cryptocurrency.",
+        "The amount is close to sixty times the median spend.",
+        "The median spend is $85.00.",
+        "This is the first time the card has been used at a crypto exchange.",
+        "The account password was reset twenty-five minutes before the purchase.",
+        "The next login came from a device and an IP range the account has never used.",
+        "The two-factor challenge was bypassed with a recovery code.",
+        "Crypto purchases cannot be reversed once the funds move.",
+        "The cost of a wrong approval is the full amount.",
+        "The risk score is 0.95.",
+        "This is very likely an account takeover.",
+        "The transaction should be declined, the session ended and the recovery codes revoked."
+      ]
+    }
+  ]
+}

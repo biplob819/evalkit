@@ -22,7 +22,13 @@ from typing import Any, ClassVar, Literal
 
 from evalkit.adapters import ModelAdapter
 from evalkit.config import ConfigError, load_run_config, load_task_config
-from evalkit.cost import CostEstimate, Price, estimate_for_config, load_prices
+from evalkit.cost import (
+    ClaimsAssumption,
+    CostEstimate,
+    Price,
+    estimate_for_config,
+    load_prices,
+)
 from evalkit.datasets import (
     DatasetFileError,
     load_csv_cases,
@@ -323,13 +329,22 @@ def available_providers(config: RunConfig) -> set[str]:
     return {p for p in providers if KEYS.get(p) not in missing}
 
 
-def estimate(plan: Plan, prices: dict[str, Price], *, live_judges: bool) -> CostEstimate:
+def estimate(
+    plan: Plan,
+    prices: dict[str, Price],
+    *,
+    live_judges: bool,
+    claims: ClaimsAssumption | None = None,
+) -> CostEstimate:
+    """The run's estimate. Answers do not exist before the run, so claims per answer are the
+    planning default unless `claims` (e.g. `--claims-per-answer`, measured) replaces it."""
     return estimate_for_config(
         prices,
         plan.config,
         plan.n,
         batch_judges=not live_judges,
         citation_judges=wants_citation_support(plan.task),  # B5.12: one call per claim
+        claims=claims,
     )
 
 
