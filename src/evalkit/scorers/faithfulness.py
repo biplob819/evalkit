@@ -246,7 +246,9 @@ def estimate_faithfulness_cost(
     call: one extraction per item and one judge call per claim per judge.
 
     The explanations already exist, so claims are counted from them with no model call
-    (`claims_from_texts`: words at `WORDS_PER_CLAIM`, each item at least the planning default)
+    (`claims_from_texts`: each item at the largest of its words ÷ `WORDS_PER_CLAIM`, its
+    sentence-like units, key=value fields, distinct numbers, characters ÷ `CHARS_PER_CLAIM`
+    and the planning default)
     and each judge prompt is sized from the item's own evidence, which every claim is judged
     against (FTH-02). `claims_per_item` replaces the count with a figure measured on a small
     sample (`claims_source` says where it came from). `.claims` on the result states the

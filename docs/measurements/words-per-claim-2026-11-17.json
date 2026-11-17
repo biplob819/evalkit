@@ -1,10 +1,73 @@
 {
-  "planning_words_per_claim": 10.0,
+  "char_count": "evalkit.cost.count_chars (non-space characters after NFKC)",
+  "fraud_fixture": {
+    "answers": 8,
+    "answers_with_claims": 8,
+    "chars": 4034,
+    "chars_per_claim": 42.021,
+    "claims": 96,
+    "claims_per_answer": 12.0,
+    "per_answer_chars_per_claim_p10": 31.02,
+    "per_answer_words_per_claim_p10": 6.34,
+    "per_answer_words_per_claim_quartiles": [
+      7.29,
+      8.54,
+      10.42
+    ],
+    "words": 843,
+    "words_per_claim": 8.781
+  },
+  "plan_check": {
+    "fraud_fixture": {
+      "planned_claims": 105.8,
+      "planned_over_true": 1.102,
+      "true_claims": 96,
+      "under_planned_share": 0.375
+    },
+    "replay": {
+      "planned_claims": 161.7,
+      "planned_over_true": 1.54,
+      "true_claims": 105,
+      "under_planned_share": 0.083
+    },
+    "report": {
+      "planned_claims": 4066.3,
+      "planned_over_true": 1.527,
+      "true_claims": 2663,
+      "under_planned_share": 0.042
+    }
+  },
+  "plan_check_first_rule": {
+    "fraud_fixture": {
+      "planned_claims": 84.3,
+      "planned_over_true": 0.878,
+      "true_claims": 96,
+      "under_planned_share": 0.75
+    },
+    "replay": {
+      "planned_claims": 131.7,
+      "planned_over_true": 1.254,
+      "true_claims": 105,
+      "under_planned_share": 0.125
+    },
+    "report": {
+      "planned_claims": 3251.2,
+      "planned_over_true": 1.221,
+      "true_claims": 2663,
+      "under_planned_share": 0.186
+    }
+  },
+  "planning_chars_per_claim": 50.0,
+  "planning_words_per_claim": 8.0,
   "replay": {
     "answers": 24,
     "answers_with_claims": 24,
+    "chars": 7073,
+    "chars_per_claim": 67.362,
     "claims": 105,
     "claims_per_answer": 4.375,
+    "per_answer_chars_per_claim_p10": 48.12,
+    "per_answer_words_per_claim_p10": 7.9,
     "per_answer_words_per_claim_quartiles": [
       10.75,
       11.9,
@@ -16,8 +79,12 @@
   "report": {
     "answers": 579,
     "answers_with_claims": 553,
+    "chars": 185215,
+    "chars_per_claim": 69.551,
     "claims": 2663,
     "claims_per_answer": 4.816,
+    "per_answer_chars_per_claim_p10": 50.15,
+    "per_answer_words_per_claim_p10": 8.67,
     "per_answer_words_per_claim_quartiles": [
       10.2,
       12.0,
@@ -28,8 +95,9 @@
   },
   "sources": {
     "demo/replay.json": "the demo's 24 cached answers (6 abstracts x 4 models)",
-    "docs/results/report.html": "failure explorer of the published 200-case run r-e8dac378d2d3 (failed answers only; 26 had no claims and are left out)"
+    "docs/results/report.html": "failure explorer of the published 200-case run r-e8dac378d2d3 (failed answers only; 26 had no claims and are left out)",
+    "tests/fixtures/faithfulness/fraud_review_synthetic.json": "SYNTHETIC fraud-review-shaped explanations, 8 items x 12 claims by construction"
   },
-  "why": "below the report's lower quartile of per-answer words per claim, so a text is planned at more claims than a typical answer of its length holds",
+  "why": "each ratio is the report's 10th percentile of per-answer ratios, rounded down, so fewer than one answer in ten is denser than planned by length alone; each text is planned at the largest of words / ratio, sentence-like units, key=value fields, distinct numbers, characters / ratio and the planning default 4.5",
   "word_count": "evalkit.cost.count_words (whitespace words; each CJK character is one)"
 }
