@@ -59,6 +59,8 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 ## 0.3.0 additions
 
+> **Provisional in 0.3.0.** `evalkit.heldout`, `evalkit.paraphrase`, `evalkit.integrity`, `evalkit.security` and the `sql_match` `question=`/`equivalences=` options are already in the 0.3.0 wheel because they were green on main, but their nodes ship formally in 0.4.0 (D-62). Their interfaces may still change before 0.4.0 without a deprecation window. Everything else listed here is covered by the usual one-minor-version deprecation window.
+
 - `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer` and `render_evidence` (B5.13, D-65). `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and `ValueCheckShares` are **not** public in 0.3.0 (OWNER D-74): they stay in the internal module `evalkit.scorers.evidence` and may change in any release until their strict redesign (B5.16) ships in 0.4.0 ([plugins.md](plugins.md#value_check-coming-in-040-d-74)); `scripts/check_public_api.py` fails if `evalkit.scorers` exports them.
 - `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 

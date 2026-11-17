@@ -68,6 +68,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `equivalences` (B5.15, strict by default).
 
 ## 2026-11-17
+- [RELEASE] [B5.4] — v0.3.0 release candidate merged from its lane: version 0.3.0, consolidated 0.3.0 changelog, value_check withheld from the public API (D-74, guarded by `WITHHELD`), docs/downstream.md migration guide for all seven projects, RC canary (docs/measurements/downstream-canary-2026-11-17-rc.json: three pass, two known drift, fraud-review-bedrock's bridge test still imports the withheld `ValuePhrase`). Modules of v0.4.0 nodes already green on main ship in 0.3.0 marked provisional. Spend: $0.
 - [FIX] [B5.15] — Verifier pass 3 (no must-fix): empty_check refuses a total anywhere in a column name (`sales_total`, `overall_total_sales`, fullwidth letters), and a pivot refuses a run-together `grandtotal`; documented that a month at a quarter start reads as that quarter. Spend: $0.
 - [FEAT] [B5.15] — Text period labels for agentic-analytics (its OWNER D-89): "2023 Q1", "Q1 2023", "2023-Q1", bare "Q1" (only when the question names exactly one year) and "2023-03", "March 2023", "Mar 2023"; a quarter label never becomes a month; fiscal questions never convert. empty_check refuses a leading period/total word (`total_sales`), keeps `sales_in_requested_year`. Spend: $0.
 - [DECISION] — D-74 (owner): `value_check` leaves v0.3.0 after seven verifier passes; new node B5.16 redesigns it strict for v0.4.0 (verified only when a whole field name or alias is bound to its number). SEV-01 moves to B5.16. Spend: $0.
