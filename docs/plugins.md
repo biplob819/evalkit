@@ -114,8 +114,11 @@ function and a task scorer; none calls a model.
   `cluster` the result is byte-identical to 0.3. Two things to know: like any bootstrap, a
   rate whose answers all agree (0 of n) gets a zero-width interval, so quote
   `evalkit.stats.clopper_pearson(0, n_questions)` there; and with independent trials the
-  two-level interval is a little conservative (measured 1.2-1.35x the Clopper-Pearson width,
-  never narrower). On a 17-configuration fixture it agrees with agentic-analytics'
+  two-level interval is conservative (1.2-1.35x the Clopper-Pearson width, never narrower;
+  simulated 95% intervals covered 97.8-99.3% of the time at k ≥ 3 with no within-question
+  correlation). With correlation it holds its level where Clopper-Pearson does not: at
+  correlation 0.3 the bootstrap covered 95-99% against Clopper-Pearson's 83-92%, and at 0.8
+  93-97% against 68-83% (400 replications per cell, true rate 0.3). On a 17-configuration fixture it agrees with agentic-analytics'
   `aggregate.two_level_interval`: equal points, interval ends within one step of the rate
   lattice, 1/(k x questions). To put it in a metrics-1 file, carry the interval and its
   method; `evalkit gate` then uses it as given instead of computing Clopper-Pearson from k
