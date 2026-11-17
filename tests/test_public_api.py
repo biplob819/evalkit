@@ -131,3 +131,13 @@ def test_paraphrase_module_is_public_with_its_command_line():
     assert done.returncode == 0
     for command in ("verify", "build"):
         assert command in done.stdout
+
+
+def test_integrity_module_is_public_with_its_calibrate_options():
+    """B5.9: `evalkit.integrity` is public, its `__all__` is exactly the contract, and
+    `evalkit calibrate --criterion` is part of the CLI contract."""
+    import evalkit.integrity as integrity
+
+    assert sorted(integrity.__all__) == sorted(PUBLIC["evalkit.integrity"])
+    assert {"--criterion", "--manifest", "--log", "--rubric-hash"} <= CLI["calibrate score"]
+    assert {"--criterion", "--context"} <= CLI["calibrate label"]

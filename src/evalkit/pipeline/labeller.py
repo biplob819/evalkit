@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from evalkit.pipeline.calibrate import LabelEntry, LabelFile, SheetRow
 
@@ -114,7 +114,18 @@ PAGE = (resources.files("evalkit.pipeline") / "labeller.html").read_text(encodin
 MAX_BODY = 10_000
 
 
-def make_handler(state: Labeller) -> type[BaseHTTPRequestHandler]:
+class PageState(Protocol):
+    """What the page's server needs: `Labeller` (groundedness) or a criterion sheet's state
+    (`evalkit.integrity`, B5.9), whose view carries `"mode": "criterion"`."""
+
+    port: int
+
+    def view(self, index: int | None = None) -> dict[str, Any]: ...
+
+    def record(self, key: str, label: str, extraction_error: bool) -> None: ...
+
+
+def make_handler(state: PageState) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def _host_ok(self) -> bool:
             """Refuse other Host headers, so a web page cannot reach the labeller through
@@ -194,7 +205,12 @@ def serve_labeller(
 ) -> ThreadingHTTPServer:
     """Start the page on 127.0.0.1 (never another interface). Returns the server; the caller
     runs `serve_forever()` (or a thread) and reads `server.server_address` for the port."""
-    state = Labeller(rows, labels_path, round_, seed)
+    return serve_state(Labeller(rows, labels_path, round_, seed), port=port)
+
+
+def serve_state(state: PageState, *, port: int = 0) -> ThreadingHTTPServer:
+    """The page's server for any page state, bound to 127.0.0.1 only (B5.9 reuses it for
+    criterion sheets). `server.labeller` is the state."""
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(state))
     state.port = int(server.server_address[1])
     server.labeller = state  # type: ignore[attr-defined]

@@ -364,6 +364,17 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 def cmd_calibrate(args: argparse.Namespace) -> int:
     from evalkit import run as R
 
+    if getattr(args, "criterion", None):  # B5.9: a criterion sheet, not groundedness
+        from evalkit.integrity import cli_calibrate
+
+        return cli_calibrate(args)
+    only = [
+        o
+        for o in ("manifest", "planted", "context", "log", "rubric_hash")
+        if getattr(args, o, None)
+    ]
+    if only or (args.action == "import" and getattr(args, "relabel", False)):
+        return _err(f"--{(only or ['relabel'])[0].replace('_', '-')} needs --criterion")
     run_dir = Path(args.run_dir)
     try:
         if args.action == "export":
@@ -717,6 +728,24 @@ def build_parser() -> argparse.ArgumentParser:
             a.add_argument("--port", type=int, default=0, help="port (default: any free port)")
         if name == "import":
             a.add_argument("csv", help="the filled sheet.csv")
+        # B5.9: a calibration sheet for any declared criterion (evalkit.integrity)
+        a.add_argument("--criterion", default=None, help="criterion YAML (B5.9 criterion sheet)")
+        if name in ("export", "score"):
+            a.add_argument("--manifest", default=None, help="B5.14 held-out manifest (--criterion)")
+        if name == "export":
+            a.add_argument(
+                "--planted", default=None, help="planted known-answer items (--criterion)"
+            )
+        if name == "import":
+            a.add_argument("--relabel", action="store_true", help="second-pass CSV (--criterion)")
+        if name == "label":
+            a.add_argument(
+                "--context", action="append", default=None, help="labeller-only context file "
+                "template, e.g. solutions/{assessment_id}.md (--criterion; repeatable)"
+            )  # fmt: skip
+        if name == "score":
+            a.add_argument("--log", default=None, help="B5.14 hash-chained log (--criterion)")
+            a.add_argument("--rubric-hash", default=None, help="current rubric hash (--criterion)")
     c.set_defaults(func=cmd_calibrate)
 
     rep = sub.add_parser("report", help="re-render a run's report (or --example)")

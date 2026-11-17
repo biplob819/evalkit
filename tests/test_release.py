@@ -81,6 +81,8 @@ NOT_RUN_HERE = {
     "test_dry_run_of_both_probe_tasks_plans_the_same_pubids",  # B5.8
     "report --paraphrase": "needs two probe runs: tests/test_paraphrase_probe.py "
     "test_cli_report_paraphrase_writes_contamination_json",  # B5.8
+    "--criterion": "needs a judged criterion and a held-out manifest: "
+    "tests/test_integrity_sheet.py test_cli_criterion_export_label_import_score_on_a_run_folder",
 }
 
 

@@ -226,6 +226,42 @@ CLI: dict[str, set[str]] = {
 }
 EXIT_CODES = {"0", "1", "2", "3", "4", "130"}
 
+# B5.9 (v0.4): calibration sheets for any criterion and labeller consistency.
+PUBLIC["evalkit.integrity"] = [
+    "INTEGRITY",
+    "CalibrationLine",
+    "Consistency",
+    "ConsistencyBar",
+    "Criterion",
+    "CriterionLabels",
+    "CriterionRow",
+    "IntegrityReport",
+    "Item",
+    "JudgeKappa",
+    "PlantedItem",
+    "RubricChanged",
+    "SampledItem",
+    "SheetError",
+    "build_sheet",
+    "calibration_certified",
+    "consistency",
+    "heldout_digest",
+    "items_from_run",
+    "labels_from_csv",
+    "load_criterion",
+    "load_planted",
+    "run_hash",
+    "sample_items",
+    "score_sheet",
+    "second_pass",
+    "serve_sheet_labeller",
+    "sheet_csv",
+]
+CLI["calibrate export"] |= {"--criterion", "--manifest", "--planted"}  # B5.9
+CLI["calibrate label"] |= {"--criterion", "--context"}  # B5.9
+CLI["calibrate import"] |= {"--criterion", "--relabel"}  # B5.9
+CLI["calibrate score"] |= {"--criterion", "--manifest", "--log", "--rubric-hash"}  # B5.9
+
 
 def _subparsers(parser):
     import argparse
