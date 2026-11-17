@@ -69,6 +69,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `equivalences` (B5.15, strict by default).
 
 ## 2026-11-17
+- [FIX] [N1.2, S2.4] — Cost plans count claims from the texts when they exist (D-76; reported by fraud-review-bedrock, whose quotes were about half the real cost): `evalkit.cost.ClaimsAssumption`, `claims_from_texts`, `measured_claims`, `evalkit.scorers.faithfulness.estimate_faithfulness_cost`, `evalkit run --claims-per-answer`. Every estimate states its claims assumption. On a fixture of 8 × 12 claims the plan went from 36 to 85 (true 96). Spend: $0.
 - [FIX] [B5.3, B5.6] — `evalkit gate --out` and `evalkit compare --out/--md` accept a folder (writing gate.json, compare.json or compare.md inside it); the help said "default ./", which read as a folder (reported by assay-pipeline). Spend: $0.
 - [FEAT] [B5.16] — Strict value_check merged from its lane (D-74, D-75): verified only when a whole field name or alias is bound to its number by a recognised pattern; phrases bind nothing when another field is named in their clause; hedges and unbound true/false make a reason unverifiable; integer fields exact. 0 false claims verified on every generator and on fraud-review-bedrock's mutation test; on its recorded reasons 10.5% verified, 3.7% contradicted, 85.8% unverifiable. Still withheld from the public API until its verifier passes. Spend: $0.
 - [DOCS] — Case study: v0.3.0 shipped (release record cited). Spend: $0.
