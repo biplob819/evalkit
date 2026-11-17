@@ -12,11 +12,14 @@ declared two-way criterion on whole items (a conversation, an answer), with the 
   repeats with planted known-answer items in a fresh order under fresh keys (never a key from
   the first pass), without telling the labeller which is which.
 - CIS-02 self-agreement on the repeats and accuracy on the planted items, each with a CI, and
-  each judge's kappa CI lower bound; below the bar the calibration is not certified, and it
-  counts at all only through the one `calibration_scored` line written, in the same locked
-  append, right after its `heldout_scored` line in B5.14's hash-chained log, bound to the run
+  each judge's kappa CI lower bound, against a bar no criterion can set below its floors
+  (`BAR_FLOORS`); below the bar the calibration is not certified, and it counts at all only
+  through the one `calibration_scored` line written in the same single write as its
+  `heldout_scored` line (one pair id, chained) in B5.14's hash-chained log, bound to the run
   hash, the rubric hash, the task score and the held-out case ids, and re-decided from the
-  values and bar it records.
+  values and bar it records. B5.14's public writers refuse both lines: only this module
+  writes them. Anyone who can write the log file can still forge a whole chain by hand:
+  that is for code review of the log and B5.14's CI `verify-log` check, not these checks.
 
 Messages name counts, keys, paths and manifest ids, never case ids, item text or context.
 Lifted from course-assistant's integrity probe (its E2.3, D-53, D-66; MIT).
@@ -85,7 +88,7 @@ __all__ = [
 Split = Literal["tuning", "heldout"]
 RowSplit = Literal["tuning", "heldout", "planted"]
 Round = Literal["first", "relabel"]
-CALIBRATION_SCORED = "calibration_scored"
+CALIBRATION_SCORED = H.CALIBRATION_SCORED
 _NAME = re.compile(r"[a-z0-9][a-z0-9._-]{0,39}")
 _Z95 = 1.959963984540054
 
@@ -101,36 +104,74 @@ class RubricChanged(SheetError):
 # =============================== criterion (CIS-03) ===============================
 
 
+# The lowest each bar field may be set (a criterion may only be stricter). Below these a
+# "certified" calibration would say little:
+# - min_judge_kappa_lo 0.2: the 95% CI lower bound of a judge's held-out kappa must show at
+#   least "fair" agreement beyond chance (Landis & Koch); a judge that always gives one label
+#   has kappa 0 and can never certify.
+# - min_self_kappa 0.4: a labeller below "moderate" agreement with their own blind repeats
+#   cannot anchor anyone's judges.
+# - min_planted_accuracy 0.6: clearly better than a coin on items whose answer is known.
+# - min_repeats 10 and min_planted 3: fewer gives intervals too wide to read anything from.
+BAR_FLOORS: dict[str, float | int] = {
+    "min_self_kappa": 0.4,
+    "min_planted_accuracy": 0.6,
+    "min_judge_kappa_lo": 0.2,
+    "min_repeats": 10,
+    "min_planted": 3,
+}
+
+
+def _bar_problems(bar: Mapping[str, Any]) -> list[str]:
+    """Why a bar (field by field, as constructed or as logged) is refused: a missing or unknown
+    field, a bad `bound`, or a minimum that is not a number at or above its floor (`BAR_FLOORS`)
+    and, for a rate, at most 1. Empty: the bar is acceptable."""
+    names = [f.name for f in fields(ConsistencyBar)]
+    out = [f"bar field {k} is missing" for k in names if k not in bar]
+    out += [f"unknown bar field {k}" for k in sorted(set(map(str, bar)) - set(names))]
+    if "bound" in bar and bar["bound"] not in ("point", "lo"):
+        out.append("bar bound must be point or lo")
+    for name, floor in BAR_FLOORS.items():
+        if name not in bar:
+            continue
+        value = bar[name]
+        if isinstance(floor, int):
+            ok = not isinstance(value, bool) and isinstance(value, int) and value >= floor
+            want = f"a whole number of at least {floor}"
+        else:
+            ok = (
+                not isinstance(value, bool)
+                and isinstance(value, int | float)
+                and floor <= value <= 1.0
+            )
+            want = f"a number from {floor} to 1"
+        if not ok:
+            out.append(
+                f"bar {name} must be {want} ({floor} is its floor: a bar cannot be set below "
+                f"it), not {value!r}"
+            )
+    return out
+
+
 @dataclass(frozen=True)
 class ConsistencyBar:
     """The certification bar (CIS-02): the labeller's consistency and the judges' quality.
-    A `None` minimum drops that check; `bound="lo"` asks the CI lower bound, not the point,
-    to clear the consistency minima. `min_judge_kappa_lo` is always checked against each
-    judge's held-out kappa CI lower bound. A bar that drops the judge minimum, or both
-    consistency minima, is trivial and never certifies; nor does a scoring with no repeats."""
+    Every minimum is always checked, and none may be set below its floor (`BAR_FLOORS`;
+    `SheetError` otherwise). `bound="lo"` asks the CI lower bound, not the point, to clear
+    the consistency minima; `min_judge_kappa_lo` is checked against each judge's held-out
+    kappa CI lower bound."""
 
-    min_self_kappa: float | None = 0.6
-    min_planted_accuracy: float | None = 0.9
+    min_self_kappa: float = 0.6
+    min_planted_accuracy: float = 0.9
     min_repeats: int = 10
     min_planted: int = 4
     bound: Literal["point", "lo"] = "point"
-    min_judge_kappa_lo: float | None = 0.4
+    min_judge_kappa_lo: float = 0.4
 
     def __post_init__(self) -> None:
-        if self.bound not in ("point", "lo"):
-            raise SheetError("bar bound must be point or lo")
-        for name in ("min_repeats", "min_planted"):
-            value = getattr(self, name)
-            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-                raise SheetError("bar minimum counts must be >= 0")
-        for name in ("min_self_kappa", "min_planted_accuracy", "min_judge_kappa_lo"):
-            value = getattr(self, name)
-            if value is not None and (
-                isinstance(value, bool)
-                or not isinstance(value, int | float)
-                or not -1.0 <= value <= 1.0
-            ):
-                raise SheetError(f"bar {name} must be a number from -1 to 1, or null")
+        problems = _bar_problems(asdict(self))
+        if problems:
+            raise SheetError("; ".join(problems))
 
 
 @dataclass(frozen=True)
@@ -895,37 +936,27 @@ def _consistency_reasons(
     reasons = []
     if n_repeats == 0:
         reasons.append("no blind repeats: certifying needs consistency evidence (n_relabel > 0)")
-    if bar.min_self_kappa is None and bar.min_planted_accuracy is None:
-        reasons.append(
-            "the bar checks no labeller consistency (min_self_kappa and min_planted_accuracy "
-            "both null): a trivial bar cannot certify"
-        )
     if n_repeats < bar.min_repeats:
         reasons.append(f"{n_repeats} blind repeat(s); the bar needs {bar.min_repeats}")
-    if bar.min_self_kappa is not None and (
-        self_kappa is None or value(self_kappa) < bar.min_self_kappa
-    ):
+    if self_kappa is None or value(self_kappa) < bar.min_self_kappa:
         reasons.append(f"self-agreement kappa below {bar.min_self_kappa} ({bar.bound})")
     if n_planted < bar.min_planted:
         reasons.append(f"{n_planted} planted item(s); the bar needs {bar.min_planted}")
-    if bar.min_planted_accuracy is not None and (
-        planted_accuracy is None or value(planted_accuracy) < bar.min_planted_accuracy
-    ):
+    if planted_accuracy is None or value(planted_accuracy) < bar.min_planted_accuracy:
         reasons.append(f"planted accuracy below {bar.min_planted_accuracy} ({bar.bound})")
     return reasons
 
 
 def _judge_reasons(bar: ConsistencyBar, kappa: Mapping[str, Interval]) -> list[str]:
-    """Why the judges do not clear the bar: each judge's held-out kappa CI lower bound."""
-    if bar.min_judge_kappa_lo is None:
-        return ["the bar sets no judge kappa minimum (min_judge_kappa_lo): a trivial bar "
-                "cannot certify"]  # fmt: skip
+    """Why the judges do not clear the bar: each judge's held-out kappa CI lower bound, which
+    is never enough at or below 0 (no better than chance, such as a judge that always gives
+    one label), whatever the bar."""
     if not kappa:
         return ["no judge kappa"]
     return [
         f"judge {j} kappa lower bound {kappa[j].lo:.2f} is below {bar.min_judge_kappa_lo}"
         for j in sorted(kappa)
-        if kappa[j].lo < bar.min_judge_kappa_lo
+        if kappa[j].lo < bar.min_judge_kappa_lo or kappa[j].lo <= 0
     ]
 
 
@@ -1008,9 +1039,10 @@ def _kappa(rows: Sequence[CriterionRow], first: CriterionLabels, items: Mapping[
 
 class CalibrationLine(Model):
     """The `calibration_scored` line in B5.14's log (CIS-02): ids as hashes, no text. It is
-    appended right after its `heldout_scored` line under the same lock, and carries the bar
-    it was scored against and every value the bar reads, so `calibration_certified`
-    recomputes the decision instead of trusting `certified`."""
+    appended in the same single write as its `heldout_scored` line, both carrying `pair` (the
+    sha256 of this line's other fields), and carries the bar it was scored against and every
+    value the bar reads, so `calibration_certified` recomputes the decision instead of
+    trusting `certified`."""
 
     kind: Literal["calibration_scored"] = CALIBRATION_SCORED
     criterion: NonBlank
@@ -1029,12 +1061,23 @@ class CalibrationLine(Model):
     planted_correct: NonNegInt
     planted_accuracy: Interval | None
     at: NonBlank
+    pair: str = ""  # _pair_id of the other fields; also on its heldout_scored line
+
+
+def _pair_id(body: Mapping[str, Any]) -> str:
+    """The pair id of a calibration line: sha256 of its canonical JSON without `prev` and
+    `pair`. Its `heldout_scored` line carries the same id, written in the same append."""
+    return H._sha(H._canonical({k: v for k, v in body.items() if k not in ("prev", "pair")}))
 
 
 def _line_reasons(line: CalibrationLine) -> list[str]:
     """Why a logged line does not certify, recomputed from its own values against its own
-    bar (Wilson accuracy recomputed from the counts)."""
-    fields_: dict[str, Any] = dict(line.bar)  # validated by ConsistencyBar itself
+    bar (Wilson accuracy recomputed from the counts). A bar with a field missing, or below
+    its floor, never certifies."""
+    fields_: dict[str, Any] = dict(line.bar)
+    problems = _bar_problems(fields_)
+    if problems:
+        return problems
     bar = ConsistencyBar(**fields_)
     if line.planted_correct > line.n_planted:
         return ["more planted items right than planted items"]
@@ -1165,7 +1208,11 @@ def score_sheet(
         rows, first, second, bar=bar, seed=seed, positive=criterion.positive,
         n_resamples=n_resamples,
     )  # fmt: skip
-    reasons = (*cons.reasons, *_judge_reasons(bar, {a.judge: a.kappa for a in agreements}))
+    floor = _bar_problems(asdict(bar))  # a bar forced below its floors never certifies
+    reasons = tuple(floor) or (
+        *cons.reasons,
+        *_judge_reasons(bar, {a.judge: a.kappa for a in agreements}),
+    )
     held_ids = sorted(r.case_id for r in heldout)
     hashes = sorted({H.case_id_hash(c) for c in held_ids})
     report = IntegrityReport(
@@ -1201,21 +1248,24 @@ def score_sheet(
     )
     if _line_reasons(line) != list(reasons):  # the logged line must decide as the report
         raise SheetError("internal: the calibration line does not reproduce the report")
+    body = line.model_dump(mode="json", exclude={"pair"})
+    pair = _pair_id(body)
     scored = {
         "kind": H.SCORED,
         "rubric_hash": log_rubric,
         "case_id_sha256": hashes,
         "n_cases": len(hashes),
         "at": at,
+        "pair": pair,
     }
-    # ---- the log: one lock for the checks and both lines, so they are an atomic pair ----
+    # ---- the log: one lock for the checks, and both lines in ONE write (both or neither) ----
     log_path = Path(log)
     with H._log_lock(log_path):
         if H.chain_problems(log_path):
             raise SheetError("the log's hash chain is broken: restore it before scoring")
         _refuse_rubric_change(H.read_log(log_path), task_score, rubric, hashes)
-        H._append_locked(log_path, scored, doing="scoring")  # B5.14 score once (AlreadyScored)
-        H._append_locked(log_path, line.model_dump(mode="json"), doing="scoring")
+        # B5.14 score once (AlreadyScored) is checked on the heldout_scored line
+        H._append_many_locked(log_path, [scored, {**body, "pair": pair}], doing="scoring")
     return report
 
 
@@ -1231,11 +1281,16 @@ def calibration_certified(
     """True only when the log's chain and score-once rule hold and EXACTLY ONE
     `calibration_scored` line for this task score (`task_score`, else the criterion's) and
     rubric touches these held-out cases; that line directly follows (chained by hash) its
-    `heldout_scored` line for exactly these cases; it names this criterion, run hash, case
-    set and digest; it says `certified: true`; and recomputing the decision from its logged
-    values against its logged bar certifies. A second matching line, or a matching line that
-    says false, certifies nothing. Never raises. The last line of a log is chained by no
-    later line: protecting it is CI's append-only check (`verify-log`, B5.14)."""
+    `heldout_scored` line for exactly these cases, and both carry the same pair id (the hash
+    of the calibration line's content), found nowhere else in the log: the two were written
+    together; no line anywhere in the log calibrated any of these cases for this task score
+    under another rubric (the rubric-change rule, re-applied here); the line names this
+    criterion, run hash, case set and digest; it says `certified: true`; and recomputing the
+    decision from its logged values against its logged bar (refused below `BAR_FLOORS`)
+    certifies. A second matching line, or a matching line that says false, certifies
+    nothing. Never raises. The last line of a log is chained by no later line, and a whole
+    chain can be written by hand: protecting the log file itself is code review plus CI's
+    append-only check (`verify-log`, B5.14)."""
     try:
         if isinstance(criterion, Criterion):
             name, ts = criterion.name, task_score or criterion.score_name
@@ -1247,7 +1302,10 @@ def calibration_certified(
         p = Path(log)
         if not want or not p.is_file() or H.chain_problems(p):
             return False
+        raw = H._lines(p)
         rows = H.read_log(p)
+        if len(raw) != len(rows):
+            return False
         hits = [
             n
             for n, row in enumerate(rows)
@@ -1258,14 +1316,25 @@ def calibration_certified(
         ]
         if len(hits) != 1 or hits[0] == 0:
             return False
-        before = rows[hits[0] - 1]
+        n = hits[0]
+        before, row = rows[n - 1], rows[n]
+        pair = row.get("pair")
         if (
             before.get("kind") != H.SCORED
             or before.get("rubric_hash") != _log_rubric(ts, rubric)
             or sorted(set(before.get("case_id_sha256") or ())) != want
+            or row.get("prev") != H._sha(raw[n - 1])  # chained straight to its heldout line
+            or not isinstance(pair, str)
+            or before.get("pair") != pair  # ... and written with it
+            or pair != _pair_id(row)
+            or sum(r.get("pair") == pair for r in rows) != 2
         ):
             return False
-        body = {k: v for k, v in rows[hits[0]].items() if k != "prev"}
+        try:  # the rubric-change rule, re-applied to the whole log
+            _refuse_rubric_change(rows, ts, rubric, want)
+        except RubricChanged:
+            return False
+        body = {k: v for k, v in row.items() if k != "prev"}
         line = CalibrationLine.model_validate_json(json.dumps(body))
         return (
             line.criterion == name

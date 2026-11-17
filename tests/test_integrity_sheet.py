@@ -295,11 +295,11 @@ def test_criterion_yaml_loads_and_refuses_unknown_fields(tmp_path):
     p = tmp_path / "c.yaml"
     p.write_text(
         "name: integrity\nlabels: {violation: [V], clean: [C]}\npositive: violation\n"
-        "id_fields: [assessment_id]\nitem_column: replies\nbar: {min_planted: 2, bound: lo}\n",
+        "id_fields: [assessment_id]\nitem_column: replies\nbar: {min_planted: 5, bound: lo}\n",
         encoding="utf-8",
     )
     c = I.load_criterion(p)
-    assert c.parse("v") == "violation" and c.bar.min_planted == 2 and c.bar.bound == "lo"
+    assert c.parse("v") == "violation" and c.bar.min_planted == 5 and c.bar.bound == "lo"
     p.write_text(
         "name: integrity\nlabels: {violation: [V], clean: [C]}\npositive: violation\nx: 1\n",
         encoding="utf-8",
@@ -649,8 +649,10 @@ def test_consistency_bar_is_configurable_and_fails_closed(tmp_path):
     assert not run(I.ConsistencyBar()).passes  # 0.83 < 0.9
     assert run(I.ConsistencyBar(min_planted_accuracy=0.8)).passes
     assert not run(I.ConsistencyBar(min_planted_accuracy=0.8, bound="lo")).passes  # CI lower
-    assert run(I.ConsistencyBar(min_planted_accuracy=None)).passes
-    assert not run(I.ConsistencyBar(min_planted=7, min_planted_accuracy=None)).passes
+    assert run(I.ConsistencyBar(min_planted_accuracy=0.6)).passes  # the floor
+    assert not run(I.ConsistencyBar(min_planted=7, min_planted_accuracy=0.6)).passes
+    with pytest.raises(I.SheetError, match="floor"):  # no check can be dropped
+        I.ConsistencyBar(min_planted_accuracy=None)  # type: ignore[arg-type]
     none = run(I.ConsistencyBar(), second=None)  # no second pass: nothing measured, fails
     assert not none.passes and none.self_kappa is None and none.planted_accuracy is None
     with pytest.raises(I.SheetError):
@@ -663,7 +665,7 @@ def test_golden_integrity_report(tmp_path):
     held = [r for r in rows if r.split == "heldout"]
     first = first_labels(rows, flip={held[0].key, held[3].key})
     second = second_labels(rows, first, wrong_planted=1, flip_repeats=2)
-    bar = I.ConsistencyBar(min_planted_accuracy=0.8, min_judge_kappa_lo=0.15)
+    bar = I.ConsistencyBar(min_planted_accuracy=0.8, min_judge_kappa_lo=0.2)
     report = score(rows, items, m, tmp_path / "log.jsonl", first=first, second=second, bar=bar)
     got = json.loads(report.model_dump_json())
     path = GOLDEN / "report.json"
@@ -701,10 +703,13 @@ def test_certification_only_through_the_logged_line_bound_to_run_and_rubric(tmp_
     assert not cert(rubric="a-changed-rubric")
     assert not cert(ids=ids[:-1]) and not cert(criterion="groundedness")
     assert H.is_certified(log, ids, f"calibration:integrity:{RUBRIC}")
-    # B5.14's line alone (no calibration line) does not certify
+    # B5.14's line alone (no calibration line) does not certify; nor can the public API
+    # write it (only the pair writer does)
     bare = tmp_path / "bare.jsonl"
-    H.record_scoring(bare, ids, f"calibration:integrity:{RUBRIC}")
-    assert not cert(log=bare)
+    with pytest.raises(H.HeldoutError, match="calibration"):
+        H.record_scoring(bare, ids, f"calibration:integrity:{RUBRIC}")
+    bare.write_text(log.read_text(encoding="utf-8").splitlines()[0] + "\n", encoding="utf-8")
+    assert H.chain_problems(bare) == [] and not cert(log=bare)
     # an edited log certifies nothing
     tampered = tmp_path / "tampered.jsonl"
     text = log.read_text(encoding="utf-8").replace('"certified":true', '"certified":true ', 1)
@@ -770,14 +775,18 @@ def test_cli_criterion_export_label_import_score_on_a_run_folder(tmp_path, capsy
         "name: integrity\nlabels: {violation: [V], clean: [C]}\npositive: violation\n"
         "id_fields: [assessment_id]\nitem_column: replies\nconversation_field: prior_turns\n"
         f"redact: ['learner-\\d+', 'CANARY-[A-Z0-9]+']\nn: 40\nn_relabel: 20\n"
-        f"rubric_hash: {RUBRIC}\n"
-        "bar: {min_planted: 0, min_planted_accuracy: null}\n",
+        f"rubric_hash: {RUBRIC}\n",
         encoding="utf-8",
     )
+    planted = tmp_path / "planted.jsonl"
+    planted.write_text("".join(json.dumps({"id": p.id, "parts": list(p.parts), "label": p.label,
+                                           **p.ids}) + "\n" for p in PLANTED),
+                       encoding="utf-8")  # fmt: skip
     c = ["--criterion", str(crit)]
-    assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m, "--json"]) == 0
+    assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m, "--planted",
+                     str(planted), "--json"]) == 0  # fmt: skip
     out = json.loads(capsys.readouterr().out)
-    assert (out["first"], out["second"]) == (40, 20)
+    assert (out["first"], out["second"]) == (40, 26)
     d = run / "calibration" / "integrity"
     # the second-pass sheet is not written until the first pass is in
     assert {p.name for p in d.iterdir()} == {"sheet.json", "sheet.csv"}
@@ -950,12 +959,16 @@ def test_appended_or_edited_calibration_lines_cannot_forge_certification(tmp_pat
     def body(line: dict[str, Any]) -> dict[str, Any]:
         return {k: v for k, v in line.items() if k != "prev"}
 
-    # 1. an uncertified scoring, then a copy of its line saying certified: true appended
+    # 1. an uncertified scoring, then a copy of its line saying certified: true appended: the
+    # public API refuses it, and chained by hand it is a second line that is no pair
     log = tmp_path / "a.jsonl"
     first = first_labels(rows)
     low = score(rows, items, m, log, second=second_labels(rows, first, wrong_planted=3))
     assert not low.certified and not cert(log)
-    H.append_entry(log, {**body(H.read_log(log)[-1]), "certified": True})
+    copy = {**body(H.read_log(log)[-1]), "certified": True}
+    with pytest.raises(H.HeldoutError, match="calibration"):
+        H.append_entry(log, copy)
+    _hand_append(log, copy)
     assert H.chain_problems(log) == [] and not cert(log)
     # 2. the last line edited in place (no later line chains it): recomputed from its values
     edited = tmp_path / "b.jsonl"
@@ -966,24 +979,22 @@ def test_appended_or_edited_calibration_lines_cannot_forge_certification(tmp_pat
     # 3. a certified scoring plus a duplicate matching line: two lines, not certified
     good = tmp_path / "c.jsonl"
     assert score(rows, items, m, good).certified and cert(good)
-    line = H.read_log(good)[-1]
-    H.append_entry(good, body(line))
+    scored, line = H.read_log(good)
+    _hand_append(good, body(line))
     assert not cert(good)
     # 4. a calibration line not written with its heldout_scored line
     split = tmp_path / "d.jsonl"
-    H.record_scoring(split, ids, f"calibration:integrity:{RUBRIC}")
-    H.append_entry(split, {"kind": "note"})
-    H.append_entry(split, body(line))
+    _hand_append(split, body(scored))
+    _hand_append(split, {"kind": "note"})
+    _hand_append(split, body(line))
     assert H.chain_problems(split) == [] and not cert(split)
     # 5. a line whose recorded values fail its recorded bar, though it says certified
     fake = tmp_path / "e.jsonl"
-    H.record_scoring(fake, ids, f"calibration:integrity:{RUBRIC}")
-    H.append_entry(fake, {**body(line), "planted_correct": 2})
+    _hand_pair(fake, scored, {**line, "planted_correct": 2})
     assert H.chain_problems(fake) == [] and not cert(fake)
     # the same two lines with the honest values do certify (the shape above is valid)
     ok = tmp_path / "f.jsonl"
-    H.record_scoring(ok, ids, f"calibration:integrity:{RUBRIC}")
-    H.append_entry(ok, body(line))
+    _hand_pair(ok, scored, line)
     assert cert(ok)
     # 6. the line carries the bar and the measured values
     assert line["bar"]["min_judge_kappa_lo"] == I.ConsistencyBar().min_judge_kappa_lo
@@ -1030,18 +1041,27 @@ def test_poor_judges_or_a_trivial_bar_never_certify(tmp_path):
     assert not I.calibration_certified(tmp_path / "a.jsonl", criterion="integrity",
                                        case_ids=heldout_ids(rows), rubric_hash=RUBRIC,
                                        run_hash="run-1")  # fmt: skip
-    # a lax bar with no second pass at all
-    lax = I.ConsistencyBar(min_self_kappa=None, min_planted_accuracy=None, min_repeats=0,
-                           min_planted=0, min_judge_kappa_lo=None)  # fmt: skip
+    # a lax bar is refused; one forced past the check, with no second pass, never certifies
+    nulls: dict[str, Any] = dict(min_self_kappa=None, min_planted_accuracy=None, min_repeats=0,
+                                 min_planted=0, min_judge_kappa_lo=None)  # fmt: skip
+    with pytest.raises(I.SheetError, match="floor"):
+        I.ConsistencyBar(**nulls)
+    lax = I.ConsistencyBar()
+    for name in ("min_self_kappa", "min_planted_accuracy", "min_judge_kappa_lo"):
+        object.__setattr__(lax, name, -1.0)
+    for name in ("min_repeats", "min_planted"):
+        object.__setattr__(lax, name, 0)
     crit = dataclasses.replace(CRIT, name="lax", n_relabel=0, bar=lax)
     rows3, items3, m3 = build(tmp_path / "x", planted=())
     rows3 = [r.model_copy(update={"relabel": False, "relabel_key": None}) for r in rows3]
     got = I.score_sheet(rows3, first_labels(rows3), None, items3, crit, rubric_hash=RUBRIC,
                         run_hash="run-1", manifest=m3, log=tmp_path / "b.jsonl", seed=7,
                         scored_at=AT, n_resamples=200)  # fmt: skip
-    assert not got.certified and any("trivial" in x for x in got.reasons)
-    assert any("repeat" in x for x in got.reasons)
-    assert H.read_log(tmp_path / "b.jsonl")[-1]["bar"]["min_self_kappa"] is None
+    assert not got.certified and all("floor" in x for x in got.reasons)
+    assert H.read_log(tmp_path / "b.jsonl")[-1]["bar"]["min_self_kappa"] == -1.0
+    assert not I.calibration_certified(tmp_path / "b.jsonl", criterion="lax",
+                                       case_ids=heldout_ids(rows3), rubric_hash=RUBRIC,
+                                       run_hash="run-1", task_score="lax")  # fmt: skip
     with pytest.raises(I.SheetError, match="min_judge_kappa_lo"):
         I.ConsistencyBar(min_judge_kappa_lo="high")  # type: ignore[arg-type]
 
@@ -1153,3 +1173,225 @@ def test_missing_cases_and_corrupt_label_files_are_clean_errors(tmp_path, capsys
     assert cli.main(["calibrate", "label", str(run), *c]) == 2
     err = capsys.readouterr().err
     assert "sheet" in err and "FULL-DRAFT" not in err
+
+
+# ======================= verifier pass 2: forgery, crash, bar floors =======================
+
+
+def _body(line: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in line.items() if k not in ("prev", "pair")}
+
+
+def _hand_append(log: Path, entry: dict[str, Any]) -> None:
+    """What anyone with write access to the log can do without EvalKit's API: chain a line by
+    hand. Out of reach of the code checks (git review and `verify-log` catch it)."""
+    lines = log.read_text(encoding="utf-8").splitlines() if log.is_file() else []
+    prev = hashlib.sha256(lines[-1].encode()).hexdigest() if lines else H.GENESIS
+    with log.open("a", encoding="utf-8", newline="\n") as fh:
+        fh.write(H._canonical({**entry, "prev": prev}) + "\n")
+
+
+def _hand_pair(log: Path, scored: dict[str, Any], line: dict[str, Any]) -> None:
+    """A well-formed pair written by hand: same pair id on both, adjacent, chained."""
+    pair = I._pair_id(_body(line))
+    _hand_append(log, {**_body(scored), "pair": pair})
+    _hand_append(log, {**_body(line), "pair": pair})
+
+
+@pytest.mark.safety
+def test_rubric_shopping_after_a_failed_scoring_cannot_certify(tmp_path):
+    """Verifier pass 2, F1: after an honest scoring that failed the bar, a pair claiming the
+    same cases under a new rubric neither goes through the public log API nor certifies when
+    written by hand (the cross-rubric rule is re-applied at certification)."""
+    rows, items, m = build(tmp_path)
+    ids = heldout_ids(rows)
+
+    def cert(log: Path, rubric: str) -> bool:
+        return I.calibration_certified(log, criterion="integrity", case_ids=ids,
+                                       rubric_hash=rubric, run_hash="run-1")  # fmt: skip
+
+    log = tmp_path / "log.jsonl"
+    first = first_labels(rows)
+    low = score(rows, items, m, log, second=second_labels(rows, first, wrong_planted=3))
+    assert not low.certified
+    scored, line = H.read_log(log)
+    n = line["n_planted"]
+    forged_scored = {**_body(scored), "rubric_hash": "calibration:integrity:rubric-v9"}
+    forged = {**_body(line), "rubric_hash": "rubric-v9", "certified": True, "planted_correct": n,
+              "planted_accuracy": I._wilson(n, n).model_dump(mode="json")}  # fmt: skip
+    # (a) the public API refuses calibration lines: only integrity's own writer writes them
+    for entry in (forged_scored, forged, {**forged_scored, "rubric_hash": " CALIBRATION:x:y "}):
+        with pytest.raises(H.HeldoutError, match="calibration"):
+            H.append_entry(log, entry)
+    for rubric in ("calibration:integrity:rubric-v9", "  Calibration:Other:x "):
+        with pytest.raises(H.HeldoutError, match="calibration"):
+            H.record_scoring(log, ids, rubric)
+    assert len(H.read_log(log)) == 2 and not cert(log, "rubric-v9")
+    # (b) the same pair chained by hand still does not certify: these cases were already
+    # calibrated for this task score under another rubric, anywhere in the log
+    shopped = tmp_path / "shopped.jsonl"
+    shutil.copy(log, shopped)
+    _hand_pair(shopped, forged_scored, forged)
+    assert H.chain_problems(shopped) == [] and not cert(shopped, "rubric-v9")
+    # an earlier scoring under another rubric through another criterion name counts too
+    renamed = tmp_path / "renamed.jsonl"
+    shutil.copy(log, renamed)
+    _hand_pair(renamed, forged_scored, {**forged, "criterion": "integrity2"})
+    assert not I.calibration_certified(renamed, criterion="integrity2", case_ids=ids,
+                                       rubric_hash="rubric-v9", run_hash="run-1",
+                                       task_score="integrity")  # fmt: skip
+    # control: alone in a log, the hand-written pair is well-formed (what blocks it above is
+    # the earlier scoring; a whole chain forged by hand is git review's and verify-log's job)
+    alone = tmp_path / "alone.jsonl"
+    _hand_pair(alone, forged_scored, forged)
+    assert cert(alone, "rubric-v9")
+
+
+@pytest.mark.safety
+def test_a_crash_leaves_both_scoring_lines_or_neither(tmp_path, monkeypatch):
+    """Verifier pass 2, C1/C4: the heldout_scored and calibration_scored lines are one write,
+    so a crash leaves both or neither, and a lone calibration-namespaced heldout_scored line
+    can never be completed later."""
+    rows, items, m = build(tmp_path)
+    ids = heldout_ids(rows)
+
+    def cert(log: Path) -> bool:
+        return I.calibration_certified(log, criterion="integrity", case_ids=ids,
+                                       rubric_hash=RUBRIC, run_hash="run-1")  # fmt: skip
+
+    # p4 C1: a crash on a second append used to leave the heldout_scored line alone
+    real_append = H._append_locked
+    calls = [0]
+
+    def crashy(p: Path, e: Any, *, doing: str) -> Any:
+        calls[0] += 1
+        if calls[0] == 2:
+            raise SystemExit("simulated crash")
+        return real_append(p, e, doing=doing)
+
+    monkeypatch.setattr(H, "_append_locked", crashy)
+    log = tmp_path / "log.jsonl"
+    score(rows, items, m, log)
+    assert [r["kind"] for r in H.read_log(log)] == ["heldout_scored", "calibration_scored"]
+    monkeypatch.undo()
+    # a crash before the one write leaves neither line, so scoring again is allowed
+    real_write = H._write_lines
+
+    def dying(p: Path, text: str) -> None:
+        raise SystemExit("simulated crash")
+
+    monkeypatch.setattr(H, "_write_lines", dying)
+    crashed = tmp_path / "crashed.jsonl"
+    with pytest.raises(SystemExit):
+        score(rows, items, m, crashed)
+    assert H.read_log(crashed) == []
+    monkeypatch.undo()
+    assert score(rows, items, m, crashed).certified and cert(crashed)
+    # one write carries both lines, chained, with one pair id
+    writes: list[str] = []
+
+    def counting(p: Path, text: str) -> None:
+        writes.append(text)
+        real_write(p, text)
+
+    monkeypatch.setattr(H, "_write_lines", counting)
+    one = tmp_path / "one.jsonl"
+    score(rows, items, m, one)
+    monkeypatch.undo()
+    assert len(writes) == 1 and writes[0].count("\n") == 2
+    raw = one.read_text(encoding="utf-8").splitlines()
+    a, b = (json.loads(x) for x in raw)
+    assert a["pair"] == b["pair"] == I._pair_id(_body(b))
+    assert b["prev"] == hashlib.sha256(raw[0].encode()).hexdigest()
+    # p4 C4: a lone heldout_scored line (an older crash, or B5.14's line alone) followed by an
+    # honest-looking calibration line: the public API refuses it, and by hand it is no pair
+    lone = tmp_path / "lone.jsonl"
+    _hand_append(lone, _body(a))  # no pair id
+    with pytest.raises(H.HeldoutError, match="calibration"):
+        H.append_entry(lone, _body(b))
+    _hand_append(lone, {**_body(b), "pair": b["pair"]})
+    assert H.chain_problems(lone) == [] and not cert(lone)
+    # pair ids that differ, or a line between the two, are no pair either
+    for name, first_line, gap in (("other", {**_body(a), "pair": "0" * 64}, False),
+                                  ("gap", {**_body(a), "pair": a["pair"]}, True)):  # fmt: skip
+        log = tmp_path / f"{name}.jsonl"
+        _hand_append(log, first_line)
+        if gap:
+            _hand_append(log, {"kind": "note"})
+        _hand_append(log, {**_body(b), "pair": b["pair"]})
+        assert not cert(log)
+    # a calibration line whose content does not hash to its pair id
+    edited = tmp_path / "edited.jsonl"
+    _hand_append(edited, {**_body(a), "pair": a["pair"]})
+    _hand_append(edited, {**_body(b), "pair": a["pair"], "at": "2026-12-01"})
+    assert not cert(edited)
+
+
+@pytest.mark.safety
+def test_bar_floors_are_enforced_at_load_and_at_certification(tmp_path, capsys):
+    """Verifier pass 2, bar: each bar field has a floor no criterion can go below; a bar under
+    it is refused at load (CLI exit 2) and a recorded line with one never certifies; judges
+    that always say clean never certify."""
+    from evalkit import cli
+
+    floors: dict[str, Any] = dict(I.BAR_FLOORS)
+    assert floors == {"min_self_kappa": 0.4, "min_planted_accuracy": 0.6,
+                      "min_judge_kappa_lo": 0.2, "min_repeats": 10, "min_planted": 3}  # fmt: skip
+
+    def below(name: str) -> Any:
+        f = floors[name]
+        return f - 1 if isinstance(f, int) else round(f - 0.05, 2)
+
+    default = I.ConsistencyBar()
+    for name, floor in floors.items():
+        assert getattr(default, name) >= floor
+        assert getattr(I.ConsistencyBar(**{name: floor}), name) == floor  # the floor itself
+        for bad in (below(name), None):
+            kw: dict[str, Any] = {name: bad}
+            with pytest.raises(I.SheetError, match=f"{name}.*floor"):
+                I.ConsistencyBar(**kw)
+    with pytest.raises(I.SheetError):  # p4 B1: the -1 bar
+        I.ConsistencyBar(min_self_kappa=-1.0, min_planted_accuracy=-1.0,
+                         min_judge_kappa_lo=-1.0, min_repeats=1, min_planted=0)  # fmt: skip
+    with pytest.raises(I.SheetError, match="min_repeats"):  # p4 B4: no repeats
+        I.ConsistencyBar(min_repeats=0, min_planted=0)
+    # at load: a clear error naming the field and its floor; the CLI exits 2
+    crit = _crit_file(tmp_path)
+    crit.write_text(crit.read_text(encoding="utf-8") + "bar: {min_judge_kappa_lo: 0.1}\n",
+                    encoding="utf-8")  # fmt: skip
+    with pytest.raises(I.SheetError, match=r"min_judge_kappa_lo.*floor"):
+        I.load_criterion(crit)
+    run = _run_folder(tmp_path)
+    manifest(tmp_path / "m")
+    m = str(tmp_path / "m" / "MANIFEST.json")
+    capsys.readouterr()
+    assert cli.main(["calibrate", "export", str(run), "--criterion", str(crit),
+                     "--manifest", m]) == 2  # fmt: skip
+    err = capsys.readouterr().err
+    assert "min_judge_kappa_lo" in err and "floor" in err and "Traceback" not in err
+    # a recorded line with a sub-floor (or missing) bar field never certifies (p4 F4)
+    rows, items, mm = build(tmp_path / "s")
+    ids = heldout_ids(rows)
+
+    def cert(log: Path) -> bool:
+        return I.calibration_certified(log, criterion="integrity", case_ids=ids,
+                                       rubric_hash=RUBRIC, run_hash="run-1")  # fmt: skip
+
+    good = tmp_path / "good.jsonl"
+    assert score(rows, items, mm, good).certified and cert(good)
+    scored, line = H.read_log(good)
+    for name in floors:
+        lax = {**line["bar"], name: below(name)}
+        dropped = {k: v for k, v in line["bar"].items() if k != name}
+        for n, bar in enumerate((lax, dropped)):
+            log = tmp_path / f"lax-{name}-{n}.jsonl"
+            _hand_pair(log, scored, {**line, "bar": bar})
+            assert H.chain_problems(log) == [] and not cert(log)
+    honest = tmp_path / "honest.jsonl"
+    _hand_pair(honest, scored, line)
+    assert cert(honest)  # the shape above is valid: only the bar differs
+    # judges that always say "clean" never certify, even against a bar at the floors
+    flat = [I.Item(i.case_id, i.parts, i.ids, {"judge-a": "clean", "judge-b": "clean"},
+                   i.rubric_hash) for i in items]  # fmt: skip
+    got = score(rows, flat, mm, tmp_path / "flat.jsonl", bar=I.ConsistencyBar(**floors))
+    assert not got.certified and all(a.kappa.lo <= 0 for a in got.agreements)
