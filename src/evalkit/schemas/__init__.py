@@ -13,6 +13,7 @@ from evalkit.schemas.agent import (
 from evalkit.schemas.benchmark import (
     Answer,
     Case,
+    CitationVerdict,
     Claim,
     ClaimVerdict,
     Completion,
@@ -40,6 +41,7 @@ __all__ = [
     "CalibrationLabel",
     "CalibrationReport",
     "Case",
+    "CitationVerdict",
     "Claim",
     "ClaimVerdict",
     "Completion",

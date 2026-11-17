@@ -24,18 +24,27 @@ from evalkit.pipeline.extract import coverage as coverage_score
 from evalkit.pipeline.generate import Generated, provider_for
 from evalkit.pipeline.judge import (
     JUDGE_PROMPT_HASH,
+    CitationResult,
     JudgeSelection,
     JudgingResult,
     groundedness,
 )
-from evalkit.schemas import Case, ClaimVerdict, Completion, Interval, Record, RunSummary
+from evalkit.schemas import (
+    Case,
+    CitationVerdict,
+    ClaimVerdict,
+    Completion,
+    Interval,
+    Record,
+    RunSummary,
+)
 from evalkit.schemas._base import SCHEMA_VERSION
 from evalkit.schemas.benchmark import Scores
 from evalkit.schemas.config import Threshold
 from evalkit.schemas.summary import JudgeAgreement, ModelSummary, PairComparison, SliceSummary
 from evalkit.scorers.base import Scorer
 from evalkit.scorers.deterministic import citation_valid, label_correct
-from evalkit.stats import Resamples, holm, interval, paired, percentile_ms
+from evalkit.stats import Resamples, holm, interval, paired, percentile_ms, ratio_interval
 
 Family = Literal["anthropic", "openai", "other"]
 PER_JUDGE_METRICS = ("headline", "groundedness")
@@ -99,15 +108,18 @@ def build_records(
     prompt_hash: str,
     timestamp: datetime,
     task_scorers: Sequence[Scorer] = (),
+    citations: Sequence[CitationResult] = (),
 ) -> list[Record]:
     """One scored Record per generated answer. Only judges whose results are complete
     contribute verdicts and per-judge scores (D-37). Task scorers (v0.2) run once per record
-    and fill `task_scores`; one that fails raises TaskScorerError."""
+    and fill `task_scores`; one that fails raises TaskScorerError. Complete citation-judge
+    results (B5.12) fill `citation_support` per judge, in claim order."""
     from evalkit.pipeline.task_scorers import score_task
 
     if len(generated) != len(claim_sets):
         raise ValueError("one claim set per generated answer")
     done = {r.judge: r.verdicts for r in judging if r.status == "complete"}
+    cited = {r.judge: r.verdicts for r in citations if r.status == "complete"}
     out = []
     for g, cs in zip(generated, claim_sets, strict=True):
         prefix = f"{g.case.id}:{g.model}:"
@@ -146,9 +158,61 @@ def build_records(
                 git_sha=git_sha,
                 prompt_hash=prompt_hash,
                 task_scores=task_scores,
+                citation_support={
+                    j: tuple(v for c in cs.claims for v in cited[j].get(c.id, ()))
+                    for j in sorted(cited)
+                },
             )
         )
     return out
+
+
+# Ties between roles are broken in this order, so an aim reading is never hidden (B5.12).
+ROLE_TIE_ORDER = ("aim", "background", "method", "conclusion", "result")
+
+
+def citation_counts(verdicts: Sequence[CitationVerdict]) -> tuple[int, int, bool]:
+    """One answer's citation verdicts from one judge -> (supporting sentences, cited sentences,
+    aim hit). The cited set is the distinct sentences its judged claims cite; a sentence
+    supports if it supports at least one claim; its role is the most common role the judge
+    gave it (ties: aim, background, method, conclusion, result); an aim hit is a cited `aim`
+    sentence that supports none of the answer's claims."""
+    by_n: dict[int, list[CitationVerdict]] = {}
+    for v in verdicts:
+        by_n.setdefault(v.n, []).append(v)
+    supporting, aim_hit = 0, False
+    for vs in by_n.values():
+        supports = any(v.supports for v in vs)
+        counts = Counter(v.role for v in vs)
+        role = max(ROLE_TIE_ORDER, key=lambda r: (counts[r], -ROLE_TIE_ORDER.index(r)))
+        supporting += supports
+        aim_hit = aim_hit or (role == "aim" and not supports)
+    return supporting, len(by_n), aim_hit
+
+
+def citation_metrics(
+    rows: Sequence[Record], judges: Sequence[str], rs: Resamples
+) -> tuple[dict[str, Interval], dict[str, Interval]]:
+    """Per judge over one model's cases (in resample order): citation precision (Σ supporting /
+    Σ cited, over answers with at least one judged citation) and aim-citation rate (share of
+    those answers with an aim hit), each with a bootstrap interval over cases. A judge with
+    no judged citation for these cases is left out."""
+    precision: dict[str, Interval] = {}
+    aim_rate: dict[str, Interval] = {}
+    for j in judges:
+        counts = [citation_counts(r.citation_support.get(j, ())) for r in rows]
+        den = [float(c[1]) for c in counts]
+        if not any(den):
+            continue
+        precision[j] = ratio_interval([float(c[0]) for c in counts], den, rs)
+        eligible = [1.0 if d else 0.0 for d in den]
+        aim_rate[j] = ratio_interval([float(c[2]) for c in counts], eligible, rs)
+    return precision, aim_rate
+
+
+def _citation_judges(records: Sequence[Record], judges: Sequence[str]) -> tuple[str, ...]:
+    have = {j for r in records for j in r.citation_support}
+    return tuple(j for j in judges if j in have)
 
 
 def _observed(m: ModelSummary, metric: str) -> float | None:
@@ -227,6 +291,8 @@ def aggregate(
                     "rebuild records after judging completes"
                 )
     task_names = _task_score_names(records)
+    # B5.12: citation figures only once every judge (claims and citations) has finished.
+    cite_judges = _citation_judges(records, judges) if complete else ()
     if slices and cases is None:
         raise ValueError("slices need the run's cases")
     rs = Resamples(len(case_ids), n_resamples, seed=seed)
@@ -256,6 +322,7 @@ def aggregate(
         # time; transport failures have no meaningful latency.
         ok_latency = [r.completion.latency_ms for r in rows if r.completion.error != "transport"]
         errors = Counter(r.completion.error for r in rows if r.completion.error is not None)
+        precision, aim_rate = citation_metrics(rows, cite_judges, rs)
         summary = ModelSummary(
             model=m,
             family=family_of(m),
@@ -275,6 +342,8 @@ def aggregate(
             task_scores={
                 t: interval(vec(m, lambda r, t=t: r.task_scores[t].value), rs) for t in task_names
             },
+            citation_precision=precision,
+            aim_citation_rate=aim_rate,
         )
         failed = []
         all_failed = sum(errors.values()) == n
@@ -353,7 +422,16 @@ def aggregate(
         started_at=started_at,
         finished_at=finished_at if complete else None,
         slices=_slices(
-            by_model, case_ids, cases or {}, slices, judges, task_names, complete, n_resamples, seed
+            by_model,
+            case_ids,
+            cases or {},
+            slices,
+            judges,
+            task_names,
+            complete,
+            n_resamples,
+            seed,
+            cite_judges,
         ),
     )
 
@@ -398,6 +476,7 @@ def _slices(
     complete: bool,
     n_resamples: int,
     seed: int,
+    cite_judges: Sequence[str] = (),
 ) -> tuple[SliceSummary, ...]:
     """Per-slice figures (v0.2, D-59): each (field, value, model) over that slice's cases
     only, with a bootstrap over those cases (seeded, so reruns are identical)."""
@@ -424,6 +503,7 @@ def _slices(
                 ]
                 errors = Counter(r.completion.error for r in rows if r.completion.error is not None)
                 per_judge = judges if complete else ()
+                precision, aim_rate = citation_metrics(rows, cite_judges, rs)
                 out.append(
                     SliceSummary(
                         field=field,
@@ -449,6 +529,8 @@ def _slices(
                         * 100,
                         latency_p50_ms=percentile_ms(ok_latency, 0.50) if ok_latency else None,
                         latency_p95_ms=percentile_ms(ok_latency, 0.95) if ok_latency else None,
+                        citation_precision=precision,
+                        aim_citation_rate=aim_rate,
                     )
                 )
     return tuple(out)

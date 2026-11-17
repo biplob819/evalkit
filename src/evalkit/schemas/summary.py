@@ -52,8 +52,16 @@ class ModelSummary(Model):
     failed_thresholds: tuple[str, ...]
     # v0.2 (D-59): task scorer -> mean over all cases with its 95% bootstrap interval.
     task_scores: FrozenMap[Interval] = Field(default_factory=FrozenDict)
+    # B5.12, per judge (tasks that list `citation_support`): supporting cited sentences over all
+    # cited sentences, and the share of answers citing a non-supporting `aim` sentence.
+    citation_precision: FrozenMap[Interval] = Field(default_factory=FrozenDict)
+    aim_citation_rate: FrozenMap[Interval] = Field(default_factory=FrozenDict)
 
-    _omit_if_default: ClassVar[tuple[str, ...]] = ("task_scores",)
+    _omit_if_default: ClassVar[tuple[str, ...]] = (
+        "task_scores",
+        "citation_precision",
+        "aim_citation_rate",
+    )
 
     @model_validator(mode="after")
     def _consistency(self) -> ModelSummary:
@@ -109,6 +117,10 @@ class SliceSummary(Model):
     cost_per_100_usd: NonNegFloat
     latency_p50_ms: NonNegInt | None
     latency_p95_ms: NonNegInt | None
+    citation_precision: FrozenMap[Interval] = Field(default_factory=FrozenDict)  # B5.12
+    aim_citation_rate: FrozenMap[Interval] = Field(default_factory=FrozenDict)  # B5.12
+
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("citation_precision", "aim_citation_rate")
 
     @model_validator(mode="after")
     def _consistency(self) -> SliceSummary:
@@ -189,7 +201,9 @@ class RunSummary(Versioned):
         for s in self.slices:
             if s.model not in known:
                 raise ValueError(f"slice {s.field}={s.value} names unknown model {s.model!r}")
-            if self.judging_status == "pending" and s.headline:
+            if self.judging_status == "pending" and (
+                s.headline or s.citation_precision or s.aim_citation_rate
+            ):
                 raise ValueError("a pending run cannot report per-judge figures in slices")
             if self.judging_status == "complete" and len(s.headline) != n_judges:
                 raise ValueError(
@@ -215,7 +229,9 @@ class RunSummary(Versioned):
         if self.judging_status == "pending":
             # D-37: no per-judge figures until every judge has finished.
             self._check_times()
-            if self.self_preference or any(m.headline for m in self.models):
+            if self.self_preference or any(
+                m.headline or m.citation_precision or m.aim_citation_rate for m in self.models
+            ):
                 raise ValueError("a pending run cannot report per-judge figures")
             if any(c.metric == "headline" for c in self.comparisons):
                 raise ValueError("a pending run cannot compare headlines")

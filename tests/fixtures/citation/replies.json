@@ -1,0 +1,11 @@
+{
+ "_source": "Recorded citation-judge replies in the provider's raw_text form for B5.12 CIT-03; written for the fixture, no API was called",
+ "pqa-10808977:gemma-e2b-grounded-q4:0": {
+  "claude-opus-5-5": "{\"sentences\": [{\"n\": 3, \"supports\": false, \"role\": \"aim\"}]}",
+  "gpt-6.1-sol": "{\"sentences\": [{\"n\": 3, \"supports\": false, \"role\": \"aim\"}]}"
+ },
+ "aim-beside-result:m:0": {
+  "claude-opus-5-5": "{\"sentences\": [{\"n\": 3, \"supports\": false, \"role\": \"aim\"}, {\"n\": 8, \"supports\": true, \"role\": \"result\"}]}",
+  "gpt-6.1-sol": "{\"sentences\": [{\"n\": 8, \"supports\": true, \"role\": \"result\"}, {\"n\": 3, \"supports\": false, \"role\": \"aim\"}]}"
+ }
+}

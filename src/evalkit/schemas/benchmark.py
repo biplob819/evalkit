@@ -24,6 +24,9 @@ from evalkit.schemas._base import (
 ErrorType = Literal["transport", "schema", "refusal"]
 ERROR_TYPES: tuple[str, ...] = get_args(ErrorType)
 Verdict = Literal["supported", "unsupported"]
+# B5.12: what part of the study a cited sentence is.
+CitationRole = Literal["aim", "background", "method", "result", "conclusion"]
+CITATION_ROLES: tuple[str, ...] = get_args(CitationRole)
 
 
 class Case(Model):
@@ -86,6 +89,17 @@ class ClaimVerdict(Model):
     judge_prompt_hash: NonBlank
 
 
+class CitationVerdict(Model):
+    """One judge's reading of one sentence a claim cites (B5.12): whether that sentence on its
+    own supports the claim, and its role in the source (`aim` is the question, objective or
+    hypothesis)."""
+
+    claim_id: NonBlank
+    n: SentenceNo
+    supports: Annotated[bool, Field(strict=True)]
+    role: CitationRole
+
+
 class Scores(Model):
     label_correct: bool
     citation_valid: Fraction
@@ -130,8 +144,10 @@ class Record(Versioned):
     git_sha: str
     prompt_hash: NonBlank
     task_scores: FrozenMap[TaskScore] = Field(default_factory=FrozenDict)  # v0.2: by scorer name
+    # B5.12: per judge, its citation verdicts for this record's claims (`citation_support`).
+    citation_support: FrozenMap[tuple[CitationVerdict, ...]] = Field(default_factory=FrozenDict)
 
-    _omit_if_default: ClassVar[tuple[str, ...]] = ("task_scores",)
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("task_scores", "citation_support")
 
     @model_validator(mode="after")
     def _claims_and_verdicts_link(self) -> Record:
@@ -144,4 +160,15 @@ class Record(Versioned):
         pairs = [(v.claim_id, v.judge) for v in self.verdicts]
         if len(pairs) != len(set(pairs)):
             raise ValueError("a judge may give at most one verdict per claim")
+        cited = {c.id: set(c.cited) for c in self.claims}
+        for judge, cvs in self.citation_support.items():
+            seen = set()
+            for cv in cvs:
+                if cv.claim_id not in cited:
+                    raise ValueError(f"citation verdict names claim {cv.claim_id!r}, not here")
+                if cv.n not in cited[cv.claim_id]:
+                    raise ValueError(f"{cv.claim_id} does not cite sentence {cv.n}")
+                if (cv.claim_id, cv.n) in seen:
+                    raise ValueError(f"{judge} judged sentence {cv.n} of {cv.claim_id} twice")
+                seen.add((cv.claim_id, cv.n))
         return self

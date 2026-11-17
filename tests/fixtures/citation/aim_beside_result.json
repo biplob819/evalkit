@@ -1,0 +1,20 @@
+{
+ "_source": "B5.12 CIT-03 (b): a claim citing the aim sentence [3] beside the result sentence [8] of pqa-10808977; only [8] supports it",
+ "claim": {
+  "id": "aim-beside-result:m:0",
+  "text": "Compared to usual care, telephone counseling raised on-schedule mammography more than tailored print did (71% vs 67%) after the first year.",
+  "cited": [
+   3,
+   8
+  ],
+  "extractor_version": "ext2-f484fe5e"
+ },
+ "claim_verdict": {
+  "verdict": "supported",
+  "evidence": [
+   8
+  ],
+  "quote": null,
+  "rationale": "Sentence 8 reports 71% vs 61% for telephone counseling and 67% vs 61% for tailored print after the first year."
+ }
+}
