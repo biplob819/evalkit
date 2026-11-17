@@ -20,6 +20,7 @@ from evalkit.schemas._base import Model, NonBlank
 from .cases import AttackCase, AttackSuite, canary_in, case_key, check_cases
 from .errors import SecurityError
 from .layers import LayerSet
+from .trials import call_guarded
 
 SCRIPTED_FILE = "scripted.jsonl"
 
@@ -78,17 +79,9 @@ def scripted_attack(
         raise SecurityError(f"{case_key(case)}: no payloads for the scripted attacker")
     found: list[str] = []
     for call in case.payloads:
-        try:
-            reply = surface.call(call.tool, dict(call.arguments))
-        except Exception as exc:
-            if case.split == "public":
-                raise SecurityError(
-                    f"the tool surface raised {type(exc).__name__} on {case.id}: {exc}"
-                ) from exc
-            raise SecurityError(
-                f"the tool surface raised {type(exc).__name__} on {case_key(case)} "
-                "(message withheld: held-out case)"
-            ) from exc
+        reply = call_guarded(
+            case, "the tool surface", lambda c=call: surface.call(c.tool, dict(c.arguments))
+        )
         found.append(_payload_layer(case, reply, ls))
     passed = all(x in case.expected_stop for x in found)
     detail = ""

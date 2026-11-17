@@ -6,6 +6,7 @@ generalised: any tools, any layer vocabulary, held-out cases pinned by B5.14's m
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -17,7 +18,7 @@ from pydantic import Field, ValidationError, model_validator
 
 from evalkit import heldout as H
 from evalkit.schemas import AttackBlocked, Trajectory
-from evalkit.schemas._base import FrozenMap, JsonValue, Model, Name, NonBlank
+from evalkit.schemas._base import FrozenMap, JsonValue, Model, Name, NonBlank, PosInt
 from evalkit.scorers import attack_outcome
 
 from .errors import SecurityError
@@ -83,6 +84,7 @@ class AttackCase(Model):
     expected_stop: Annotated[tuple[LayerName, ...], Field(min_length=1)]
     split: Literal["public", "heldout"]
     allowed_tools: tuple[Name, ...] | None = None
+    k: PosInt | None = None  # this case's trials, overriding the run's
 
     @model_validator(mode="after")
     def _consistent(self) -> AttackCase:
@@ -108,6 +110,13 @@ class AttackCase(Model):
 def case_key(case: AttackCase) -> str:
     """How outputs name a case: its id when public, `heldout:<manifest id>` when held out."""
     return case.id if case.split == "public" else f"heldout:{H.manifest_id(case.id)}"
+
+
+def case_hash(case: AttackCase) -> str:
+    """First 16 hex characters of the sha256 of the case's canonical JSON: an edited case is a
+    different case."""
+    text = json.dumps(case.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def check_cases(cases: Sequence[AttackCase], layers: LayerSet | None = None) -> list[str]:
@@ -188,6 +197,20 @@ class AttackSuite:
     @property
     def heldout(self) -> tuple[AttackCase, ...]:
         return tuple(c for c in self.cases if c.split == "heldout")
+
+    def fingerprint(self) -> str:
+        """sha256 of the sorted (case key, case hash) pairs and, with held-out cases, the
+        manifest's own hash: a resume or report against another suite is detectable."""
+        pairs = sorted((case_key(c), case_hash(c)) for c in self.cases)
+        manifest = None
+        if self.heldout and self.manifest_path is not None:
+            try:
+                data = json.loads(Path(self.manifest_path).read_text(encoding="utf-8"))
+                manifest = data.get("manifest_sha256") if isinstance(data, dict) else None
+            except (OSError, ValueError):
+                manifest = None
+        body = json.dumps({"cases": pairs, "manifest": manifest}, sort_keys=True)
+        return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
     def verify(self) -> None:
         """Refuse held-out cases whose file no longer matches its manifest, or that have no

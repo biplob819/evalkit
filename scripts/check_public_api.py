@@ -229,6 +229,9 @@ PUBLIC: dict[str, list[str]] = {
         "check_cases",
         "load_attack_cases",
         "load_suite",
+        "case_hash",  # fix round
+        "load_layers",  # fix round
+        "two_level_interval",  # fix round
         "main",
         "read_scripted",
         "read_trials",

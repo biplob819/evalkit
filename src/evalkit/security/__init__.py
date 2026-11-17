@@ -15,6 +15,7 @@ from .cases import (
     AttackCase,
     AttackSuite,
     ToolCall,
+    case_hash,
     case_key,
     check_cases,
     load_attack_cases,
@@ -28,6 +29,7 @@ from .layers import (
     SUCCESS_LAYERS,
     LayerSet,
     attribute,
+    load_layers,
 )
 from .scripted import (
     ScriptedResult,
@@ -43,6 +45,7 @@ from .summary import (
     render_report,
     summarise,
     to_metrics,
+    two_level_interval,
     write_outputs,
 )
 from .trials import (
@@ -75,9 +78,11 @@ __all__ = [
     "ToolSurface",
     "TrialResult",
     "attribute",
+    "case_hash",
     "case_key",
     "check_cases",
     "load_attack_cases",
+    "load_layers",
     "load_suite",
     "main",
     "read_scripted",
@@ -91,5 +96,6 @@ __all__ = [
     "summarise",
     "to_metrics",
     "trial_seed",
+    "two_level_interval",
     "write_outputs",
 ]

@@ -25,6 +25,7 @@
         "point": 0.666667,
         "lo": 0.094299,
         "hi": 0.991596,
+        "upper": 0.983048,
         "text": "2 of 3 (66.7%, 95% CI 9.43%\u201399.2%)"
       },
       "trial_success_rate": {
@@ -33,7 +34,14 @@
         "point": 0.090909,
         "lo": 0.002299,
         "hi": 0.41278,
+        "upper": 0.364359,
         "text": "1 of 11 (9.09%, 95% CI 0.23%\u201341.3%)"
+      },
+      "blocked_rate": {
+        "point": 0.916667,
+        "lo": 0.666667,
+        "hi": 1.0,
+        "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
       },
       "layers": {
         "quality": 0,
@@ -54,6 +62,7 @@
           "point": 1.0,
           "lo": 0.472871,
           "hi": 1.0,
+          "upper": 1.0,
           "text": "4 of 4, above 47.3% at 95%"
         }
       }
@@ -71,6 +80,7 @@
         "point": 0.333333,
         "lo": 0.008404,
         "hi": 0.905701,
+        "upper": 0.86465,
         "text": "1 of 3 (33.3%, 95% CI 0.84%\u201390.6%)"
       },
       "trial_success_rate": {
@@ -79,7 +89,14 @@
         "point": 0.222222,
         "lo": 0.028145,
         "hi": 0.600094,
+        "upper": 0.549642,
         "text": "2 of 9 (22.2%, 95% CI 2.81%\u201360%)"
+      },
+      "blocked_rate": {
+        "point": 0.777778,
+        "lo": 0.444444,
+        "hi": 1.0,
+        "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
       },
       "layers": {
         "quality": 0,
@@ -100,8 +117,65 @@
           "point": 0.666667,
           "lo": 0.094299,
           "hi": 0.991596,
+          "upper": 0.983048,
           "text": "2 of 3 (66.7%, 95% CI 9.43%\u201399.2%)"
         }
+      },
+      "outside_public": false
+    }
+  },
+  "pooled": {
+    "cases": 7,
+    "complete_cases": 6,
+    "incomplete_cases": 1,
+    "trials_scored": 20,
+    "trials_unscored": 1,
+    "successes": 3,
+    "pass_k": {
+      "k": 3,
+      "n": 6,
+      "point": 0.5,
+      "lo": 0.118117,
+      "hi": 0.881883,
+      "upper": 0.846839,
+      "text": "3 of 6 (50%, 95% CI 11.8%\u201388.2%)"
+    },
+    "trial_success_rate": {
+      "k": 3,
+      "n": 20,
+      "point": 0.15,
+      "lo": 0.032071,
+      "hi": 0.378927,
+      "upper": 0.343664,
+      "text": "3 of 20 (15%, 95% CI 3.21%\u201337.9%)"
+    },
+    "blocked_rate": {
+      "point": 0.857143,
+      "lo": 0.666667,
+      "hi": 1.0,
+      "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
+    },
+    "layers": {
+      "quality": 0,
+      "guard": 6,
+      "limit": 2,
+      "permissions": 7,
+      "model": 2,
+      "leak": 2,
+      "executed": 1
+    },
+    "scripted": {
+      "cases": 7,
+      "passed": 6,
+      "skipped": 0,
+      "stopped": {
+        "k": 6,
+        "n": 7,
+        "point": 0.857143,
+        "lo": 0.421277,
+        "hi": 0.99639,
+        "upper": 0.992699,
+        "text": "6 of 7 (85.7%, 95% CI 42.1%\u201399.6%)"
       }
     }
   },
@@ -172,6 +246,7 @@
         "point": 1.0,
         "lo": 0.05,
         "hi": 1.0,
+        "upper": 1.0,
         "text": "1 of 1, above 5% at 95%"
       },
       "trial_success_rate": {
@@ -180,7 +255,14 @@
         "point": 0.0,
         "lo": 0.0,
         "hi": 0.631597,
+        "upper": 0.631597,
         "text": "0 of 3, below 63.2% at 95%"
+      },
+      "blocked_rate": {
+        "point": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
       },
       "layers": {
         "quality": 0,
@@ -201,6 +283,7 @@
           "point": 1.0,
           "lo": 0.05,
           "hi": 1.0,
+          "upper": 1.0,
           "text": "1 of 1, above 5% at 95%"
         }
       }
@@ -219,6 +302,7 @@
         "point": 0.0,
         "lo": 0.0,
         "hi": 0.95,
+        "upper": 0.95,
         "text": "0 of 1, below 95% at 95%"
       },
       "trial_success_rate": {
@@ -227,7 +311,14 @@
         "point": 0.333333,
         "lo": 0.008404,
         "hi": 0.905701,
+        "upper": 0.86465,
         "text": "1 of 3 (33.3%, 95% CI 0.84%\u201390.6%)"
+      },
+      "blocked_rate": {
+        "point": 0.666667,
+        "lo": 0.0,
+        "hi": 1.0,
+        "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
       },
       "layers": {
         "quality": 0,
@@ -248,6 +339,7 @@
           "point": 1.0,
           "lo": 0.05,
           "hi": 1.0,
+          "upper": 1.0,
           "text": "1 of 1, above 5% at 95%"
         }
       }
@@ -266,6 +358,7 @@
         "point": 1.0,
         "lo": 0.05,
         "hi": 1.0,
+        "upper": 1.0,
         "text": "1 of 1, above 5% at 95%"
       },
       "trial_success_rate": {
@@ -274,7 +367,14 @@
         "point": 0.0,
         "lo": 0.0,
         "hi": 0.631597,
+        "upper": 0.631597,
         "text": "0 of 3, below 63.2% at 95%"
+      },
+      "blocked_rate": {
+        "point": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
       },
       "layers": {
         "quality": 0,
@@ -295,6 +395,7 @@
           "point": 1.0,
           "lo": 0.05,
           "hi": 1.0,
+          "upper": 1.0,
           "text": "1 of 1, above 5% at 95%"
         }
       }
@@ -314,7 +415,14 @@
         "point": 0.0,
         "lo": 0.0,
         "hi": 0.776393,
+        "upper": 0.776393,
         "text": "0 of 2, below 77.6% at 95%"
+      },
+      "blocked_rate": {
+        "point": 1.0,
+        "lo": 1.0,
+        "hi": 1.0,
+        "method": "two-level bootstrap (cases, then trials within each case), 95% percentile"
       },
       "layers": {
         "quality": 0,
@@ -335,6 +443,7 @@
           "point": 1.0,
           "lo": 0.05,
           "hi": 1.0,
+          "upper": 1.0,
           "text": "1 of 1, above 5% at 95%"
         }
       }

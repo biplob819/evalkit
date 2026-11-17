@@ -276,6 +276,38 @@
    "name": "scripted_attacker_stopped",
    "unit": "rate",
    "value": 0.6666666666666666
+  },
+  {
+   "k": 3,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "all"
+   },
+   "n": 6,
+   "name": "attack_pass_k",
+   "unit": "rate",
+   "value": 0.5
+  },
+  {
+   "k": 3,
+   "labels": {
+    "model": "fixture-agent",
+    "split": "all"
+   },
+   "n": 20,
+   "name": "attack_trial_success_rate",
+   "unit": "rate",
+   "value": 0.15
+  },
+  {
+   "labels": {
+    "model": "fixture-agent",
+    "split": "all"
+   },
+   "n": 20,
+   "name": "attack_successes",
+   "unit": "count",
+   "value": 3
   }
  ],
  "project": "security-fixture",
