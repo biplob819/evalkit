@@ -81,11 +81,10 @@ ENV_ALLOW = {
 }  # not UV_INDEX_URL: an index URL can carry credentials
 ENV_ALLOW_WINDOWS = {"SYSTEMROOT", "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "WINDIR"}
 _COUNT_RE = re.compile(r"(\d+) (passed|failed|errors?|skipped)")
-# pytest's final line (plugins may add words such as "3 subtests passed"), e.g. "== 1 failed, 41 passed, 2 skipped in 9.10s ==" or, under -q,
-# "41 passed in 9.10s"; anchored so no other output line can be taken for it.
-_SUMMARY_RE = re.compile(
-    r"^=*\s*(?:\d+ [a-z][\w ]*?(?:, )?)+ in [\d.]+s(?: \([\d:]+\))?\s*=*$"
-)
+# pytest's final line, e.g. "== 1 failed, 41 passed, 2 skipped in 9.10s ==", or under -q
+# "41 passed in 9.10s"; plugins may add words ("3 subtests passed"). Anchored so no other
+# output line can be taken for it.
+_SUMMARY_RE = re.compile(r"^=*\s*(?:\d+ [a-z][\w ]*?(?:, )?)+ in [\d.]+s(?: \([\d:]+\))?\s*=*$")
 _SHORT_RE = re.compile(r"^(FAILED|ERROR|PASSED) (.+?)(?: - .*)?$")
 STDERR_MARK = "----- stderr -----"
 _NODE_RE = re.compile(r"tests/[\w/.-]+\.py(?:::\w+)+")
