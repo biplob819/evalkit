@@ -277,6 +277,7 @@ EXIT_CODES = {"0", "1", "2", "3", "4", "130"}
 
 # B5.9 (v0.4): calibration sheets for any criterion and labeller consistency.
 PUBLIC["evalkit.integrity"] = [
+    "BAR_FLOORS",
     "INTEGRITY",
     "CalibrationLine",
     "Consistency",

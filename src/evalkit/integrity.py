@@ -55,6 +55,7 @@ from evalkit.schemas import Case, Interval, Record
 from evalkit.schemas._base import FrozenMap, Model, NonBlank, NonNegInt
 
 __all__ = [
+    "BAR_FLOORS",
     "INTEGRITY",
     "CalibrationLine",
     "Consistency",

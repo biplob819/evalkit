@@ -3,6 +3,9 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.6] — Run-vs-run compare (lane build, merged): `evalkit compare OLD NEW` and `evalkit.compare` — paired two-level bootstrap on shared cases, case-only resampling, unpaired fallback labelled, Holm-adjusted flags, settings differences listed, baseline rules, held-out aggregates only; tested on assay-pipeline and respectful-offers fixtures. Spend: $0.
+- [FIX] [B5.9] — Forgery paths closed (verifier pass 2): EvalKit's public log API refuses calibration lines, certification re-applies the cross-rubric rule, the two scoring lines are one chained write, bar floors (`BAR_FLOORS`) enforced at load and at certification. Spend: $0.
+- [FIX] [B5.13] — value_check false negatives on fraud-review-bedrock's real model reasons: pass rate 65.1% → 83.5% with its options, no new false passes (threshold claims on the named field, times of day, policy constants, negated `holds` phrases, the scorer's reason overwrite). Spend: $0.
 - [FEAT] [B5.3] — Green after two verifier passes: `evalkit gate` with one-sided 95% Clopper-Pearson bounds (D-70), summary.json `efficiency` per model, held-out numeric splits never printed, typed disparity groups, "0 of n, below X%" wording throughout. Spend: $0.
 - [HARNESS] [B5.15] — D-71: opt-in `sql_match` shape equivalences for agentic-analytics (v0.4.0). Spend: $0.
 - [HARNESS] [B5.3, B5.11] — D-70: summary.json gains an optional `efficiency` field; gate bounds use one-sided 95% Clopper-Pearson; B5.11 spec written and assigned to assay-pipeline's session on `lane/b5.11`, depending on C3.4 and B5.14. Spend: $0.
