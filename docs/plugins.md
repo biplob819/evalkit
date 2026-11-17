@@ -149,7 +149,10 @@ policy_check = rule_compliance_scorer(
 )  # ship it under the `evalkit.scorers` entry-point group, then list `policy_check` in a task
 ```
 
-#### value_check: coming in 0.4.0 (D-74)
+#### value_check: a structured-facts check (0.4.0, D-74, D-77)
+
+`value_check` verifies plain "field is value" statements only, and every other number in a reason makes it unverifiable. To get coverage, ask your model to end each reason with a short facts line built from field names, for example: "Facts: Amount is 812.40. Hour is 3. Risk score is 0.83." The check verifies such a line reliably. Prose around it, such as "a large late-night purchase", is not read and does not need to be. Put the facts line in its own reason string, or in its own sentence, so that no other number shares its clause.
+
 
 `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and
 `ValueCheckShares` are **not part of the 0.3.0 public API** (OWNER D-74). They failed seven

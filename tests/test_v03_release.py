@@ -113,9 +113,10 @@ def test_the_contract_check_fails_if_a_withheld_name_is_exported(monkeypatch):
     assert _api.missing() == ["evalkit.scorers.value_check (withheld, D-74)"]
 
 
-def test_plugins_doc_marks_value_check_as_coming_in_0_4_0():
+def test_plugins_doc_marks_value_check_as_a_0_4_0_structured_facts_check():
+    """0.3.0 said "coming in 0.4.0" (D-74); since D-77 the section names the 0.4.0 check."""
     text = (ROOT / "docs" / "plugins.md").read_text(encoding="utf-8")
-    assert "#### value_check: coming in 0.4.0 (D-74)" in text
+    assert "#### value_check: a structured-facts check (0.4.0, D-74, D-77)" in text
     assert "from evalkit.scorers import value_check" not in text.replace(
         "`from evalkit.scorers import value_check` fails in 0.3.0", ""
     )
