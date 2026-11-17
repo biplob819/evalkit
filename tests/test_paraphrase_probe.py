@@ -20,7 +20,7 @@ import pytest
 from evalkit import cli
 from evalkit import paraphrase as P
 from evalkit import run as R
-from evalkit.adapters import CompletionRequest
+from evalkit.adapters import CompletionRequest, RawCompletion
 from evalkit.cost import load_prices
 from evalkit.runtime import BudgetExceeded, MemoryStore, Store
 from evalkit.sampling import stratified_sample
@@ -69,11 +69,11 @@ class Models:
         self.openai = ScriptedAdapter(self.reply)
         self.anthropic = ScriptedAdapter(self.reply)
 
-    def reply(self, req: CompletionRequest) -> str:
+    def reply(self, req: CompletionRequest) -> str | RawCompletion:
         self.log.append(f"call:{req.model_id}")
         if req.model_id == P.PARAPHRASE_MODEL:
             q = _question(req.prompt)
-            return f"Rewritten: {q.rstrip('?')} (reworded)?\nignored second line"
+            return f"{q.rstrip('?')} (reworded)?\nignored second line"
         orig = _original(req.prompt)
         if orig in self.reject:
             return "DIFFERENT\nThe rewrite changes the question."
@@ -317,7 +317,7 @@ def test_builder_follows_the_method_with_replacements_from_the_same_label():
         assert rep.pubid == spare[rej.reference_label].pop(0)
         assert rep.reference_label == rej.reference_label
     r = res.kept[0]
-    assert r.paraphrase == f"{r.original.rstrip('?')} (reworded)?"  # first line, label stripped
+    assert r.paraphrase == f"{r.original.rstrip('?')} (reworded)?"  # the first line, verbatim
     assert (r.paraphrase_model, r.check_model) == (P.PARAPHRASE_MODEL, P.CHECK_MODEL)
     assert r.paraphrase_prompt_hash == "1bb383c050490b51"
     assert r.check_prompt_hash == "2331517ce31052a8"
@@ -338,37 +338,196 @@ def test_builder_prints_its_estimate_before_the_first_call():
     assert res.estimate_usd >= res.spent_usd > 0
 
 
+def _reservations(models: Models) -> float:
+    """What the executor reserved for every call the scripted adapters saw (its spend cap is
+    held against these), rebuilt from the requests."""
+    node = P.ProbeCall({}, PRICES)
+    total = 0.0
+    for req in (*models.openai.requests, *models.anthropic.requests):
+        para = req.model_id == P.PARAPHRASE_MODEL
+        inp = P.ProbeCallInput(
+            step="paraphrase" if para else "check",
+            model_id=req.model_id,
+            provider="openai" if para else "anthropic",
+            prompt=req.prompt,
+            effort=str(req.params["effort"]),
+            max_output_tokens=req.max_output_tokens,
+        )
+        total += node.estimate_cost(inp, P.context())
+    return total
+
+
+LONGEST = 3 * P.PARAPHRASE_MAX_TOKENS - 3  # ASCII characters estimated at the token limit
+
+
+def longest_paraphrase(question: str) -> str:
+    return (f"Reworded: {question} " + "x" * LONGEST)[:LONGEST]
+
+
+class Worst(Models):
+    """The worst case the estimate must bound: every paraphrase as long as the builder accepts
+    (estimated at exactly PARAPHRASE_MAX_TOKENS tokens) and `reject` questions rejected."""
+
+    def reply(self, req):
+        if req.model_id == P.PARAPHRASE_MODEL:
+            self.log.append(f"call:{req.model_id}")
+            return longest_paraphrase(_question(req.prompt))
+        return super().reply(req)
+
+
+def test_estimate_bounds_the_spend_with_longest_paraphrases_and_rejects_up_to_the_cap():
+    """Item 5: the estimate is a strict upper bound on what the executor can reserve (and so
+    spend), sizing each check with the longest accepted paraphrase and allowing a replacement
+    draw for every reject up to the reject cap."""
+    from evalkit.cost import estimate_tokens
+
+    cases = population()
+    first = stratified_sample(cases, 10, 7).cases
+    cap = P.default_max_rejects(10)
+    assert cap == 5
+    est = P.estimate_build(cases, PRICES, n=10, seed=7)
+    assert est == P.estimate_build(cases, PRICES, n=10, seed=7, max_rejects=cap)
+    assert estimate_tokens(longest_paraphrase(first[0].question)) == P.PARAPHRASE_MAX_TOKENS
+    # Reject the first `cap` questions of the draw; every paraphrase is as long as allowed.
+    models = Worst(reject={c.question for c in first[:cap]})
+    res = build(cases, models, n=10)
+    assert len(res.rejected) == cap and len(res.kept) == 10
+    assert models.calls == 2 * (10 + cap)
+    assert est >= _reservations(models) >= res.spent_usd > 0
+    assert res.estimate_usd == pytest.approx(est, rel=1e-12)
+    # Fewer rejects allowed: a smaller estimate; more rejects than the cap stop the build.
+    assert P.estimate_build(cases, PRICES, n=10, seed=7, max_rejects=0) < est
+    with pytest.raises(P.ProbeError, match="rejected"):
+        build(cases, Worst(reject={c.question for c in first[: cap + 1]}), n=10)
+    with pytest.raises(P.ProbeError, match="rejected"):
+        build(cases, Worst(reject={first[0].question}), n=10, max_rejects=0)
+
+
+def test_a_paraphrase_longer_than_the_estimate_allows_stops_the_build():
+    cases = population()
+
+    class TooLong(Models):
+        def reply(self, req):
+            if req.model_id == P.PARAPHRASE_MODEL:
+                return "y" * (3 * P.PARAPHRASE_MAX_TOKENS)  # estimates at one token over
+            return super().reply(req)
+
+    models = TooLong()
+    with pytest.raises(P.ProbeError, match="longer than"):
+        build(cases, models, n=10)
+    assert not models.anthropic.requests  # no check is sent for it
+
+
 def test_estimate_is_an_upper_bound_from_the_price_table():
     cases = population()
-    est = P.estimate_build(cases, PRICES, n=10, seed=7)
+    est = P.estimate_build(cases, PRICES, n=10, seed=7, max_rejects=0)
     first = stratified_sample(cases, 10, 7).cases
     node = P.ProbeCall({}, PRICES)
     ctx = P.context()
     by_hand = sum(
         node.estimate_cost(P.paraphrase_input(c, P.PARAPHRASE_MODEL), ctx)
-        + node.estimate_cost(P.check_input(c, c.question, P.CHECK_MODEL), ctx)
+        + node.estimate_cost(P.check_input(c, longest_paraphrase(c.question)), ctx)
         for c in first
     )
-    assert est == pytest.approx(by_hand) and est > 0
+    # Sized with an empty paraphrase plus the longest one's tokens: never below the real prompt.
+    assert est >= by_hand > 0
+    assert est == pytest.approx(by_hand, rel=1e-3)
 
 
-def test_unparseable_or_identical_replies_are_rejected_not_kept():
+def test_builder_sends_gemmas_call_settings():
+    """Item 4, aligned with gemma-grounded-health's build: paraphrases at effort low, checks
+    at Opus 5.5's default effort (medium, D-24) with a 200-token output limit."""
+    models = Models()
+    build(population(), models, n=10)
+    para, check = models.openai.requests, models.anthropic.requests
+    assert para and check
+    assert {(r.model_id, r.params["effort"], r.max_output_tokens) for r in para} == {
+        (P.PARAPHRASE_MODEL, "low", P.PARAPHRASE_MAX_TOKENS)
+    }
+    assert {(r.model_id, r.params["effort"], r.max_output_tokens) for r in check} == {
+        (P.CHECK_MODEL, "medium", 200)
+    }
+    assert (P.CHECK_EFFORT, P.CHECK_MAX_TOKENS, P.PARAPHRASE_EFFORT) == ("medium", 200, "low")
+
+
+def test_paraphrase_is_the_first_line_verbatim_as_gemma_kept_it():
+    cases = population()
+
+    class Labelled(Models):
+        def reply(self, req):
+            if req.model_id == P.PARAPHRASE_MODEL:
+                return f"\n  Rewritten: {_question(req.prompt)} (reworded)  \nsecond line"
+            return super().reply(req)
+
+    r = build(cases, Labelled(), n=10).kept[0]
+    assert r.paraphrase == f"Rewritten: {r.original} (reworded)"
+
+
+def test_identical_replies_are_rejected_not_kept():
+    cases = population()
+    first = stratified_sample(cases, 10, 7).cases
+
+    class Same(Models):
+        def reply(self, req):
+            if req.model_id == P.PARAPHRASE_MODEL and _question(req.prompt) == first[1].question:
+                return first[1].question.upper()  # same words: not a paraphrase
+            return super().reply(req)
+
+    res = build(cases, Same(), n=10)
+    assert {r.pubid for r in res.rejected} == {first[1].id}
+
+
+def test_an_unparseable_check_reply_stops_the_build_as_gemmas_did(tmp_path):
+    """Item 4: gemma's parse_verdict raised on a reply that is neither SAME nor DIFFERENT, so
+    the build stopped; it is not counted as a reject (that would change the draw)."""
     cases = population()
     first = stratified_sample(cases, 10, 7).cases
 
     class Odd(Models):
         def reply(self, req):
-            if req.model_id == P.PARAPHRASE_MODEL and _question(req.prompt) == first[1].question:
-                return first[1].question.upper()  # same words: not a paraphrase
             if req.model_id == P.CHECK_MODEL and _original(req.prompt) == first[2].question:
                 return "Probably the same"
             return super().reply(req)
 
-    res = build(cases, Odd(), n=10)
-    assert {r.pubid for r in res.rejected} == {first[1].id, first[2].id}
-    assert (
-        "SAME or DIFFERENT" in next(r for r in res.rejected if r.pubid == first[2].id).check_reason
-    )
+    store = Store(tmp_path / "store")
+    with pytest.raises(P.ProbeError, match=rf"{first[2].id}.*SAME or DIFFERENT"):
+        build(cases, Odd(), store=store, n=10)
+    again = Odd()
+    with pytest.raises(P.ProbeError, match="SAME or DIFFERENT"):
+        build(cases, again, store=store, n=10)
+    assert again.calls == 0  # the round's calls were cached and counted, not lost
+
+
+@pytest.mark.parametrize("kind", ["empty", "refusal", "truncated"])
+def test_an_unusable_paraphrase_reply_stops_the_build(kind):
+    """An empty or refused reply crashed gemma's build; a reply cut off at EvalKit's output cap
+    (gemma set none) would have been longer there. All three stop the build."""
+    cases = population()
+    first = stratified_sample(cases, 10, 7).cases
+
+    class Bad(Models):
+        def reply(self, req):
+            if req.model_id == P.PARAPHRASE_MODEL and _question(req.prompt) == first[4].question:
+                if kind == "empty":
+                    return "  \n "
+                return RawCompletion(
+                    model=req.model,
+                    model_snapshot=req.model_id,
+                    params=dict(req.params),
+                    raw_text="" if kind == "refusal" else "Does treatment",
+                    tokens_in=10,
+                    tokens_out=5,
+                    latency_ms=1,
+                    cost_usd=0.001,
+                    stop_reason="refusal" if kind == "refusal" else "length",
+                    refusal=kind == "refusal",
+                )
+            return super().reply(req)
+
+    models = Bad()
+    with pytest.raises(P.ProbeError, match=first[4].id):
+        build(cases, models, n=10)
+    assert not any(_original(r.prompt) == first[4].question for r in models.anthropic.requests)
 
 
 def test_builder_is_deterministic_and_replays_from_the_store(tmp_path):
@@ -455,6 +614,24 @@ def test_module_cli_build_writes_a_set_with_fake_adapters(tmp_path, monkeypatch,
     assert P.main([*argv[:-2], "--store", str(tmp_path / "s"), "--max-cost", "0"]) == 0  # cached
 
 
+@pytest.mark.safety
+def test_module_cli_build_exits_3_at_the_cost_cap_and_writes_nothing(tmp_path, monkeypatch, capsys):
+    """Item 7: `python -m evalkit.paraphrase build` stops at the cap with exit 3, after
+    printing its estimate, and leaves no half-built set behind; the rerun resumes."""
+    monkeypatch.setattr(P, "load_pqa_l", population)
+    models = Models()
+    monkeypatch.setattr(P, "_live_adapters", lambda providers, prices: models.adapters)
+    out, store = tmp_path / "o", tmp_path / "s"
+    argv = ["build", "--out", str(out), "--n", "10", "--store", str(store)]
+    assert P.main([*argv, "--max-cost", "0.02"]) == 3
+    err = capsys.readouterr().err
+    assert err.index("estimate $") < err.index("stopped at the cost cap")
+    assert "rerun with a higher --max-cost" in err
+    assert not out.exists() and 0 < models.calls < 20
+    assert P.main([*argv, "--max-cost", "10"]) == 0
+    assert len(P.load_set(out).kept) == 10 and models.calls == 20  # nothing paid twice
+
+
 def test_module_cli_verify(tmp_path, monkeypatch, capsys):
     cases = population()
     synthetic_set(tmp_path, cases)
@@ -470,14 +647,26 @@ def test_module_cli_verify(tmp_path, monkeypatch, capsys):
 # --- PAR-02: the contamination report --------------------------------------------------------
 
 
-def _completion(model: str, label: str | None) -> Completion:
+def _completion(
+    model: str,
+    label: str | None,
+    *,
+    effort: str = "low",
+    snapshot: str | None = None,
+) -> Completion:
+    """`label` None is a schema error; "!transport" or "!refusal" is that error."""
+    error = None
+    if label is None:
+        error = "schema"
+    elif label.startswith("!"):
+        error = label[1:]
     return Completion(
         model=model,
-        model_snapshot=model,
-        params={"effort": "low"},
+        model_snapshot="" if error == "transport" else (snapshot or model),
+        params={"effort": effort, "structured_output": True},
         raw_text="{}",
-        answer=None if label is None else Answer(label=label, answer="a", citations=(1,)),
-        error="schema" if label is None else None,
+        answer=None if error else Answer(label=label or "", answer="a", citations=(1,)),
+        error=error,  # type: ignore[arg-type]
         tokens_in=10,
         tokens_out=5,
         latency_ms=10,
@@ -486,9 +675,19 @@ def _completion(model: str, label: str | None) -> Completion:
 
 
 def write_run(
-    folder: Path, run_id: str, cases: list[Case], answers: Mapping[str, Mapping[str, str | None]]
+    folder: Path,
+    run_id: str,
+    cases: list[Case],
+    answers: Mapping[str, Mapping[str, str | None]],
+    *,
+    task: str = "t",
+    effort: Mapping[str, str] | None = None,
+    snapshot: Mapping[str, str] | None = None,
+    prompt_hash: str = "p",
 ) -> Path:
-    """A run folder in EvalKit's format: run.json, cases.jsonl and records.jsonl (unscored)."""
+    """A run folder in EvalKit's format: run.json, cases.jsonl and records.jsonl (unscored).
+    `effort` and `snapshot` set a model's recorded settings (default: effort low, snapshot =
+    the model name)."""
     folder.mkdir(parents=True)
     (folder / "run.json").write_text(json.dumps({"run_id": run_id}), encoding="utf-8")
     (folder / "cases.jsonl").write_text(
@@ -500,16 +699,21 @@ def write_run(
             rec = Record(
                 schema_version=SCHEMA_VERSION,
                 run_id=run_id,
-                task="t",
+                task=task,
                 case_id=cid,
                 timestamp=datetime(2026, 11, 17, tzinfo=UTC),
-                completion=_completion(model, label),
+                completion=_completion(
+                    model,
+                    label,
+                    effort=(effort or {}).get(model, "low"),
+                    snapshot=(snapshot or {}).get(model),
+                ),
                 claims=(),
                 verdicts=(),
                 scores=None,
                 seed=7,
                 git_sha="",
-                prompt_hash="p",
+                prompt_hash=prompt_hash,
             )
             lines.append(rec.model_dump_json() + "\n")
     (folder / "records.jsonl").write_text("".join(lines), encoding="utf-8")
@@ -547,7 +751,7 @@ def test_report_gives_paired_accuracy_per_model_and_flags_a_drop(probe_runs):
     rep = P.contamination_report(o, p, probe=probe)
     by = {m.model: m for m in rep.models}
     a, b = by["model-a"], by["model-b"]
-    assert (a.n, b.n, rep.n_paired, rep.n_probe) == (40, 40, 40, 40)
+    assert (a.n, b.n, rep.n_shared, rep.n_probe) == (40, 40, 40, 40)
     assert (a.accuracy_original.point, a.accuracy_paraphrase.point) == (1.0, 0.5)
     assert a.drop.point == pytest.approx(0.5) and a.drop.lo > 0
     assert a.flagged and a.direction == "drop"
@@ -604,9 +808,143 @@ def test_report_pairs_only_shared_pubids_and_models(probe_runs, tmp_path):
     )
     rep = P.contamination_report(o, p2, probe=probe)
     assert [m.model for m in rep.models] == ["model-a"]
-    assert rep.models[0].n == 30 and rep.n_paired == 30
+    assert rep.models[0].n == 30 and rep.n_shared == 30
     assert rep.unpaired_models == ("model-b", "model-c")
     assert "30 of 40" in P.report_text(rep)
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize("error", ["!transport", None, "!refusal"])
+def test_errors_never_create_a_flag_and_are_excluded_from_the_pairs(tmp_path, error):
+    """Item 1 (verifier repro): 100% right on the originals, 10 errored paraphrase completions
+    and 30 right ones. Errors are counted, the 10 pairs are excluded, nothing is flagged."""
+    from evalkit.stats import Resamples, interval, paired
+
+    cases = pop40()
+    probe = synthetic_set(tmp_path, cases, n=40)
+    orig = P.probe_cases(cases, "original", probe)
+    para = P.probe_cases(cases, "paraphrase", probe)
+    gold = {c.id: c.reference_label or "" for c in orig}
+    ids = [c.id for c in orig]
+    a_para = {cid: (error if i < 10 else gold[cid]) for i, cid in enumerate(ids)}
+    # model-b: 3 errors on the original side, one of them paired with a paraphrase error.
+    b_orig = {cid: ("!transport" if i in (0, 20, 21) else gold[cid]) for i, cid in enumerate(ids)}
+    b_para = {cid: ("!transport" if i == 0 else gold[cid]) for i, cid in enumerate(ids)}
+    o = write_run(tmp_path / "o", "r-o", orig, {"model-a": dict(gold), "model-b": b_orig})
+    p = write_run(tmp_path / "p", "r-p", para, {"model-a": a_para, "model-b": b_para})
+    rep = P.contamination_report(o, p, probe=probe)
+    a, b = (next(m for m in rep.models if m.model == name) for name in ("model-a", "model-b"))
+    assert (a.n, a.n_excluded_errors, a.errors_original, a.errors_paraphrase) == (30, 10, 0, 10)
+    assert (a.n_missing_original, a.n_missing_paraphrase) == (0, 0)
+    assert a.accuracy_paraphrase.point == 1.0 and a.drop.point == 0.0
+    assert not a.flagged and a.direction == "none" and a.signal == "none"
+    assert a.exclusion_warning  # 10 of 40 pairs is over 5%
+    # The comparison is exactly stats.paired on the 30 pairs where both sides answered.
+    kept_ids = sorted(ids[10:])
+    rs = Resamples(30, 10_000, seed=7)
+    want, pv = paired([1.0] * 30, [1.0] * 30, rs)
+    assert (a.drop, a.p_value, a.accuracy_original) == (want, pv, interval([1.0] * 30, rs))
+    assert len(kept_ids) == a.n
+    assert (b.n, b.n_excluded_errors, b.errors_original, b.errors_paraphrase) == (37, 3, 3, 1)
+    assert b.exclusion_warning  # 3 of 40 = 7.5%
+    text = P.report_text(rep)
+    assert "WARNING" in text and "model-a" in text and "10 of 40 pairs" in text
+    assert "errors: original 0, paraphrase 10" in text
+    assert "FLAG" not in text
+
+
+def test_exclusions_at_or_under_five_percent_do_not_warn(probe_runs, tmp_path):
+    probe, o, _p, ids, gold = probe_runs
+    para = P.probe_cases(pop40(), "paraphrase", probe)
+    a_para = {cid: ("!transport" if i < 2 else gold[cid]) for i, cid in enumerate(ids)}
+    p2 = write_run(tmp_path / "p2", "r-p2", para, {"model-a": a_para})
+    a = P.contamination_report(o, p2, probe=probe).models[0]
+    assert (a.n, a.n_excluded_errors, a.exclusion_warning) == (38, 2, False)  # 5.0%
+    assert "WARNING" not in P.report_text(P.contamination_report(o, p2, probe=probe))
+
+
+def test_coverage_is_reported_per_model_and_the_header_never_overclaims(probe_runs, tmp_path):
+    """Item 2: per model, n paired, n missing on each side and n excluded for errors; the
+    header says "all N paired" only when every model has every pair."""
+    probe, o, p, ids, gold = probe_runs
+    full = P.report_text(P.contamination_report(o, p, probe=probe))
+    assert "all 40 probe questions paired for every model" in full
+    para = P.probe_cases(pop40(), "paraphrase", probe)
+    b_para = {cid: gold[cid] for i, cid in enumerate(ids) if i >= 15}  # 15 records missing
+    p2 = write_run(tmp_path / "p2", "r-p2", para, {"model-a": dict(gold), "model-b": b_para})
+    rep = P.contamination_report(o, p2, probe=probe)
+    assert rep.n_shared == 40
+    b = next(m for m in rep.models if m.model == "model-b")
+    assert (b.n, b.n_missing_original, b.n_missing_paraphrase, b.n_excluded_errors) == (
+        25,
+        0,
+        15,
+        0,
+    )
+    text = P.report_text(rep)
+    assert "all 40" not in text
+    assert "40 of 40 probe questions in both runs" in text
+    assert "model-b: 25 paired of 40; missing 0 original, 15 paraphrase" in text
+
+
+def test_different_settings_make_a_flag_confounded(probe_runs, tmp_path):
+    """Item 3: model-a's paraphrase run used another effort, prompt template and snapshot, so
+    its drop is labelled confounded, not a contamination signal, unless allowed."""
+    probe, o, _p, ids, gold = probe_runs
+    para = P.probe_cases(pop40(), "paraphrase", probe)
+    a_para = {cid: (wrong(gold[cid]) if i < 20 else gold[cid]) for i, cid in enumerate(ids)}
+    b = {cid: (gold[cid] if i % 2 else wrong(gold[cid])) for i, cid in enumerate(ids)}
+    p2 = write_run(
+        tmp_path / "p2",
+        "r-p2",
+        para,
+        {"model-a": a_para, "model-b": b},
+        effort={"model-a": "high"},
+        snapshot={"model-a": "model-a-2026-12-01"},
+        prompt_hash="q",
+    )
+    rep = P.contamination_report(o, p2, probe=probe)
+    a = next(m for m in rep.models if m.model == "model-a")
+    assert a.flagged and a.direction == "drop" and a.signal == "confounded"
+    diffs = " | ".join(a.settings_differences)
+    assert "prompt template hash" in diffs and "effort" in diffs and "model snapshot" in diffs
+    mb = next(m for m in rep.models if m.model == "model-b")
+    assert mb.signal == "none" and "prompt template hash" in " | ".join(mb.settings_differences)
+    text = P.report_text(rep)
+    assert text.index("SETTINGS DIFFER") < text.index("drop in points")  # before the table
+    assert "FLAG: confounded" in text and "FLAG: contamination signal" not in text
+    allowed = P.contamination_report(o, p2, probe=probe, allow_different_settings=True)
+    a2 = next(m for m in allowed.models if m.model == "model-a")
+    assert a2.signal == "contamination" and a2.settings_differences == a.settings_differences
+    assert allowed.allow_different_settings
+    assert "SETTINGS DIFFER" in P.report_text(allowed)
+    assert "FLAG: contamination signal" in P.report_text(allowed)
+
+
+def test_same_settings_keep_a_flag_a_contamination_signal(probe_runs):
+    probe, o, p, _ids, _gold = probe_runs
+    rep = P.contamination_report(o, p, probe=probe)
+    a = next(m for m in rep.models if m.model == "model-a")
+    assert a.settings_differences == () and a.signal == "contamination"
+    assert "SETTINGS DIFFER" not in P.report_text(rep)
+    assert "FLAG: contamination signal" in P.report_text(rep)
+
+
+@pytest.mark.contract
+def test_cli_allow_different_settings(probe_runs, tmp_path, monkeypatch, capsys):
+    probe, o, _p, ids, gold = probe_runs
+    monkeypatch.setattr(P, "SET_DIR", Path(probe.folder))
+    para = P.probe_cases(pop40(), "paraphrase", probe)
+    a_para = {cid: (wrong(gold[cid]) if i < 20 else gold[cid]) for i, cid in enumerate(ids)}
+    p2 = write_run(tmp_path / "p2", "r-p2", para, {"model-a": a_para}, effort={"model-a": "high"})
+    assert cli.main(["report", "--paraphrase", str(o), str(p2), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["contamination"]["models"][0]["signal"] == (
+        "confounded"
+    )
+    argv = ["report", "--paraphrase", str(o), str(p2), "--allow-different-settings", "--json"]
+    assert cli.main(argv) == 0
+    out = json.loads(capsys.readouterr().out)["contamination"]
+    assert out["allow_different_settings"] and out["models"][0]["signal"] == "contamination"
 
 
 def test_report_refuses_runs_with_the_wrong_wording(probe_runs, tmp_path):
@@ -681,4 +1019,6 @@ def test_cli_report_paraphrase_refuses_to_publish_while_pending(probe_runs, monk
     code = cli.main(["report", "--paraphrase", str(o), str(p), "--publish"])
     assert code == 2
     assert "spot-check" in capsys.readouterr().err
+    # Item 6: a refused --publish writes nothing (no contamination.json to mistake for final).
+    assert not (p / "contamination.json").exists()
     assert cli.main(["report", "runs/x", "--paraphrase", str(o), str(p)]) == 2
