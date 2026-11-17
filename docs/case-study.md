@@ -61,8 +61,8 @@ builder per node in its own git worktree, with a lead agent merging one lane at 
    one <!-- docs/measurements/downstream-canary-2026-11-17.json: projects.gemma-grounded-health.counts.failed; status = "known-drift" --> known drift that cannot affect it until it upgrades from its v0.1.0 <!-- docs/downstream.tsv: gemma-grounded-health pin @06591f8...; docs/measurements/release-v0.1.0-2026-11-15.json: commit (same hash) --> pin, and respectful-offers
    imports nothing, so has none to run; the canary cost $0 <!-- docs/measurements/downstream-canary-2026-11-17.json: spend_usd -->. Why: projects were rebuilding the
    same gates, comparisons and labelling checks, and without a canary a release could break
-   them silently. *Trade-off:* a wider surface to maintain, with the next release (v0.3.0 <!-- docs/decisions.md: D-62 "v0.3.0 ships B5.2, B5.3 and B5.6"; no release record in docs/measurements/ -->)
-   still unreleased while requests queue; a capability with one user and no likely second
+   them silently. *Trade-off:* a wider surface to maintain, with projects' requests queueing until a release ships them (v0.3.0 <!-- docs/measurements/release-v0.3.0-2026-11-17.json: tag, version -->
+   shipped the first batch on 17 November); a capability with one user and no likely second
    stays in its own project (D-63).
 
 **Links:** [repository](https://github.com/biplob819/evalkit) ·
