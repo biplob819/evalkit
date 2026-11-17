@@ -3,15 +3,17 @@
 Says, per metric and label, whether a new run is better or worse than an old one, with a 95%
 interval for the change new - old, and without leaking held-out cases:
 
-- **paired** when both runs carry per-case values for the same case ids: a two-level bootstrap
-  over the shared cases, then each run's trials within a case (D-41, D-51); a case-only
-  resample when there is no trial level (pass^k is computed per case from all k trials, so it
-  is resampled over cases only);
+- **paired** when both runs carry per-case values for the same case ids, and the shared ids
+  are at least half of each run's cases: a two-level bootstrap over the shared cases, then
+  each run's trials within a case (D-41, D-51); a case-only resample when there is no trial
+  level (pass^k is computed per case from all k trials, so it is resampled over cases only);
 - otherwise **unpaired**: each run's own 95% interval (per-case bootstrap, the supplied
-  interval, or exact Clopper-Pearson from k and n) combined by MOVER (Zou & Donner 2008), and
-  labelled `unpaired` in every output.
+  interval, or exact Clopper-Pearson) combined by MOVER (Zou & Donner 2008), and labelled
+  `unpaired` in every output (`partial_overlap` when both runs had case ids).
 
-Changes are flagged after Holm adjustment across the comparison where the interval excludes 0.
+A change is claimed only from at least MIN_CASES (10) cases and a non-zero-width interval;
+other rows are shown, marked `too_few_cases` or `degenerate`, and never flagged. Claimed
+changes are flagged after Holm adjustment where the interval excludes 0.
 Settings that differ (snapshot, code version, config and prompt hashes, models, EvalKit
 version, and any recorded hash in `settings.json`) are listed first; metrics or labels on one
 side only are listed, never skipped. Held-out rows appear only as split-level aggregates and
@@ -35,7 +37,10 @@ from pydantic import ValidationError
 
 from evalkit.gates import GatesFile, canonical, load_gates
 from evalkit.metrics import (
+    COUNT_MEANS,
     NAME_RE,
+    RATE_ABS_TOL,
+    RATE_REL_TOL,
     SCHEMA,
     Metric,
     MetricsError,
@@ -84,6 +89,18 @@ KEPT_HELDOUT = ("split", "model", "judge")  # the only labels a held-out row sho
 _SIDECAR_KEYS = frozenset({"case_id", "trial", "metric", "value", "labels"})
 _EVALKIT_VERSION = re.compile(r"^\d+\.\d+$")
 _EFF_KEYS = frozenset({"model", "mode", "price_date"})  # a model-level efficiency row's labels
+# A change is CLAIMED (enters Holm, can be flagged, can exit 1) only from at least MIN_CASES
+# cases: the shared cases of a paired row, each side's cases for a per-case bootstrap. Below
+# about ten a percentile bootstrap's 95% interval badly undercovers: it takes only a handful of
+# distinct values (2 cases give 3 resample means, 5 give 126), so two identical drops read as
+# certain. RVR-03's "at least 2 shared cases" for a gated baseline is a separate, looser rule
+# about what a baseline must contain, not about what may be claimed.
+MIN_CASES = 10
+# A row is paired only when its shared cases are at least half of each side's per-case units.
+# Below that the shared subset says little about either run: the row is compared unpaired over
+# all its cases and labelled partial_overlap, with the cases left without a partner counted.
+MIN_OVERLAP_SHARE = 0.5
+OK, TOO_FEW, DEGENERATE = "ok", "too_few_cases", "degenerate"
 
 LabelKey = tuple[tuple[str, str, Any], ...]
 Key = tuple[str, LabelKey]
@@ -98,8 +115,23 @@ def _label_key(labels: Mapping[str, Any]) -> LabelKey:
     return tuple(sorted((k, type(v).__name__, v) for k, v in labels.items()))
 
 
-def _shown(labels: Mapping[str, Any]) -> dict[str, str]:
-    return {safe_text(k): safe_text(v) for k, v in sorted(labels.items())}
+def _shown(labels: Mapping[str, Any], quoted: frozenset[str] = frozenset()) -> dict[str, str]:
+    """Labels as shown. For a key whose values mix types across the two runs, text values are
+    quoted (as `evalkit gate` shows disparity groups), so `cohort=2024` and `cohort="2024"`
+    read differently in JSON and markdown."""
+    from evalkit.gates import _group_name
+
+    return {safe_text(k): _group_name(v, k in quoted) for k, v in sorted(labels.items())}
+
+
+def _mixed_keys(*runs: MetricsSummary) -> frozenset[str]:
+    """Label keys whose values carry more than one type (text, integer, true/false)."""
+    types: dict[str, set[str]] = {}
+    for run in runs:
+        for m in run.metrics:
+            for k, v in m.labels.items():
+                types.setdefault(k, set()).add(type(v).__name__)
+    return frozenset(k for k, ts in types.items() if len(ts) > 1)
 
 
 # ---- inputs -----------------------------------------------------------------------------------
@@ -198,6 +230,7 @@ def _read_sidecar(path: Path, metrics: MetricsSummary, source: str) -> tuple[Cas
     out: list[CaseValue] = []
     seen: set[tuple[Key, str, int | None]] = set()
     with_trial: dict[tuple[Key, str], bool] = {}
+    first_line: dict[Key, int] = {}
     for i, line in enumerate(_read_text(path).splitlines(), start=1):
         if not line.strip():
             continue
@@ -237,6 +270,13 @@ def _read_sidecar(path: Path, metrics: MetricsSummary, source: str) -> tuple[Cas
             raise _bad(where, f"no metric {safe_text(metric)} with these labels in {source}")
         if unit_kind(unit) == "bool":
             raise _bad(where, f"{safe_text(metric)} is true/false: it has no per-case values")
+        if unit == "count" and metric not in COUNT_MEANS:
+            raise _bad(
+                where,
+                f"{safe_text(metric)} is a count: per-case values are taken for rates and means "
+                "only (a count's change is new count - old count, from the metrics file)",
+            )
+        first_line.setdefault(key, i)
         if case_id is not None:
             if (key, case_id, trial) in seen:
                 raise _bad(where, "repeats an earlier line (same case, trial, metric and labels)")
@@ -244,7 +284,45 @@ def _read_sidecar(path: Path, metrics: MetricsSummary, source: str) -> tuple[Cas
             if with_trial.setdefault((key, case_id), trial is not None) != (trial is not None):
                 raise _bad(where, "one case has rows with and without trial for this metric")
         out.append(CaseValue(metric, dict(labels), v, case_id, trial))
+    _check_aggregates(out, metrics, path.name, source, first_line)
     return tuple(out)
+
+
+def _agrees(a: float, b: float) -> bool:
+    """Equal within the metrics-1 rate tolerance (1e-6 relative, 5e-7 absolute)."""
+    return math.isclose(a, b, rel_tol=RATE_REL_TOL, abs_tol=RATE_ABS_TOL)
+
+
+def _check_aggregates(
+    rows: Sequence[CaseValue],
+    metrics: MetricsSummary,
+    name: str,
+    source: str,
+    first_line: Mapping[Key, int],
+) -> None:
+    """Every (metric, labels) the sidecar covers must average to its value in the metrics
+    file: the mean of the per-case means (trials averaged within a case; an id-less row is
+    one case), or the mean over every line (the two differ only with unequal trial counts).
+    A sidecar that contradicts its summary is refused, never compared."""
+    values = {(m.name, m.label_key()): m.value for m in metrics.metrics}
+    per_case: dict[Key, dict[str, list[float]]] = {}
+    anon: dict[Key, list[float]] = {}
+    for c in rows:
+        if c.case_id is None:
+            anon.setdefault(c.key(), []).append(c.value)
+        else:
+            per_case.setdefault(c.key(), {}).setdefault(c.case_id, []).append(c.value)
+    for key in sorted(per_case.keys() | anon.keys(), key=lambda k: first_line[k]):
+        groups = [*per_case.get(key, {}).values(), *([v] for v in anon.get(key, []))]
+        flat = [v for g in groups for v in g]
+        target = float(values[key])
+        case_mean = _mean([_mean(g) for g in groups])
+        if not (_agrees(case_mean, target) or _agrees(_mean(flat), target)):
+            raise _bad(
+                f"{name} line {first_line[key]}",
+                f"the per-case values of {safe_text(key[0])} (this line's labels) do not average "
+                f"to its value in {source} (within 1e-6): the sidecar contradicts the summary",
+            )
 
 
 def _scalar_text(v: Any) -> str | None:
@@ -337,11 +415,14 @@ def _load_run(summary_path: Path) -> RunInput:
     if records is not None:
         settings["code_version"] = _distinct(r.git_sha for r in records)
         settings["prompt_hash"] = _distinct(r.prompt_hash for r in records)
-        settings["model_ids"] = _distinct(
-            f"{r.completion.model}={r.completion.model_snapshot}"
-            for r in records
-            if r.completion.model_snapshot
-        )
+        # one setting per model, so each provider snapshot is shown (a joined list of every
+        # model's snapshot would pass the 64-character limit and be hidden)
+        snapshots: dict[str, set[str]] = {}
+        for r in records:
+            if r.completion.model_snapshot:
+                snapshots.setdefault(r.completion.model, set()).add(r.completion.model_snapshot)
+        for model, snaps in sorted(snapshots.items()):
+            settings[f"model_ids.{model}"] = _distinct(snaps)
         settings["judge_prompt_hash"] = _distinct(
             v.judge_prompt_hash for r in records for v in r.verdicts
         )
@@ -578,8 +659,12 @@ class Change:
     pairing: Literal["paired", "unpaired"]
     method: str
     interval_sources: dict[str, str | None] | None = None  # unpaired: where each interval came from
-    n_shared: int | None = None  # paired: shared case ids
-    not_paired: dict[str, int] | None = None  # paired: per-case units outside the shared set
+    n_shared: int | None = None  # paired, or partial overlap: shared case ids
+    not_paired: dict[str, int] | None = None  # per-case units outside the shared set
+    # "ok": a claim may be made (Holm, flag, exit 1); "too_few_cases" or "degenerate" (a
+    # zero-width interval): shown, never claimed; None: no interval
+    interval_status: str | None = None
+    partial_overlap: bool = False  # both runs carry case ids, too few shared: compared unpaired
     n_old: int | None = None  # cases (per-case units, or the metric's n)
     n_new: int | None = None
     p_value: float | None = None
@@ -613,6 +698,8 @@ class Change:
             "interval_sources": self.interval_sources,
             "n_shared": self.n_shared,
             "not_paired": self.not_paired,
+            "interval_status": self.interval_status,
+            "partial_overlap": self.partial_overlap,
             "n_old": self.n_old,
             "n_new": self.n_new,
             "p_value": self.p_value,
@@ -636,9 +723,18 @@ class Missing:
     metric: str
     labels: dict[str, str]
     what: Literal["metric", "labels"]  # the name is absent, or only these labels
+    heldout_rows: int = 0  # held-out: how many rows of this split (their labels hidden)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"side": self.side, "metric": self.metric, "labels": self.labels, "what": self.what}
+        out: dict[str, Any] = {
+            "side": self.side,
+            "metric": self.metric,
+            "labels": self.labels,
+            "what": self.what,
+        }
+        if self.heldout_rows:
+            out["heldout_rows"] = self.heldout_rows
+        return out
 
 
 @dataclass(frozen=True)
@@ -757,28 +853,64 @@ def _manifest_hashes(manifest: Mapping[str, Any], held: frozenset[str]) -> froze
     return frozenset(out)
 
 
+def _binary_exact(units: Sequence[Sequence[float]], m: Metric) -> Interval | None:
+    """Clopper-Pearson from per-case 0/1 values of a rate (one value per case): exact at any n,
+    where a bootstrap of identical values, or of a few, would claim certainty."""
+    if m.unit != "rate" or not units:
+        return None
+    if not all(len(u) == 1 and u[0] in (0.0, 1.0) for u in units):
+        return None
+    k, n = round(math.fsum(u[0] for u in units)), len(units)
+    cp = clopper_pearson(k, n)
+    point = k / n
+    return Interval(point=point, lo=min(cp.lo, point), hi=max(cp.hi, point))
+
+
 def _side_interval(
     m: Metric, cs: _Cases | None, key: str, cache: _Cache
-) -> tuple[Interval | None, str | None]:
-    """One run's 95% interval for a row: its per-case bootstrap, else the supplied interval,
-    else exact Clopper-Pearson from k (or a whole-number value x n) and n."""
+) -> tuple[Interval | None, str | None, str]:
+    """One run's 95% interval for a row, with its source and status. With per-case values from
+    at least MIN_CASES cases, their bootstrap (exact Clopper-Pearson over the cases instead when
+    the bootstrap has zero width and the values are 0/1). Otherwise the supplied interval, else
+    exact Clopper-Pearson from k (or a whole-number value x n) and n, else Clopper-Pearson over
+    0/1 per-case values; failing all of those, a bootstrap of too few cases (`too_few_cases`)."""
     if unit_kind(m.unit) == "bool" or isinstance(m.value, bool):
-        return None, None
-    if cs is not None and cs.units():
-        return _one_side(cs.units(), key, cache), "bootstrap"
+        return None, None, OK
+    units = cs.units() if cs is not None else []
+    if len(units) >= MIN_CASES:
+        iv = _one_side(units, key, cache)
+        if iv.lo < iv.hi:
+            return iv, "bootstrap", OK
+        exact = _binary_exact(units, m)
+        if exact is not None:
+            return exact, "clopper-pearson (cases)", OK
+        return iv, "bootstrap", DEGENERATE
+    summary = _summary_interval(m)
+    if summary is not None:
+        return summary
+    exact = _binary_exact(units, m)
+    if exact is not None:
+        return exact, "clopper-pearson (cases)", OK
+    if units:
+        return _one_side(units, key, cache), "bootstrap", TOO_FEW
+    return None, None, OK
+
+
+def _summary_interval(m: Metric) -> tuple[Interval, str, str] | None:
+    """The supplied interval, else exact Clopper-Pearson from k (or value x n) and n."""
     value = float(m.value)
     if m.ci_low is not None and m.ci_high is not None:
-        return Interval(point=value, lo=min(m.ci_low, value), hi=max(m.ci_high, value)), "supplied"
+        iv = Interval(point=value, lo=min(m.ci_low, value), hi=max(m.ci_high, value))
+        return iv, "supplied", OK
     if m.unit == "rate" and m.n is not None and m.n >= 1:
         k = m.k
         if k is None and abs(value * m.n - round(value * m.n)) < 1e-6:
             k = round(value * m.n)
         if k is not None and 0 <= k <= m.n:
             cp = clopper_pearson(k, m.n)
-            return Interval(point=value, lo=min(cp.lo, value), hi=max(cp.hi, value)), (
-                "clopper-pearson"
-            )
-    return None, None
+            iv = Interval(point=value, lo=min(cp.lo, value), hi=max(cp.hi, value))
+            return iv, "clopper-pearson", OK
+    return None
 
 
 def _is_heldout(labels: Mapping[str, Any], held: frozenset[str]) -> bool:
@@ -832,6 +964,7 @@ def compare(
     n_cases = _group(new.cases, held_hashes) if new.cases is not None else None
     o_names = {k[0] for k in o_rows}
     n_names = {k[0] for k in n_rows}
+    quoted = _mixed_keys(old.metrics, new.metrics)
     errors: list[str] = []
     changes: dict[Key, Change] = {}
     shared_of: dict[Key, int | None] = {}  # paired-eligible rows: shared ids (even < 2)
@@ -846,22 +979,28 @@ def compare(
             side: Literal["old", "new"] = "old" if mo is None else "new"
             names = o_names if side == "old" else n_names
             what: Literal["metric", "labels"] = "labels" if key[0] in names else "metric"
-            missing.append((key, Missing(side, safe_text(key[0]), _shown(any_m.labels), what)))
+            shown = _shown(any_m.labels, quoted)
+            missing.append((key, Missing(side, safe_text(key[0]), shown, what)))
             continue
         if mo.unit != mn.unit:
             errors.append(
-                f"{safe_text(key[0])} {_labels_text(_shown_held(mo.labels, is_held[key]))}: "
+                f"{safe_text(key[0])} "
+                f"{_labels_text(_shown_held(mo.labels, is_held[key], quoted))}: "
                 f"the unit differs between the runs ({mo.unit} vs {mn.unit})"
             )
             continue
-        changes[key] = _change(key, mo, mn, o_cases, n_cases, is_held[key], cache, shared_of)
+        changes[key] = _change(
+            key, mo, mn, o_cases, n_cases, is_held[key], cache, shared_of, quoted
+        )
     family = _flag(changes)
     if gates is not None:
-        errors += _baseline_errors(gates, o_rows, n_rows, changes, shared_of, is_held)
+        errors += _baseline_errors(gates, o_rows, n_rows, changes, shared_of, is_held, quoted)
         _mark_gated(gates, changes, o_rows)
     out_changes = _fold([(k, c) for k, c in changes.items()], is_held)
     out_missing = _fold_missing(missing, is_held)
-    settings, status = _settings_diff(old.settings, new.settings)
+    # a run folder is written by EvalKit, so its version is a setting even when unrecorded
+    always = ("evalkit",) if "evalkit-run" in (old.kind, new.kind) else ()
+    settings, status = _settings_diff(old.settings, new.settings, always)
     if errors:
         code = EXIT_INPUT
     elif any(c.regression_severity == "fail" for c in changes.values()):
@@ -899,13 +1038,14 @@ def _change(
     heldout: bool,
     cache: _Cache,
     shared_of: dict[Key, int | None],
+    quoted: frozenset[str] = frozenset(),
 ) -> Change:
     co = o_cases.get(key) if o_cases is not None else None
     cn = n_cases.get(key) if n_cases is not None else None
     salt = f"{key[0]}|{key[1]!r}"
     row = Change(
         metric=safe_text(key[0]),
-        labels=_shown(mo.labels),
+        labels=_shown(mo.labels, quoted),
         unit=mo.unit,
         old=mo.value,
         new=mn.value,
@@ -921,47 +1061,79 @@ def _change(
     if is_bool:
         row.note = "true/false: changed" if mo.value != mn.value else "true/false: unchanged"
         return row
+    overlap = ""
     if not heldout and co is not None and cn is not None and co.ids and cn.ids:
         shared = sorted(set(co.ids) & set(cn.ids))
-        shared_of[key] = len(shared)
-        if len(shared) >= 2:
+        k, uo, un = len(shared), len(co.units()), len(cn.units())
+        shared_of[key] = k
+        row.n_shared, row.not_paired = k, {"old": uo - k, "new": un - k}
+        if k >= 2 and k >= MIN_OVERLAP_SHARE * uo and k >= MIN_OVERLAP_SHARE * un:
             iv, p, method = _paired(
                 {c: co.ids[c] for c in shared}, {c: cn.ids[c] for c in shared}, salt, cache
             )
             row.pairing, row.method = "paired", method
             row.diff, row.ci_low, row.ci_high, row.p_value = iv.point, iv.lo, iv.hi, p
-            row.n_shared = len(shared)
-            row.not_paired = {
-                "old": len(co.units()) - len(shared),
-                "new": len(cn.units()) - len(shared),
-            }
+            if k < MIN_CASES:
+                row.interval_status = TOO_FEW
+                row.note = f"too few cases: {k} shared (a claim needs {MIN_CASES})"
+            elif iv.lo == iv.hi:
+                row.interval_status = DEGENERATE
+                row.note = "degenerate: zero-width interval (every shared case moved alike)"
+            else:
+                row.interval_status = OK
             return row
-    so, src_o = _side_interval(mo, co, f"{salt}|old", cache)
-    sn, src_n = _side_interval(mn, cn, f"{salt}|new", cache)
+        row.partial_overlap = True
+        overlap = (
+            f"partial overlap: {k} shared case(s) of {uo} old and {un} new (pairing needs at "
+            f"least half of each); compared unpaired; {uo - k} old and {un - k} new case(s) "
+            "without a partner"
+        )
+    so, src_o, st_o = _side_interval(mo, co, f"{salt}|old", cache)
+    sn, src_n, st_n = _side_interval(mn, cn, f"{salt}|new", cache)
     row.interval_sources = {"old": src_o, "new": src_n}
+    notes = [overlap] if overlap else []
     if so is None or sn is None:
         row.diff = mn.value - mo.value  # type: ignore[operator]
-        row.note = "no interval on " + (
-            "either side"
-            if so is None and sn is None
-            else "the old side"
-            if so is None
-            else "the new side"
+        notes.append(
+            "no interval on "
+            + (
+                "either side"
+                if so is None and sn is None
+                else "the old side"
+                if so is None
+                else "the new side"
+            )
         )
+        row.note = "; ".join(notes)
         return row
     iv = _mover(so, sn)
     row.method = MOVER
     row.diff, row.ci_low, row.ci_high, row.p_value = iv.point, iv.lo, iv.hi, _normal_p(iv)
     if heldout:
-        row.note = "held-out: never paired"
+        notes.append("held-out: never paired")
+    if TOO_FEW in (st_o, st_n):
+        row.interval_status = TOO_FEW
+        notes.append(f"too few cases: a run's per-case interval needs {MIN_CASES} cases")
+    elif DEGENERATE in (st_o, st_n) or iv.lo == iv.hi:
+        row.interval_status = DEGENERATE
+        notes.append("degenerate: a zero-width interval (identical values) is never a claim")
+    else:
+        row.interval_status = OK
+    row.note = "; ".join(notes)
     return row
 
 
 def _flag(changes: Mapping[Key, Change]) -> int:
-    """Holm across every row with a p-value; flagged = rejected and the interval excludes 0."""
+    """Holm across every row whose interval may carry a claim (`interval_status` ok: enough
+    cases, not of zero width); flagged = rejected and the interval excludes 0. Rows that are
+    too small or degenerate keep their p-value but take no part in Holm and are never
+    flagged."""
     keys = list(changes)
-    ps = {i: changes[k].p_value for i, k in enumerate(keys) if changes[k].p_value is not None}
-    clean: dict[int, float] = {i: p for i, p in ps.items() if p is not None}
+    clean: dict[int, float] = {}
+    for i, k in enumerate(keys):
+        p = changes[k].p_value
+        if p is not None and changes[k].interval_status == OK:
+            clean[i] = p
     rejected = holm(clean)
     adjusted = _holm_adjusted(clean)
     for i in clean:
@@ -977,8 +1149,10 @@ def _labels_text(labels: Mapping[str, str]) -> str:
     return ", ".join(f"{k}={v}" for k, v in labels.items()) or "(no labels)"
 
 
-def _shown_held(labels: Mapping[str, Any], heldout: bool) -> dict[str, str]:
-    shown = _shown(labels)
+def _shown_held(
+    labels: Mapping[str, Any], heldout: bool, quoted: frozenset[str] = frozenset()
+) -> dict[str, str]:
+    shown = _shown(labels, quoted)
     return {k: v for k, v in shown.items() if k in KEPT_HELDOUT} if heldout else shown
 
 
@@ -989,6 +1163,7 @@ def _baseline_errors(
     changes: Mapping[Key, Change],
     shared_of: Mapping[Key, int | None],
     is_held: Mapping[Key, bool],
+    quoted: frozenset[str] = frozenset(),
 ) -> list[str]:
     """RVR-03: a baseline names every gated metric, with at least 2 shared cases."""
     out: list[str] = []
@@ -1004,7 +1179,7 @@ def _baseline_errors(
         for k in sorted(om ^ nm, key=lambda k: (k[0], repr(k[1]))):
             m = o_rows.get(k) or n_rows[k]
             side = "baseline (old run)" if k in nm else "new run"
-            shown = _labels_text(_shown_held(m.labels, is_held[k]))
+            shown = _labels_text(_shown_held(m.labels, is_held[k], quoted))
             msg = f"{where}: {shown} is missing from the {side}"
             if msg not in seen:
                 seen.add(msg)
@@ -1013,7 +1188,7 @@ def _baseline_errors(
             c = changes.get(k)
             if c is None:  # a unit mismatch: already an error
                 continue
-            shown = _labels_text(_shown_held(o_rows[k].labels, is_held[k]))
+            shown = _labels_text(_shown_held(o_rows[k].labels, is_held[k], quoted))
             shared = shared_of.get(k)
             if shared is not None and shared < 2:
                 out.append(
@@ -1078,11 +1253,12 @@ def _fold(items: Sequence[tuple[Key, Change]], is_held: Mapping[Key, bool]) -> l
             final.append(c)
             continue
         members = groups[gk]
-        if len(members) == 1:
-            c.labels = dict(gk[1])
-            c.heldout_rows = 1
+        if len(members) == 1 and set(c.labels) <= set(KEPT_HELDOUT):
+            c.heldout_rows = 1  # already a split-level aggregate: it keeps its figures
             final.append(c)
             continue
+        # a row with any other label (a category, a topic) is never shown under the split's
+        # name, even alone: its figures are one slice of the split, not the split
         flagged = sum(1 for m in members if m.flagged)
         sev = [m.regression_severity for m in members if m.regression_severity]
         gate = [m.gate for m in members if m.gate]
@@ -1103,7 +1279,7 @@ def _fold(items: Sequence[tuple[Key, Change]], is_held: Mapping[Key, bool]) -> l
                 regression=any(m.regression for m in members),
                 regression_severity="fail" if "fail" in sev else "warn" if sev else None,
                 heldout_rows=len(members),
-                note=f"held-out split: {len(members)} rows, {flagged} flagged",
+                note=f"held-out split: {len(members)} row(s) compared, {flagged} flagged",
             )
         )
     return final
@@ -1112,14 +1288,23 @@ def _fold(items: Sequence[tuple[Key, Change]], is_held: Mapping[Key, bool]) -> l
 def _fold_missing(
     items: Sequence[tuple[Key, Missing]], is_held: Mapping[Key, bool]
 ) -> list[Missing]:
+    """Held-out rows in one run only are listed at split level with how many there are, so a
+    split compared in part and missing in part reads as such, never as a contradiction."""
     out: list[Missing] = []
+    held_at: dict[tuple[str, str, tuple[tuple[str, str], ...], str], int] = {}
     for key, m in items:
-        if is_held[key]:
-            m = Missing(
-                m.side, m.metric, {k: v for k, v in m.labels.items() if k in KEPT_HELDOUT}, m.what
-            )
-        if m not in out:
-            out.append(m)
+        if not is_held[key]:
+            if m not in out:
+                out.append(m)
+            continue
+        kept = {k: v for k, v in m.labels.items() if k in KEPT_HELDOUT}
+        gk = (m.side, m.metric, tuple(kept.items()), m.what)
+        if gk in held_at:
+            i = held_at[gk]
+            out[i] = Missing(m.side, m.metric, kept, m.what, out[i].heldout_rows + 1)
+        else:
+            held_at[gk] = len(out)
+            out.append(Missing(m.side, m.metric, kept, m.what, 1))
     return out
 
 
@@ -1128,12 +1313,20 @@ def _maybe_text(v: str | None) -> str | None:
 
 
 def _settings_diff(
-    old: Mapping[str, str | None], new: Mapping[str, str | None]
+    old: Mapping[str, str | None],
+    new: Mapping[str, str | None],
+    always: Sequence[str] = (),
 ) -> tuple[list[SettingDifference], str]:
+    """Settings recorded differently or on one side only; a setting in `always` is listed as
+    unrecorded when neither run records it (a run folder's EvalKit version)."""
     out: list[SettingDifference] = []
     differ = one_sided = False
-    for k in sorted(old.keys() | new.keys()):
+    for k in sorted(old.keys() | new.keys() | set(always)):
         a, b = old.get(k), new.get(k)
+        if a is None and b is None and k in always:
+            one_sided = True
+            out.append(SettingDifference(safe_text(k), None, None, "unrecorded in both runs"))
+            continue
         if a == b:
             continue
         if a is None or b is None:
@@ -1240,6 +1433,10 @@ def _change_text(c: Change) -> str:
         text += f" [{_fmt(c.ci_low)}, {_fmt(c.ci_high)}]"
     else:
         text += " (no interval)"
+    if c.interval_status == TOO_FEW:
+        text += " (too few cases: not a claim)"
+    elif c.interval_status == DEGENERATE:
+        text += " (degenerate: zero width, not a claim)"
     return text
 
 
@@ -1249,7 +1446,13 @@ def _pairing_text(c: Change) -> str:
         return f"paired ({c.n_shared} cases{trials})"
     if c.heldout_rows and c.method.startswith("held-out"):
         return "unpaired (held-out)"
-    return "unpaired" if c.ci_low is not None else "unpaired, no interval"
+    text = "unpaired" if c.ci_low is not None else "unpaired, no interval"
+    if c.partial_overlap and c.not_paired is not None:
+        text += (
+            f" (partial overlap: {c.n_shared} shared; {c.not_paired['old']} old and "
+            f"{c.not_paired['new']} new without a partner)"
+        )
+    return text
 
 
 def _worth_a_row(c: Change) -> bool:
@@ -1289,14 +1492,16 @@ def render_markdown(c: Comparison) -> str:
     if c.settings:
         title = {
             "different": "**Settings differ**: this comparison crosses different settings.",
-            "partly unrecorded": "**Settings partly unrecorded**: some are in one run only.",
+            "partly unrecorded": (
+                "**Settings partly unrecorded**: some are unrecorded in one run or both."
+            ),
         }.get(c.settings_status, "**Settings**")
         lines.append(title)
         for d in c.settings:
             note = f" ({d.note})" if d.note else ""
-            lines.append(
-                f"- `{_cell(d.setting)}`: {_cell(_fmt(d.old))} → {_cell(_fmt(d.new))}{note}"
-            )
+            old = "unrecorded" if d.old is None else _fmt(d.old)
+            new = "unrecorded" if d.new is None else _fmt(d.new)
+            lines.append(f"- `{_cell(d.setting)}`: {_cell(old)} → {_cell(new)}{note}")
     elif c.old.get("run_id") and c.new.get("run_id"):
         lines.append("Settings: the same, as recorded.")
     lines.append("")
@@ -1310,9 +1515,7 @@ def render_markdown(c: Comparison) -> str:
         for ch in shown:
             labels = _labels_text(ch.labels)
             if ch.heldout_rows:
-                labels += (
-                    f" (held-out split, {ch.heldout_rows} row{'s' if ch.heldout_rows > 1 else ''})"
-                )
+                labels += f" (held-out split, {ch.heldout_rows} row(s))"
             unit = f" {ch.unit}" if ch.unit not in ("rate", "count", "bool", "ratio") else ""
             cells = (
                 ch.metric,
@@ -1333,6 +1536,8 @@ def render_markdown(c: Comparison) -> str:
         lines.append("Missing (listed, never skipped):")
         for m in c.missing:
             what = "" if m.what == "labels" else " (no metric of this name)"
+            if m.heldout_rows:
+                what += f" (held-out split, {m.heldout_rows} row(s), other labels not shown)"
             lines.append(
                 f"- not in the {m.side} run: `{_cell(m.metric)}` "
                 f"{_cell(_labels_text(m.labels))}{what}"
@@ -1344,10 +1549,14 @@ def render_markdown(c: Comparison) -> str:
         lines.append("")
     flagged = sum(1 for ch in c.changes if ch.flagged)
     regressions = sum(1 for ch in c.changes if ch.regression)
+    unclaimed = sum(1 for ch in c.changes if ch.interval_status in (TOO_FEW, DEGENERATE))
     lines.append(
         f"Holm across {c.holm_family} compared row(s) at alpha {ALPHA}; seed {c.seed}, "
-        f"{c.resamples:,} resamples. Paired: shared case ids (cases, then trials); unpaired: "
-        "each run's interval combined (MOVER). Held-out rows: split-level aggregates only."
+        f"{c.resamples:,} resamples. Paired: shared case ids (cases, then trials), when they "
+        f"are at least half of each run's cases; unpaired: each run's interval combined "
+        f"(MOVER). A change is claimed only from at least {MIN_CASES} cases and a non-zero-"
+        f"width interval ({unclaimed} row(s) shown but not claimed). Held-out rows: "
+        "split-level aggregates only."
     )
     lines.append("")
     lines.append(

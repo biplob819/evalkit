@@ -23,7 +23,8 @@ Options: `--gates FILE` (gated metrics, see [Exit codes](#exit-codes); its `held
 apply here), `--manifest FILE` (a [B5.14 held-out manifest](heldout.md)), `--heldout-split NAME`
 (repeatable; `heldout` is always held out), `--seed` (default 7), `--resamples` (default
 10000), `--json` (print compare.json), `--out` (default `compare.json`; written on every exit,
-including exit 2) and `--md FILE` (the markdown report).
+including exit 2) and `--md FILE` (the markdown report). If the markdown cannot be written,
+the command exits 2 and compare.json is rewritten to record exit 2 and the error.
 
 From Python:
 
@@ -54,29 +55,75 @@ One JSON object per line:
   case with rows both with and without `trial`, label keys that name an id, rows for a
   true/false metric, and rows whose metric or labels are not in the metrics file. Error
   messages give the line number and never echo a value or a case id.
+- **Counts take no sidecar.** A `count` metric (other than the per-case token means such as
+  `tokens_in_per_case`) is refused with exit 2 if the sidecar has rows for it. Its change is
+  always on the count scale, new count − old count, from the metrics file.
+- **The sidecar must agree with the metrics file.** For each (metric, labels) the sidecar
+  covers, the per-case values must average to the metric's `value` within the metrics-1 rate
+  tolerance (1e-6 relative or 5e-7 absolute, so a value rounded to 6 decimals passes). The
+  average is the mean of the case means (trials averaged within a case, and each row without
+  a `case_id` counted as one case) or the mean over every line. Otherwise the input is
+  refused with exit 2. A sidecar that contradicts its summary is never compared.
 
 ## How a change is estimated
 
 Every (metric, labels) present in both runs gets the change **new − old**:
 
-1. **paired**. Both runs have per-case values with case ids for this row, the row is public,
-   and at least 2 case ids are shared. A bootstrap over the shared cases, then over each run's
-   trials within a drawn case (two-level, as D-41 and D-51). With no trial level it is a
-   case-only resample, the same as `evalkit.stats.paired`. Rows outside the shared set are
-   counted in `not_paired`.
-2. **unpaired** (every other row). Each run gets its own 95% interval: a per-case bootstrap
-   when it has per-case values; otherwise the supplied `ci_low`/`ci_high`; otherwise exact
-   two-sided Clopper-Pearson from `k` and `n`. The two intervals are combined by MOVER (Zou &
-   Donner 2008). `interval_sources` says where each came from. A row with no interval on
-   either side shows the change without an interval and is never flagged. True/false metrics
-   show whether they changed. Every output labels these rows `unpaired`.
+1. **paired**. Both runs have per-case values with case ids for this row, and the row is
+   public. At least 2 case ids are shared, and the shared cases are **at least half of each
+   run's cases** for the row. A bootstrap over the shared cases, then over each run's trials
+   within a drawn case (two-level, as D-41 and D-51). With no trial level it is a case-only
+   resample, the same as `evalkit.stats.paired`. Rows outside the shared set are counted in
+   `not_paired`.
+2. **unpaired** (every other row). Each run gets its own 95% interval:
+   - a per-case bootstrap when it has per-case values from at least 10 cases. If that
+     bootstrap has zero width (every case the same) and the values are 0/1, exact
+     Clopper-Pearson over the cases is used instead.
+   - otherwise the supplied `ci_low`/`ci_high`
+   - otherwise exact two-sided Clopper-Pearson from `k` and `n`, or over the 0/1 per-case
+     values
+   - otherwise a bootstrap of the few cases there are, marked `too_few_cases`
 
-A row is **flagged** when Holm's step-down (alpha 0.05, across every compared row with a
-p-value) rejects it **and** its 95% interval excludes 0. Paired rows use a bootstrap p-value
-(+1 correction). Unpaired rows use the normal approximation from the half-width on the side of
-zero. The JSON gives both `p_value` and the Holm-adjusted `p_holm`. Draws are seeded (default
-7, 10,000 resamples), so the same inputs and seed give byte-identical compare.json and
-markdown.
+   The two intervals are combined by MOVER (Zou & Donner 2008), and `interval_sources` says
+   where each came from (`bootstrap`, `supplied`, `clopper-pearson`, or
+   `clopper-pearson (cases)`). A row with no interval on either side shows the change without
+   an interval and is never flagged. True/false metrics show whether they changed. Every
+   output labels these rows `unpaired`.
+
+**Partial overlap.** When both runs carry case ids for a row but the shared cases are fewer
+than half of either run's cases (or fewer than 2), the shared subset says little about either
+run. The row is compared unpaired over all its cases and marked `partial_overlap: true`.
+`n_shared` and `not_paired` state how many cases each run has without a partner, in the JSON
+and in the markdown's pairing column ("partial overlap: 2 shared; 98 old and 98 new without a
+partner").
+
+### When a change is claimed
+
+Each row's `interval_status` says whether its interval may carry a claim:
+
+| `interval_status` | Meaning |
+| --- | --- |
+| `ok` | enough cases and a non-zero-width interval: takes part in Holm, can be flagged and can exit 1 |
+| `too_few_cases` | a paired row with fewer than **10 shared cases**, or an unpaired side bootstrapped from fewer than 10 cases with no exact interval to use instead |
+| `degenerate` | a zero-width interval: every resample gave the same change (for example, every shared case moved by the same amount), or a run's bootstrap had zero width with no exact interval to use instead |
+| `null` | no interval (a true/false metric, or no interval on a side) |
+
+Rows that are `too_few_cases` or `degenerate` show their change, interval and p-value, but
+they never enter Holm, are never flagged and never exit 1. The threshold of 10 is about
+**claiming** a change. Below about ten cases, a percentile bootstrap's 95% interval badly
+undercovers because it can take only a handful of distinct values (2 cases give 3 possible
+resample means, 5 give 126). Two shared cases that both drop would otherwise read as a
+certain regression. This is separate from the RVR-03 baseline rule (at least 2 shared case
+ids for a gated metric, exit 2 below it), which is about what a baseline must contain. A
+gated row can meet RVR-03 with 2 to 9 shared cases and still make no claim. For an absolute
+bound on the new run alone, whatever the sample size, use `evalkit gate`.
+
+A row is **flagged** when Holm's step-down (alpha 0.05, across every row whose
+`interval_status` is `ok`) rejects it **and** its 95% interval excludes 0. Paired rows use a
+bootstrap p-value (+1 correction). Unpaired rows use the normal approximation from the
+half-width on the side of zero. The JSON gives both `p_value` and the Holm-adjusted `p_holm`
+(null for rows outside Holm). Draws are seeded (default 7, 10,000 resamples), so the same
+inputs and seed give byte-identical compare.json and markdown.
 
 From an EvalKit run folder, these are paired on records: accuracy, citation validity,
 coverage, task scores, headline and groundedness per judge (once judging is complete),
@@ -88,9 +135,12 @@ means are compared from their intervals.
 
 A row is held out when its `split` label is `heldout`, a `--heldout-split` value, or in the
 gates file's `heldout_splits`. Held-out rows are never paired. They are printed only at split
-level: one row per metric, split, model and judge, with no other label. A group of one keeps
-its figures, since it is already a split-level aggregate. A larger group shows how many rows
-it holds and how many were flagged.
+level: one row per metric, split, model and judge, with no other label. A row that has no
+label beyond those keeps its figures, since it is already a split-level aggregate. Any other
+group shows only how many rows it holds and how many were flagged. That includes a group of
+one row with another label, such as a category. Its figures are one slice of the split, so
+they are never shown under the split's name. Held-out rows in one run only are listed under
+"Missing" at split level, with how many rows they are (`heldout_rows`).
 
 With `--manifest`, any per-case value whose case id is in a held-out split of the manifest
 loses its id on loading, so it is never paired. No output ever prints a case id, public or
@@ -107,14 +157,26 @@ compared:
 | `project`, `simulated` | top level | `task`; false |
 | `snapshot`, `code_version`, `config_hash`, `evalkit` | `provenance` | config hash from `run.json`; code version = the records' `git_sha` |
 | `models` | the distinct `model` labels | `run.json` models |
-| `prompt_hash`, `model_ids`, `judge_prompt_hash`, `extractor_version` | – | from the records |
+| `prompt_hash`, `judge_prompt_hash`, `extractor_version` | – | from the records |
+| `model_ids.<model>` (one per model: its provider snapshot ids) | – | from the records |
 | `judges`, `judge_mode`, `seed`, `results_format` | – | `run.json`, `summary.json` |
 | anything else (`rules_hash`, `bar`, `assessments_hash`, …) | `settings.json` | `settings.json` |
 
 `settings.json` is a flat JSON object of values or lists of values. It fills settings the
 results do not record. If it disagrees with a recorded value, the input is refused. A setting
-recorded in only one run is listed with the note "recorded on one side only". The JSON's
-`settings.status` is `different`, `partly unrecorded` or `same`.
+recorded in only one run is listed with the note "recorded on one side only". Run folders do
+not record the EvalKit version, so when either input is a run folder and neither records it,
+`evalkit` is listed as "unrecorded in both runs" rather than left out. The markdown shows a
+missing value as `unrecorded`. The JSON's `settings.status` is `different`, `partly
+unrecorded` (some setting is unrecorded in one run or both) or `same`.
+
+Model snapshot ids are listed per model (`model_ids.claude-sonnet-5-5`, ...), so each fits
+the 64-character display limit. Only the models whose snapshot changed are listed.
+
+Label values are typed, as in metrics-1. When one label key carries values of different
+types across the two runs, text values are quoted, as `evalkit gate` quotes disparity groups.
+So `cohort=2024` (a number) and `cohort="2024"` (text) read differently in the JSON and the
+markdown.
 
 ## Missing metrics are listed, never skipped
 
@@ -129,8 +191,8 @@ Precedence is 2 > 1 > 0.
 | Code | Meaning |
 | --- | --- |
 | 0 | no flagged regression in a fail-gated metric. Without `--gates` the exit code is always 0 or 2. |
-| 1 | a **regression**: a row matched by a `severity: fail` gate is flagged (Holm-adjusted, its 95% interval excludes 0) and its change moves toward failing that gate (`>=`: the change is negative; `<=`: positive; `==`: either way). |
-| 2 | bad input: an unreadable or invalid file, sidecar or manifest; a unit that differs between the runs; or, with `--gates`, a baseline that breaks the rules below. |
+| 1 | a **regression**: a row matched by a `severity: fail` gate is flagged (`interval_status` ok, Holm-adjusted, its 95% interval excludes 0) and its change moves toward failing that gate (`>=`: the change is negative; `<=`: positive; `==`: either way). Rows with too few cases, degenerate intervals or no interval never exit 1. |
+| 2 | bad input: an unreadable or invalid file, sidecar or manifest; a sidecar for a count, or one that does not average to its metric's value; a unit that differs between the runs; an unwritable `--out` or `--md`; or, with `--gates`, a baseline that breaks the rules below. |
 
 Baseline rules (RVR-03, with `--gates`). Every gate must match a row in the old run (the
 baseline) and in the new run, and each matched row must exist in both. A matched public row
@@ -160,6 +222,7 @@ fail it. Use both: `gate` decides a release, `compare` says what moved.
   - `metric`, `labels`, `unit`, `old`, `new`, `diff`, `ci_low`, `ci_high`, `direction`
   - `pairing` and `method`
   - `interval_sources`, `n_shared`, `not_paired`, `n_old`, `n_new`
+  - `interval_status` (`ok`, `too_few_cases`, `degenerate` or null) and `partial_overlap`
   - `p_value`, `p_holm`, `flagged`
   - `gate`, `regression`, `regression_severity`, `note`
   - `heldout_rows` (folded held-out rows only)
