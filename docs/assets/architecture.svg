@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="1200" height="750" role="img" aria-labelledby="t d" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">EvalKit architecture</title>
+  <desc id="d">EvalKit's layers: entry points (CLI, Python API, GitHub Action, demo), the evaluation pipeline, the typed DAG runtime with a content-addressed store and budget, model and system adapters, the public scorer library, outputs, the build harness, and the seven downstream projects that build on EvalKit and are checked by a weekly canary.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .layer{fill:#f8fafc;stroke:#cbd5e1;stroke-width:1.2}
+      .box{fill:#ffffff;stroke:#334155;stroke-width:1.4}
+      .pub{fill:#eef2ff;stroke:#4f46e5;stroke-width:1.4}
+      .ext{fill:#ecfeff;stroke:#0e7490;stroke-width:1.4}
+      .out{fill:#f0fdf4;stroke:#15803d;stroke-width:1.4}
+      .harn{fill:#fff7ed;stroke:#c2410c;stroke-width:1.4}
+      .lt{font-size:13px;font-weight:700;fill:#475569;letter-spacing:.06em}
+      .h{font-size:14.5px;font-weight:700;fill:#0f172a}
+      .s{font-size:12.5px;fill:#334155}
+      .c{font-size:12px;fill:#64748b}
+      .title{font-size:22px;font-weight:700;fill:#0f172a}
+      .sub{font-size:13.5px;fill:#475569}
+      .ln{stroke:#475569;stroke-width:1.5;fill:none}
+    </style>
+  </defs>
+  <rect width="1200" height="750" fill="#ffffff"/>
+  <text x="40" y="44" class="title">EvalKit architecture</text>
+  <text x="40" y="68" class="sub">A typed node graph (asyncio + pydantic) with a content-addressed cache, a semver scorer library, and a harness that builds it node by node.</text>
+
+  <!-- entry points -->
+  <rect x="40" y="92" width="860" height="96" rx="12" class="layer"/>
+  <text x="56" y="114" class="lt">ENTRY POINTS</text>
+  <rect x="56" y="124" width="250" height="52" rx="8" class="box"/>
+  <text x="70" y="146" class="h">CLI</text>
+  <text x="70" y="166" class="s">run · calibrate · report · agent-run</text>
+  <rect x="320" y="124" width="170" height="52" rx="8" class="box"/>
+  <text x="334" y="146" class="h">Python API</text>
+  <text x="334" y="166" class="s">compare(), scorers</text>
+  <rect x="504" y="124" width="180" height="52" rx="8" class="box"/>
+  <text x="518" y="146" class="h">GitHub Action</text>
+  <text x="518" y="166" class="s">fail CI on a threshold</text>
+  <rect x="698" y="124" width="190" height="52" rx="8" class="box"/>
+  <text x="712" y="146" class="h">Live demo</text>
+  <text x="712" y="166" class="s">Streamlit · replay + guard</text>
+
+  <!-- pipeline -->
+  <rect x="40" y="206" width="860" height="112" rx="12" class="layer"/>
+  <text x="56" y="228" class="lt">EVALUATION PIPELINE (NODES)</text>
+  <rect x="56" y="238" width="128" height="66" rx="8" class="box"/>
+  <text x="68" y="262" class="h">Load/sample</text>
+  <text x="68" y="282" class="s">tasks, data card</text>
+  <rect x="194" y="238" width="118" height="66" rx="8" class="box"/>
+  <text x="206" y="262" class="h">Generate</text>
+  <text x="206" y="282" class="s">+ validate</text>
+  <rect x="322" y="238" width="118" height="66" rx="8" class="box"/>
+  <text x="334" y="262" class="h">Extract</text>
+  <text x="334" y="282" class="s">claims</text>
+  <rect x="450" y="238" width="140" height="66" rx="8" class="box"/>
+  <text x="462" y="262" class="h">Dual judges</text>
+  <text x="462" y="282" class="s">+ citation judge</text>
+  <rect x="600" y="238" width="140" height="66" rx="8" class="box"/>
+  <text x="612" y="262" class="h">Aggregate</text>
+  <text x="612" y="282" class="s">bootstrap CIs</text>
+  <rect x="750" y="238" width="138" height="66" rx="8" class="box"/>
+  <text x="762" y="262" class="h">Calibrate</text>
+  <text x="762" y="282" class="s">held-out kappa</text>
+
+  <!-- runtime -->
+  <rect x="40" y="336" width="860" height="96" rx="12" class="layer"/>
+  <text x="56" y="358" class="lt">RUNTIME</text>
+  <rect x="56" y="368" width="200" height="52" rx="8" class="box"/>
+  <text x="70" y="390" class="h">DAG executor</text>
+  <text x="70" y="410" class="s">async, rate limits, resume</text>
+  <rect x="270" y="368" width="220" height="52" rx="8" class="box"/>
+  <text x="284" y="390" class="h">Content-addressed store</text>
+  <text x="284" y="410" class="s">sha256 keys · lineage</text>
+  <rect x="504" y="368" width="180" height="52" rx="8" class="box"/>
+  <text x="518" y="390" class="h">Budget</text>
+  <text x="518" y="410" class="s">estimate · cost cap · holds</text>
+  <rect x="698" y="368" width="190" height="52" rx="8" class="box"/>
+  <text x="712" y="390" class="h">Single writer</text>
+  <text x="712" y="410" class="s">JSONL · atomic files</text>
+
+  <!-- adapters + scorers -->
+  <rect x="40" y="450" width="420" height="132" rx="12" class="layer"/>
+  <text x="56" y="472" class="lt">ADAPTERS</text>
+  <rect x="56" y="482" width="190" height="86" rx="8" class="ext"/>
+  <text x="70" y="504" class="h">Model providers</text>
+  <text x="70" y="524" class="s">Anthropic · OpenAI</text>
+  <text x="70" y="542" class="s">OpenAI-compatible</text>
+  <text x="70" y="560" class="c">sync + batch APIs</text>
+  <rect x="256" y="482" width="190" height="86" rx="8" class="ext"/>
+  <text x="270" y="504" class="h">Systems under test</text>
+  <text x="270" y="524" class="s">SystemAdapter plugins</text>
+  <text x="270" y="542" class="s">get the whole case</text>
+  <text x="270" y="560" class="c">entry points</text>
+
+  <rect x="480" y="450" width="420" height="132" rx="12" class="layer"/>
+  <text x="496" y="472" class="lt">SCORER LIBRARY (PUBLIC, SEMVER)</text>
+  <rect x="496" y="482" width="390" height="86" rx="8" class="pub"/>
+  <text x="510" y="504" class="h">evalkit.scorers</text>
+  <text x="510" y="524" class="s">label · citation · groundedness · faithfulness</text>
+  <text x="510" y="542" class="s">sql_match · retrieval (recall@k, MRR, nDCG)</text>
+  <text x="510" y="560" class="s">attack_outcome · agent trajectories · plugins</text>
+
+  <!-- outputs -->
+  <rect x="40" y="600" width="860" height="96" rx="12" class="layer"/>
+  <text x="56" y="622" class="lt">OUTPUTS</text>
+  <rect x="56" y="632" width="200" height="52" rx="8" class="out"/>
+  <text x="70" y="654" class="h">summary.json</text>
+  <text x="70" y="674" class="s">results format v1</text>
+  <rect x="270" y="632" width="200" height="52" rx="8" class="out"/>
+  <text x="284" y="654" class="h">Report + dashboard</text>
+  <text x="284" y="674" class="s">GitHub Pages</text>
+  <rect x="484" y="632" width="200" height="52" rx="8" class="out"/>
+  <text x="498" y="654" class="h">records.jsonl</text>
+  <text x="498" y="674" class="s">full provenance</text>
+  <rect x="698" y="632" width="190" height="52" rx="8" class="out"/>
+  <text x="712" y="654" class="h">PyPI package</text>
+  <text x="712" y="674" class="s">evalkit-harness</text>
+
+  <!-- right column: harness + downstream -->
+  <rect x="930" y="92" width="230" height="300" rx="12" class="harn"/>
+  <text x="946" y="116" class="lt">BUILD HARNESS</text>
+  <text x="946" y="144" class="h">Node graph</text>
+  <text x="946" y="164" class="s">41 nodes, 206 capabilities</text>
+  <text x="946" y="190" class="h">12 gates per node</text>
+  <text x="946" y="210" class="s">lint, types, tests, golden,</text>
+  <text x="946" y="228" class="s">judge, safety, build, records</text>
+  <text x="946" y="254" class="h">5 proof dimensions</text>
+  <text x="946" y="274" class="s">logical, contract, golden,</text>
+  <text x="946" y="292" class="s">reproducibility, safety/cost</text>
+  <text x="946" y="318" class="h">Builder + skeptical verifier</text>
+  <text x="946" y="338" class="s">decisions log, lessons,</text>
+  <text x="946" y="356" class="s">parallel lanes in worktrees</text>
+
+  <rect x="930" y="410" width="230" height="286" rx="12" class="layer"/>
+  <text x="946" y="434" class="lt">DOWNSTREAM (7)</text>
+  <text x="946" y="460" class="s">course-assistant</text>
+  <text x="946" y="482" class="s">agentic-analytics</text>
+  <text x="946" y="504" class="s">gemma-grounded-health</text>
+  <text x="946" y="526" class="s">assay-pipeline</text>
+  <text x="946" y="548" class="s">ai-visibility</text>
+  <text x="946" y="570" class="s">fraud-review-bedrock</text>
+  <text x="946" y="592" class="s">respectful-offers</text>
+  <text x="946" y="622" class="c">weekly canary runs their</text>
+  <text x="946" y="640" class="c">EvalKit tests against main;</text>
+  <text x="946" y="658" class="c">their needs become nodes</text>
+  <path d="M900,525 L928,525" class="ln" marker-end="url(#a)"/>
+  <path d="M928,555 L902,555" class="ln" marker-end="url(#a)"/>
+
+  <path d="M470,188 L470,204" class="ln" marker-end="url(#a)"/>
+  <path d="M470,318 L470,334" class="ln" marker-end="url(#a)"/>
+  <path d="M250,432 L250,448" class="ln" marker-end="url(#a)"/>
+  <path d="M690,432 L690,448" class="ln" marker-end="url(#a)"/>
+  <path d="M470,582 L470,598" class="ln" marker-end="url(#a)"/>
+  <text x="40" y="730" class="c">github.com/biplob819/evalkit · architecture as built (EvalKit Tech Spec §2, §4, §11)</text>
+</svg>

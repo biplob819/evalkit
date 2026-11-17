@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-labelledby="t d" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">EvalKit data flow</title>
+  <desc id="d">How one evalkit run turns a task and a config into a scored, reproducible result: load and sample, generate, validate, extract claims, judge with two model families, score, aggregate with confidence intervals, and write the summary, records and report. Every step is cached in a content-addressed store.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#334155;stroke-width:1.5}
+      .in{fill:#eef2ff;stroke:#4f46e5;stroke-width:1.5}
+      .model{fill:#ecfeff;stroke:#0e7490;stroke-width:1.5}
+      .judge{fill:#fff7ed;stroke:#c2410c;stroke-width:1.5}
+      .out{fill:#f0fdf4;stroke:#15803d;stroke-width:1.5}
+      .store{fill:#f8fafc;stroke:#64748b;stroke-width:1.5;stroke-dasharray:6 4}
+      .h{font-size:15px;font-weight:700;fill:#0f172a}
+      .s{font-size:12.5px;fill:#334155}
+      .c{font-size:12px;fill:#64748b}
+      .title{font-size:22px;font-weight:700;fill:#0f172a}
+      .sub{font-size:13.5px;fill:#475569}
+      .ln{stroke:#475569;stroke-width:1.6;fill:none}
+      .dash{stroke:#94a3b8;stroke-width:1.2;fill:none;stroke-dasharray:4 4}
+    </style>
+  </defs>
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="40" y="44" class="title">EvalKit data flow — one `evalkit run`</text>
+  <text x="40" y="68" class="sub">Same cases, same seed, every model; two judges from different model families; every number carries a 95% interval.</text>
+
+  <!-- inputs -->
+  <rect x="40" y="100" width="230" height="86" rx="10" class="in"/>
+  <text x="56" y="126" class="h">Task</text>
+  <text x="56" y="147" class="s">PubMedQA · SciFact · JSONL/CSV</text>
+  <text x="56" y="166" class="s">prompt, labels, scorers, slices</text>
+  <rect x="40" y="200" width="230" height="86" rx="10" class="in"/>
+  <text x="56" y="226" class="h">evalkit.yaml</text>
+  <text x="56" y="247" class="s">models or systems, judges, seed</text>
+  <text x="56" y="266" class="s">thresholds, cost cap</text>
+
+  <!-- row 1 -->
+  <rect x="320" y="140" width="190" height="96" rx="10" class="box"/>
+  <text x="336" y="166" class="h">1 · Load &amp; sample</text>
+  <text x="336" y="187" class="s">stratified, seeded</text>
+  <text x="336" y="206" class="s">numbered source sentences</text>
+  <text x="336" y="225" class="c">cost estimated before any call</text>
+
+  <rect x="550" y="140" width="190" height="96" rx="10" class="model"/>
+  <text x="566" y="166" class="h">2 · Generate</text>
+  <text x="566" y="187" class="s">Claude · GPT · open models</text>
+  <text x="566" y="206" class="s">or your system (adapter)</text>
+  <text x="566" y="225" class="c">batch or live · retries</text>
+
+  <rect x="780" y="140" width="190" height="96" rx="10" class="box"/>
+  <text x="796" y="166" class="h">3 · Validate</text>
+  <text x="796" y="187" class="s">answer schema, citations</text>
+  <text x="796" y="206" class="s">errors counted, never dropped</text>
+  <text x="796" y="225" class="c">error = wrong and ungrounded</text>
+
+  <rect x="1000" y="140" width="160" height="96" rx="10" class="box"/>
+  <text x="1016" y="166" class="h">4 · Extract</text>
+  <text x="1016" y="187" class="s">claims, one pinned</text>
+  <text x="1016" y="206" class="s">versioned extractor</text>
+  <text x="1016" y="225" class="c">same claims, both judges</text>
+
+  <path d="M270,188 L318,188" class="ln" marker-end="url(#a)"/>
+  <path d="M510,188 L548,188" class="ln" marker-end="url(#a)"/>
+  <path d="M740,188 L778,188" class="ln" marker-end="url(#a)"/>
+  <path d="M970,188 L998,188" class="ln" marker-end="url(#a)"/>
+
+  <!-- row 2: judges and scorers -->
+  <path d="M1080,236 L1080,292 L900,292 L900,318" class="ln" marker-end="url(#a)"/>
+  <path d="M1080,292 L1080,318" class="ln" marker-end="url(#a)"/>
+
+  <rect x="800" y="320" width="200" height="104" rx="10" class="judge"/>
+  <text x="816" y="346" class="h">5a · Judge (Claude)</text>
+  <text x="816" y="367" class="s">each claim vs. its cited</text>
+  <text x="816" y="386" class="s">sentences · blinded</text>
+  <text x="816" y="409" class="c">batch API · cached verdicts</text>
+
+  <rect x="1020" y="320" width="150" height="104" rx="10" class="judge"/>
+  <text x="1034" y="346" class="h">5b · Judge (GPT)</text>
+  <text x="1034" y="367" class="s">same claims,</text>
+  <text x="1034" y="386" class="s">other family</text>
+  <text x="1034" y="409" class="c">self-preference</text>
+
+  <rect x="560" y="320" width="210" height="104" rx="10" class="box"/>
+  <text x="576" y="346" class="h">5c · Deterministic scorers</text>
+  <text x="576" y="367" class="s">label correct · citation valid</text>
+  <text x="576" y="386" class="s">cost · tokens · latency</text>
+  <text x="576" y="409" class="c">+ task scorers (plugins)</text>
+  <path d="M875,236 L875,270 L665,270 L665,318" class="dash" marker-end="url(#a)"/>
+
+  <rect x="320" y="320" width="210" height="104" rx="10" class="judge"/>
+  <text x="336" y="346" class="h">5d · Citation judge</text>
+  <text x="336" y="367" class="s">opt-in: does each cited</text>
+  <text x="336" y="386" class="s">sentence support the claim?</text>
+  <text x="336" y="409" class="c">role: aim, method, result…</text>
+  <path d="M798,372 L532,372" class="dash" marker-end="url(#a)"/>
+
+  <!-- aggregate -->
+  <rect x="320" y="470" width="850" height="92" rx="10" class="box"/>
+  <text x="336" y="497" class="h">6 · Aggregate</text>
+  <text x="336" y="519" class="s">headline = correct AND fully grounded, per judge · accuracy · groundedness · coverage · cost per correct · latency p50/p95</text>
+  <text x="336" y="540" class="s">bootstrap 95% intervals over cases · paired comparisons with Holm · per family · per slice · thresholds · calibration (held-out kappa)</text>
+  <path d="M425,424 L425,468" class="ln" marker-end="url(#a)"/>
+  <path d="M665,424 L665,468" class="ln" marker-end="url(#a)"/>
+  <path d="M900,424 L900,468" class="ln" marker-end="url(#a)"/>
+  <path d="M1095,424 L1095,468" class="ln" marker-end="url(#a)"/>
+
+  <!-- outputs -->
+  <rect x="320" y="600" width="200" height="110" rx="10" class="out"/>
+  <text x="336" y="626" class="h">summary.json</text>
+  <text x="336" y="647" class="s">results format v1</text>
+  <text x="336" y="666" class="s">read by downstream gates</text>
+  <rect x="540" y="600" width="200" height="110" rx="10" class="out"/>
+  <text x="556" y="626" class="h">records.jsonl</text>
+  <text x="556" y="647" class="s">every answer, claim</text>
+  <text x="556" y="666" class="s">and verdict, with provenance</text>
+  <rect x="760" y="600" width="200" height="110" rx="10" class="out"/>
+  <text x="776" y="626" class="h">report.html</text>
+  <text x="776" y="647" class="s">scatter with CIs, failures,</text>
+  <text x="776" y="666" class="s">calibration, slices</text>
+  <rect x="980" y="600" width="190" height="110" rx="10" class="out"/>
+  <text x="996" y="626" class="h">Exit code</text>
+  <text x="996" y="647" class="s">0 pass · 1 threshold fail</text>
+  <text x="996" y="666" class="s">2 error · 3 cost cap</text>
+  <text x="996" y="685" class="s">4 judging pending</text>
+  <path d="M420,562 L420,598" class="ln" marker-end="url(#a)"/>
+  <path d="M640,562 L640,598" class="ln" marker-end="url(#a)"/>
+  <path d="M860,562 L860,598" class="ln" marker-end="url(#a)"/>
+  <path d="M1075,562 L1075,598" class="ln" marker-end="url(#a)"/>
+
+  <!-- store -->
+  <rect x="40" y="320" width="230" height="390" rx="10" class="store"/>
+  <text x="56" y="348" class="h">Content-addressed store</text>
+  <text x="56" y="372" class="s">every node's output, keyed by</text>
+  <text x="56" y="391" class="s">sha256(node, code version,</text>
+  <text x="56" y="410" class="s">inputs, model, params, prompt,</text>
+  <text x="56" y="429" class="s">seed)</text>
+  <text x="56" y="462" class="s">→ resume after a crash is free</text>
+  <text x="56" y="484" class="s">→ rescoring saved answers is</text>
+  <text x="70" y="503" class="s">exact and costs nothing</text>
+  <text x="56" y="525" class="s">→ new scorers pay only for</text>
+  <text x="70" y="544" class="s">their own calls</text>
+  <text x="56" y="578" class="c">lineage record per node</text>
+  <text x="56" y="597" class="c">single writer for JSONL</text>
+  <text x="56" y="616" class="c">budget held per batch</text>
+  <path d="M270,515 L318,515" class="dash" marker-end="url(#a)"/>
+  <text x="40" y="740" class="c">github.com/biplob819/evalkit · data flow as built (EvalKit Tech Spec §2) · evalkit-harness on PyPI</text>
+</svg>

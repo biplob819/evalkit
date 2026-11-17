@@ -227,25 +227,25 @@ EvalKit is also the trust layer for downstream projects. Each one's behavioral s
 
 ## Wireframe: demo screen
 
-[embedded content: wireframe · demo screen, replay mode] *TODO: re-export; add the abstract/PMID input for live mode.*
+![Live demo, replay mode](docs/assets/screenshots/demo-replay.png)
 
 The screen opens in replay mode with a sample already answered, so an evaluator sees results in under a second without spending anything. Entering the passcode unlocks live mode, with a question box and an abstract or PMID box. A budget line shows how much of the daily cap is left.
 
 ## Wireframe: results dashboard
 
-[embedded content: wireframe · results dashboard] *TODO: re-export; add CI whiskers and the self-preference table.*
+![Results report: headline with confidence intervals](docs/assets/screenshots/report-headline.png)
 
 The top row answers "which model" and "can I trust the score". The table gives the numbers, with CIs and a pass or fail against the bar set in config. The failure explorer shows each unsupported claim beside the sentence it cited, with both judges' verdicts. The page is static HTML, so it keeps working without a server.
 
 ## Data flow
 
-[embedded content: data flow · one benchmark run, from dataset to dashboard] *TODO: re-export with the claim extractor and two judge batches.*
+![EvalKit data flow: one benchmark run, from dataset to report](docs/assets/dataflow.svg)
 
 Cases flow through generation, then come back through scoring. Deterministic scores are computed as each answer arrives. Claims are extracted once, and only groundedness waits for the two judge batches. In live mode, the demo calls the model adapters directly and scores with a single fast judge on the spot, and says so on screen.
 
 ## Technical architecture
 
-[embedded content: technical architecture · components, services, hosting] *TODO: re-export.*
+![EvalKit architecture: entry points, pipeline, runtime, adapters, scorer library, outputs, build harness and downstream projects](docs/assets/architecture.svg)
 
 One library does the work, and three thin front ends use it (the CLI, the static dashboard and the demo page), so a scorer fixed once is fixed everywhere. Inside the library, a run is a typed graph of nodes with a content-addressed cache. That makes resume, exact rescoring and the demo's replay mode one mechanism. Schemas, interfaces, the node graph, the calibration protocol, the cost model, testing, and the harness used to build EvalKit are specified in the [Tech Spec](EvalKit%20Tech%20Spec.md).
 
