@@ -138,6 +138,11 @@ class TokenAssumptions(Model):
     claims_per_answer: Annotated[float, Field(gt=0, allow_inf_nan=False)] = 4.5  # measured 4.46
 
 
+# B5.12: a citation reply lists every cited sentence (about 25 tokens each, ~3 per claim)
+# instead of one verdict, so its planned output is larger than a claim verdict's.
+CITATION_T_OUT = 120
+
+
 class CostLine(Model):
     node: Name
     model: Name
@@ -163,9 +168,12 @@ def estimate_run_cost(
     assumptions: TokenAssumptions | None = None,
     batch_judges: bool = True,
     free: frozenset[str] = frozenset(),
+    citation_judges: bool = False,
 ) -> CostEstimate:
     """generation + extraction + judging (batch unless `batch_judges=False`), per node and
-    model (Tech Spec §9). Models in `free` (local endpoints) cost 0 unless priced."""
+    model (Tech Spec §9). Models in `free` (local endpoints) cost 0 unless priced.
+    `citation_judges` (B5.12, tasks listing `citation_support`) adds one citation-judge call
+    per claim per judge."""
     a = assumptions or TokenAssumptions()
 
     def pf(model: str) -> Price:
@@ -193,6 +201,17 @@ def estimate_run_cost(
         )
         claims = math.ceil(answers * a.claims_per_answer)  # judges score each claim
         lines.append(CostLine(node="judge", model=j, calls=claims, usd=per * claims))
+    if citation_judges:
+        for j in judges:
+            per = call_cost(
+                pf(j),
+                tokens_in=a.t_j_in,
+                tokens_out=CITATION_T_OUT,
+                tokens_reasoning=a.t_j_reason,
+                batch=batch_judges,
+            )
+            claims = math.ceil(answers * a.claims_per_answer)  # an upper bound: B3 skips some
+            lines.append(CostLine(node="citation_judge", model=j, calls=claims, usd=per * claims))
     return CostEstimate(lines=tuple(lines), total_usd=sum(line.usd for line in lines))
 
 
@@ -225,6 +244,7 @@ def estimate_for_config(
     n_cases: int,
     assumptions: TokenAssumptions | None = None,
     batch_judges: bool = True,
+    citation_judges: bool = False,
 ) -> CostEstimate:
     """The ADP-05 entry point: estimate a run straight from its RunConfig (model ids)."""
     return estimate_run_cost(
@@ -236,4 +256,5 @@ def estimate_for_config(
         assumptions=assumptions,
         batch_judges=batch_judges,
         free=frozenset(config.endpoints) | frozenset(config.systems),
+        citation_judges=citation_judges,
     )

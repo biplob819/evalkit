@@ -91,8 +91,45 @@ Values must be strings, integers or booleans; a case without the field is counte
 ## Task scorers (0.2.0)
 
 Any name in `scorers` beyond `label_correct`, `citation_valid`, `groundedness`, `coverage`,
-`cost` and `latency` is a scorer you register yourself; it runs on every answer and its
-mean appears in the summary and the report. See [plugins.md](plugins.md).
+`cost`, `latency` and `citation_support` is a scorer you register yourself; it runs on every
+answer and its mean appears in the summary and the report. See [plugins.md](plugins.md).
+
+## Citation support (0.3.0)
+
+`citation_valid` only checks that cited sentence numbers exist, and a claim verdict judges
+the cited sentences as a set. To see whether each cited sentence actually supports the claim
+that cites it, and what part of the source it is, add `citation_support`:
+
+```yaml
+scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency, citation_support]
+```
+
+After claim judging, each judge reads every claim that cites existing sentences once more,
+with each cited sentence shown on its own (blinded and redacted like claim judging), and says
+for every sentence whether it supports the claim and which role it plays: `aim` (the study's
+question, objective or hypothesis), `background`, `method`, `result` or `conclusion`. This is
+its own prompt (`CITATION_PROMPT_HASH`) and cache: claim verdicts, their prompt and their
+cache keys do not change, so adding the scorer to a task you already ran reuses the cached
+answers, claims and verdicts and pays only for the citation calls.
+
+**Cost.** One more judge call per claim per judge, about the price of a claim verdict with a
+slightly longer reply. Batch by default, live with `--live-judges`; `--dry-run` shows the
+calls as `citation_judge` lines before anything is spent.
+
+**Metrics**, per model and judge, with 95% bootstrap intervals over cases, in `summary.json`,
+the report's model table and slices:
+
+- **Citation precision**: supporting cited sentences over all cited sentences, summed over
+  answers with at least one judged citation. A sentence supports if it supports at least one
+  of the answer's claims.
+- **Aim-citation rate**: the share of those answers that cite a sentence whose role is `aim`
+  and that supports none of the answer's claims, such as an answer resting on the study's
+  question instead of its result. A sentence's role is the most common one the judge gave it
+  in that answer (ties go to `aim`, then `background`, `method`, `conclusion`, `result`).
+
+Records keep each judge's verdicts in `citation_support`. While citation batches are still
+open the run is "judging pending" (exit 4) and both metrics are absent; rerun the same
+command to collect them.
 
 ## Thresholds
 

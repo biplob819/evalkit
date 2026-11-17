@@ -51,6 +51,7 @@ PUBLIC: dict[str, list[str]] = {
         "CalibrationLabel",
         "CalibrationReport",
         "Case",
+        "CitationVerdict",  # 0.3 (B5.12)
         "Claim",
         "ClaimVerdict",
         "Completion",

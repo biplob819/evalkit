@@ -42,13 +42,20 @@ from evalkit.pipeline.calibrate import usable_agreements
 from evalkit.pipeline.extract import extract_all, ground_on_answer_citations
 from evalkit.pipeline.generate import SYSTEM, adapter_key, generate_and_validate, provider_for
 from evalkit.pipeline.judge import (
+    CitationResult,
     JudgeSelection,
     JudgingResult,
+    judge_citations,
+    judge_citations_live,
     judge_claims,
     judge_claims_live,
     select_judges,
 )
-from evalkit.pipeline.task_scorers import TaskScorerError, resolve_task_scorers
+from evalkit.pipeline.task_scorers import (
+    TaskScorerError,
+    resolve_task_scorers,
+    wants_citation_support,
+)
 from evalkit.report import write_report
 from evalkit.runtime import Executor, Store
 from evalkit.runtime.canonical import sha256_hex
@@ -305,7 +312,13 @@ def available_providers(config: RunConfig) -> set[str]:
 
 
 def estimate(plan: Plan, prices: dict[str, Price], *, live_judges: bool) -> CostEstimate:
-    return estimate_for_config(prices, plan.config, plan.n, batch_judges=not live_judges)
+    return estimate_for_config(
+        prices,
+        plan.config,
+        plan.n,
+        batch_judges=not live_judges,
+        citation_judges=wants_citation_support(plan.task),  # B5.12: one call per claim
+    )
 
 
 def system_adapters(config: RunConfig) -> dict[str, ModelAdapter]:
@@ -579,8 +592,15 @@ async def _graph(
         if isinstance(o, BaseException):
             raise o
     judging: list[JudgingResult] = [o for o in outcomes if isinstance(o, JudgingResult)]
+    citing = (
+        await _judge_citations(
+            plan, ex, items, adapters, prices, selection, say, wait_s, live_judges
+        )
+        if wants_citation_support(plan.task)
+        else []
+    )
 
-    complete = all(r.status == "complete" for r in judging)
+    complete = all(r.status == "complete" for r in (*judging, *citing))
     if complete and manifest.finished_at is None:
         manifest = manifest.model_copy(update={"finished_at": now()})
         _atomic_write(run_dir / "run.json", manifest.model_dump_json(indent=2) + "\n")
@@ -596,6 +616,7 @@ async def _graph(
             prompt_hash=hashlib.sha256(plan.task.prompt_template.encode()).hexdigest()[:16],
             timestamp=manifest.started_at,
             task_scorers=task_scorers,
+            citations=citing,
         )
     except TaskScorerError as exc:
         raise RunError(f"{exc} (completed calls are cached: fix it and rerun for free)") from None
@@ -604,6 +625,50 @@ async def _graph(
     write_summary(summary, run_dir / "summary.json")
     render(run_dir)
     return Outcome(summary, exit_code_for(summary), ex.spent_usd, run_dir)
+
+
+async def _judge_citations(
+    plan: Plan,
+    ex: Executor,
+    items: Sequence[tuple[Case, Any]],
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    selection: JudgeSelection,
+    say: Progress,
+    wait_s: float,
+    live_judges: bool,
+) -> list[CitationResult]:
+    """B5.12: after claim judging, the citation judge for every selected judge at once (batch
+    by default, live with --live-judges). Cached citation verdicts cost nothing."""
+    config = plan.config
+
+    async def cite_one(judge: str) -> CitationResult:
+        if live_judges:
+            r = await judge_citations_live(
+                ex, items, judge, config, adapters, prices, run_id=plan.run_id
+            )
+        else:
+            r = await judge_citations(
+                ex,
+                items,
+                judge,
+                config,
+                adapters,
+                prices,
+                run_id=plan.run_id,
+                max_wait_s=wait_s,
+                poll_interval_s=min(30.0, max(1.0, wait_s / 10)) if wait_s else 30.0,
+            )
+        say("cite", f"{judge}: {r.status}, {len(r.verdicts)} claims · spent ${ex.spent_usd:.4f}")
+        return r
+
+    outcomes = await asyncio.gather(
+        *(cite_one(j) for j in selection.judges), return_exceptions=True
+    )
+    for o in outcomes:
+        if isinstance(o, BaseException):
+            raise o
+    return [o for o in outcomes if isinstance(o, CitationResult)]
 
 
 def default_prices() -> dict[str, Price]:

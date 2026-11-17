@@ -1,5 +1,6 @@
 """Dual judging (JDG-01..08): each judge scores every claim against only its cited sentences,
-blind to the model that wrote the answer, through its provider's Batch API.
+blind to the model that wrote the answer, through its provider's Batch API. The same machinery
+runs the per-sentence citation judge (B5.12) under its own rubric, hash and cache namespace.
 
 Batch bookkeeping is per claim: each pending claim remembers the batch it was sent in, so a
 crash after partial caching never pays twice and a failed or expired batch is resubmitted.
@@ -14,10 +15,11 @@ import math
 import re
 import time
 import unicodedata
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Generic, Literal, Protocol, TypeVar
 
 from pydantic import field_validator
 
@@ -28,8 +30,9 @@ from evalkit.pipeline.generate import adapter_key, provider_for
 from evalkit.runtime import BudgetExceeded, Executor
 from evalkit.runtime.canonical import canonical_json, sha256_hex
 from evalkit.runtime.store import Lineage
-from evalkit.schemas import Case, Claim, ClaimVerdict, RunConfig
+from evalkit.schemas import Case, CitationVerdict, Claim, ClaimVerdict, RunConfig
 from evalkit.schemas._base import Model, Name, NonNegInt
+from evalkit.schemas.benchmark import CITATION_ROLES
 
 JUDGE_RUBRIC = """You check one claim against the source sentences it cites.
 
@@ -114,6 +117,15 @@ REDACTED = "[model]"
 JUDGE_MAX_OUTPUT_TOKENS = 4096
 
 JudgeMode = Literal["dual", "single"]
+
+
+class _HasClaim(Protocol):
+    @property
+    def claim_id(self) -> str: ...
+
+
+InT = TypeVar("InT", bound=_HasClaim)  # what one judge call sees (JudgeInput, CitationInput)
+V = TypeVar("V")  # what one judge call returns for a claim
 
 
 def verdict_schema() -> dict[str, Any]:
@@ -335,13 +347,23 @@ def custom_id_for(key: str) -> str:
 
 
 @dataclass
-class JudgingResult:
+class _Result(Generic[V]):
     judge: str
-    verdicts: dict[str, ClaimVerdict] = field(default_factory=dict)  # claim_id -> verdict
+    verdicts: dict[str, V] = field(default_factory=dict)  # claim_id -> verdict
     status: Literal["complete", "pending"] = "complete"
     n_errors: int = 0  # claims excluded for this judge after a retry, or failed this run
     cost_usd: float = 0.0
     batch_ids: list[str] = field(default_factory=list)
+
+
+@dataclass
+class JudgingResult(_Result[ClaimVerdict]):
+    """One judge's claim verdicts: claim_id -> ClaimVerdict."""
+
+
+@dataclass
+class CitationResult(_Result[tuple[CitationVerdict, ...]]):
+    """One judge's citation verdicts (B5.12): claim_id -> one verdict per cited sentence."""
 
 
 class _Cached(Model):
@@ -363,6 +385,310 @@ def _store_verdict(
         Lineage(key=key, node="judge", started_at=ts, finished_at=ts, cost_usd=cost),
     )
     executor.store.delete_meta(key, _META)
+
+
+# ---- rubrics: what a judge is asked, how its reply is read and where it is cached (B5.12) -----
+
+
+@dataclass(frozen=True)
+class _Pre(Generic[V]):
+    """A claim settled without a call: `verdict` is recorded, or None to skip the claim."""
+
+    verdict: V | None
+
+
+@dataclass(frozen=True)
+class _Hit(Generic[V]):
+    """A cached outcome: a verdict, or None for a cached failure (counted as unjudged)."""
+
+    verdict: V | None
+
+
+class Rubric(ABC, Generic[InT, V]):
+    """One kind of judge call over claims. The batch and live machinery (budget holds, resume,
+    custom ids, one retry, caching) is shared; a rubric names the input, request, parser,
+    cache namespace, batch meta, custom-id prefix and lock. `CLAIMS` is the benchmark claim
+    judge, unchanged; `CITATIONS` is the per-sentence citation judge."""
+
+    node: str  # store lineage node and cache-key namespace
+    meta: str  # batch-meta name: a pending claim's batch
+    id_prefix: str  # custom-id prefix, so ids of different rubrics never collide
+    lock: str  # per-judge lock name prefix
+
+    @abstractmethod
+    def make_input(self, claim: Claim, case: Case, judge: str, effort: str | None) -> InT: ...
+
+    @abstractmethod
+    def pre(self, claim: Claim, case: Case, judge: str) -> _Pre[V] | None: ...
+
+    @abstractmethod
+    def request(self, inp: InT, max_output_tokens: int | None = None) -> CompletionRequest: ...
+
+    @abstractmethod
+    def parse(self, raw_text: str, inp: InT) -> V: ...
+
+    @abstractmethod
+    def cache_key(self, inp: InT) -> str: ...
+
+    @abstractmethod
+    def store(
+        self, executor: Executor, key: str, verdict: V | None, err: str | None, cost: float
+    ) -> None: ...
+
+    @abstractmethod
+    def load(self, executor: Executor, key: str) -> _Hit[V] | None: ...
+
+    def custom_id(self, key: str) -> str:
+        """Provider-safe batch id (^[a-zA-Z0-9_-]{1,64}$) that reveals nothing about the claim."""
+        return self.id_prefix + key[:40]
+
+
+class ClaimRubric(Rubric[JudgeInput, ClaimVerdict]):
+    """The benchmark claim judge (A2.4): every value is today's, so keys never move."""
+
+    node = "judge"
+    meta = _META
+    id_prefix = "j"
+    lock = "judge"
+
+    def make_input(self, claim: Claim, case: Case, judge: str, effort: str | None) -> JudgeInput:
+        return judge_input(claim, case, judge, effort)
+
+    def pre(self, claim: Claim, case: Case, judge: str) -> _Pre[ClaimVerdict] | None:
+        v = precheck(claim, case, judge)
+        return None if v is None else _Pre(v)
+
+    def request(self, inp: JudgeInput, max_output_tokens: int | None = None) -> CompletionRequest:
+        return _request(inp, max_output_tokens)
+
+    def parse(self, raw_text: str, inp: JudgeInput) -> ClaimVerdict:
+        return parse_verdict(raw_text, inp)
+
+    def cache_key(self, inp: JudgeInput) -> str:
+        return _cache_key(inp)
+
+    def store(
+        self,
+        executor: Executor,
+        key: str,
+        verdict: ClaimVerdict | None,
+        err: str | None,
+        cost: float,
+    ) -> None:
+        _store_verdict(executor, key, verdict, err, cost)
+
+    def load(self, executor: Executor, key: str) -> _Hit[ClaimVerdict] | None:
+        cached = executor.store.get(key, _Cached)
+        return None if cached is None else _Hit(cached.verdict)
+
+
+CLAIMS = ClaimRubric()
+
+
+# ---- the citation judge (B5.12, CIT-01) ---------------------------------------------------------
+
+CITATION_RUBRIC = """You read, one at a time, the source sentences a claim cites. For each sentence
+say whether it supports the claim and what part of the study it is.
+
+Claim: {claim}
+
+Cited source sentences (judge each one on its own):
+{sentences}
+
+For each sentence:
+- "supports" is true only if this sentence by itself states or directly implies the claim, or
+  the part of the claim it is cited for. Use only that sentence: no outside knowledge and no
+  other sentence. A sentence that only asks a question or states an aim or a hypothesis does
+  not establish it.
+- "role" is what the sentence is in its source: "aim" (the study's question, objective or
+  hypothesis), "background" (context or prior knowledge), "method" (design, participants,
+  interventions or measures), "result" (findings or data), or "conclusion" (the authors'
+  interpretation).
+
+Reply with JSON only, with exactly one entry for every sentence above and no others:
+{{"sentences": [{{"n": <sentence number>, "supports": true or false,
+  "role": "aim" or "background" or "method" or "result" or "conclusion"}}, ...]}}"""
+
+CITATION_CODE_VERSION = "1"
+CITATION_MAX_OUTPUT_TOKENS = JUDGE_MAX_OUTPUT_TOKENS
+_CITATION_META = "citation_batch"
+
+
+def citation_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "sentences": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "n": {"type": "integer"},
+                        "supports": {"type": "boolean"},
+                        "role": {"type": "string", "enum": list(CITATION_ROLES)},
+                    },
+                    "required": ["n", "supports", "role"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["sentences"],
+        "additionalProperties": False,
+    }
+
+
+# Separate from JUDGE_PROMPT_HASH: the citation rubric, schema, roles, sentence format, code
+# version and the same blinding rules.
+CITATION_PROMPT_HASH = hashlib.sha256(
+    canonical_json(
+        [
+            CITATION_RUBRIC,
+            citation_schema(),
+            list(CITATION_ROLES),
+            SENTENCE_FORMAT,
+            CITATION_CODE_VERSION,
+            _BLIND_RE.pattern,
+            _SPACED_RE.pattern,
+            sorted(_STRONG),
+            CITATION_MAX_OUTPUT_TOKENS,
+            sorted(_BLIND_FOLD.items()),
+        ]
+    ).encode()
+).hexdigest()[:16]
+
+
+class CitationInput(Model):
+    """What the citation judge sees: the claim and each sentence it cites, redacted (B4)."""
+
+    claim_id: str
+    claim_text: str
+    cited: tuple[int, ...]  # distinct sentence numbers, in citation order
+    sentences: tuple[str, ...]  # texts of the cited sentences, in `cited` order, redacted
+    judge_id: Name
+    effort: Name | None
+    rubric_hash: Name = CITATION_PROMPT_HASH
+
+    @field_validator("rubric_hash")
+    @classmethod
+    def _current(cls, v: str) -> str:
+        if v != CITATION_PROMPT_HASH:
+            raise ValueError("rubric_hash must be the current CITATION_PROMPT_HASH")
+        return v
+
+
+def citation_input(claim: Claim, case: Case, judge: str, effort: str | None) -> CitationInput:
+    cited = tuple(dict.fromkeys(claim.cited))
+    return CitationInput(
+        claim_id=claim.id,
+        claim_text=redact(claim.text),
+        cited=cited,
+        sentences=tuple(redact(case.context[c - 1]) for c in cited),
+        judge_id=judge,
+        effort=effort,
+    )
+
+
+def render_citation_prompt(inp: CitationInput) -> str:
+    lines = "\n".join(
+        SENTENCE_FORMAT.format(n=n, text=s) for n, s in zip(inp.cited, inp.sentences, strict=True)
+    )
+    return CITATION_RUBRIC.format(claim=inp.claim_text, sentences=lines)
+
+
+def parse_citations(raw_text: str, inp: CitationInput) -> tuple[CitationVerdict, ...]:
+    """Every cited sentence answered exactly once, nothing else, and a known role; anything
+    else is a SchemaError (one retry, then unjudged, as for claim verdicts)."""
+    try:
+        data = json.loads(_extract_json(raw_text))
+    except ValueError as exc:
+        raise SchemaError(f"citation reply is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict) or set(data) != {"sentences"}:
+        raise SchemaError("citation reply must have exactly one key, sentences")
+    items = data["sentences"]
+    if not isinstance(items, list):
+        raise SchemaError("sentences must be a list")
+    out: dict[int, CitationVerdict] = {}
+    for item in items:
+        if not isinstance(item, dict) or set(item) != {"n", "supports", "role"}:
+            raise SchemaError("each sentence must have exactly n, supports, role")
+        n, supports, role = item["n"], item["supports"], item["role"]
+        if type(n) is not int or n not in inp.cited:
+            raise SchemaError(f"sentence {n!r} is not one the claim cites")
+        if n in out:
+            raise SchemaError(f"sentence {n} is answered more than once")
+        if type(supports) is not bool:
+            raise SchemaError("supports must be true or false")
+        if role not in CITATION_ROLES:
+            raise SchemaError(f"role {role!r} is not one of {list(CITATION_ROLES)}")
+        out[n] = CitationVerdict(claim_id=inp.claim_id, n=n, supports=supports, role=role)
+    missing = [n for n in inp.cited if n not in out]
+    if missing:
+        raise SchemaError(f"cited sentence(s) {missing} not answered")
+    return tuple(out[n] for n in inp.cited)
+
+
+class _CitationCached(Model):
+    verdict: tuple[CitationVerdict, ...] | None
+    error: str | None = None
+    cost_usd: float = 0.0
+
+
+class CitationRubric(Rubric[CitationInput, tuple[CitationVerdict, ...]]):
+    """One call per claim that passes the B3 precheck; its own cache namespace, batch meta and
+    custom-id prefix, so a citation verdict can never be read as a claim verdict."""
+
+    node = "citation_judge"
+    meta = _CITATION_META
+    id_prefix = "c"
+    lock = "citation"
+
+    def make_input(self, claim: Claim, case: Case, judge: str, effort: str | None) -> CitationInput:
+        return citation_input(claim, case, judge, effort)
+
+    def pre(self, claim: Claim, case: Case, judge: str) -> _Pre[tuple[CitationVerdict, ...]] | None:
+        # B3: a claim without citations, or citing a missing sentence, has nothing to read.
+        return _Pre(None) if precheck(claim, case, judge) is not None else None
+
+    def request(
+        self, inp: CitationInput, max_output_tokens: int | None = None
+    ) -> CompletionRequest:
+        return CompletionRequest(
+            model="citation_judge",
+            model_id=inp.judge_id,
+            prompt=render_citation_prompt(inp),
+            max_output_tokens=max_output_tokens or CITATION_MAX_OUTPUT_TOKENS,
+            params={"effort": inp.effort} if inp.effort else {},
+            json_schema=citation_schema(),
+        )
+
+    def parse(self, raw_text: str, inp: CitationInput) -> tuple[CitationVerdict, ...]:
+        return parse_citations(raw_text, inp)
+
+    def cache_key(self, inp: CitationInput) -> str:
+        return sha256_hex({"node": self.node, "code_version": CITATION_CODE_VERSION, "input": inp})
+
+    def store(
+        self,
+        executor: Executor,
+        key: str,
+        verdict: tuple[CitationVerdict, ...] | None,
+        err: str | None,
+        cost: float,
+    ) -> None:
+        ts = datetime.now(UTC)
+        executor.store.put(
+            key,
+            _CitationCached(verdict=verdict, error=err, cost_usd=cost),
+            Lineage(key=key, node=self.node, started_at=ts, finished_at=ts, cost_usd=cost),
+        )
+        executor.store.delete_meta(key, self.meta)
+
+    def load(self, executor: Executor, key: str) -> _Hit[tuple[CitationVerdict, ...]] | None:
+        cached = executor.store.get(key, _CitationCached)
+        return None if cached is None else _Hit(cached.verdict)
+
+
+CITATIONS = CitationRubric()
 
 
 # A batch holds budget for thousands of claims at once, so its hold uses the expected output
@@ -405,15 +731,16 @@ def _is_fatal(exc: BaseException) -> bool:
 
 
 async def _retry_live(
+    rubric: Rubric[InT, V],
     executor: Executor,
     adapter: ModelAdapter,
-    inp: JudgeInput,
+    inp: InT,
     price: Price,
     max_output_tokens: int | None = None,
-) -> tuple[ClaimVerdict | None, str | None, float]:
+) -> tuple[V | None, str | None, float]:
     """Tech Spec §2.4, D-35: one live retry with the same prompt for an unparseable verdict.
     Returns (verdict, error label, cost). Budget and provider exceptions propagate."""
-    req = _request(inp, max_output_tokens)
+    req = rubric.request(inp, max_output_tokens)
     estimate = _estimate(price, req, batch=False)
     await executor.reserve(estimate)
     cost = 0.0
@@ -427,16 +754,16 @@ async def _retry_live(
         if raw.refusal:
             return None, "refusal", cost
         try:
-            return parse_verdict(raw.raw_text, inp), None, cost
+            return rubric.parse(raw.raw_text, inp), None, cost
         except SchemaError:
             return None, "schema", cost
     finally:
         await executor.settle(estimate, cost)
 
 
-def _forget(executor: Executor, key: str, result: JudgingResult) -> None:
+def _forget(rubric: Rubric[Any, Any], executor: Executor, key: str, result: _Result[Any]) -> None:
     """Leave a claim unjudged and uncached so the next run resubmits it; count it now."""
-    executor.store.delete_meta(key, _META)
+    executor.store.delete_meta(key, rubric.meta)
     result.n_errors += 1
 
 
@@ -470,45 +797,103 @@ async def judge_claims(
     The whole call holds a per-judge lock, so concurrent calls for one judge never submit,
     collect or retry the same claims twice; the second caller finds them cached. The lock is
     held while polling too, so callers should judge all claims for a judge in one call."""
+    result = JudgingResult(judge=judge)
+    await _judge_batched(
+        CLAIMS,
+        result,
+        executor,
+        items,
+        config,
+        adapters,
+        prices,
+        poll_interval_s=poll_interval_s,
+        max_wait_s=max_wait_s,
+    )
+    return result
+
+
+async def judge_citations(
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    judge: str,
+    config: RunConfig,
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    *,
+    run_id: str,
+    poll_interval_s: float = 30.0,
+    max_wait_s: float = 0.0,
+) -> CitationResult:
+    """B5.12: one citation-judge call per claim that passes the B3 precheck, through the same
+    batch machinery as `judge_claims` (holds, resume, custom ids, one retry). Claims that fail
+    the precheck get no entry and cost nothing."""
+    result = CitationResult(judge=judge)
+    await _judge_batched(
+        CITATIONS,
+        result,
+        executor,
+        items,
+        config,
+        adapters,
+        prices,
+        poll_interval_s=poll_interval_s,
+        max_wait_s=max_wait_s,
+    )
+    return result
+
+
+async def _judge_batched(
+    rubric: Rubric[InT, V],
+    result: _Result[V],
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    config: RunConfig,
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    *,
+    poll_interval_s: float,
+    max_wait_s: float,
+) -> None:
+    judge = result.judge
     provider = provider_for(judge, config.endpoints)
     adapter = adapters[adapter_key(provider, judge)]
     price = price_for(prices, judge, free_if_unknown=provider == "openai_compatible")
-    result = JudgingResult(judge=judge)
-    by_batch: dict[str, dict[str, JudgeInput]] = {}  # batch id -> custom id -> input
+    by_batch: dict[str, dict[str, InT]] = {}  # batch id -> custom id -> input
     budget_stop: BudgetExceeded | None = None
 
-    async with executor.named_lock(f"judge:{judge}"):
-        fresh: dict[str, JudgeInput] = {}
+    async with executor.named_lock(f"{rubric.lock}:{judge}"):
+        fresh: dict[str, InT] = {}
         held: dict[str, float] = {}
         for case, claim in items:
-            pre = precheck(claim, case, judge)
+            pre = rubric.pre(claim, case, judge)
             if pre is not None:
-                result.verdicts[claim.id] = pre
+                if pre.verdict is not None:
+                    result.verdicts[claim.id] = pre.verdict
                 continue
-            inp = judge_input(claim, case, judge, config.judge_effort)
-            key = _cache_key(inp)
-            cached = executor.store.get(key, _Cached)
+            inp = rubric.make_input(claim, case, judge, config.judge_effort)
+            key = rubric.cache_key(inp)
+            cached = rubric.load(executor, key)
             if cached is not None:
                 if cached.verdict is not None:
                     result.verdicts[claim.id] = cached.verdict
                 else:
                     result.n_errors += 1
                 continue
-            meta = executor.store.get_meta(key, _META)
+            meta = executor.store.get_meta(key, rubric.meta)
             if meta is not None:
                 bid = meta["batch_id"]
-                by_batch.setdefault(bid, {})[custom_id_for(key)] = inp
+                by_batch.setdefault(bid, {})[rubric.custom_id(key)] = inp
                 est = meta.get("estimate")
                 if not isinstance(est, int | float):  # meta from older code: recompute
-                    est = _estimate(price, _request(inp), batch=True)
+                    est = _estimate(price, rubric.request(inp), batch=True)
                 held[bid] = held.get(bid, 0.0) + float(est)
             else:
-                fresh[custom_id_for(key)] = inp
+                fresh[rubric.custom_id(key)] = inp
         for bid, est in held.items():
             await executor.rehold_batch(bid, est)
 
         if fresh:
-            reqs = {cid: _request(inp) for cid, inp in fresh.items()}
+            reqs = {cid: rubric.request(inp) for cid, inp in fresh.items()}
             item_est = {cid: _estimate(price, r, batch=True) for cid, r in reqs.items()}
             estimate = sum(item_est.values())
             try:
@@ -527,8 +912,8 @@ async def judge_claims(
                 await executor.hold_batch(batch_id, estimate)  # stays reserved until collected
                 for cid, inp in fresh.items():
                     executor.store.put_meta(
-                        _cache_key(inp),
-                        _META,
+                        rubric.cache_key(inp),
+                        rubric.meta,
                         {"batch_id": batch_id, "provider": provider, "estimate": item_est[cid]},
                     )
                 by_batch[batch_id] = dict(fresh)
@@ -538,7 +923,7 @@ async def judge_claims(
         while open_batches:
             for batch_id in list(open_batches):
                 batch = open_batches[batch_id]
-                reqs = {cid: _request(inp) for cid, inp in batch.items()}
+                reqs = {cid: rubric.request(inp) for cid, inp in batch.items()}
                 timeout = max(deadline - time.monotonic(), COLLECT_TIMEOUT_FLOOR_S)
                 try:
                     collected = await asyncio.wait_for(
@@ -550,8 +935,8 @@ async def judge_claims(
                     continue
                 del open_batches[batch_id]
                 result.batch_ids.append(batch_id)
-                stop = await _process_batch(
-                    executor, adapter, price, batch_id, batch, collected, result
+                stop = await _process(
+                    rubric, executor, adapter, price, batch_id, batch, collected, result
                 )
                 budget_stop = budget_stop or stop
             if not open_batches:
@@ -564,7 +949,6 @@ async def judge_claims(
             await asyncio.sleep(min(poll_interval_s, remaining))
     if budget_stop is not None:
         raise budget_stop
-    return result
 
 
 async def _process_batch(
@@ -575,6 +959,20 @@ async def _process_batch(
     batch: Mapping[str, JudgeInput],
     collected: Sequence[Any],
     result: JudgingResult,
+) -> BudgetExceeded | None:
+    """`_process` for the claim judge."""
+    return await _process(CLAIMS, executor, adapter, price, batch_id, batch, collected, result)
+
+
+async def _process(
+    rubric: Rubric[InT, V],
+    executor: Executor,
+    adapter: ModelAdapter,
+    price: Price,
+    batch_id: str,
+    batch: Mapping[str, InT],
+    collected: Sequence[Any],
+    result: _Result[V],
 ) -> BudgetExceeded | None:
     """Parse and cache one collected batch. The batch's hold is always released and the cost
     of every claim resolved here (cached or forgotten) is recorded exactly once, even if
@@ -589,10 +987,10 @@ async def _process_batch(
             if inp is None or br.custom_id in seen:  # not ours, or a duplicate line
                 continue
             seen.add(br.custom_id)
-            key = _cache_key(inp)
+            key = rubric.cache_key(inp)
             raw: RawCompletion | None = br.completion
             cost = raw.cost_usd if raw else 0.0
-            done = executor.store.get(key, _Cached)
+            done = rubric.load(executor, key)
             if done is not None:  # resolved by another process: report it, pay nothing more
                 if done.verdict is not None:
                     result.verdicts[inp.claim_id] = done.verdict
@@ -600,25 +998,28 @@ async def _process_batch(
                     result.n_errors += 1
                 continue
             if raw is None:  # expired, cancelled or errored item: resubmit next run
-                _forget(executor, key, result)
+                _forget(rubric, executor, key, result)
                 spent += cost
                 continue
             if raw.refusal:
-                _store_verdict(executor, key, None, "refusal", cost)
+                rubric.store(executor, key, None, "refusal", cost)
                 result.n_errors += 1
                 spent += cost
                 continue
+            verdict: V | None
             try:
-                verdict, err = parse_verdict(raw.raw_text, inp), None
+                verdict, err = rubric.parse(raw.raw_text, inp), None
             except SchemaError:
                 verdict, err = None, "schema"
                 if budget_stop is None:
                     try:
-                        verdict, err, retry_cost = await _retry_live(executor, adapter, inp, price)
+                        verdict, err, retry_cost = await _retry_live(
+                            rubric, executor, adapter, inp, price
+                        )
                         result.cost_usd += retry_cost  # settled by _retry_live (N1)
                     except BudgetExceeded as exc:
                         budget_stop = exc
-                        _forget(executor, key, result)
+                        _forget(rubric, executor, key, result)
                         spent += cost
                         continue
                     except Exception as exc:
@@ -626,21 +1027,21 @@ async def _process_batch(
                             raise
                         # Transient or not (a 400 such as "credit balance too low" can clear),
                         # a provider error is never cached: count it, resubmit next run.
-                        _forget(executor, key, result)
+                        _forget(rubric, executor, key, result)
                         spent += cost
                         continue
                 else:
-                    _forget(executor, key, result)
+                    _forget(rubric, executor, key, result)
                     spent += cost
                     continue
-            _store_verdict(executor, key, verdict, err, cost)
+            rubric.store(executor, key, verdict, err, cost)
             spent += cost
             if verdict is not None:
                 result.verdicts[inp.claim_id] = verdict
             else:
                 result.n_errors += 1
         for cid in set(batch) - seen:  # the provider returned nothing for it (N4)
-            _forget(executor, _cache_key(batch[cid]), result)
+            _forget(rubric, executor, rubric.cache_key(batch[cid]), result)
     finally:
         await executor.settle_batch(batch_id, spent)  # releases the hold exactly once
         result.cost_usd += spent
@@ -666,33 +1067,90 @@ async def judge_claims_live(
     `max_output_tokens` (the live demo, D-54) caps each verdict's output, which makes every
     call's reservation an exact upper bound on its cost; such verdicts are not cached, since
     they come from a differently configured judge."""
+    result = JudgingResult(judge=judge)
+    await _judge_live(
+        CLAIMS,
+        result,
+        executor,
+        items,
+        config,
+        adapters,
+        prices,
+        concurrency=concurrency,
+        max_output_tokens=max_output_tokens,
+    )
+    return result
+
+
+async def judge_citations_live(
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    judge: str,
+    config: RunConfig,
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    *,
+    run_id: str,
+    concurrency: int = 8,
+) -> CitationResult:
+    """B5.12 `--live-judges`: the citation judge through the normal API, sharing the batch
+    path's prompt, parsing, retry and cache keys."""
+    result = CitationResult(judge=judge)
+    await _judge_live(
+        CITATIONS,
+        result,
+        executor,
+        items,
+        config,
+        adapters,
+        prices,
+        concurrency=concurrency,
+        max_output_tokens=None,
+    )
+    return result
+
+
+async def _judge_live(
+    rubric: Rubric[InT, V],
+    result: _Result[V],
+    executor: Executor,
+    items: Sequence[tuple[Case, Claim]],
+    config: RunConfig,
+    adapters: Mapping[str, ModelAdapter],
+    prices: dict[str, Price],
+    *,
+    concurrency: int,
+    max_output_tokens: int | None,
+) -> None:
+    judge = result.judge
     provider = provider_for(judge, config.endpoints)
     adapter = adapters[adapter_key(provider, judge)]
     price = price_for(prices, judge, free_if_unknown=provider == "openai_compatible")
-    result = JudgingResult(judge=judge)
     sem = asyncio.Semaphore(max(1, config.concurrency.get(provider, concurrency)))
 
     async def one(case: Case, claim: Claim) -> None:
-        pre = precheck(claim, case, judge)
+        pre = rubric.pre(claim, case, judge)
         if pre is not None:
-            result.verdicts[claim.id] = pre
+            if pre.verdict is not None:
+                result.verdicts[claim.id] = pre.verdict
             return
-        inp = judge_input(claim, case, judge, config.judge_effort)
-        key = _cache_key(inp)
-        cached = executor.store.get(key, _Cached)
+        inp = rubric.make_input(claim, case, judge, config.judge_effort)
+        key = rubric.cache_key(inp)
+        cached = rubric.load(executor, key)
         if cached is not None:
             if cached.verdict is not None:
                 result.verdicts[claim.id] = cached.verdict
             else:
                 result.n_errors += 1
             return
-        if executor.store.get_meta(key, _META) is not None:
+        if executor.store.get_meta(key, rubric.meta) is not None:
             # Already in a submitted batch that the provider will bill: never pay twice.
             # The claim stays pending until a batch run collects it.
             result.status = "pending"
             return
+        verdict: V | None
         async with sem:
-            req = _request(inp, max_output_tokens)
+            req = rubric.request(inp, max_output_tokens)
             estimate = _estimate(price, req, batch=False)
             await executor.reserve(estimate)
             cost = 0.0
@@ -712,15 +1170,15 @@ async def judge_claims_live(
             result.cost_usd += cost
             if raw.refusal:
                 if max_output_tokens is None:  # a lower output limit is not the benchmark's judge
-                    _store_verdict(executor, key, None, "refusal", cost)
+                    rubric.store(executor, key, None, "refusal", cost)
                 result.n_errors += 1
                 return
             try:
-                verdict, err = parse_verdict(raw.raw_text, inp), None
+                verdict, err = rubric.parse(raw.raw_text, inp), None
             except SchemaError:
                 try:
                     verdict, err, retry_cost = await _retry_live(
-                        executor, adapter, inp, price, max_output_tokens
+                        rubric, executor, adapter, inp, price, max_output_tokens
                     )
                 except Exception as exc:
                     if _is_fatal(exc) or isinstance(exc, BudgetExceeded):
@@ -730,13 +1188,13 @@ async def judge_claims_live(
                 result.cost_usd += retry_cost
                 cost += retry_cost
         if max_output_tokens is None:  # verdicts under a lower output limit are never cached
-            _store_verdict(executor, key, verdict, err, cost)
+            rubric.store(executor, key, verdict, err, cost)
         if verdict is not None:
             result.verdicts[claim.id] = verdict
         else:
             result.n_errors += 1
 
-    async with executor.named_lock(f"judge:{judge}"):
+    async with executor.named_lock(f"{rubric.lock}:{judge}"):
         # Let every in-flight call finish and settle its spend, then surface the first stop.
         outcomes = await asyncio.gather(
             *(one(case, claim) for case, claim in items), return_exceptions=True
@@ -744,7 +1202,6 @@ async def judge_claims_live(
     for o in outcomes:
         if isinstance(o, BaseException):
             raise o
-    return result
 
 
 def groundedness(

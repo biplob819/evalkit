@@ -14,8 +14,22 @@ from evalkit.scorers.base import Scorer, ScoreResult, get_scorer
 
 # Computed by the benchmark pipeline itself (Generate, Validate, extract, judge, aggregate).
 BENCHMARK_SCORERS = frozenset(
-    {"label_correct", "citation_valid", "groundedness", "coverage", "cost", "latency"}
+    {
+        "label_correct",
+        "citation_valid",
+        "groundedness",
+        "coverage",
+        "cost",
+        "latency",
+        "citation_support",  # B5.12: opt-in citation-judge node, run by the pipeline
+    }
 )
+CITATION_SUPPORT = "citation_support"
+
+
+def wants_citation_support(task: TaskConfig) -> bool:
+    """B5.12: the task opted in to per-sentence citation judging."""
+    return CITATION_SUPPORT in task.scorers
 
 
 class TaskScorerError(ValueError):

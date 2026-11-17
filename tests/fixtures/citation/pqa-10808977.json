@@ -1,0 +1,100 @@
+{
+ "_source": "gemma-grounded-health run r-f0f3b432a413 (EvalKit 06591f8), docs/results/main/{cases,records}.jsonl.gz; copied verbatim for B5.12 CIT-03",
+ "case": {
+  "id": "pqa-10808977",
+  "question": "Can tailored interventions increase mammography use among HMO women?",
+  "context": [
+   "Telephone counseling and tailored print communications have emerged as promising methods for promoting mammography screening.",
+   "However, there has been little research testing, within the same randomized field trial, of the efficacy of these two methods compared to a high-quality usual care system for enhancing screening.",
+   "This study addressed the question: Compared to usual care, is tailored telephone counseling more effective than tailored print materials for promoting mammography screening?",
+   "Three-year randomized field trial.",
+   "One thousand ninety-nine women aged 50 and older recruited from a health maintenance organization in North Carolina.",
+   "Women were randomized to 1 of 3 groups: (1) usual care, (2) tailored print communications, and (3) tailored telephone counseling.",
+   "Adherence to mammography screening based on self-reports obtained during 1995, 1996, and 1997.",
+   "Compared to usual care alone, telephone counseling promoted a significantly higher proportion of women having mammograms on schedule (71% vs 61%) than did tailored print (67% vs 61%) but only after the first year of intervention (during 1996).",
+   "Furthermore, compared to usual care, telephone counseling was more effective than tailored print materials at promoting being on schedule with screening during 1996 and 1997 among women who were off-schedule during the previous year."
+  ],
+  "reference_label": "yes",
+  "source": "pubmedqa/pqa_l"
+ },
+ "record": {
+  "schema_version": "1.0",
+  "run_id": "r-f0f3b432a413",
+  "task": "pubmedqa",
+  "case_id": "pqa-10808977",
+  "timestamp": "2026-11-17T04:34:06.665224Z",
+  "completion": {
+   "model": "gemma-e2b-grounded-q4",
+   "model_snapshot": "artifacts/gguf/ft-Q4_K_M.gguf",
+   "params": {
+    "structured_output": true
+   },
+   "raw_text": "{\"label\": \"yes\", \"answer\": \"Telephone counseling is more effective than tailored print materials for promoting mammography screening.\", \"citations\": [3]}",
+   "answer": {
+    "label": "yes",
+    "answer": "Telephone counseling is more effective than tailored print materials for promoting mammography screening.",
+    "citations": [
+     3
+    ]
+   },
+   "tokens_in": 457,
+   "tokens_out": 40,
+   "tokens_reasoning": 0,
+   "tokens_cached": 0,
+   "latency_ms": 885,
+   "cost_usd": 0.0,
+   "request_id": "chatcmpl-nsNSTgwtVTdyRpFLS4DP9I8hrBckfLyr",
+   "error": null
+  },
+  "claims": [
+   {
+    "id": "pqa-10808977:gemma-e2b-grounded-q4:0",
+    "text": "Telephone counseling is more effective than tailored print materials for promoting mammography screening.",
+    "cited": [
+     3
+    ],
+    "extractor_version": "ext2-f484fe5e"
+   }
+  ],
+  "verdicts": [
+   {
+    "claim_id": "pqa-10808977:gemma-e2b-grounded-q4:0",
+    "judge": "claude-opus-5-5",
+    "verdict": "unsupported",
+    "evidence": [],
+    "quote": "is tailored telephone counseling more effective than tailored print materials for promoting mammography screening?",
+    "rationale": "The sentence only states the research question being studied; it reports no result showing telephone counseling is more effective.",
+    "judge_prompt_hash": "9a3a8246049f6f85"
+   },
+   {
+    "claim_id": "pqa-10808977:gemma-e2b-grounded-q4:0",
+    "judge": "gpt-6.1-sol",
+    "verdict": "unsupported",
+    "evidence": [],
+    "quote": "Compared to usual care, is tailored telephone counseling more effective than tailored print materials for promoting mammography screening?",
+    "rationale": "The sentence poses a research question but does not report that telephone counseling is more effective.",
+    "judge_prompt_hash": "9a3a8246049f6f85"
+   }
+  ],
+  "scores": {
+   "label_correct": true,
+   "citation_valid": 1.0,
+   "groundedness": {
+    "claude-opus-5-5": 0.0,
+    "gpt-6.1-sol": 0.0
+   },
+   "fully_grounded": {
+    "claude-opus-5-5": false,
+    "gpt-6.1-sol": false
+   },
+   "coverage": 1.0,
+   "correct_and_grounded": {
+    "claude-opus-5-5": false,
+    "gpt-6.1-sol": false
+   }
+  },
+  "seed": 7,
+  "git_sha": "unknown",
+  "prompt_hash": "3c5531734481ff4f"
+ }
+}

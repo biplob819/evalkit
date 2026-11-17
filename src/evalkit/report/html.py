@@ -17,7 +17,7 @@ from typing import Any
 
 from evalkit.pipeline.aggregate import stamp_lines
 from evalkit.report.svg import Point, money, scatter, use_log_scale
-from evalkit.schemas import Case, Interval, Record, RunSummary
+from evalkit.schemas import Case, Interval, ModelSummary, Record, RunSummary, SliceSummary
 from evalkit.schemas.calibration import CalibrationReport
 
 BANNER = (
@@ -147,11 +147,24 @@ def _num(iv: Interval | None) -> str:
     return f"{iv.point:.3g} <span class=muted>({iv.lo:.3g} to {iv.hi:.3g})</span>"
 
 
+def _cite_head(cite: Sequence[str]) -> str:
+    """B5.12 column headers, only for tasks with citation figures."""
+    head = "".join(f"<th scope=col>Citation precision · {escape(j)}</th>" for j in cite)
+    return head + "".join(f"<th scope=col>Aim-citation rate · {escape(j)}</th>" for j in cite)
+
+
+def _cite_cells(row: ModelSummary | SliceSummary, cite: Sequence[str]) -> str:
+    cells = "".join(f"<td>{_pct(row.citation_precision.get(j))}</td>" for j in cite)
+    return cells + "".join(f"<td>{_pct(row.aim_citation_rate.get(j))}</td>" for j in cite)
+
+
 def _model_table(summary: RunSummary) -> str:
     judges = sorted({j for m in summary.models for j in m.headline})
     tasks = sorted({t for m in summary.models for t in m.task_scores})
+    cite = sorted({j for m in summary.models for j in m.citation_precision})
     head = "".join(f"<th scope=col>Headline · {escape(j)}</th>" for j in judges)
     head += "".join(f"<th scope=col>Groundedness · {escape(j)}</th>" for j in judges)
+    head += _cite_head(cite)
     tail = "".join(f"<th scope=col>{escape(t)}</th>" for t in tasks)  # v0.2 task scorers
     rows = []
     for m in summary.models:
@@ -159,6 +172,7 @@ def _model_table(summary: RunSummary) -> str:
         errors = ", ".join(f"{escape(k)} {v}" for k, v in sorted(m.n_errors.items())) or "none"
         cells = "".join(f"<td>{_pct(m.headline.get(j))}</td>" for j in judges)
         cells += "".join(f"<td>{_pct(m.groundedness_mean.get(j))}</td>" for j in judges)
+        cells += _cite_cells(m, cite)
         rows.append(
             f"<tr><th scope=row>{escape(m.model)}<div class=muted>{escape(m.family)}</div></th>"
             f"<td>{_badge(m)}{failed}</td>{cells}<td>{_pct(m.accuracy)}</td>"
@@ -187,16 +201,19 @@ def _slices(summary: RunSummary) -> str:
         return ""
     judges = sorted({j for s in summary.slices for j in s.headline})
     tasks = sorted({t for s in summary.slices for t in s.task_scores})
+    cite = sorted({j for s in summary.slices for j in s.citation_precision})
     tables = []
     for field in dict.fromkeys(s.field for s in summary.slices):
         head = "".join(f"<th scope=col>Headline · {escape(j)}</th>" for j in judges)
         head += "".join(f"<th scope=col>Groundedness · {escape(j)}</th>" for j in judges)
+        head += _cite_head(cite)
         tail = "".join(f"<th scope=col>{escape(t)}</th>" for t in tasks)
         rows = []
         for s in (s for s in summary.slices if s.field == field):
             errors = ", ".join(f"{escape(k)} {v}" for k, v in sorted(s.n_errors.items())) or "none"
             cells = "".join(f"<td>{_pct(s.headline.get(j))}</td>" for j in judges)
             cells += "".join(f"<td>{_pct(s.groundedness_mean.get(j))}</td>" for j in judges)
+            cells += _cite_cells(s, cite)
             cells += "".join(f"<td>{_num(s.task_scores.get(t))}</td>" for t in tasks)
             rows.append(
                 f"<tr><th scope=row>{escape(s.value)}</th><td>{escape(s.model)}</td>"

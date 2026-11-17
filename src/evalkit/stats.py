@@ -80,6 +80,29 @@ def interval(values: Sequence[float], resamples: Resamples, alpha: float = ALPHA
     return _interval_from(point, resamples.means(values), alpha)
 
 
+def ratio_interval(
+    num: Sequence[float], den: Sequence[float], resamples: Resamples, alpha: float = ALPHA
+) -> Interval:
+    """Ratio of sums Σnum / Σden over cases (B5.12), with a percentile bootstrap that resamples
+    whole cases, so each case's numerator and denominator move together. Draws whose
+    denominator is zero have no ratio and are left out. Needs a positive total denominator."""
+    if len(num) != resamples.n or len(den) != resamples.n:
+        raise ValueError(f"expected {resamples.n} values (one per case)")
+    for v in (*num, *den):
+        if not math.isfinite(v):
+            raise ValueError("values must be finite")
+    total = math.fsum(den)
+    if total <= 0:
+        raise ValueError("a ratio needs a positive denominator")
+    point = math.fsum(num) / total
+    boot = []
+    for row in resamples.rows:
+        d = math.fsum(den[i] for i in row)
+        if d > 0:
+            boot.append(math.fsum(num[i] for i in row) / d)
+    return _interval_from(point, boot or [point], alpha)
+
+
 def paired(
     a: Sequence[float], b: Sequence[float], resamples: Resamples, alpha: float = ALPHA
 ) -> tuple[Interval, float]:
