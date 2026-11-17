@@ -804,6 +804,18 @@ def _positive_float(text: str) -> float:
     return value
 
 
+def _claims_per_answer(text: str) -> float:
+    from evalkit.cost import MAX_CLAIMS_PER_ITEM
+
+    value = _positive_float(text)
+    if value > MAX_CLAIMS_PER_ITEM:
+        raise argparse.ArgumentTypeError(
+            f"{text!r} is more than {MAX_CLAIMS_PER_ITEM:,g} claims per answer; "
+            "give the mean claims per answer measured on a small sample (docs/cost.md)"
+        )
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="evalkit",
@@ -836,11 +848,12 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--dry-run", action="store_true", help="print the estimate; no API calls")
     r.add_argument(
         "--claims-per-answer",
-        type=_positive_float,
+        type=_claims_per_answer,
         default=None,
         metavar="N",
         help="plan judging at N claims per answer, measured on a small sample (default: the "
-        "planning default 4.5, from PubMedQA answers; see docs/cost.md)",
+        "planning default 4.5, from PubMedQA answers, also when resuming with saved answers; "
+        "see docs/cost.md)",
     )
     r.add_argument(
         "--wait", type=float, default=30, help="minutes to wait for judge batches (default 30)"

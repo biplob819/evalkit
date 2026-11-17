@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextvars
 import math
 import re
+import unicodedata
 import warnings
 from collections.abc import Iterable, Sequence
 from datetime import date
@@ -136,6 +137,11 @@ def call_cost(
     return usd * (price.batch_discount if batch else 1.0)
 
 
+# The most claims per item an override or default may name (an ~80,000-word text at the
+# planning ratio). Larger figures are typos, such as 1e308, not plans.
+MAX_CLAIMS_PER_ITEM = 10_000.0
+
+
 class TokenAssumptions(Model):
     """Planning averages per call (Tech Spec §9). Replace with measured values after a smoke run."""
 
@@ -149,7 +155,9 @@ class TokenAssumptions(Model):
     t_j_in: NonNegInt = 450
     t_j_out: NonNegInt = 100
     t_j_reason: NonNegInt = 40  # judges at medium effort (OWNER D-34)
-    claims_per_answer: Annotated[float, Field(gt=0, allow_inf_nan=False)] = 4.5  # measured 4.46
+    claims_per_answer: Annotated[
+        float, Field(gt=0, le=MAX_CLAIMS_PER_ITEM, allow_inf_nan=False)
+    ] = 4.5  # measured 4.46
 
 
 # B5.12: a citation reply lists every cited sentence (about 25 tokens each, ~3 per claim)
@@ -160,23 +168,62 @@ CITATION_T_OUT = 120
 # Claims per item. Judges score every claim, so judge cost is planned per claim (D-46). Before
 # any text exists the planning default applies (4.5, measured on PubMedQA benchmark answers).
 # When the texts to be judged already exist (faithfulness on given explanations, re-judging
-# saved answers) their length says more: fraud-review-bedrock's explanations hold ~12 claims
+# saved answers) their content says more: fraud-review-bedrock's explanations hold ~12 claims
 # each, so 4.5 planned its judging at well under half the real cost (D-61 rule 3).
 #
-# WORDS_PER_CLAIM is measured with `count_words` on EvalKit's own committed extraction output
+# Each text is planned at the largest of several cheap lower bounds, none of which calls a
+# model, because a quote that is too low defeats the cost cap while one that is too high only
+# asks for more headroom (D-76):
+#   - words ÷ WORDS_PER_CLAIM;
+#   - sentence-like units: pieces between sentence ends, line breaks, list markers and
+#     semicolons (and, in scripts written without spaces between words, such as Thai, the
+#     spaces, which separate phrases there);
+#   - key=value fields (`amount=420,country=NG`, or `"amount": 420`);
+#   - distinct numbers;
+#   - non-space characters (after NFKC) ÷ CHARS_PER_CLAIM, for scripts without spaces;
+#   - the planning default.
+#
+# Both ratios are measured on EvalKit's own committed extraction output
 # (scripts/measure_words_per_claim.py, docs/measurements/words-per-claim-2026-11-17.json):
 # the published 200-case run's failure explorer (docs/results/report.html, run r-e8dac378d2d3,
-# 553 answers with claims) has 11.9 words per claim (per-answer quartiles 10.2 / 12.0 / 14.5),
-# and the demo replay (demo/replay.json, 24 answers) 12.2. Planning uses 10, below the lower
-# quartile, so a text plans for more claims than a typical answer of its length holds.
-WORDS_PER_CLAIM = 10.0
+# 553 answers with claims) has 11.9 words and 69.6 characters per claim. Planning uses the
+# 10th percentile of its per-answer ratios, rounded down (8.67 → 8 words, 50.15 → 50
+# characters). Under the whole rule 4.2% of those answers are planned below their true count
+# (18.6% under the first rule, words ÷ 10), at 1.53 times the true total, and the
+# fraud-review-shaped fixture (8.8 words per claim) is planned at 106 claims against 96.
+WORDS_PER_CLAIM = 8.0
+CHARS_PER_CLAIM = 50.0
 PLANNING_CLAIMS_SOURCE = "planning default 4.5, PubMedQA answers (D-46, measured 4.46)"
 NOT_AN_UPPER_BOUND = "an expected count, not an upper bound"
 
 # A run of non-space characters is one word; every CJK ideograph or kana is a word of its own,
 # since those scripts do not separate words with spaces.
-_CJK = "぀-ヿ㐀-䶿一-鿿豈-﫿"
+_CJK = "぀-ヿ㐀-䶿一-鿿豈-﫿"
 _WORD_RE = re.compile(f"[{_CJK}]|[^\\s{_CJK}]+")
+# Scripts that write words without spaces and use a space between phrases or sentences:
+# Thai, Lao, Tibetan, Myanmar, Khmer (and their extension blocks).
+_NO_SPACE = "".join(
+    f"{chr(lo)}-{chr(hi)}"
+    for lo, hi in (
+        (0x0E00, 0x0EFF),  # Thai, Lao
+        (0x0F00, 0x0FFF),  # Tibetan
+        (0x1000, 0x109F),  # Myanmar
+        (0x1780, 0x17FF),  # Khmer
+        (0x19E0, 0x19FF),  # Khmer symbols
+        (0xA9E0, 0xA9FF),  # Myanmar extended-B
+        (0xAA60, 0xAA7F),  # Myanmar extended-A
+    )
+)
+_UNIT_BREAK = re.compile(
+    r"[.!?。！？]+[\"'”’)\]]*(?=\s|$)"  # sentence ends
+    r"|[;；\n•▪]"  # semicolons, line breaks, bullets
+    r"|^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]"  # list markers at the start of a line
+    rf"|(?<=[{_NO_SPACE}])\s+(?=[{_NO_SPACE}])",  # phrase breaks in scripts without spaces
+    re.M,
+)
+_HAS_WORD = re.compile(r"\w")
+_FIELD_RE = re.compile(r"[^\W\d_][\w.-]*[\"']?[ \t]*[=:][ \t]*[^\s,;=:/]")
+_NUMBER_RE = re.compile(r"(?<![^\W\d_])\d+(?:[.,:]\d+)*")  # not inside a name: Q3, HbA1c
 
 
 def count_words(text: str) -> int:
@@ -184,23 +231,70 @@ def count_words(text: str) -> int:
     return len(_WORD_RE.findall(text))
 
 
+def count_chars(text: str) -> int:
+    """Non-space characters after NFKC normalization."""
+    return sum(1 for ch in unicodedata.normalize("NFKC", text) if not ch.isspace())
+
+
+def claim_bounds(
+    text: str,
+    *,
+    words_per_claim: float = WORDS_PER_CLAIM,
+    chars_per_claim: float = CHARS_PER_CLAIM,
+) -> dict[str, float]:
+    """The cheap lower bounds on the claims in one text (no model call), by name: `words`
+    (words ÷ `words_per_claim`), `units` (sentence-like units), `fields` (key=value pairs),
+    `numbers` (distinct numbers) and `chars` (non-space characters ÷ `chars_per_claim`)."""
+    norm = unicodedata.normalize("NFKC", text)
+    return {
+        "words": count_words(text) / words_per_claim,
+        "units": float(sum(1 for s in _UNIT_BREAK.split(norm) if _HAS_WORD.search(s))),
+        "fields": float(len(_FIELD_RE.findall(norm))),
+        "numbers": float(len(set(_NUMBER_RE.findall(norm)))),
+        "chars": count_chars(text) / chars_per_claim,
+    }
+
+
+def _check_per_item(value: float, what: str) -> float:
+    """A claims-per-item figure must be a finite number above 0 and at most
+    `MAX_CLAIMS_PER_ITEM`; anything else is a mistake, not a plan."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{what} must be a number, not {value!r}")
+    if not (math.isfinite(value) and 0 < value <= MAX_CLAIMS_PER_ITEM):
+        raise ValueError(
+            f"{what} must be a finite number above 0 and at most {MAX_CLAIMS_PER_ITEM:,g} "
+            f"claims per item, not {value!r}"
+        )
+    return float(value)
+
+
+def _check_ratio(value: float, what: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{what} must be a number, not {value!r}")
+    if not (math.isfinite(value) and value > 0):
+        raise ValueError(f"{what} must be a finite number above 0, not {value!r}")
+    return float(value)
+
+
 class ClaimsAssumption(Model):
     """How many claims per item an estimate plans to judge, and where that number comes from.
 
     `basis` is "default" (the planning default), "override" (`TokenAssumptions` set by the
     caller), "measured" (an explicit figure from a sample the caller ran) or "texts" (counted
-    from the texts at `words_per_claim`, each item at least the planning default). Every basis
-    is an expected count, never an upper bound: a dense text can hold more claims."""
+    from the texts: each item at the largest of its lower bounds, `claim_bounds`, and the
+    planning default). Every basis is an expected count, never an upper bound."""
 
     basis: Literal["default", "override", "measured", "texts"]
     per_item: Annotated[float, Field(gt=0, allow_inf_nan=False)]
     source: str
     # basis "texts" only: the summed per-item counts (judge calls are ceil(total)), the texts
-    # and words counted, the ratio used, and how many short texts were raised to the default.
+    # and words counted, the ratios used, and how many texts were planned above their words ÷
+    # words_per_claim (by a sentence, field, number or character count, or the default).
     total: NonNegFloat | None = None
     items: NonNegInt | None = None
     words: NonNegInt | None = None
     words_per_claim: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
+    chars_per_claim: Annotated[float, Field(gt=0, allow_inf_nan=False)] | None = None
     raised: NonNegInt | None = None
 
     _omit_if_default: ClassVar[tuple[str, ...]] = (
@@ -208,6 +302,7 @@ class ClaimsAssumption(Model):
         "items",
         "words",
         "words_per_claim",
+        "chars_per_claim",
         "raised",
     )
 
@@ -246,7 +341,8 @@ def planning_claims(assumptions: TokenAssumptions | None = None) -> ClaimsAssump
 def measured_claims(per_item: float, source: str = "a measured sample") -> ClaimsAssumption:
     """An explicit claims-per-item figure measured on a small paid sample of the same kind of
     text (e.g. the mean `FaithfulnessResult.n_claims` over 20 items; docs/cost.md). It is used
-    as given, for every item."""
+    as given, for every item, and must be finite, above 0 and at most `MAX_CLAIMS_PER_ITEM`."""
+    per_item = _check_per_item(per_item, "a measured claims per item")
     return ClaimsAssumption(
         basis="measured",
         per_item=per_item,
@@ -255,11 +351,21 @@ def measured_claims(per_item: float, source: str = "a measured sample") -> Claim
 
 
 def claims_in_text(
-    text: str, *, default: float | None = None, words_per_claim: float = WORDS_PER_CLAIM
+    text: str,
+    *,
+    default: float | None = None,
+    words_per_claim: float = WORDS_PER_CLAIM,
+    chars_per_claim: float = CHARS_PER_CLAIM,
 ) -> float:
-    """Planned claims for one text: its words at `words_per_claim`, at least `default`."""
-    floor = PLANNING_CLAIMS.per_item if default is None else default
-    return max(count_words(text) / words_per_claim, floor)
+    """Planned claims for one text: the largest of its `claim_bounds` and `default` (the
+    planning default 4.5 when not given)."""
+    floor = PLANNING_CLAIMS.per_item if default is None else _check_per_item(default, "default")
+    bounds = claim_bounds(
+        text,
+        words_per_claim=_check_ratio(words_per_claim, "words_per_claim"),
+        chars_per_claim=_check_ratio(chars_per_claim, "chars_per_claim"),
+    )
+    return max(*bounds.values(), floor)
 
 
 def claims_from_texts(
@@ -267,31 +373,58 @@ def claims_from_texts(
     *,
     default: float | None = None,
     words_per_claim: float = WORDS_PER_CLAIM,
+    chars_per_claim: float = CHARS_PER_CLAIM,
 ) -> ClaimsAssumption:
-    """Claims counted from texts that already exist, with no model call: per text, the larger
-    of its words / `words_per_claim` and the planning default (`default`), summed."""
+    """Claims counted from texts that already exist, with no model call: per text, the largest
+    of its lower bounds (`claim_bounds`: words ÷ `words_per_claim`, sentence-like units,
+    key=value fields, distinct numbers, characters ÷ `chars_per_claim`) and the planning
+    default (`default`), summed over the texts."""
     if not texts:
         raise ValueError("no texts to count claims in")
-    if not words_per_claim > 0:
-        raise ValueError("words_per_claim must be positive")
-    floor = PLANNING_CLAIMS.per_item if default is None else default
+    floor = PLANNING_CLAIMS.per_item if default is None else _check_per_item(default, "default")
+    wpc = _check_ratio(words_per_claim, "words_per_claim")
+    cpc = _check_ratio(chars_per_claim, "chars_per_claim")
     words = [count_words(t) for t in texts]
-    total = math.fsum(max(w / words_per_claim, floor) for w in words)
-    raised = sum(1 for w in words if w / words_per_claim < floor)
+    planned: list[float] = []
+    by: dict[str, int] = {}
+    for t in texts:
+        bounds = claim_bounds(t, words_per_claim=wpc, chars_per_claim=cpc)
+        bounds["default"] = floor
+        top = max(bounds.values())
+        planned.append(top)
+        if top > bounds["words"]:
+            # the first bound that reached the plan, in a fixed order
+            name = next(k for k in _BOUND_ORDER if bounds[k] == top)
+            by[name] = by.get(name, 0) + 1
+    total = math.fsum(planned)
+    raised = sum(by.values())
+    detail = ", ".join(f"{n} by {_BOUND_ORDER[k]}" for k in _BOUND_ORDER if (n := by.get(k)))
     return ClaimsAssumption(
         basis="texts",
         per_item=total / len(texts),
         total=total,
         items=len(texts),
         words=sum(words),
-        words_per_claim=words_per_claim,
+        words_per_claim=wpc,
+        chars_per_claim=cpc,
         raised=raised,
         source=(
-            f"from the texts: {sum(words):,} words → {total:.1f} claims in {len(texts)} items "
-            f"at {words_per_claim:g} words/claim (each item at least {floor:g}; "
-            f"{raised} raised to it)"
+            f"from the texts: {total:.1f} claims in {len(texts)} items ({sum(words):,} words), "
+            f"each item at the largest of words ÷ {wpc:g}, sentence-like units, key=value "
+            f"fields, distinct numbers, characters ÷ {cpc:g} and {floor:g}; "
+            f"{raised} raised above words ÷ {wpc:g}" + (f" ({detail})" if detail else "")
         ),
     )
+
+
+# The bounds that can raise a text above its words ÷ ratio, in the order a tie is credited.
+_BOUND_ORDER = {
+    "default": "the default",
+    "units": "sentence-like units",
+    "fields": "key=value fields",
+    "numbers": "distinct numbers",
+    "chars": "characters",
+}
 
 
 class CostLine(Model):
