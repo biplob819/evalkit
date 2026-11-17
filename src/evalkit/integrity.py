@@ -8,12 +8,15 @@ declared two-way criterion on whole items (a conversation, an answer), with the 
   random values per export bound to the exact item; the A2.6 labelling page with a context
   pane only the labeller sees; per-judge kappa with a cluster bootstrap CI on the held-out half
   (membership from a B5.14 manifest); stale or re-rubricked verdicts refused.
-- CIS-01 a second labelling pass that mixes blind repeats with planted known-answer items, in a
-  fresh order, without telling the labeller which is which.
-- CIS-02 self-agreement on the repeats and accuracy on the planted items, each with a CI;
-  below the bar the calibration is not certified, and it counts at all only through a
-  `calibration_scored` line in B5.14's hash-chained log bound to the run hash, the rubric hash
-  and the held-out case ids.
+- CIS-01 a second labelling pass, opened only once the first is labelled, that mixes blind
+  repeats with planted known-answer items in a fresh order under fresh keys (never a key from
+  the first pass), without telling the labeller which is which.
+- CIS-02 self-agreement on the repeats and accuracy on the planted items, each with a CI, and
+  each judge's kappa CI lower bound; below the bar the calibration is not certified, and it
+  counts at all only through the one `calibration_scored` line written, in the same locked
+  append, right after its `heldout_scored` line in B5.14's hash-chained log, bound to the run
+  hash, the rubric hash, the task score and the held-out case ids, and re-decided from the
+  values and bar it records.
 
 Messages name counts, keys, paths and manifest ids, never case ids, item text or context.
 Lifted from course-assistant's integrity probe (its E2.3, D-53, D-66; MIT).
@@ -33,13 +36,13 @@ import secrets
 import tempfile
 import threading
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from evalkit import heldout as H
 from evalkit.calibration import CalibrationPair, _confusion, cluster_kappa
@@ -100,20 +103,34 @@ class RubricChanged(SheetError):
 
 @dataclass(frozen=True)
 class ConsistencyBar:
-    """The labeller-consistency bar (CIS-02). A `None` minimum drops that check; `bound="lo"`
-    asks the CI lower bound, not the point, to clear it."""
+    """The certification bar (CIS-02): the labeller's consistency and the judges' quality.
+    A `None` minimum drops that check; `bound="lo"` asks the CI lower bound, not the point,
+    to clear the consistency minima. `min_judge_kappa_lo` is always checked against each
+    judge's held-out kappa CI lower bound. A bar that drops the judge minimum, or both
+    consistency minima, is trivial and never certifies; nor does a scoring with no repeats."""
 
     min_self_kappa: float | None = 0.6
     min_planted_accuracy: float | None = 0.9
     min_repeats: int = 10
     min_planted: int = 4
     bound: Literal["point", "lo"] = "point"
+    min_judge_kappa_lo: float | None = 0.4
 
     def __post_init__(self) -> None:
         if self.bound not in ("point", "lo"):
             raise SheetError("bar bound must be point or lo")
-        if self.min_repeats < 0 or self.min_planted < 0:
-            raise SheetError("bar minimum counts must be >= 0")
+        for name in ("min_repeats", "min_planted"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise SheetError("bar minimum counts must be >= 0")
+        for name in ("min_self_kappa", "min_planted_accuracy", "min_judge_kappa_lo"):
+            value = getattr(self, name)
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, int | float)
+                or not -1.0 <= value <= 1.0
+            ):
+                raise SheetError(f"bar {name} must be a number from -1 to 1, or null")
 
 
 @dataclass(frozen=True)
@@ -140,6 +157,11 @@ class Criterion:
     def __post_init__(self) -> None:
         if not _NAME.fullmatch(self.name):
             raise SheetError("a criterion name is 1-40 of a-z, 0-9, . _ - (starting a-z or 0-9)")
+        if self.task_score and not _NAME.fullmatch(self.task_score):
+            raise SheetError(
+                f"criterion {self.name}: task_score is 1-40 of a-z, 0-9, . _ - (it keys the "
+                "score-once guard)"
+            )
         if len(self.labels) != 2:
             raise SheetError(f"criterion {self.name}: declare exactly two labels")
         seen: dict[str, str] = {}
@@ -296,17 +318,30 @@ def items_from_run(
 ) -> list[Item]:
     """One item per case whose record carries the criterion's task score (not
     `applicable: false`) and an answer. Verdicts are parsed by the criterion: a judge value
-    outside its label set is an error."""
+    outside its label set is an error, and so is a run with several models' records and no
+    `model` (the error lists the models)."""
     out: dict[str, Item] = {}
-    for r in records:
+    scored = [r for r in records if criterion.score_name in r.task_scores]
+    models = sorted({r.completion.model for r in scored})
+    if model is None and len(models) > 1:
+        raise SheetError(
+            f"the run has {criterion.name} records from {len(models)} models "
+            f"({', '.join(models)}): pick one with --model (model= in Python)"
+        )
+    if model is not None and model not in models:
+        raise SheetError(
+            f"no {criterion.name} records for model {model}; the run has: "
+            + (", ".join(models) or "none")
+        )
+    for r in scored:
         if model is not None and r.completion.model != model:
             continue
-        ts = r.task_scores.get(criterion.score_name)
-        if ts is None or ts.details.get("applicable") is False or r.completion.answer is None:
+        ts = r.task_scores[criterion.score_name]
+        if ts.details.get("applicable") is False or r.completion.answer is None:
             continue
         mid = H.manifest_id(r.case_id)
         if r.case_id in out:
-            raise SheetError(f"case {mid} has two records: pass model= to pick one")
+            raise SheetError(f"case {mid} has two records for one model")
         judges: Any = ts.details.get(criterion.judges_field)
         verdicts: dict[str, str] = {}
         if isinstance(judges, Mapping):
@@ -319,7 +354,9 @@ def items_from_run(
                         "label set"
                     ) from None
         rubric: Any = ts.details.get(criterion.rubric_field)
-        case = cases[r.case_id]
+        case = cases.get(r.case_id)
+        if case is None:
+            raise SheetError(f"case {mid} has a record but no case in the run's cases")
         out[r.case_id] = Item(
             case_id=r.case_id,
             parts=_parts(case, r, criterion),
@@ -421,13 +458,36 @@ def sample_items(
 
 class CriterionRow(Model):
     sheet_id: NonBlank
-    key: NonBlank  # opaque, bound to the case and the exact parts shown
+    key: NonBlank  # opaque, bound to the case and the exact parts; shown in the first pass
     split: RowSplit
     relabel: bool
     case_id: NonBlank  # private: joins labels to verdicts; never in a CSV or the page
     ids: FrozenMap[str]
     parts: tuple[str, ...]
     planted_label: str | None = None  # private: the known answer of a planted row
+    # private: the fresh key a repeat or planted row is shown under in the second pass; it
+    # is never shown in the first pass, so a repeat cannot be told from a planted item
+    relabel_key: str | None = None
+
+    @model_validator(mode="after")
+    def _second_key(self) -> CriterionRow:
+        if (self.relabel or self.split == "planted") != (self.relabel_key is not None):
+            raise ValueError("a repeat or planted row needs a second-pass key, others none")
+        if self.relabel_key is not None and self.relabel_key == self.key:
+            raise ValueError("a second-pass key must differ from the first-pass key")
+        return self
+
+
+def _planted_tells(planted: Sequence[PlantedItem], real: Sequence[Item]) -> None:
+    """A planted item whose id fields or number of parts match no real item on the sheet
+    would mark it as planted in the second pass."""
+    shapes = {(tuple(sorted(it.ids.items())), len(it.parts)) for it in real}
+    for n, p in enumerate(planted, start=1):
+        if (tuple(sorted(p.ids.items())), len(p.parts)) not in shapes:
+            raise SheetError(
+                f"planted item {n}: its id fields and number of parts match no real item on "
+                "this sheet, which would mark it as planted; write it in the shape of one"
+            )
 
 
 def build_sheet(
@@ -440,50 +500,86 @@ def build_sheet(
     secret: str | None = None,
 ) -> list[CriterionRow]:
     """First-pass rows in a seeded shuffle, then the planted rows (second pass only). Every
-    export draws a new random secret, so keys never repeat across exports."""
+    export draws a new random secret, so keys never repeat across exports. Repeats and
+    planted rows also get a second-pass key from the same secret in another domain: never
+    shown in the first pass. Planted text goes through the criterion's redaction."""
     secret = secret or secrets.token_hex(16)
     sheet_id = _opaque("s", secret, f"sheet:{criterion.name}")
     by_case = {it.case_id: it for it in items}
     order = list(sample)
     random.Random(f"evalkit-integrity-sheet:{seed}").shuffle(order)
+
+    def keys(case_id: str, parts: Sequence[str], second: bool) -> tuple[str, str | None]:
+        first = _opaque("k", secret, json.dumps([case_id, list(parts)]))
+        return first, (
+            _opaque("k", secret, json.dumps(["second-pass", case_id, list(parts)]))
+            if second
+            else None
+        )
+
     rows = []
     for s in order:
         it = by_case[s.case_id]
+        key, key2 = keys(s.case_id, it.parts, s.relabel)
         rows.append(
             CriterionRow(
                 sheet_id=sheet_id,
-                key=_opaque("k", secret, json.dumps([s.case_id, list(it.parts)])),
+                key=key,
                 split=s.split,
                 relabel=s.relabel,
                 case_id=s.case_id,
                 ids=dict(it.ids),
                 parts=it.parts,
+                relabel_key=key2,
             )
         )
-    for p in planted:
+    clean = [replace(p, parts=tuple(_clean(t, criterion) for t in p.parts)) for p in planted]
+    _planted_tells(clean, [by_case[s.case_id] for s in order])
+    for p in clean:
         case_id = f"planted:{p.id}"
+        key, key2 = keys(case_id, p.parts, True)
         rows.append(
             CriterionRow(
                 sheet_id=sheet_id,
-                key=_opaque("k", secret, json.dumps([case_id, list(p.parts)])),
+                key=key,
                 split="planted",
                 relabel=False,
                 case_id=case_id,
                 ids=dict(p.ids),
                 parts=p.parts,
                 planted_label=p.label,
+                relabel_key=key2,
             )
         )
-    if len({r.key for r in rows}) != len(rows):
+    shown = [r.key for r in rows] + [r.relabel_key for r in rows if r.relabel_key]
+    if len(set(shown)) != len(shown):
         raise SheetError("two rows share a key (the same item twice?)")
     return rows
 
 
 def second_pass(rows: Sequence[CriterionRow], *, seed: int) -> list[CriterionRow]:
-    """The blind repeats and the planted items together, in a fresh seeded order (CIS-01)."""
-    shown = sorted((r for r in rows if r.relabel or r.split == "planted"), key=lambda r: r.key)
+    """The blind repeats and the planted items together, in a fresh seeded order (CIS-01).
+    Each is shown under its `relabel_key`, never under its first-pass key."""
+    shown = sorted((r for r in rows if r.relabel_key is not None), key=lambda r: str(r.relabel_key))
     random.Random(f"evalkit-integrity-second:{seed}").shuffle(shown)
     return shown
+
+
+def _shown_keys(rows: Sequence[CriterionRow]) -> dict[str, tuple[CriterionRow, Round]]:
+    """Every key a labeller was shown -> its row and round (a planted row's first-pass key
+    is never shown)."""
+    out: dict[str, tuple[CriterionRow, Round]] = {}
+    for r in rows:
+        if r.split != "planted":
+            out[r.key] = (r, "first")
+        if r.relabel_key is not None:
+            out[r.relabel_key] = (r, "relabel")
+    return out
+
+
+def _first_complete(rows: Sequence[CriterionRow], first: CriterionLabels | None) -> bool:
+    got = first.labels if first is not None else {}
+    return all(r.key in got for r in _first_pass(rows))
 
 
 def _first_pass(rows: Sequence[CriterionRow]) -> list[CriterionRow]:
@@ -509,7 +605,8 @@ def sheet_csv(
     w.writerow(_columns(criterion))
     for r in shown:
         split = "" if second else r.split
-        w.writerow([r.key, split, *(r.ids[f] for f in criterion.id_fields), _cell(r.parts), ""])
+        key = r.relabel_key if second else r.key
+        w.writerow([key, split, *(r.ids[f] for f in criterion.id_fields), _cell(r.parts), ""])
     return buf.getvalue()
 
 
@@ -521,10 +618,6 @@ class CriterionLabels(Model):
     labels: FrozenMap[str] = Field(default_factory=dict)
 
 
-def _in_round(row: CriterionRow, round_: Round) -> bool:
-    return row.split != "planted" if round_ == "first" else (row.relabel or row.split == "planted")
-
-
 def labels_from_csv(
     text: str, rows: Sequence[CriterionRow], criterion: Criterion, *, round_: Round = "first"
 ) -> CriterionLabels:
@@ -532,16 +625,17 @@ def labels_from_csv(
     and blank or unknown labels are errors."""
     if not rows:
         raise SheetError("empty sheet")
-    by_key = {r.key: r for r in rows}
+    by_key = _shown_keys(rows)
     out: dict[str, str] = {}
     for i, line in enumerate(csv.DictReader(io.StringIO(text.lstrip("﻿"))), start=2):
         key = line.get("key") or ""
-        row = by_key.get(key)
-        if row is None:
+        hit = by_key.get(key)
+        if hit is None:
             raise SheetError(f"line {i}: unknown key (labels from another export?)")
+        row, in_round = hit
         if key in out:
             raise SheetError(f"line {i}: key {key} appears twice")
-        if not _in_round(row, round_):
+        if in_round != round_:
             where = "the second pass" if round_ == "relabel" else "the first pass"
             raise SheetError(f"line {i}: key {key} is not in {where}")
         if (line.get(criterion.item_column) or "") != _cell(row.parts):
@@ -555,8 +649,7 @@ def labels_from_csv(
 
 def heldout_digest(rows: Sequence[CriterionRow]) -> str:
     """sha256 of the sorted held-out case ids: stable across exports (keys are not)."""
-    ids = sorted(r.case_id for r in rows if r.split == "heldout")
-    return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
+    return _digest(r.case_id for r in rows if r.split == "heldout")
 
 
 def _check_labels(
@@ -568,7 +661,7 @@ def _check_labels(
     if not rows:
         raise SheetError("empty sheet")
     sheet_id = rows[0].sheet_id
-    by_key = {r.key: r for r in rows}
+    by_key = _shown_keys(rows)
     for f, want in ((first, "first"), (second, "relabel")):
         if f is None:
             continue
@@ -579,14 +672,14 @@ def _check_labels(
         for k, v in f.labels.items():
             if k not in by_key:
                 raise SheetError(f"{want}-round label for unknown key {k}")
-            if not _in_round(by_key[k], want):  # type: ignore[arg-type]
+            if by_key[k][1] != want:
                 raise SheetError(f"{want}-round label for key {k}, which is not in that round")
             if criterion.parse(v) != v:
                 raise SheetError(f"{want}-round label for key {k} is not canonical")
-    missing = [r.key for r in rows if _in_round(r, "first") and r.key not in first.labels]
+    missing = [r.key for r in _first_pass(rows) if r.key not in first.labels]
     if missing:
         raise SheetError(f"{len(missing)} row(s) have no first-round label, e.g. {missing[0]}")
-    want_second = [r.key for r in rows if _in_round(r, "relabel")]
+    want_second = [str(r.relabel_key) for r in rows if r.relabel_key is not None]
     if want_second:
         got = second.labels if second is not None else {}
         gap = [k for k in want_second if k not in got]
@@ -615,7 +708,12 @@ def _save(path: Path, labels: CriterionLabels) -> None:
 def _load(path: Path) -> CriterionLabels | None:
     if not path.is_file():
         return None
-    return CriterionLabels.model_validate_json(path.read_text(encoding="utf-8"))
+    try:
+        return CriterionLabels.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # pydantic's error quotes the input: never shown
+        raise SheetError(
+            f"{path} is not a valid labels file: restore it or move it aside"
+        ) from None
 
 
 MAX_CONTEXT_CHARS = 200_000
@@ -650,7 +748,7 @@ class SheetLabeller:
             for p in self._paths(r):
                 if not p.is_file():
                     raise SheetError(f"context file {p} does not exist")
-        self.keys = {r.key for r in self.items}
+        self.keys = {self._key(r) for r in self.items}  # fresh keys in the second pass
         self.path = labels_path
         self.labels: dict[str, str] = dict(existing.labels) if existing else {}
         self.lock = threading.Lock()
@@ -668,12 +766,15 @@ class SheetLabeller:
                 ) from None
         return out
 
+    def _key(self, row: CriterionRow) -> str:
+        return str(row.relabel_key) if self.round == "relabel" else row.key
+
     def view(self, index: int | None = None) -> dict[str, Any]:
         with self.lock:
-            done = sum(1 for r in self.items if r.key in self.labels)
+            done = sum(1 for r in self.items if self._key(r) in self.labels)
             if index is None:
                 index = next(
-                    (i for i, r in enumerate(self.items) if r.key not in self.labels),
+                    (i for i, r in enumerate(self.items) if self._key(r) not in self.labels),
                     len(self.items),
                 )
             base = {
@@ -695,11 +796,11 @@ class SheetLabeller:
                 **base,
                 "done": False,
                 "index": max(0, index),
-                "key": r.key,
+                "key": self._key(r),
                 "ids": dict(r.ids),
                 "parts": list(r.parts),
                 "context": context,
-                "label": self.labels.get(r.key),
+                "label": self.labels.get(self._key(r)),
             }
 
     def record(self, key: str, label: str, extraction_error: bool) -> None:
@@ -767,6 +868,7 @@ class IntegrityReport(Model):
     agreements: tuple[JudgeKappa, ...]
     consistency: Consistency
     certified: bool
+    reasons: tuple[str, ...]  # why not certified: the labeller's consistency, then the judges
 
 
 def _wilson(k: int, n: int) -> Interval:
@@ -775,6 +877,56 @@ def _wilson(k: int, n: int) -> Interval:
     centre = (p + _Z95**2 / (2 * n)) / den
     half = _Z95 * math.sqrt(p * (1 - p) / n + _Z95**2 / (4 * n * n)) / den
     return Interval(point=p, lo=min(p, max(0.0, centre - half)), hi=max(p, min(1.0, centre + half)))
+
+
+def _consistency_reasons(
+    bar: ConsistencyBar,
+    n_repeats: int,
+    self_kappa: Interval | None,
+    n_planted: int,
+    planted_accuracy: Interval | None,
+) -> list[str]:
+    """Why the labeller's consistency does not clear the bar (empty: it does). Pure: also
+    recomputed from a logged `calibration_scored` line by `calibration_certified`."""
+
+    def value(iv: Interval) -> float:
+        return iv.lo if bar.bound == "lo" else iv.point
+
+    reasons = []
+    if n_repeats == 0:
+        reasons.append("no blind repeats: certifying needs consistency evidence (n_relabel > 0)")
+    if bar.min_self_kappa is None and bar.min_planted_accuracy is None:
+        reasons.append(
+            "the bar checks no labeller consistency (min_self_kappa and min_planted_accuracy "
+            "both null): a trivial bar cannot certify"
+        )
+    if n_repeats < bar.min_repeats:
+        reasons.append(f"{n_repeats} blind repeat(s); the bar needs {bar.min_repeats}")
+    if bar.min_self_kappa is not None and (
+        self_kappa is None or value(self_kappa) < bar.min_self_kappa
+    ):
+        reasons.append(f"self-agreement kappa below {bar.min_self_kappa} ({bar.bound})")
+    if n_planted < bar.min_planted:
+        reasons.append(f"{n_planted} planted item(s); the bar needs {bar.min_planted}")
+    if bar.min_planted_accuracy is not None and (
+        planted_accuracy is None or value(planted_accuracy) < bar.min_planted_accuracy
+    ):
+        reasons.append(f"planted accuracy below {bar.min_planted_accuracy} ({bar.bound})")
+    return reasons
+
+
+def _judge_reasons(bar: ConsistencyBar, kappa: Mapping[str, Interval]) -> list[str]:
+    """Why the judges do not clear the bar: each judge's held-out kappa CI lower bound."""
+    if bar.min_judge_kappa_lo is None:
+        return ["the bar sets no judge kappa minimum (min_judge_kappa_lo): a trivial bar "
+                "cannot certify"]  # fmt: skip
+    if not kappa:
+        return ["no judge kappa"]
+    return [
+        f"judge {j} kappa lower bound {kappa[j].lo:.2f} is below {bar.min_judge_kappa_lo}"
+        for j in sorted(kappa)
+        if kappa[j].lo < bar.min_judge_kappa_lo
+    ]
 
 
 def consistency(
@@ -790,33 +942,21 @@ def consistency(
     """Self-agreement on the blind repeats (kappa with a cluster bootstrap CI, one cluster per
     item) and accuracy on the planted items (Wilson 95%), against the bar (CIS-02)."""
     got = second.labels if second is not None else {}
-    repeats = [r for r in rows if r.relabel and r.key in got and r.key in first.labels]
+    repeats = [
+        r
+        for r in rows
+        if r.relabel and r.relabel_key in got and r.key in first.labels  # fresh second key
+    ]
     pairs = [
-        CalibrationPair(r.key, first.labels[r.key] == positive, got[r.key] == positive)
+        CalibrationPair(r.key, first.labels[r.key] == positive, got[str(r.relabel_key)] == positive)
         for r in repeats
     ]
     self_kappa = cluster_kappa(pairs, seed=seed, n_resamples=n_resamples) if pairs else None
     agree = sum(p.human == p.judge for p in pairs) / len(pairs) if pairs else None
-    planted = [r for r in rows if r.split == "planted" and r.key in got]
-    correct = sum(got[r.key] == r.planted_label for r in planted)
+    planted = [r for r in rows if r.split == "planted" and r.relabel_key in got]
+    correct = sum(got[str(r.relabel_key)] == r.planted_label for r in planted)
     accuracy = _wilson(correct, len(planted)) if planted else None
-    reasons = []
-
-    def value(iv: Interval) -> float:
-        return iv.lo if bar.bound == "lo" else iv.point
-
-    if len(pairs) < bar.min_repeats:
-        reasons.append(f"{len(pairs)} blind repeat(s); the bar needs {bar.min_repeats}")
-    if bar.min_self_kappa is not None and (
-        self_kappa is None or value(self_kappa) < bar.min_self_kappa
-    ):
-        reasons.append(f"self-agreement kappa below {bar.min_self_kappa} ({bar.bound})")
-    if len(planted) < bar.min_planted:
-        reasons.append(f"{len(planted)} planted item(s); the bar needs {bar.min_planted}")
-    if bar.min_planted_accuracy is not None and (
-        accuracy is None or value(accuracy) < bar.min_planted_accuracy
-    ):
-        reasons.append(f"planted accuracy below {bar.min_planted_accuracy} ({bar.bound})")
+    reasons = _consistency_reasons(bar, len(pairs), self_kappa, len(planted), accuracy)
     return Consistency(
         n_repeats=len(pairs),
         self_agreement=agree,
@@ -836,10 +976,16 @@ def _norm_rubric(value: str) -> str:
         raise SheetError(str(exc)) from None
 
 
-def _log_rubric(criterion: Criterion, rubric: str) -> str:
-    """The rubric under which B5.14's score-once guard records a calibration: namespaced, so
-    calibrating a criterion never collides with scoring the same cases for a benchmark."""
-    return f"calibration:{criterion.name}:{rubric}"
+def _log_rubric(task_score: str, rubric: str) -> str:
+    """The rubric under which B5.14's score-once guard records a calibration: namespaced by
+    the task score being calibrated (what is scored, not the criterion's name), so calibrating
+    never collides with scoring the same cases for a benchmark, and renaming a criterion
+    cannot rescore a case."""
+    return _norm_rubric(f"calibration:{task_score}:{rubric}")
+
+
+def _digest(case_ids: Iterable[str]) -> str:
+    return hashlib.sha256("\n".join(sorted(case_ids)).encode("utf-8")).hexdigest()
 
 
 def _kappa(rows: Sequence[CriterionRow], first: CriterionLabels, items: Mapping[str, Item],
@@ -861,19 +1007,92 @@ def _kappa(rows: Sequence[CriterionRow], first: CriterionLabels, items: Mapping[
 
 
 class CalibrationLine(Model):
-    """The `calibration_scored` line in B5.14's log (CIS-02): ids as hashes, no text."""
+    """The `calibration_scored` line in B5.14's log (CIS-02): ids as hashes, no text. It is
+    appended right after its `heldout_scored` line under the same lock, and carries the bar
+    it was scored against and every value the bar reads, so `calibration_certified`
+    recomputes the decision instead of trusting `certified`."""
 
     kind: Literal["calibration_scored"] = CALIBRATION_SCORED
     criterion: NonBlank
+    task_score: NonBlank  # what is calibrated (the score-once key), not the criterion's name
     rubric_hash: NonBlank
     run_hash: NonBlank
     case_id_sha256: tuple[NonBlank, ...]
     heldout_digest: NonBlank
     certified: bool
-    kappa: FrozenMap[float]
-    self_kappa: float | None
-    planted_accuracy: float | None
+    bar: FrozenMap[int | float | str | None]  # the ConsistencyBar, field by field
+    kappa: FrozenMap[Interval]  # judge -> held-out kappa with its bootstrap CI
+    n_heldout: NonNegInt
+    n_repeats: NonNegInt
+    self_kappa: Interval | None
+    n_planted: NonNegInt
+    planted_correct: NonNegInt
+    planted_accuracy: Interval | None
     at: NonBlank
+
+
+def _line_reasons(line: CalibrationLine) -> list[str]:
+    """Why a logged line does not certify, recomputed from its own values against its own
+    bar (Wilson accuracy recomputed from the counts)."""
+    fields_: dict[str, Any] = dict(line.bar)  # validated by ConsistencyBar itself
+    bar = ConsistencyBar(**fields_)
+    if line.planted_correct > line.n_planted:
+        return ["more planted items right than planted items"]
+    accuracy = _wilson(line.planted_correct, line.n_planted) if line.n_planted else None
+    if accuracy != line.planted_accuracy:
+        return ["the logged planted accuracy does not match its counts"]
+    if (line.n_repeats == 0) != (line.self_kappa is None):
+        return ["the logged self-agreement does not match its count"]
+    return [
+        *_consistency_reasons(bar, line.n_repeats, line.self_kappa, line.n_planted, accuracy),
+        *_judge_reasons(bar, line.kappa),
+    ]
+
+
+def _refuse_rubric_change(
+    log_rows: Sequence[Mapping[str, Any]], task_score: str, rubric: str, hashes: Sequence[str]
+) -> None:
+    """RubricChanged when a held-out case was calibrated for this task score under another
+    rubric, through any criterion name (every `calibration:<task_score>:*` line)."""
+    prefix = f"calibration:{task_score}:"
+    want = set(hashes)
+    clash: set[str] = set()
+    for row in log_rows:
+        old = str(row.get("rubric_hash", "")).strip().lower()
+        if row.get("kind") == H.SCORED and old.startswith(prefix):
+            other = old[len(prefix) :] != rubric
+        elif row.get("kind") == CALIBRATION_SCORED and row.get("task_score") == task_score:
+            other = old != rubric
+        else:
+            continue
+        if other:
+            clash |= want & {str(h) for h in row.get("case_id_sha256") or ()}
+    if clash:
+        raise RubricChanged(
+            f"{len(clash)} held-out case(s) were already calibrated for task score "
+            f"{task_score} under another rubric (by any criterion); a changed rubric needs a "
+            "fresh held-out set: " + ", ".join(sorted(h[:12] for h in clash))
+        )
+
+
+def _planted_not_heldout(
+    planted: Iterable[tuple[str, Sequence[str]]],
+    held_hashes: set[str],
+    held_parts: set[tuple[str, ...]],
+) -> None:
+    """A planted item that is a held-out case (by id in the manifest, or by its exact text)
+    is refused: planted items are written by hand, never taken from the held-out split."""
+    for n, (pid, parts) in enumerate(planted, start=1):
+        if H.case_id_hash(pid) in held_hashes:
+            raise SheetError(
+                f"planted item {n} is held-out case {H.manifest_id(pid)} in the manifest: "
+                "write planted items by hand, never from the held-out split"
+            )
+        if tuple(parts) in held_parts:
+            raise SheetError(
+                f"planted item {n} repeats a held-out item's text: write planted items by "
+                "hand, never from the held-out split"
+            )
 
 
 def score_sheet(
@@ -896,6 +1115,8 @@ def score_sheet(
     of checks). Nothing is logged unless every check passes."""
     bar = bar or criterion.bar
     rubric = _norm_rubric(rubric_hash)
+    task_score = criterion.score_name
+    log_rubric = _log_rubric(task_score, rubric)
     if not str(run_hash).strip():
         raise SheetError("a scoring needs the run hash")
     _check_labels(rows, criterion, first, second)
@@ -907,6 +1128,11 @@ def score_sheet(
                 f"case {H.manifest_id(r.case_id)} is {'in' if listed else 'not in'} the "
                 f"manifest's held-out split but sits in the {r.split} half of this sheet"
             )
+    _planted_not_heldout(
+        ((r.case_id.removeprefix("planted:"), r.parts) for r in rows if r.split == "planted"),
+        held_hashes,
+        {tuple(r.parts) for r in rows if r.split == "heldout"},
+    )
     by_case = {it.case_id: it for it in items}
     for r in _first_pass(rows):
         it = by_case.get(r.case_id)
@@ -939,6 +1165,7 @@ def score_sheet(
         rows, first, second, bar=bar, seed=seed, positive=criterion.positive,
         n_resamples=n_resamples,
     )  # fmt: skip
+    reasons = (*cons.reasons, *_judge_reasons(bar, {a.judge: a.kappa for a in agreements}))
     held_ids = sorted(r.case_id for r in heldout)
     hashes = sorted({H.case_id_hash(c) for c in held_ids})
     report = IntegrityReport(
@@ -950,72 +1177,104 @@ def score_sheet(
         heldout_digest=heldout_digest(rows),
         agreements=agreements,
         consistency=cons,
-        certified=cons.passes,
+        certified=not reasons,
+        reasons=reasons,
     )
-    # ---- the log: refuse, then record (B5.14), then the calibration line ----
-    log_path = Path(log)
-    if log_path.is_file() and H.chain_problems(log_path):
-        raise SheetError("the log's hash chain is broken: restore it before scoring")
-    prefix = f"calibration:{criterion.name}:"
-    want = set(hashes)
-    clash: set[str] = set()
-    for row in H.read_log(log_path):
-        old = str(row.get("rubric_hash", "")).strip().lower()
-        if (
-            row.get("kind") == "heldout_scored"
-            and old.startswith(prefix)
-            and old[len(prefix) :] != rubric
-        ):
-            clash |= want & {str(h) for h in row.get("case_id_sha256") or ()}
-    if clash:
-        raise RubricChanged(
-            f"{len(clash)} held-out case(s) were already calibrated for {criterion.name} under "
-            "another rubric; a changed rubric needs a fresh held-out set: "
-            + ", ".join(sorted(h[:12] for h in clash))
-        )
     at = scored_at.date().isoformat()
-    H.record_scoring(log_path, held_ids, _log_rubric(criterion, rubric), at=at)
     line = CalibrationLine(
         criterion=criterion.name,
+        task_score=task_score,
         rubric_hash=rubric,
         run_hash=str(run_hash),
         case_id_sha256=tuple(hashes),
         heldout_digest=report.heldout_digest,
         certified=report.certified,
-        kappa={a.judge: round(a.kappa.point, 6) for a in agreements},
-        self_kappa=round(cons.self_kappa.point, 6) if cons.self_kappa else None,
-        planted_accuracy=round(cons.planted_accuracy.point, 6) if cons.planted_accuracy else None,
+        bar=asdict(bar),
+        kappa={a.judge: a.kappa for a in agreements},
+        n_heldout=len(hashes),
+        n_repeats=cons.n_repeats,
+        self_kappa=cons.self_kappa,
+        n_planted=cons.n_planted,
+        planted_correct=cons.planted_correct,
+        planted_accuracy=cons.planted_accuracy,
         at=at,
     )
-    H.append_entry(log_path, line.model_dump(mode="json"))
+    if _line_reasons(line) != list(reasons):  # the logged line must decide as the report
+        raise SheetError("internal: the calibration line does not reproduce the report")
+    scored = {
+        "kind": H.SCORED,
+        "rubric_hash": log_rubric,
+        "case_id_sha256": hashes,
+        "n_cases": len(hashes),
+        "at": at,
+    }
+    # ---- the log: one lock for the checks and both lines, so they are an atomic pair ----
+    log_path = Path(log)
+    with H._log_lock(log_path):
+        if H.chain_problems(log_path):
+            raise SheetError("the log's hash chain is broken: restore it before scoring")
+        _refuse_rubric_change(H.read_log(log_path), task_score, rubric, hashes)
+        H._append_locked(log_path, scored, doing="scoring")  # B5.14 score once (AlreadyScored)
+        H._append_locked(log_path, line.model_dump(mode="json"), doing="scoring")
     return report
 
 
 def calibration_certified(
     log: str | Path,
     *,
-    criterion: str,
+    criterion: str | Criterion,
     case_ids: Iterable[str],
     rubric_hash: str,
     run_hash: str,
+    task_score: str | None = None,
 ) -> bool:
-    """True only when B5.14's `is_certified` holds for these held-out cases under this
-    criterion's namespaced rubric and a `calibration_scored` line names this criterion,
-    rubric, run hash and exactly these cases with `certified: true`. Never raises."""
+    """True only when the log's chain and score-once rule hold and EXACTLY ONE
+    `calibration_scored` line for this task score (`task_score`, else the criterion's) and
+    rubric touches these held-out cases; that line directly follows (chained by hash) its
+    `heldout_scored` line for exactly these cases; it names this criterion, run hash, case
+    set and digest; it says `certified: true`; and recomputing the decision from its logged
+    values against its logged bar certifies. A second matching line, or a matching line that
+    says false, certifies nothing. Never raises. The last line of a log is chained by no
+    later line: protecting it is CI's append-only check (`verify-log`, B5.14)."""
     try:
-        ids = list(case_ids)
+        if isinstance(criterion, Criterion):
+            name, ts = criterion.name, task_score or criterion.score_name
+        else:
+            name, ts = str(criterion), task_score or str(criterion)
+        ids = sorted(set(H._case_ids(case_ids)))
         rubric = H._rubric(rubric_hash)
         want = sorted({H.case_id_hash(c) for c in ids})
-        if not H.is_certified(log, ids, f"calibration:{criterion}:{rubric}"):
+        p = Path(log)
+        if not want or not p.is_file() or H.chain_problems(p):
             return False
-        return any(
-            row.get("kind") == CALIBRATION_SCORED
-            and row.get("criterion") == criterion
+        rows = H.read_log(p)
+        hits = [
+            n
+            for n, row in enumerate(rows)
+            if row.get("kind") == CALIBRATION_SCORED
+            and row.get("task_score") == ts
             and str(row.get("rubric_hash", "")).strip().lower() == rubric
-            and row.get("run_hash") == run_hash
-            and sorted(set(row.get("case_id_sha256") or ())) == want
-            and row.get("certified") is True
-            for row in H.read_log(log)
+            and {str(h) for h in row.get("case_id_sha256") or ()} & set(want)
+        ]
+        if len(hits) != 1 or hits[0] == 0:
+            return False
+        before = rows[hits[0] - 1]
+        if (
+            before.get("kind") != H.SCORED
+            or before.get("rubric_hash") != _log_rubric(ts, rubric)
+            or sorted(set(before.get("case_id_sha256") or ())) != want
+        ):
+            return False
+        body = {k: v for k, v in rows[hits[0]].items() if k != "prev"}
+        line = CalibrationLine.model_validate_json(json.dumps(body))
+        return (
+            line.criterion == name
+            and line.run_hash == run_hash
+            and list(line.case_id_sha256) == want
+            and line.n_heldout == len(want)
+            and line.heldout_digest == _digest(ids)
+            and line.certified is True
+            and not _line_reasons(line)
         )
     except Exception:  # fail closed
         return False
@@ -1060,7 +1319,33 @@ def _rows(run_dir: Path, criterion: Criterion) -> list[CriterionRow]:
     path = _dir(run_dir, criterion) / "sheet.json"
     if not path.is_file():
         raise SheetError(f"no {criterion.name} sheet yet: export it first")
-    return [CriterionRow.model_validate(x) for x in json.loads(path.read_text("utf-8"))]
+    try:
+        data = json.loads(path.read_text("utf-8"))
+        if not isinstance(data, list):
+            raise ValueError("not a list")
+        return [CriterionRow.model_validate(x) for x in data]
+    except (OSError, ValueError, TypeError):  # pydantic's error quotes the input: never shown
+        raise SheetError(
+            f"{path} is not a valid {criterion.name} sheet: export again (move {path.parent} "
+            "aside first)"
+        ) from None
+
+
+def _write_relabel(run_dir: Path, criterion: Criterion, rows: Sequence[CriterionRow]) -> Path:
+    """`relabel.csv`, the second-pass sheet: written only once the first pass is labelled."""
+    from evalkit import run as R
+
+    d = _dir(run_dir, criterion)
+    first = _load(d / "labels-first.json")
+    if not _first_complete(rows, first):
+        done = len(first.labels) if first is not None else 0
+        raise SheetError(
+            f"finish the first pass before the second ({done} of {len(_first_pass(rows))} labelled)"
+        )
+    path = d / "relabel.csv"
+    if not path.is_file():
+        _write(path, sheet_csv(rows, criterion, second=True, seed=R.read_manifest(run_dir).seed))
+    return path
 
 
 def _manifest(path: str | Path | None) -> dict[str, Any]:
@@ -1082,8 +1367,10 @@ def export_run(
     manifest_path: str | Path | None,
     planted_path: str | Path | None = None,
     force: bool = False,
+    model: str | None = None,
 ) -> tuple[Path, int, int]:
-    """Write `sheet.json` (private), `sheet.csv` and `relabel.csv` (second pass)."""
+    """Write `sheet.json` (private) and `sheet.csv`. The second-pass `relabel.csv` is written
+    only once the first pass is labelled (`import_run`, `label_run(relabel=True)`)."""
     from evalkit import run as R
 
     manifest = R.read_manifest(run_dir)
@@ -1097,16 +1384,22 @@ def export_run(
         )
     if (d / "sheet.json").is_file() and not force:
         raise SheetError(f"{d / 'sheet.json'} exists (use --force to replace it; no labels yet)")
-    items = items_from_run(R.read_records(run_dir), R.read_cases(run_dir), criterion)
+    items = items_from_run(R.read_records(run_dir), R.read_cases(run_dir), criterion, model=model)
+    held = _manifest(manifest_path)
     sample = sample_items(
-        items, manifest=_manifest(manifest_path), seed=manifest.seed, n=criterion.n,
-        n_relabel=criterion.n_relabel,
+        items, manifest=held, seed=manifest.seed, n=criterion.n, n_relabel=criterion.n_relabel,
     )  # fmt: skip
     planted = load_planted(planted_path, criterion) if planted_path else []
+    hashes = _heldout_hashes(held)
+    _planted_not_heldout(
+        ((p.id, p.parts) for p in planted),
+        hashes,
+        {tuple(it.parts) for it in items if H.case_id_hash(it.case_id) in hashes},
+    )
     rows = build_sheet(sample, items, criterion, seed=manifest.seed, planted=planted)
+    (d / "relabel.csv").unlink(missing_ok=True)  # a re-export's second pass waits again
     _write(d / "sheet.json", json.dumps([r.model_dump(mode="json") for r in rows], indent=1) + "\n")
     _write(d / "sheet.csv", sheet_csv(rows, criterion))
-    _write(d / "relabel.csv", sheet_csv(rows, criterion, second=True, seed=manifest.seed))
     return d, len(_first_pass(rows)), len(second_pass(rows, seed=manifest.seed))
 
 
@@ -1121,8 +1414,11 @@ def label_run(
     from evalkit import run as R
 
     name = "labels-relabel.json" if relabel else "labels-first.json"
+    rows = _rows(run_dir, criterion)
+    if relabel:  # the second pass opens only after the first is labelled
+        _write_relabel(run_dir, criterion, rows)
     return serve_sheet_labeller(
-        _rows(run_dir, criterion),
+        rows,
         criterion,
         _dir(run_dir, criterion) / name,
         round_="relabel" if relabel else "first",
@@ -1138,12 +1434,17 @@ def import_run(run_dir: Path, criterion: Criterion, csv_path: Path, *, relabel: 
         text = csv_path.read_text(encoding="utf-8")
     except OSError as exc:
         raise SheetError(f"cannot read {csv_path} ({type(exc).__name__})") from None
-    labels = labels_from_csv(text, _rows(run_dir, criterion), criterion, round_=round_)
+    rows = _rows(run_dir, criterion)
+    labels = labels_from_csv(text, rows, criterion, round_=round_)
+    if relabel:
+        _write_relabel(run_dir, criterion, rows)  # refuses before the first pass is in
     target = _dir(run_dir, criterion) / f"labels-{round_}.json"
     existing = _load(target)
     if existing is not None and existing.labels:
         raise SheetError(f"{target} already holds labels; move it aside to import a CSV instead")
     _save(target, labels)
+    if not relabel and _first_complete(rows, labels):
+        _write_relabel(run_dir, criterion, rows)
     return len(labels.labels)
 
 
@@ -1155,6 +1456,7 @@ def score_run(
     log: str | Path | None,
     rubric_hash: str | None = None,
     now: datetime | None = None,
+    model: str | None = None,
 ) -> IntegrityReport:
     from datetime import UTC
 
@@ -1172,14 +1474,19 @@ def score_run(
         raise SheetError(f"no first-round {criterion.name} labels yet")
     second = _load(d / "labels-relabel.json")
     manifest = R.read_manifest(run_dir)
-    items = items_from_run(R.read_records(run_dir), R.read_cases(run_dir), criterion)
+    items = items_from_run(R.read_records(run_dir), R.read_cases(run_dir), criterion, model=model)
+    path = d / "calibration.json"
+    try:  # read before scoring: the log is written once, so this must not fail after it
+        history = json.loads(path.read_text("utf-8")).get("history", []) if path.is_file() else []
+        if not isinstance(history, list):
+            raise ValueError("history is not a list")
+    except (OSError, ValueError, AttributeError):
+        raise SheetError(f"{path} is not a valid calibration file: move it aside") from None
     report = score_sheet(
         rows, first, second, items, criterion, rubric_hash=rubric, run_hash=run_hash(run_dir),
         manifest=_manifest(manifest_path), log=log, seed=manifest.seed,
         scored_at=now or datetime.now(UTC),
     )  # fmt: skip
-    path = d / "calibration.json"
-    history = json.loads(path.read_text("utf-8")).get("history", []) if path.is_file() else []
     entry = report.model_dump(mode="json")
     _write(path, json.dumps({"current": entry, "history": [*history, entry]}, indent=1) + "\n")
     return report
@@ -1198,13 +1505,14 @@ def cli_calibrate(args: Any) -> int:
         if args.action == "export":
             d, n1, n2 = export_run(
                 run_dir, criterion, manifest_path=args.manifest, planted_path=args.planted,
-                force=args.force,
+                force=args.force, model=args.model,
             )  # fmt: skip
             _emit(
                 args,
                 {"dir": str(d), "first": n1, "second": n2},
-                f"{n1} items to label, then {n2} in the second pass. Label: evalkit calibrate "
-                f"label {run_dir} --criterion {args.criterion}",
+                f"{n1} items to label, then {n2} in the second pass (relabel.csv is written "
+                f"once the first pass is labelled). Label: evalkit calibrate label {run_dir} "
+                f"--criterion {args.criterion}",
             )
         elif args.action == "label":
             server = label_run(
@@ -1222,11 +1530,17 @@ def cli_calibrate(args: Any) -> int:
                 server.server_close()
         elif args.action == "import":
             n = import_run(run_dir, criterion, Path(args.csv), relabel=args.relabel)
-            _emit(args, {"imported": n}, f"imported {n} labels")
+            second = _dir(run_dir, criterion) / "relabel.csv"
+            ready = not args.relabel and second.is_file()
+            _emit(
+                args,
+                {"imported": n, **({"relabel_csv": str(second)} if ready else {})},
+                f"imported {n} labels" + (f"; the second pass is in {second}" if ready else ""),
+            )
         else:
             report = score_run(
                 run_dir, criterion, manifest_path=args.manifest, log=args.log,
-                rubric_hash=args.rubric_hash,
+                rubric_hash=args.rubric_hash, model=args.model,
             )  # fmt: skip
             kappas = {a.judge: a.kappa.point for a in report.agreements}
             c = report.consistency
@@ -1237,7 +1551,7 @@ def cli_calibrate(args: Any) -> int:
                     "self_kappa": c.self_kappa.point if c.self_kappa else None,
                     "planted_accuracy": c.planted_accuracy.point if c.planted_accuracy else None,
                     "certified": report.certified,
-                    "reasons": list(c.reasons),
+                    "reasons": list(report.reasons),
                 },
                 "held-out kappa: "
                 + ", ".join(f"{j} {k:.2f}" for j, k in kappas.items())
@@ -1245,7 +1559,7 @@ def cli_calibrate(args: Any) -> int:
                 + (
                     "\ncertified"
                     if report.certified
-                    else "\nNOT certified: " + "; ".join(c.reasons)
+                    else "\nNOT certified: " + "; ".join(report.reasons)
                 ),
             )
     except (SheetError, H.HeldoutError, R.RunError, FileNotFoundError) as exc:

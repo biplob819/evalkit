@@ -56,13 +56,14 @@
   "self_agreement": 0.9,
   "self_kappa": {
    "hi": 1.0,
-   "lo": 0.4671784332688588,
-   "point": 0.797979797979798
+   "lo": 0.51875,
+   "point": 0.801980198019802
   }
  },
  "criterion": "integrity",
  "heldout_digest": "b38088fd84daae4f2a91e845e5416e2841ee716597d7ae32d843aaa45c25f3c8",
  "n_heldout": 20,
+ "reasons": [],
  "rubric_hash": "integrity-rubric-v3",
  "run_hash": "run-1",
  "scored_at": "2026-11-20T00:00:00Z"

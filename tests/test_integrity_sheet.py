@@ -137,8 +137,8 @@ def manifest(tmp: Path, held=is_held) -> dict[str, Any]:
 PLANTED = [
     I.PlantedItem(
         id=f"p{k}",
-        parts=(
-            "Hello there, happy to help.",
+        parts=(  # written like real items, redacted the same way when the sheet is built
+            f"Hello learner-{90 + k}, CANARY-P{k} happy to help.",
             f"Planted reply {k}: " + ("the complete essay" if k % 2 else "a gentle hint"),
         ),
         ids={"assessment_id": "A1"},
@@ -183,7 +183,8 @@ def second_labels(rows, first, *, wrong_planted=0, flip_repeats=0) -> I.Criterio
             lab = first.labels[r.key]
             if flips < flip_repeats:
                 lab, flips = ("clean" if lab == "violation" else "violation"), flips + 1
-        labels[r.key] = lab
+        assert r.relabel_key is not None
+        labels[r.relabel_key] = lab
     return I.CriterionLabels(sheet_id=rows[0].sheet_id, round="relabel", labels=labels)
 
 
@@ -284,7 +285,7 @@ def test_sheet_csv_columns_and_label_validation(tmp_path):
     planted = next(r for r in rows if r.split == "planted")
     second = I.sheet_csv(rows, CRIT, second=True, seed=7)
     with pytest.raises(I.SheetError, match="not in the first pass"):
-        I.labels_from_csv(fill(rows, second, {planted.key: "V"}), rows, CRIT)
+        I.labels_from_csv(fill(rows, second, {str(planted.relabel_key): "V"}), rows, CRIT)
     outside = next(r for r in first if not r.relabel)
     with pytest.raises(I.SheetError, match="not in the second pass"):
         I.labels_from_csv(fill(rows, text, {outside.key: "V"}), rows, CRIT, round_="relabel")
@@ -538,6 +539,9 @@ def test_second_pass_mixes_repeats_and_planted_items_in_a_fresh_order(tmp_path):
     assert {r.key for r in second} == {r.key for r in rows if r.relabel or r.split == "planted"}
     repeats = [r.key for r in rows if r.relabel]
     assert [r.key for r in second if r.relabel] != repeats  # a fresh order for the repeats
+    # fresh keys: no second-pass key was shown in the first pass
+    shown_first = {r.key for r in rows if r.split != "planted"}
+    assert {r.relabel_key for r in second}.isdisjoint(shown_first)
     kinds = ["p" if r.split == "planted" else "r" for r in second]
     assert "".join(kinds) not in ("r" * 20 + "p" * 6, "p" * 6 + "r" * 20)  # mixed in
 
@@ -575,9 +579,9 @@ def test_golden_second_pass_csv_blanks_split_and_mixes_planted(tmp_path):
 
 def test_second_pass_order_is_seeded(tmp_path):
     rows, _, _ = build(tmp_path)
-    a = [r.key for r in I.second_pass(rows, seed=7)]
-    assert a == [r.key for r in I.second_pass(rows, seed=7)]
-    assert a != [r.key for r in I.second_pass(rows, seed=8)]
+    a = [r.relabel_key for r in I.second_pass(rows, seed=7)]
+    assert a == [r.relabel_key for r in I.second_pass(rows, seed=7)]
+    assert a != [r.relabel_key for r in I.second_pass(rows, seed=8)]
 
 
 @pytest.mark.safety
@@ -659,8 +663,8 @@ def test_golden_integrity_report(tmp_path):
     held = [r for r in rows if r.split == "heldout"]
     first = first_labels(rows, flip={held[0].key, held[3].key})
     second = second_labels(rows, first, wrong_planted=1, flip_repeats=2)
-    report = score(rows, items, m, tmp_path / "log.jsonl", first=first, second=second,
-                   bar=I.ConsistencyBar(min_planted_accuracy=0.8))  # fmt: skip
+    bar = I.ConsistencyBar(min_planted_accuracy=0.8, min_judge_kappa_lo=0.15)
+    report = score(rows, items, m, tmp_path / "log.jsonl", first=first, second=second, bar=bar)
     got = json.loads(report.model_dump_json())
     path = GOLDEN / "report.json"
     if UPDATE:
@@ -775,7 +779,8 @@ def test_cli_criterion_export_label_import_score_on_a_run_folder(tmp_path, capsy
     out = json.loads(capsys.readouterr().out)
     assert (out["first"], out["second"]) == (40, 20)
     d = run / "calibration" / "integrity"
-    assert {p.name for p in d.iterdir()} == {"sheet.json", "sheet.csv", "relabel.csv"}
+    # the second-pass sheet is not written until the first pass is in
+    assert {p.name for p in d.iterdir()} == {"sheet.json", "sheet.csv"}
     assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m]) == 2  # exists
     rows = I._rows(run, I.load_criterion(crit))
     first = first_labels(rows)
@@ -785,11 +790,16 @@ def test_cli_criterion_export_label_import_score_on_a_run_folder(tmp_path, capsy
     f1.write_text(
         fill(rows, (d / "sheet.csv").read_text(encoding="utf-8"), letters), encoding="utf-8"
     )
+    f2.write_text("key,split,assessment_id,replies,label\n", encoding="utf-8")
+    capsys.readouterr()
+    assert cli.main(["calibrate", "import", str(run), str(f2), *c, "--relabel"]) == 2
+    assert "first pass" in capsys.readouterr().err
+    assert cli.main(["calibrate", "import", str(run), str(f1), *c]) == 0
+    assert (d / "relabel.csv").is_file()
     f2.write_text(
         fill(rows, (d / "relabel.csv").read_text(encoding="utf-8"), dict(second.labels)),
         encoding="utf-8",
     )
-    assert cli.main(["calibrate", "import", str(run), str(f1), *c]) == 0
     assert cli.main(["calibrate", "import", str(run), str(f2), *c, "--relabel"]) == 0
     log = tmp_path / "log.jsonl"
     args = ["calibrate", "score", str(run), *c, "--manifest", m, "--log", str(log), "--json"]
@@ -858,3 +868,288 @@ def _status(port: int, body: dict[str, Any]) -> int:
         return 200
     except urllib.error.HTTPError as e:
         return e.code
+
+
+# =============================== verifier fixes (B5.9 pass 2) ===============================
+
+KEY_SHAPE = r"k[0-9a-f]{12}"
+
+
+@pytest.mark.safety
+def test_second_pass_keys_are_fresh_and_planted_items_carry_no_tell(tmp_path):
+    """Repeats and planted items get keys never shown in the first pass, so neither a key
+    nor a field shape tells a repeat from a planted item (CIS-01)."""
+    import re
+
+    rows, _, _ = build(tmp_path)
+    first_csv = I.sheet_csv(rows, CRIT)
+    second_csv = I.sheet_csv(rows, CRIT, second=True, seed=7)
+    k1 = {x["key"] for x in csv.DictReader(io.StringIO(first_csv))}
+    k2 = {x["key"] for x in csv.DictReader(io.StringIO(second_csv))}
+    assert len(k2) == 26 and k1.isdisjoint(k2)
+    assert all(re.fullmatch(KEY_SHAPE, k) for k in k1 | k2)  # one key shape everywhere
+    state = I.SheetLabeller(rows, CRIT, tmp_path / "labels-relabel.json", "relabel", 7)
+    views = [state.view(i) for i in range(len(state.items))]
+    assert {v["key"] for v in views} == k2  # the page never sends a first-pass key
+    kinds = {r.relabel_key: ("planted" if r.split == "planted" else "repeat") for r in rows}
+    shape: dict[str, set[Any]] = {kind: set() for kind in ("planted", "repeat")}
+    for v in views:
+        shape[kinds[v["key"]]].add(
+            (tuple(sorted(v)), tuple(sorted(v["ids"])), len(v["parts"]),
+             v["parts"][0].count("[redacted]"))
+        )  # fmt: skip
+    assert shape["planted"] == shape["repeat"]  # same fields, same id fields, same redaction
+    # a planted item whose id fields or shape match no real item would be a tell
+    odd = I.PlantedItem(id="odd", parts=("one part only",), ids={"assessment_id": "A9"},
+                        label="clean")  # fmt: skip
+    with pytest.raises(I.SheetError, match="no real item"):
+        build(tmp_path / "odd", planted=[*PLANTED, odd])
+
+
+def _planted_file(tmp: Path) -> Path:
+    planted = tmp / "planted.jsonl"
+    planted.write_text(
+        "".join(json.dumps({"id": p.id, "parts": list(p.parts), "label": p.label,
+                            **dict(p.ids)}) + "\n" for p in PLANTED),
+        encoding="utf-8",
+    )  # fmt: skip
+    return planted
+
+
+@pytest.mark.safety
+def test_relabel_sheet_and_page_wait_for_the_first_pass(tmp_path):
+    run = _run_folder(tmp_path)
+    manifest(tmp_path / "m")
+    mp = tmp_path / "m" / "MANIFEST.json"
+    I.export_run(run, CRIT, manifest_path=mp, planted_path=_planted_file(tmp_path))
+    d = run / "calibration" / "integrity"
+    assert not (d / "relabel.csv").exists()
+    with pytest.raises(I.SheetError, match="first pass"):
+        I.label_run(run, CRIT, relabel=True)
+    rows = I._rows(run, CRIT)
+    I._save(d / "labels-first.json", first_labels(rows))
+    server = I.label_run(run, CRIT, relabel=True)
+    try:
+        assert (d / "relabel.csv").is_file()
+        state = server.labeller
+        sent = {state.view(i)["key"] for i in range(len(state.items))}
+        assert len(sent) == 26 and sent.isdisjoint({r.key for r in rows})
+    finally:
+        server.server_close()
+
+
+@pytest.mark.safety
+def test_appended_or_edited_calibration_lines_cannot_forge_certification(tmp_path):
+    rows, items, m = build(tmp_path)
+    ids = heldout_ids(rows)
+
+    def cert(log: Path) -> bool:
+        return I.calibration_certified(log, criterion="integrity", case_ids=ids,
+                                       rubric_hash=RUBRIC, run_hash="run-1")  # fmt: skip
+
+    def body(line: dict[str, Any]) -> dict[str, Any]:
+        return {k: v for k, v in line.items() if k != "prev"}
+
+    # 1. an uncertified scoring, then a copy of its line saying certified: true appended
+    log = tmp_path / "a.jsonl"
+    first = first_labels(rows)
+    low = score(rows, items, m, log, second=second_labels(rows, first, wrong_planted=3))
+    assert not low.certified and not cert(log)
+    H.append_entry(log, {**body(H.read_log(log)[-1]), "certified": True})
+    assert H.chain_problems(log) == [] and not cert(log)
+    # 2. the last line edited in place (no later line chains it): recomputed from its values
+    edited = tmp_path / "b.jsonl"
+    lines = log.read_text(encoding="utf-8").splitlines()[:2]
+    lines[1] = json.dumps({**json.loads(lines[1]), "certified": True})
+    edited.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert H.chain_problems(edited) == [] and not cert(edited)
+    # 3. a certified scoring plus a duplicate matching line: two lines, not certified
+    good = tmp_path / "c.jsonl"
+    assert score(rows, items, m, good).certified and cert(good)
+    line = H.read_log(good)[-1]
+    H.append_entry(good, body(line))
+    assert not cert(good)
+    # 4. a calibration line not written with its heldout_scored line
+    split = tmp_path / "d.jsonl"
+    H.record_scoring(split, ids, f"calibration:integrity:{RUBRIC}")
+    H.append_entry(split, {"kind": "note"})
+    H.append_entry(split, body(line))
+    assert H.chain_problems(split) == [] and not cert(split)
+    # 5. a line whose recorded values fail its recorded bar, though it says certified
+    fake = tmp_path / "e.jsonl"
+    H.record_scoring(fake, ids, f"calibration:integrity:{RUBRIC}")
+    H.append_entry(fake, {**body(line), "planted_correct": 2})
+    assert H.chain_problems(fake) == [] and not cert(fake)
+    # the same two lines with the honest values do certify (the shape above is valid)
+    ok = tmp_path / "f.jsonl"
+    H.record_scoring(ok, ids, f"calibration:integrity:{RUBRIC}")
+    H.append_entry(ok, body(line))
+    assert cert(ok)
+    # 6. the line carries the bar and the measured values
+    assert line["bar"]["min_judge_kappa_lo"] == I.ConsistencyBar().min_judge_kappa_lo
+    assert set(line["kappa"]) == set(JUDGES)
+    assert {"point", "lo", "hi"} <= set(line["kappa"]["judge-a"])
+    assert line["task_score"] == "integrity" and line["n_repeats"] == 20
+
+
+@pytest.mark.safety
+def test_a_renamed_criterion_on_the_same_task_score_cannot_rescore_under_another_rubric(
+    tmp_path,
+):
+    import dataclasses
+
+    rows, items, m = build(tmp_path)
+    log = tmp_path / "log.jsonl"
+    score(rows, items, m, log)
+    new = [I.Item(i.case_id, i.parts, i.ids, i.verdicts, "rubric-v4") for i in items]
+    renamed = dataclasses.replace(CRIT, name="integrity2", task_score="integrity")
+    first = first_labels(rows)
+    with pytest.raises(I.RubricChanged):
+        I.score_sheet(rows, first, second_labels(rows, first), new, renamed,
+                      rubric_hash="rubric-v4", run_hash="run-1", manifest=m, log=log, seed=7,
+                      scored_at=AT, n_resamples=200)  # fmt: skip
+    with pytest.raises(H.AlreadyScored):  # the same rubric under another name: score once
+        I.score_sheet(rows, first, second_labels(rows, first), items, renamed,
+                      rubric_hash=RUBRIC, run_hash="run-1", manifest=m, log=log, seed=7,
+                      scored_at=AT, n_resamples=200)  # fmt: skip
+    assert len(H.read_log(log)) == 2
+    with pytest.raises(I.SheetError, match="task_score"):
+        I.Criterion(name="x", labels={"a": ("A",), "b": ("B",)}, positive="a", task_score="X:y")
+
+
+@pytest.mark.safety
+def test_poor_judges_or_a_trivial_bar_never_certify(tmp_path):
+    import dataclasses
+
+    rows, items, m = build(tmp_path)
+    flat = [I.Item(i.case_id, i.parts, i.ids, {"judge-a": "clean", "judge-b": "clean"},
+                   i.rubric_hash) for i in items]  # fmt: skip
+    r = score(rows, flat, m, tmp_path / "a.jsonl")
+    assert r.consistency.passes and not r.certified
+    assert any("judge" in x and "kappa" in x for x in r.reasons)
+    assert not I.calibration_certified(tmp_path / "a.jsonl", criterion="integrity",
+                                       case_ids=heldout_ids(rows), rubric_hash=RUBRIC,
+                                       run_hash="run-1")  # fmt: skip
+    # a lax bar with no second pass at all
+    lax = I.ConsistencyBar(min_self_kappa=None, min_planted_accuracy=None, min_repeats=0,
+                           min_planted=0, min_judge_kappa_lo=None)  # fmt: skip
+    crit = dataclasses.replace(CRIT, name="lax", n_relabel=0, bar=lax)
+    rows3, items3, m3 = build(tmp_path / "x", planted=())
+    rows3 = [r.model_copy(update={"relabel": False, "relabel_key": None}) for r in rows3]
+    got = I.score_sheet(rows3, first_labels(rows3), None, items3, crit, rubric_hash=RUBRIC,
+                        run_hash="run-1", manifest=m3, log=tmp_path / "b.jsonl", seed=7,
+                        scored_at=AT, n_resamples=200)  # fmt: skip
+    assert not got.certified and any("trivial" in x for x in got.reasons)
+    assert any("repeat" in x for x in got.reasons)
+    assert H.read_log(tmp_path / "b.jsonl")[-1]["bar"]["min_self_kappa"] is None
+    with pytest.raises(I.SheetError, match="min_judge_kappa_lo"):
+        I.ConsistencyBar(min_judge_kappa_lo="high")  # type: ignore[arg-type]
+
+
+@pytest.mark.safety
+def test_the_two_scoring_lines_are_one_locked_append(tmp_path, monkeypatch):
+    rows, items, m = build(tmp_path)
+    log = tmp_path / "log.jsonl"
+    entered: list[Path] = []
+    real = H._log_lock
+
+    def counting(path: Path, *a: Any, **kw: Any) -> Any:
+        entered.append(path)
+        return real(path, *a, **kw)
+
+    def not_atomic(*a: Any, **kw: Any) -> Any:
+        pytest.fail("the scoring line was written in its own append")
+
+    monkeypatch.setattr(H, "_log_lock", counting)
+    monkeypatch.setattr(H, "record_scoring", not_atomic)
+    monkeypatch.setattr(H, "append_entry", not_atomic)
+    score(rows, items, m, log)
+    assert len(entered) == 1  # one lock: the rubric check and both lines
+    raw = log.read_text(encoding="utf-8").splitlines()
+    got = [json.loads(x) for x in raw]
+    assert [r["kind"] for r in got] == ["heldout_scored", "calibration_scored"]
+    assert got[1]["prev"] == hashlib.sha256(raw[0].encode()).hexdigest()
+
+
+@pytest.mark.safety
+def test_a_planted_item_that_is_a_heldout_case_is_refused(tmp_path):
+    rows, _, _ = build(tmp_path)
+    held = heldout_ids(rows)[0]
+    sneaky = I.PlantedItem(id=held, parts=PLANTED[0].parts, ids={"assessment_id": "A1"},
+                           label="clean")  # fmt: skip
+    rows2, items2, m2 = build(tmp_path / "b", planted=[*PLANTED, sneaky])
+    with pytest.raises(I.SheetError, match="held-out"):
+        score(rows2, items2, m2, tmp_path / "log.jsonl")
+    assert not (tmp_path / "log.jsonl").exists()
+    run = _run_folder(tmp_path / "r")
+    planted = tmp_path / "planted.jsonl"
+    planted.write_text(json.dumps({"id": held, "parts": list(PLANTED[0].parts), "label": "C",
+                                   "assessment_id": "A1"}) + "\n", encoding="utf-8")  # fmt: skip
+    with pytest.raises(I.SheetError, match="held-out") as exc:
+        I.export_run(run, CRIT, manifest_path=tmp_path / "m" / "MANIFEST.json",
+                     planted_path=planted)  # fmt: skip
+    assert held not in str(exc.value)
+
+
+def _crit_file(tmp: Path) -> Path:
+    crit = tmp / "integrity.yaml"
+    crit.write_text(
+        "name: integrity\nlabels: {violation: [V], clean: [C]}\npositive: violation\n"
+        "id_fields: [assessment_id]\nitem_column: replies\nconversation_field: prior_turns\n"
+        "redact: ['learner-\\d+', 'CANARY-[A-Z0-9]+']\nn: 40\nn_relabel: 20\n"
+        f"rubric_hash: {RUBRIC}\n",
+        encoding="utf-8",
+    )
+    return crit
+
+
+def test_cli_model_picks_one_models_records(tmp_path, capsys):
+    from evalkit import cli
+
+    run = _run_folder(tmp_path)
+    records = (run / "records.jsonl").read_text(encoding="utf-8")
+    other = records.replace('"model":"claude-sonnet-5-5"', '"model":"other-model-x"')
+    assert other != records
+    (run / "records.jsonl").write_text(records + other, encoding="utf-8")
+    manifest(tmp_path / "m")
+    m = str(tmp_path / "m" / "MANIFEST.json")
+    c = ["--criterion", str(_crit_file(tmp_path))]
+    capsys.readouterr()
+    assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m]) == 2
+    err = capsys.readouterr().err
+    assert "--model" in err and "other-model-x" in err and "Traceback" not in err
+    assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m,
+                     "--model", "other-model-x"]) == 0  # fmt: skip
+    assert cli.main(["calibrate", "export", str(run), "--manifest", m, "--model", "x"]) == 2
+
+
+def test_missing_cases_and_corrupt_label_files_are_clean_errors(tmp_path, capsys):
+    from evalkit import cli
+
+    run = _run_folder(tmp_path)
+    manifest(tmp_path / "m")
+    m = str(tmp_path / "m" / "MANIFEST.json")
+    c = ["--criterion", str(_crit_file(tmp_path))]
+    cases = (run / "cases.jsonl").read_text(encoding="utf-8").splitlines(keepends=True)
+    (run / "cases.jsonl").write_text("".join(cases[1:]), encoding="utf-8")
+    capsys.readouterr()
+    assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m]) == 2
+    err = capsys.readouterr().err
+    assert "no case" in err and case_id(0) not in err
+    (run / "cases.jsonl").write_text("".join(cases), encoding="utf-8")
+    assert cli.main(["calibrate", "export", str(run), *c, "--manifest", m]) == 0
+    d = run / "calibration" / "integrity"
+    (d / "labels-first.json").write_text(
+        json.dumps({"sheet_id": "FULL-DRAFT 3: the whole submission", "round": "third"}),
+        encoding="utf-8",
+    )
+    log = tmp_path / "log.jsonl"
+    capsys.readouterr()
+    assert cli.main(["calibrate", "score", str(run), *c, "--manifest", m, "--log",
+                     str(log)]) == 2  # fmt: skip
+    err = capsys.readouterr().err
+    assert "labels file" in err and "FULL-DRAFT" not in err and "Traceback" not in err
+    (d / "sheet.json").write_text('[{"key": "FULL-DRAFT 9"}]', encoding="utf-8")
+    assert cli.main(["calibrate", "label", str(run), *c]) == 2
+    err = capsys.readouterr().err
+    assert "sheet" in err and "FULL-DRAFT" not in err
