@@ -1,0 +1,60 @@
+{
+ "source": "fraud-review-bedrock tests/fixtures/v1/alert.json and decision_stage2_clear.json, PRD 'good output' and Tech Spec 5.5 value checks (MIT, same author), vendored for EvalKit B5.13 SEV-01. Simulated card features, no personal data. The phrase vocabulary is a test vocabulary written for these cases.",
+ "record": {
+  "amount": 812.4,
+  "amt_vs_usual": 9.1,
+  "hour": 3,
+  "merchant_first_seen": true,
+  "category_freq": 0.05,
+  "category": "shopping_net",
+  "card_history_n": 40,
+  "risk_score": 0.83
+ },
+ "template": [
+  "The purchase amount is {amount:.2f}.",
+  "The amount is {amt_vs_usual} times the card's usual spend.",
+  "The purchase was made at hour {hour} local time, on a 0 to 23 clock.",
+  "{merchant_first_seen?This is the card's first purchase at this merchant.|The card has bought at this merchant before.}",
+  "A share of {category_freq} of the card's earlier purchases are in this category, {category}.",
+  "The card has {card_history_n} earlier transactions.",
+  "The baseline risk score is {risk_score}."
+ ],
+ "evidence": [
+  "The purchase amount is 812.40.",
+  "The amount is 9.1 times the card's usual spend.",
+  "The purchase was made at hour 3 local time, on a 0 to 23 clock.",
+  "This is the card's first purchase at this merchant.",
+  "A share of 0.05 of the card's earlier purchases are in this category, shopping_net.",
+  "The card has 40 earlier transactions.",
+  "The baseline risk score is 0.83."
+ ],
+ "phrases": [
+  {"pattern": "\\d+(?:\\.\\d+)?\\s*(?:x|times)\\b[^.]*\\busual", "field": "amt_vs_usual"},
+  {"pattern": "(?:\\$|USD ?)\\d[\\d,]*(?:\\.\\d+)?", "field": "amount"},
+  {"pattern": "\\b(?:at night|overnight|in the early hours)\\b", "holds": "hour < 5"},
+  {"pattern": "\\bfirst (?:purchase|time|transaction) at (?:this|the|a) merchant\\b|\\bnew merchant\\b", "holds": "merchant_first_seen"},
+  {"pattern": "\\bknown merchant\\b|\\bbought at this merchant before\\b", "holds": "not merchant_first_seen"},
+  {"pattern": "\\brare(?:ly)?\\b[^.]*\\bcategor|\\bunusual category\\b", "holds": "category_freq < 0.1"},
+  {"pattern": "\\bthin (?:card )?history\\b|\\blittle history\\b", "holds": "card_history_n < 5"},
+  {"pattern": "\\bhigh risk score\\b", "holds": "risk_score >= 0.7"}
+ ],
+ "reason_cases": [
+  {"reason": "Amount is 9x this card's usual spend", "changes": {}, "ok": true},
+  {"reason": "First purchase at this merchant", "changes": {}, "ok": true},
+  {"reason": "Purchase at night", "changes": {}, "ok": true},
+  {"reason": "Spend is more than 5 times the usual amount", "changes": {}, "ok": true},
+  {"reason": "A $812.40 purchase in a rarely used category", "changes": {}, "ok": true},
+  {"reason": "Only 5% of the card's purchases are in this category", "changes": {}, "ok": true},
+  {"reason": "High risk score of 0.83", "changes": {}, "ok": true},
+  {"reason": "Bought at 3 a.m. local time", "changes": {}, "ok": true},
+  {"reason": "Purchase made in the afternoon", "changes": {}, "ok": true},
+  {"reason": "Amount is 15x this card's usual spend", "changes": {}, "ok": false},
+  {"reason": "Spend is under 2 times the usual amount", "changes": {}, "ok": false},
+  {"reason": "A $2,000 purchase", "changes": {}, "ok": false},
+  {"reason": "The card has a thin history", "changes": {}, "ok": false},
+  {"reason": "Purchase at a known merchant", "changes": {}, "ok": false},
+  {"reason": "Risk score of 0.3", "changes": {}, "ok": false},
+  {"reason": "Purchase at night", "changes": {"hour": 14}, "ok": false},
+  {"reason": "Amount is 9x this card's usual spend", "changes": {"amt_vs_usual": null}, "ok": false}
+ ]
+}

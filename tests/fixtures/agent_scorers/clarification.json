@@ -1,0 +1,463 @@
+{
+ "source": "agentic-analytics uk_price_paid question pack (MIT, same author): its 20 ambiguous questions and the first 20 clear ones, vendored for EvalKit B5.13 CLR-01. `asked` in `questions` is scripted behaviour for the golden test, not a model run. `smoke_run` is the asked-back flag per record of agentic-analytics' smoke run smoke-20261117T070039Z-769d2c (question ids and backends only).",
+ "questions": [
+  {
+   "id": "q-101",
+   "text": "What was the average price in Leeds last year?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-102",
+   "text": "How much does a house cost in London?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-103",
+   "text": "What are the most expensive areas?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-104",
+   "text": "How have prices changed recently?",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "id": "q-105",
+   "text": "Show me sales in Manchester.",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-106",
+   "text": "What is the typical price of a flat?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-107",
+   "text": "How many new homes were sold?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-108",
+   "text": "Which towns are growing fastest?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-109",
+   "text": "What's the price of property in Bristol?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-110",
+   "text": "Compare houses and flats.",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-111",
+   "text": "What's the biggest town?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-112",
+   "text": "How expensive is Cambridge compared to Oxford?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-113",
+   "text": "What was the average price in 2024?",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "id": "q-114",
+   "text": "How did the market do in 2023?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-115",
+   "text": "Show me the price trend.",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-116",
+   "text": "What share of sales are leasehold?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-117",
+   "text": "Which county has the highest prices?",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "id": "q-118",
+   "text": "How many sales were there in York last month?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-119",
+   "text": "What do detached houses go for in Surrey these days?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-120",
+   "text": "Are new builds more expensive?",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "id": "q-001",
+   "text": "How many property sales were recorded in England and Wales in 2023?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-002",
+   "text": "What was the median price paid for a property in England and Wales in 2024?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-003",
+   "text": "What was the average (mean) price paid for a detached house in England and Wales in 2024?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-004",
+   "text": "What was the median price paid in 2024 for each property type (terraced, semi-detached, detached, flat and other)?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-005",
+   "text": "How many sales were there in 2023 for each tenure (freehold, leasehold and unknown)?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-006",
+   "text": "What percentage of all property sales in 2023 were new builds?",
+   "expected": "answer",
+   "asked": true
+  },
+  {
+   "id": "q-007",
+   "text": "What was the total value, in pounds, of all property sales in England and Wales in 2022?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-008",
+   "text": "In 2024, what was the median price of new-build properties and of existing (not new-build) properties? Return the two medians as two columns.",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-009",
+   "text": "What was the average (mean) price of a flat in 2024, freehold versus leasehold?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-010",
+   "text": "How many distinct outward postcodes (the first half of the postcode, such as SW1A) had at least one sale in 2024? Ignore sales with no postcode.",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-011",
+   "text": "How many properties sold for more than £1,000,000 in 2024?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-012",
+   "text": "What percentage of property sales in 2024 were flats?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-013",
+   "text": "What was the average (mean) price of a semi-detached house in England and Wales in 2019?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-014",
+   "text": "What was the median price of leasehold houses (terraced, semi-detached or detached, not flats) sold in 2024?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-015",
+   "text": "For each property type (terraced, semi-detached, detached, flat and other), how many sales were there in 2021 and what was their total value in pounds?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-016",
+   "text": "What were the lowest and the highest prices paid for any property in 2024?",
+   "expected": "answer",
+   "asked": true
+  },
+  {
+   "id": "q-017",
+   "text": "What was the 90th percentile of prices paid in England and Wales in 2024 (interpolated, like Excel's PERCENTILE.INC)?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-018",
+   "text": "How many new-build detached houses were sold in 2024?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-019",
+   "text": "What percentage of detached house sales in 2024 were freehold?",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "id": "q-020",
+   "text": "How many sales of each property type were recorded in 1994?",
+   "expected": "answer",
+   "asked": false
+  }
+ ],
+ "smoke_run": [
+  {
+   "question_id": "q-001",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-002",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-021",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-022",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-041",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-042",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-061",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-062",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-082",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-084",
+   "backend": "claude_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-101",
+   "backend": "claude_mcp",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "question_id": "q-102",
+   "backend": "claude_mcp",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "question_id": "q-001",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-002",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-021",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-022",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-041",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-042",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-061",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-062",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-082",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-084",
+   "backend": "gpt_mcp",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-101",
+   "backend": "gpt_mcp",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "question_id": "q-102",
+   "backend": "gpt_mcp",
+   "expected": "clarify",
+   "asked": true
+  },
+  {
+   "question_id": "q-001",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-002",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-021",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-022",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-041",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-042",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-061",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-062",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-082",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-084",
+   "backend": "cortex_analyst",
+   "expected": "answer",
+   "asked": false
+  },
+  {
+   "question_id": "q-101",
+   "backend": "cortex_analyst",
+   "expected": "clarify",
+   "asked": false
+  },
+  {
+   "question_id": "q-102",
+   "backend": "cortex_analyst",
+   "expected": "clarify",
+   "asked": false
+  }
+ ]
+}

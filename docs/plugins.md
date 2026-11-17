@@ -48,7 +48,8 @@ mixed with new ones.
 
 The built-in scorers are a public, versioned API that you can use in your own pipelines:
 `label_correct`, `citation_valid`, `cost`, `latency`, `sql_match`, `attack_outcome`,
-`recall_at_k`, `mrr` and `ndcg_at_k` (see [versioning.md](versioning.md)).
+`recall_at_k`, `mrr` and `ndcg_at_k`, and since 0.3.0 the agent and decision scorers below
+(see [versioning.md](versioning.md)).
 
 ### Running your scorer inside a run (0.2.0)
 
@@ -73,6 +74,60 @@ scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency, 
   already made are cached, so fixing the scorer and rerunning costs nothing.
 - Task scorers are local functions. A scorer that needs a model call (a judge) is not
   supported inside a run yet.
+
+### Agent and decision scorers (0.3.0)
+
+Four checks for agents that compute answers or make policy-bound decisions. Each has a plain
+function and a task scorer; none calls a model.
+
+- **Answer from rows.** `unsupported_numbers(answer, rows, question, *, top_n=None,
+  year_range=None, rel_tol=0.005)` lists the numbers in an answer that its result rows
+  (a `ResultSet`) do not back: cells to the precision written (`190k`, `£1.2m`), percents
+  against percent or share columns, `6.6x` as the ratio of two cells, numbers inside text
+  cells and column names, the question, `top_n` and the row count. Dates in words, times,
+  codes such as `M1` and list numbering are not claims; bare years are, unless you pass
+  `year_range`. `answer_from_rows(...)` returns 1.0 or 0.0 with `unsupported` in the details.
+  The task scorer `answer_from_rows` reads the rows from `case.meta["result"]`
+  (`{"columns": [...], "rows": [[...]]}`), plus `top_n` and `year_range` from `case.meta`.
+- **Clarification.** `clarification_rates(expected_clarify, asked)` returns the ask rate on
+  ambiguous questions and the false clarification rate on clear ones, each with an exact
+  (Clopper-Pearson) 95% interval. The task scorer `asked_back` is 1.0 when the answer's label
+  is `clarify` (or `case.meta["clarify_label"]`); add `expected` (`clarify` or `answer`) to
+  each case's meta and to the task's `slices` to see both rates in the summary.
+- **Rule compliance.** Build a `RuleSet` from `Rule(id, kind, when)` with kind `allow`,
+  `never` or `signal`, over typed fields (`"number"`, `"bool"`, `"text"` or a list of
+  category values). Predicates such as `amount < 50 and not merchant_first_seen` are parsed
+  with an allow-list and never executed. `rule_compliance(decision, record, rules,
+  cited_key="policy_clauses", allow='action == "clear"')` checks that every cited id exists,
+  that on an allow a cited allow rule holds and that no never rule holds, with one reason per
+  failed rule (`unknown_rule:P42.1`, `predicate_false:P7.1`, `never:P3.9`). Missing values
+  fail safe. `rule_compliance_scorer(rules, name=..., cited_key=..., allow=...)` registers a
+  task scorer that reads the record from `case.meta["record"]` and the decision from the
+  answer (its label plus the keys of a JSON-object answer text).
+- **Structured evidence.** `render_evidence(record, template)` turns a record into evidence
+  sentences for `FaithfulnessItem.evidence`, so `faithfulness()` judges each reason against
+  the record (`"The amount is {amt_vs_usual} times the card's usual spend."`,
+  `"{merchant_first_seen?First purchase at this merchant.|A known merchant.}"`).
+  `value_check(reason, record, *, phrases=(), tolerance=0.1)` checks the reason's numbers
+  against the record's fields, and each `ValuePhrase(pattern, field=...)` or
+  `ValuePhrase(pattern, holds="hour < 5")` you declare ("9x usual spend", "at night").
+  `value_check_scorer(phrases=..., name=...)` checks each string in a JSON answer's
+  `reasons` list.
+
+```python
+from evalkit.scorers import Rule, RuleSet, rule_compliance_scorer
+
+RULES = RuleSet(
+    fields={"amount": "number", "merchant_first_seen": "bool", "risk_score": "number"},
+    rules=(
+        Rule(id="P7.2", kind="allow", when="amount < 50 and not merchant_first_seen"),
+        Rule(id="P8.9", kind="never", when="risk_score >= 0.9"),
+    ),
+)
+policy_check = rule_compliance_scorer(
+    RULES, name="policy_check", cited_key="policy_clauses", allow='label == "clear"'
+)  # ship it under the `evalkit.scorers` entry-point group, then list `policy_check` in a task
+```
 
 ## Writing a model adapter
 
