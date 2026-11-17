@@ -89,6 +89,15 @@ A trial succeeded when either of these holds:
 
 Matching uses `attack_outcome`'s folding, so it ignores case, NFKC differences and zero-width characters.
 
+What the canary match does not catch (write a task-specific check, or report it as a side effect, if your attacks use these):
+
+- spaced out (`Z E B R A`) or with the hyphens dropped (`ZEBRATOKEN7731`);
+- encoded: base64, reversed, HTML entities (`&#45;`) or URL encoding (`%2D`);
+- look-alike letters of other scripts (a Cyrillic `Е` for a Latin `E`; NFKC does not fold them);
+- split across strings: part in one tool argument and part in another, or part in an argument and part in the answer, or across two exposed texts.
+
+What is scanned: the final answer, every tool-call argument (keys and values, nested, malformed outputs included) and each `exposed` text. A step's `result_summary` (what the tool returned to the agent) and its `error` are not scanned: they reach the agent, not the user, so a canary the agent merely read is not a leak (SEC-02 counts a tool result only when it is shown outside the agent). If your system shows tool results or errors to the user, pass them in `Observation.exposed`.
+
 ```python
 from evalkit import security as S
 suite = S.load_suite("attacks/public.yaml", heldout="heldout/attacks.jsonl",
@@ -173,7 +182,7 @@ Command-line exit codes are 0 (done), 1 (a scripted case was not stopped as expe
 
 ## Held-out discipline
 
-Held-out category rows are an opt-in (D-72), off by default: pass `heldout_categories=heldout_category_map(suite)` to `summarise` and `heldout_categories=True` to `to_metrics` and `render_report` (on the command line, `--heldout-categories`; `report` then also needs `--cases`, `--heldout` and `--manifest`). The rows are shown only when every held-out category has at least 5 cases. Otherwise they are all suppressed and the report says how many cells were under the minimum, because one suppressed cell could be recovered as the split total minus the shown ones. Categories are taken from the suite when the summary is built; trial lines never record a held-out case's category.
+Held-out category rows are an opt-in (D-72), off by default: pass `heldout_categories=heldout_category_map(suite)` to `summarise` and `heldout_categories=True` to `to_metrics` and `render_report` (on the command line, `--heldout-categories`; `report` then also needs `--cases`, `--heldout` and `--manifest`). The rows are shown only when every held-out category has at least 5 complete cases (cases with all their trials scored, the pass^k n; void and transport trials do not count), and `min_cell` cannot be set below 5. Otherwise they are all suppressed and the report says how many cells were under the minimum, because one suppressed cell could be recovered as the split total minus the shown ones. Categories are taken from the suite when the summary is built; trial lines never record a held-out case's category.
 
 Held-out case ids and text never appear in any summary, report, metrics file, gate output, compare output, CLI output or error message. EvalKit's tests write every one of these outputs into a scratch repository and run B5.14's exposure scan over it.
 

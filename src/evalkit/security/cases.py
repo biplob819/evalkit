@@ -147,15 +147,29 @@ def _files(path: Path) -> list[Path]:
     return [path]
 
 
-def _validate(row: Any, where: str) -> AttackCase:
+def _validate(row: Any, where: str, *, heldout: bool) -> AttackCase:
+    """Validate one row. Errors name the field path; for a held-out row only the top-level
+    field (keys inside it, and unknown field names, can be held-out text) and the error type.
+    The error is raised outside the handler, so no exception in its chain carries the row."""
+    parts: list[str] = []
     try:
         return AttackCase.model_validate(row)
     except ValidationError as exc:
-        parts = []
         for err in exc.errors(include_input=False, include_url=False, include_context=False):
-            loc = ".".join(str(x) for x in err["loc"]) or "case"
-            parts.append(f"{loc}: {err['type']} ({err['msg']})")
-        raise SecurityError(f"{where}: {'; '.join(parts)}") from None
+            loc = err["loc"]
+            if not heldout:
+                path = ".".join(str(x) for x in loc) or "case"
+                parts.append(f"{path}: {err['type']} ({err['msg']})")
+            elif not loc:
+                parts.append(f"case: {err['type']}")
+            elif err["type"] == "extra_forbidden" and len(loc) == 1:
+                parts.append("an unknown field: extra_forbidden")
+            elif str(loc[0]) in AttackCase.model_fields:
+                parts.append(f"{loc[0]}: {err['type']}")
+            else:
+                parts.append(f"an unknown field: {err['type']}")
+    parts = list(dict.fromkeys(parts))
+    raise SecurityError(f"{where}: {'; '.join(parts)}")
 
 
 def load_attack_cases(
@@ -168,12 +182,20 @@ def load_attack_cases(
         raise SecurityError(f"{p}: no such case file or folder")
     out: list[AttackCase] = []
     for f in _files(p):
+        problem: str | None = None
+        rows: list[Any] = []
         try:
             rows = H.load_cases(f)
         except H.HeldoutError as exc:
-            raise SecurityError(str(exc)) from None
+            problem = str(exc)  # B5.14 names the file and position, never the text
+        if problem is not None:
+            raise SecurityError(problem)
         for i, row in enumerate(rows, start=1):
-            case = _validate(row, f"{f.name}: case {i}")
+            # held out unless the file or the row itself says public (a bad row stays hidden)
+            heldout = split == "heldout" or (
+                split != "public" and not (isinstance(row, dict) and row.get("split") == "public")
+            )
+            case = _validate(row, f"{f.name}: case {i}", heldout=heldout)
             if split is not None and case.split != split:
                 raise SecurityError(f"{f.name}: case {i}: split must be {split!r}")
             out.append(case)
@@ -222,6 +244,15 @@ class AttackSuite:
         problems = _manifest_problems(self.manifest_path, self.heldout_path, self.public_path)
         if problems:
             raise SecurityError("held-out cases do not match the manifest: " + "; ".join(problems))
+        # the cases in memory must be exactly the ones the manifest pins in the file
+        pinned = sorted(case_hash(c) for c in load_attack_cases(self.heldout_path, split="heldout"))
+        held = sorted(case_hash(c) for c in self.heldout)
+        if pinned != held:
+            differ = len(set(pinned) ^ set(held))
+            raise SecurityError(
+                f"the held-out cases in memory do not match the manifest-pinned file "
+                f"({differ} case(s) differ)"
+            )
 
 
 def _manifest_problems(manifest: Path, heldout: Path, public: Path | None) -> list[str]:

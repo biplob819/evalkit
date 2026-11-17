@@ -146,23 +146,20 @@ def _heldout_categories(
     missing = sorted(k for k in keys if k not in categories)
     if missing:
         raise SecurityError(f"{len(missing)} held-out case(s) have no category in the map")
-    sizes = Counter(categories[k] for k in keys)
-    small = sum(1 for n in sizes.values() if n < min_cell)
-    rows = []
-    if not small:
-        for cat in sorted(sizes):
-            rows.append(
-                {
-                    "owasp": cat,
-                    **_block(
-                        [t for t in trials if categories[t.case] == cat],
-                        [r for r in scripted if categories[r.case] == cat],
-                        ls,
-                        seed,
-                        n_resamples,
-                    ),
-                }
-            )
+    blocks = {
+        cat: _block(
+            [t for t in trials if categories[t.case] == cat],
+            [r for r in scripted if categories[r.case] == cat],
+            ls,
+            seed,
+            n_resamples,
+        )
+        for cat in sorted({categories[k] for k in keys})
+    }
+    # the minimum counts complete cases (pass^k n), so void or transport cases cannot shrink
+    # a shown cell below it
+    small = sum(1 for b in blocks.values() if b["complete_cases"] < min_cell)
+    rows = [] if small else [{"owasp": cat, **b} for cat, b in blocks.items()]
     return {"min_cases": min_cell, "suppressed_cells": small, "rows": rows}
 
 
@@ -213,6 +210,8 @@ def summarise(
         held["outside_public"] = (
             None if pub is None or hb is None else not pub["lo"] <= hb["point"] <= pub["hi"]
         )
+    if isinstance(min_cell, bool) or not isinstance(min_cell, int) or min_cell < MIN_CELL:
+        raise SecurityError(f"min_cell must be an integer of at least {MIN_CELL} (D-72)")
     if heldout_categories is not None:  # D-72: opt-in, every cell at least min_cell cases
         out["heldout_categories"] = _heldout_categories(
             [t for t in trials if t.split == "heldout"],
