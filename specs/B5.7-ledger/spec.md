@@ -1,0 +1,126 @@
+# B5.7 — Run, experiment, drift and spend ledger
+
+**Wave 5. Depends on:** B5.4 (v0.3.0: metrics-1, gates, compare public), B5.14 (held-out manifest, score-once, hash-chained log). **Release:** v0.4.0 (B5.10). **Unblocks:** B5.5 (the index reads each project's ledger). **Asked by:** fraud-review-bedrock (its D-36, D-38, Tech Spec MON-03/05, IMP-01), respectful-offers (its OWNER D-50, D-51), course-assistant (its D-64, D-68), agentic-analytics (its OWNER D-74, D-75); assay-pipeline (its OWNER D-12) is the second user of the freeze guard. **Decisions:** D-62, D-63, D-65, D-67, D-70. **Capabilities:** LED-01..06, EFF-03.
+
+Written ahead by the lead on 2026-11-17. What the asking projects use today, with paths and commits, is in [inputs.md](inputs.md). The builder completes exact names and signatures here before tests; anything below marked "decided" is not reopened without a decision row.
+
+## Goal
+Every project keeps one tamper-evident history of its runs, experiments and spend, and EvalKit tells it, per metric and model, when a new run, a new batch or this month's spend has moved outside what its own history says is normal, without a held-out id or text ever leaving the held-out split.
+
+## Why
+Five projects track runs, bands, drift, experiments or spend by hand, each differently (inputs.md): fraud-review-bedrock has unchained `runs.jsonl` and `experiments.jsonl` and a PSI with fixed bands; respectful-offers plans to hand EvalKit pre-binned shares and has Brier/ECE but no drift; course-assistant's spend alarm stores a warning nobody reads; assay-pipeline's "held-out runs once" rule has no log; agentic-analytics waits on B5.7 for its trend page. Gates (B5.3) judge one run against fixed bars and compare (B5.6) judges two runs; nothing judges a run against its own history.
+
+## Decided design
+
+### 0. Files, modules and the chain (all capabilities)
+- Public modules `evalkit.ledger` (run history, bands, experiments, spend, trend chart) and `evalkit.drift` (PSI, calibration drift), both in `scripts/check_public_api.py` `PUBLIC`.
+- Three ledgers, one project each, default paths matching what fraud-review-bedrock, assay-pipeline and agentic-analytics already use: `docs/measurements/runs.jsonl` (`--ledger`), `docs/measurements/experiments.jsonl` (`--experiments`), `docs/measurements/spend-ledger.jsonl` (`--spend-ledger`).
+- **Hash-chained, decided.** Every line EvalKit writes goes through `evalkit.heldout.append_entry`: canonical JSON (sorted keys, compact, ASCII, LF), `prev` = sha256 of the previous line (`GENESIS` first), an exclusive file lock, one write per call. `evalkit history verify` runs `heldout.chain_problems` plus `heldout.append_only_problems` against `ci_revisions` (push base, merge parents, default tip), exactly as B5.14's `verify-log`. Why chain rather than plain append: a deleted bad run silently re-centres every band, a deleted experiment hides a spent held-out look, and a deleted spend line silences the cap alarm; B5.14 already provides the chain, the lock and the CI check at no new cost, and course-assistant (D-55) already runs this design.
+- Every entry has `kind`, `schema` (`"ledger-1"`), `at` (ISO 8601 UTC, seconds) and `project`; a ledger holding a second project is refused (exit 2). Free-text fields (`note`, `hypothesis`, `change`, `reason`) are at most 500 characters.
+- **Legacy spend lines (open question 2):** a spend ledger may start with unchained lines in the legacy shape (EvalKit's 22 lines from `smoke.record_spend`); the first line EvalKit chains names the sha256 of the last legacy line as `prev`, sealing the prefix; after that every line must be chained. Run and experiment ledgers have no legacy prefix (new files; fraud-review-bedrock's existing unchained files are its own build's to migrate, D-61 rule 4).
+
+### 1. Run history and `evalkit history` (LED-01)
+A `run` entry, appended by `evalkit history add RUN`:
+
+```
+{"kind": "run", "schema": "ledger-1", "at", "project", "run_id",
+ "source": "metrics-1" | "evalkit-summary",
+ "summary_sha256",            # sha256 of the input file's bytes (metrics.json or summary.json)
+ "config_hash", "code_version", "snapshot", "evalkit",   # from provenance / run.json; null when unrecorded
+ "recorded_with",             # EvalKit version that wrote the line
+ "simulated": bool, "status": "complete" | "stopped",
+ "price_dates": {model: "YYYY-MM-DD" | null},           # from summary.json efficiency (EFF-03)
+ "metrics": [metrics-1 rows],                            # held-out rows folded (below)
+ "note"?, "prev"}
+```
+
+- RUN is anything `evalkit gate` reads: a metrics-1 file, an EvalKit run folder or its summary.json (converted by `metrics.from_run_summary`, efficiency block included). Storing the metrics inline makes the history self-contained: run folders are often not committed.
+- Held-out rows (split in the gates file's `heldout_splits`, `--heldout-split`, or `heldout`) are stored only at split level, by compare's fold rule: a row keeps its figures only when its labels are a subset of {split, model, judge}; any other held-out row is dropped and counted in `heldout_rows_folded`. metrics-1 already refuses id-like labels.
+- Refused: a `summary_sha256` already in the ledger (exit 2: a run is recorded once); a pending run (exit 4, not recorded). A run stopped at its cost cap is recorded with `status: stopped`, excluded from bands, exit 3.
+- `band_reset` entry `{kind: "band_reset", metric, labels, reason}`: history before it is not used for that metric's band (after a deliberate change such as a new model). Written by `evalkit history reset`.
+- `evalkit history show [--metric NAME] [--json] [--md FILE] [--html FILE]`: per (metric, labels) the run count, latest value with interval, band centre and width, status, and the EFF-03 spread table; `--html` is the trend page of §5.
+
+### 2. Trend and alarm bands (LED-02), decided: median ± k·MAD with a sampling floor
+For each (metric, labels) of the new run, its **comparable history** H is the last W = 20 prior `run` entries with status `complete`, after the latest matching `band_reset`, with the same project, metric name, labels (canonical, typed as gates' `canonical`), unit and `simulated` flag. Settings may differ (a trend across deliberate changes is the point); a settings change since the previous run is marked on the chart.
+
+- **Minimum history: 5 comparable runs.** With fewer, the row's status is `learning`: the value is shown and charted, never warned or alarmed.
+- Centre c = median(H). Spread ŝ = max(1.4826 · MAD(H), median SE over H, SE of the new run). SE of a run = (ci_high − ci_low) / 3.92 when it has an interval; for a rate with n and no interval, sqrt(p(1−p)/n) with p clamped to [0.5/n, 1 − 0.5/n]; else 0.
+- **warn** when |x − c| > 2ŝ; **alarm** when |x − c| > 3ŝ. ŝ = 0 (identical history, no intervals): status `degenerate`, any x ≠ c warns, never alarms. Bool metrics: no band; a value different from the history's mode warns.
+- Direction: with `--gates`, a gated metric alarms only on the side that moves toward failing its gate (`>=`: below the band; `<=`: above; `==`: either); the other side is `improved`. Without a gate, both sides.
+- Exit: any `alarm` → 1; warns print and appear in JSON, exit 0. Precedence 2 > 3 > 4 > 1 > 0 (GAT-09).
+
+Why this method: the mean ± k·SD of the history is pulled toward the regression it should catch, and one past outlier inflates the SD; median and MAD tolerate up to two bad runs in five (50% breakdown) and 1.4826 makes MAD estimate the SD under normality, so k = 2 and 3 keep their usual meaning (about 4.6% and 0.27% false flags per row under a stable normal process; documented, not Holm-adjusted, because bands monitor while gates decide). An interval-only rule (new interval vs the last run's) sees only sampling noise and misses run-to-run variation that is not sampling (provider changes, prices, caching), which is exactly what EFF-03 must show; the floor keeps a noisy run from alarming when the history happens to be tight. Five runs is the smallest history where the median and MAD are not set by one or two points; W = 20 lets the band follow a deliberate step within about ten runs, and `band_reset` does so at once. Control-chart rules (EWMA, CUSUM) need longer stable histories than these projects have.
+
+### 3. Experiment ledger with a freeze guard (LED-03)
+Three entries, each written by a command; experiment ids are `E<n>` in ledger order.
+- `evalkit experiment open --hypothesis TEXT --change TEXT --metric NAME [--labels k=v ...] --direction up|down --baseline RUN` → `experiment_opened {id, hypothesis, change, primary {metric, labels, direction}, baseline {run_id, summary_sha256}}`. The primary metric and direction are declared before the result exists.
+- `evalkit experiment close ID --before RUN --after RUN [--gates FILE] [--manifest FILE] [--heldout-split NAME]...` → runs `compare.compare` and appends `experiment_closed {id, before, after (run_id, summary_sha256), comparison (compare-1 `as_dict`, already folded at split level), verdict, primary_row}`. `verdict`: `supported` (primary row flagged in the declared direction), `refuted` (flagged the other way), `inconclusive` (not flagged, or `too_few_cases`/`degenerate`). Exit is compare's (0, 1 for a fail-gate regression, 2); the entry is written on 0 and 1.
+- **Freeze guard, reusing B5.14:** `evalkit experiment look ID --candidate RUN|SETTINGS --manifest heldout/MANIFEST.json [--split heldout] --log LOG` freezes the candidate and reserves its one look **before** the held-out set is scored:
+  - candidate hash = `candidate_sha256` from the candidate's `settings.json` when present (recommended: agentic-analytics' `fix_hash`, respectful-offers' challenger hash); otherwise sha256 of canonical JSON of {`code_version`, `prompt_hash`, `model_ids`, `judges`, `judge_prompt_hash`, `extractor_version`, every other `settings.json` key}, excluding `seed`, `evalkit` and `results_format` so a re-seed or an upgrade does not buy a second look. Neither available → exit 2.
+  - the look is a `heldout_scored` line in the project's B5.14 log via `heldout.append_entry`, with `rubric_hash = "look:<candidate sha256>"` and `case_id_sha256` = **every** case of the split from the manifest (so any repeat overlaps). B5.14's score-once rule makes a second look for the same candidate raise `AlreadyScored`: exit 1, nothing written. The manifest is verified first (`verify_manifest` when case files are given; `manifest_sha256` self-check always).
+  - the experiment ledger gets `experiment_look {id, candidate_sha256, manifest_sha256, split, n_cases, log_line_sha256}` (no case hashes) and later, from `experiment close ... --heldout RESULT`, the held-out result as split-level aggregates only, accepted only when RESULT's candidate hash equals the reserved look's and no result was recorded for it.
+  - `experiment show` lists the looks already spent per split (all candidates), so repeated new candidates are visible; no overall look budget (out of scope).
+- Honest limit (as B5.14): the guard stops a second **recorded** look; scoring the held-out set outside EvalKit without `look` is visible only as a held-out result with no reserved look, which `close --heldout` refuses.
+
+### 4. Drift and calibration monitor (LED-04, LED-05 defaults)
+`evalkit drift reference ... --out REF` freezes a reference; `evalkit drift check --reference REF ...` compares a new batch with it, prints and writes `drift-1` JSON (`--out`), and with `--emit-metrics FILE` a metrics-1 file of the figures so they can be gated and added to history. Rows never leave the process; outputs carry aggregates only.
+
+**Frozen reference `drift-ref-1`:** `{schema, created_at, source_sha256 (input file bytes), features {name: {kind: numeric|categorical|binned, edges | categories | bins, shares, n, missing_share}}, calibration? {n, brier {value, ci_low, ci_high, ci_method}, ece {value, ci_low, ci_high}, bins [{lo, hi, n, mean_pred, obs_rate}], binning}, profile_sha256}`; `profile_sha256` covers everything else, and a profile that does not match it is refused (exit 2). Inputs: a CSV or JSONL of rows (`--data`, `--features a,b`, `--prob p --label y`) or, for projects that hand EvalKit aggregates only, a metrics-1 file (`--metrics`) with `<prefix>.feature_share` rows (rate, labels {feature, bin}, n) and the calibration rows below.
+
+**PSI (decided: fraud-review-bedrock's rule, so its numbers reproduce):**
+- Numeric: B = 10; edges = unique reference quantiles at 0.1 … 0.9 (linear interpolation, numpy's default), bins `[e_i, e_{i+1})` with open outer bins, so new values beyond the reference range land in the end bins; a constant reference gets 3 bins (below, equal, above). Null and non-finite values are excluded from PSI and reported as `missing_share` per side. Categorical: one bin per reference category plus `other` (categories unseen in the reference). Pre-binned (`feature_share`): the project's own bins; the reference and new bin sets per feature must be identical (else exit 2).
+- Empty bins: each share is floored at ε = 1e-4 (not renormalised), then PSI = Σ (q − p)·ln(q / p). Why the floor and not additive smoothing: it equals fraud-review-bedrock's `PSI_EPSILON`, leaves PSI unchanged when no bin is empty, and makes a bin that appears from nothing count strongly (a 5% share against an empty reference bin adds about 0.31, an alarm on its own), which is the drift the check is for.
+- Levels (OWNER defaults via fraud-review-bedrock MON-03; D-65): `ok` below 0.1, `warn` for 0.1 ≤ PSI ≤ 0.25, `alarm` above 0.25, compared unrounded, shown to 4 decimals; overridable per feature in a drift config (`psi_warn`, `psi_alarm`).
+- Small batches: each row states the no-drift expectation (B − 1)(1/N_ref + 1/N_new) and is marked `small_batch` when that is at least 0.05 (half the warn level); levels still apply. An empty batch is exit 2.
+
+**Calibration drift (binary outcomes):**
+- From rows (p, y): Brier = mean (p − y)²; ECE = Σ_b (n_b/N)|ȳ_b − p̄_b| over 10 equal-width bins, index `floor(p·10 + 1e-12)` clipped (respectful-offers' `ece` rule); reliability bins are the same equal-width bins, so they align across periods. Intervals: seeded percentile bootstrap over rows (seed 7, 10,000) for Brier and ECE; two-sided Clopper-Pearson for each bin's observed rate.
+- From aggregates (metrics-1): `<prefix>.brier` (ratio, with interval), `<prefix>.ece` (ratio), `<prefix>.reliability.predicted` / `.observed` (rate, labels {bin}, n). Bin deltas need `binning: equal-width` declared in the drift config; otherwise (respectful-offers' quantile bins today) per-bin deltas are reported as `bins_not_aligned` and only Brier and ECE are compared.
+- Deltas new − reference, each with a 95% interval: Brier by MOVER from the two intervals (unpaired: different periods); ECE by the difference of independent parametric bootstraps of each side's bins (observed ~ Binomial(n_b, obs_b) / n_b, predicted fixed); each bin's observed-rate delta by MOVER of the two Clopper-Pearson intervals (k = round(obs·n), checked within the metrics-1 rate tolerance).
+- **Alarm bands:** a delta is `changed` when its Holm-adjusted (across the calibration block) interval excludes 0; `warn` when changed in the worsening direction (Brier, ECE up; a bin's |gap| up); `alarm` when the whole interval lies beyond a tolerance τ in the worsening direction, defaults τ_Brier = 0.01, τ_ECE = 0.02, τ_bin = 0.10, set per project in the drift config (open question 1). Once 5 periods are in the run history, the absolute Brier and ECE also carry LED-02 bands.
+- Exit for `drift check`: 2 input, 1 any alarm (PSI or calibration), else 0 with warns printed.
+
+### 5. Trend chart in the report (LED-05)
+- `evalkit history show --html FILE` and a "Trend" section in `evalkit report RUN --history LEDGER`: one deterministic inline SVG per (metric, labels) the run reports (held-out at split level), built on `report/svg.py`: x = run order with dates, y = value with interval whiskers, the median line, the warn (±2ŝ) and alarm (±3ŝ) bands shaded, `learning` runs drawn without a band, flagged runs drawn with a distinct shape and a text label (never colour alone), settings changes and `band_reset` as vertical markers, and a `<title>`/`<desc>` per chart.
+- A PSI panel per feature (latest checks from `drift` entries emitted into history) with horizontal lines at 0.1 and 0.25.
+- Output bytes repeat for the same ledger (no timestamps, sorted rows).
+
+### 6. Efficiency run-to-run variation (EFF-03)
+- The efficiency names of metrics-1 (`EFFICIENCY_NAMES`, labels model and mode) get LED-02 bands like any metric, per project and model; `history show` adds a spread table per (model, name): runs, median, 1.4826·MAD, coefficient of variation (spread / |median|), min, max, latest, status.
+- Cause hints on a flagged cost row: `price_date changed` when the model's `price_dates` entry differs from the previous run's (a price-table change, not a regression in the system); on a flagged `cache_hit_share` drop, `cache regression`; latency rows name the percentile. Hints are labels, never suppress a flag.
+
+### 7. Spend ledger with a cap alarm (LED-06)
+- `spend-1` line: `{kind: "spend", schema: "ledger-1", at, project, spend_kind, spent_usd (≥ 0, 6 dp), run_id?, model?, n_cases?, note?, prev}`. Writer `evalkit.ledger.record_spend(...)` (chained, locked); `smoke.record_spend` is moved onto it with its signature and return value unchanged.
+- `evalkit spend check [--spend-ledger FILE] --cap USD [--window total|day|month] [--alarm-fraction F] [--add-estimate USD] [--map spent_usd=cost_usd at=date ...] [--json]`: window spend is the sum over the current UTC window (`month` = calendar month, `day` = UTC date) plus the estimate. Default alarm fraction 0.8; course-assistant sets 0.9 (its D-64).
+  - `ok` below F × cap, exit 0; `alarm` at F × cap or more, printed and in JSON, exit 0 (an alarm warns about money; it does not fail quality); `cap` at or above the cap (with `--add-estimate`: when spend + estimate would exceed it), exit 3 = `EXIT_COST_CAP`, so a script can refuse to start a run. 2 for an unreadable ledger, a broken chain in the chained part, or a line without a numeric amount.
+- `--map` reads other projects' ledgers unchanged (course-assistant `cost_usd` per call; assay-pipeline `date`, `usd`); unchained files are reported `unchained`, not an error.
+
+### 8. Held-out rules (all capabilities)
+No held-out case id, id hash or text is written to any ledger line, report, chart, JSON or error: run entries fold held-out rows to split level; experiment entries store compare's folded output and look metadata (manifest hash, split, count, log-line hash) only; the case hashes of a look live only in the B5.14 log, as for every `heldout_scored` line. When `--manifest` is given, every writer runs `heldout.ids_in_text` over the line it is about to append and refuses (exit 2) on a hit; B5.14's exposure scan covers the committed ledgers in CI. Messages name files, line numbers and manifest ids only (as B5.14).
+
+### 9. Exit codes (consistent with gates and compare)
+0 pass; 1 alarm (history, drift), a fail-gate regression (experiment close, as compare), a refused second look (experiment look), a broken chain or append-only problem (history verify); 2 input error; 3 cost cap (spend check; a run stopped at its cap in history add); 4 judging pending (history add/check). Precedence 2 > 3 > 4 > 1 > 0 wherever more than one applies.
+
+## Public interface (builder completes before tests)
+`evalkit.ledger`: `record_run`, `check_run`, `history`, `bands`, `Band`, `BandStatus`, `reset_band`, `open_experiment`, `close_experiment`, `reserve_look`, `candidate_hash`, `record_spend`, `check_spend`, `SpendStatus`, `trend_svg`, `verify_ledger`, `LedgerError`, `LEDGER_SCHEMA`, `MIN_HISTORY = 5`, `WINDOW = 20`. `evalkit.drift`: `freeze_reference`, `psi`, `psi_level`, `calibration`, `calibration_drift`, `check`, `DriftError`, `PSI_EPSILON = 1e-4`, `PSI_WARN = 0.1`, `PSI_ALARM = 0.25`. CLI groups `evalkit history {add,check,show,reset,verify}`, `evalkit experiment {open,close,look,show}`, `evalkit drift {reference,check}`, `evalkit spend {add,check}`; every command has `--json`. Documentation: `docs/ledger.md` and `docs/drift.md`.
+
+## Tests (five proof dimensions per criterion; criteria.md)
+Synthetic fixtures only; no model or network call (a test fails on any); no `.env`; temporary git repositories for append-only checks. The asking projects' cases are tests (D-61 rule 3).
+
+| Criterion | logical | contract | golden | repro | safety |
+|---|---|---|---|---|---|
+| LED-01 | add appends one chained line; a duplicate `summary_sha256` exits 2; pending exits 4 unrecorded; stopped recorded and excluded | `ledger-1` run line shape; `history` CLI flags and exit codes | ledger bytes for a fixture of three runs | adding the same runs to a fresh ledger gives identical bytes; `history verify` passes on it and fails after an edited middle line or a rewrite restored in git | held-out rows folded; a planted held-out id in a `note` is refused with `--manifest`; no case id in any output |
+| LED-02 | bands match an independent median/MAD computation; 4 runs → `learning`; 2ŝ warn, 3ŝ alarm; gate direction honoured; floor stops a noisy run alarming; `band_reset` restarts | band JSON fields and statuses | fraud-review-bedrock-shaped history (synthetic): a leakage jump alarms, a cost drift within band does not | same ledger → same bands and exit code | held-out band rows only at split level |
+| LED-03 | verdict supported/refuted/inconclusive from compare's flag and the declared direction; second look for the same candidate exits 1 and writes nothing; a re-seeded candidate is the same candidate | experiment entry shapes; look writes a well-formed `heldout_scored` line `look:<sha>` | respectful-offers challenger and assay-pipeline "runs once" cases (synthetic) | closing twice from the same inputs gives identical `comparison` bytes | no case hash in the experiment ledger; held-out result accepted only as split aggregates and only with a matching reserved look |
+| LED-04 | PSI equals fraud-review-bedrock's `psi` on its rule (edges, `side="right"`, constant reference 3 bins, nulls dropped, 1e-4 floor); pre-binned shares give the same PSI as rows binned the same way; Brier/ECE/bin deltas and intervals checked against direct computation and an independent bootstrap; quantile bins → `bins_not_aligned` | `drift-ref-1` and `drift-1` shapes; an edited profile exits 2; emitted metrics-1 validates | respectful-offers-shaped metrics-1 (`churn.*`, `drift.feature_share`) end to end | seeded intervals repeat exactly | outputs hold aggregates only (no rows, no values beyond edges and shares); held-out reference refused in text outputs by `ids_in_text` |
+| LED-05 | levels at 0.0999 / 0.1 / 0.25 / 0.2501 are ok / warn / warn / alarm; chart bands drawn from the same numbers as LED-02 | report section present only with `--history`; SVG has title/desc and non-colour flags | SVG bytes for the fixture ledger | rendering twice gives identical bytes | trend charts show held-out only at split level |
+| LED-06 | course-assistant case: $150 monthly cap, 0.9 → $134.99 ok, $135 alarm (exit 0), $150 cap (exit 3); `--add-estimate` crossing exits 3; windows split on UTC dates | `spend-1` shape; `--map` reads course-assistant and assay-pipeline shapes; `smoke.record_spend` signature and return value unchanged | EvalKit's 22-line legacy ledger sealed by a first chained line verifies | concurrent writers (two processes) never lose or tear a line | a line editing the legacy prefix's last line breaks the seal; no secrets or keys read |
+| EFF-03 | a price change marked `price_date changed`; a cache-hit drop flagged with its hint; spread table numbers match direct computation | spread table fields per (model, name) | fixture of efficiency blocks from summary.json across runs | same ledger → same table | — (n/a: efficiency figures hold no case data; record why in the proof) |
+
+## Open questions for the owner (at most three; recommendation first)
+1. **Default calibration-drift tolerances.** Recommend shipping τ_Brier = 0.01, τ_ECE = 0.02, τ_bin = 0.10 (alarm only when the whole 95% interval of the worsening lies beyond τ), overridable per project. Alternative: no default, warn-only until a project sets them.
+2. **EvalKit's own legacy spend ledger.** Recommend sealing its 22 unchained lines with the first chained line (prefix kept byte for byte; git's append-only check guards the rest). Alternatives: leave spend ledgers unchained, or start a new file.
+3. **respectful-offers' reliability bins.** Recommend asking it (its own build, D-61 rule 4) to export equal-width bins, the rule its `ece` already uses, so per-bin deltas are meaningful; until then EvalKit compares only its Brier and ECE.
+
+## Out of scope
+The cross-project index (B5.5); alert delivery (mail, chat); a hosted or streaming monitor; an overall budget of held-out looks across candidates; off-policy estimator coverage (D-63); keyed or signed ledgers (B5.14's limit); migrating downstream repos' existing files (their own builds); computing features from raw production data beyond reading CSV/JSONL columns.
