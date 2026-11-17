@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [HARNESS] [B5.1–B5.5] — Wave 5 added (OWNER D-61): one eval loop for the six downstream projects. Registry and canary (B5.1), public API 0.3 for the internals two or more projects use (B5.2), gates on task scores and slices (B5.3), v0.3.0 with a migration guide (B5.4), cross-project eval index (B5.5). B5.1 spec written. Spend: $0.
 - [FIX] [S2.4] — faithfulness extraction runs through its own node `extract_faithfulness_claims` (D-60): no citation list for the extractor (long evidence pages no longer overrun the output limit and fail as "schema"; one retry at 4x the limit if a reply is still cut off), and the explanation is read as an answer to its question (`faithfulness(..., question_words=True)`, default), so a fragment may borrow its subject from the question under B11; coverage is still against the explanation. The benchmark extractor (`extract_claims` v2, `ext2-f484fe5e`) and its cache keys are unchanged. Spend: $0.
 - [DEMO] [D3.2] — Green: demo live at https://evalkit-demo.streamlit.app/ (replay for everyone; live behind the passcode on the owner's keys or the visitor's own, D-59); deployment checked end to end. Spend: $0.1312 (one live request).
 

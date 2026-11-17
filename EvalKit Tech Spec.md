@@ -510,7 +510,7 @@ scripts/status.py            # live one-table build status (D-13)
 
 Status vocabulary: `not-started | spec | building | green`.
 
-### 11.2 Build graph: 26 nodes in four waves
+### 11.2 Build graph: 32 nodes in six waves
 
 **First public release, v0.1.0 (all Must stories): 16 nodes.** W0.1, N1.1–N1.4, A2.1–A2.6, B2.1–B2.5.
 **Full scope: 26 nodes.**
@@ -544,8 +544,13 @@ Status vocabulary: `not-started | spec | building | green`.
 | **D3.1** | `compare()` and guard | A2.2, A2.4 | `compare()`, PMID fetch, live single-judge path, guard with persistent KV counter | US8, US9 |
 | **D3.2** | Demo page and replay | D3.1, B2.2 | `evalkit demo-cache`, Streamlit page in `portfolio-demos`, banner, deploy | US8, US9 |
 | **B4.1** | EvalKit v0.2: case-aware systems, task scorers, slices (D-59) | B2.5 | `SystemAdapter` with the whole `Case`, `Case.meta`, task scorers inside `evalkit run`, per-slice summary and report, v0.2.0 | US6 |
+| **B5.1** | Downstream registry and canary (D-61) | B4.1 | `docs/downstream.tsv`, import audit, canary workflow running each project's offline contract tests against this checkout | US6 |
+| **B5.2** | Public API 0.3 (D-61) | B5.1, S2.4 | Internals used by two or more projects promoted to public names, deprecation shims at old paths | US6 |
+| **B5.3** | Gates on task scores and slices (D-61) | B5.2 | Thresholds on task scores, slices and CI lower bounds; `evalkit gate` | US6 |
+| **B5.4** | v0.3.0 and downstream migration guide (D-61) | B5.2, B5.3 | v0.3.0 on PyPI, `docs/downstream.md` | US6 |
+| **B5.5** | Cross-project eval index (D-61) | B5.4, B2.3 | Index page: per project headline with CI, calibration stamp, gate status, version, date | US5, US6 |
 
-Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo. The first public release, v0.1.0 on PyPI, ships at B2.5.
+Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo → **B4** v0.2 for downstream needs → **B5** one eval loop across downstream projects (D-61). The first public release, v0.1.0 on PyPI, ships at B2.5.
 
 ### 11.3 Dependency diagram and build order
 
@@ -903,6 +908,24 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | TSC-01 | Task-declared plugin scorers run inside `evalkit run` and reach records, summary and report | D-59 |
 | SLC-01 | Per-slice summary and report by case field with bootstrap CIs | D-59 |
 | BWC-01 | v0.2.0 backwards compatible: v0.1 adapters, tasks, configs and results unchanged | D-59, US6 |
+
+**Wave 5: one eval loop for every downstream project (D-61)**
+
+| Cap | Capability | Trace |
+| --- | --- | --- |
+| DSC-01 | Registry of downstream projects, pins and offline contract-test commands | D-61 |
+| DSC-02 | Import audit: every EvalKit name a project imports, public or internal | D-61 |
+| DSC-03 | Canary workflow: each project's contract tests against this checkout, no API keys | D-61 |
+| PUB-01 | Internals used by two or more projects become public names | D-61, US6 |
+| PUB-02 | Old paths warn for one minor release; private names get public replacements | D-61 |
+| PUB-03 | Audit shows no internal imports that a public name now covers | D-61 |
+| GAT-01 | Thresholds on task scores, slices and CI lower bounds | D-61 |
+| GAT-02 | `evalkit gate` with exit codes, `--json` and the GitHub Action | D-61 |
+| V03-01 | v0.3.0 version, changelog, canary green on the release candidate | D-61 |
+| V03-02 | `docs/downstream.md` migration guide per project | D-61 |
+| V03-03 | Owner-tagged v0.3.0 on PyPI, recorded and checked | D-61 |
+| IDX-01 | Cross-project index page from pinned `summary.json` files | D-61, US5 |
+| IDX-02 | Unreadable summaries shown as missing | D-61 |
 
 ### 11.5 Node lifecycle
 

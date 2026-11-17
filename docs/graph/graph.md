@@ -72,3 +72,13 @@ Generated from EvalKit Tech Spec §11.2 on 2026-11-14; edit here from now on and
 | Node | Title | Depends on | Verified by | Deliverable | Stories |
 | --- | --- | --- | --- | --- | --- |
 | **B4.1** | EvalKit v0.2: case-aware systems, task scorers, slices | B2.5 | node_converge + verifier | `SystemAdapter` (gets the whole `Case`, routed by `systems:`), `Case.meta`, task-declared plugin scorers inside `evalkit run`, per-slice summary and report, v0.2.0 | US6 |
+
+## Wave 5 — one eval loop for every downstream project (D-61)
+
+| Node | Title | Depends on | Verified by | Deliverable | Stories |
+| --- | --- | --- | --- | --- | --- |
+| **B5.1** | Downstream registry and canary | B4.1 | node_converge + verifier | `docs/downstream.tsv` (the six projects, their pins and offline contract-test commands), `scripts/downstream_imports.py` (every EvalKit name each project imports, public or internal), `downstream.yml` workflow running each project's contract tests against this checkout | US6 |
+| **B5.2** | Public API 0.3: promote what downstream uses | B5.1, S2.4 | node_converge + verifier | Internals used by two or more projects (cost, retry, stats, config, results readers, answer parsing, judge and extractor identity, calibration kappa, spend guard) become documented public names; old paths keep working with a `DeprecationWarning`; private names used downstream get public replacements | US6 |
+| **B5.3** | Gates on task scores and slices | B5.2 | node_converge + verifier | Thresholds on task scores and on slices, optionally on the CI lower bound; `evalkit gate summary.json` with exit codes and `--json`; GitHub Action input | US6 |
+| **B5.4** | v0.3.0 and downstream migration guide | B5.2, B5.3 | node_converge + verifier | Version 0.3.0, changelog, `docs/downstream.md` with the exact import replacements per project, owner-tagged release on PyPI | US6 |
+| **B5.5** | Cross-project eval index | B5.4, B2.3 | node_converge + verifier | A page on the EvalKit site: per project, the headline metric with its CI, judge calibration stamp, gate status, EvalKit version and run date, read from each project's committed `summary.json` at a pinned commit | US5, US6 |
