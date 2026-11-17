@@ -1,0 +1,102 @@
+{
+  "changes": [
+    {
+      "ci_high": null,
+      "ci_low": null,
+      "diff": null,
+      "direction": null,
+      "flagged": true,
+      "gate": "fail",
+      "heldout_rows": 1,
+      "interval_sources": null,
+      "interval_status": null,
+      "labels": {
+        "split": "heldout"
+      },
+      "method": "held-out split: rows folded",
+      "metric": "acc",
+      "n_new": null,
+      "n_old": null,
+      "n_shared": null,
+      "new": null,
+      "not_paired": null,
+      "note": "held-out split: 1 row(s) compared, 1 flagged",
+      "old": null,
+      "p_holm": null,
+      "p_value": null,
+      "pairing": "unpaired",
+      "partial_overlap": false,
+      "regression": true,
+      "regression_severity": "fail",
+      "unit": "rate"
+    },
+    {
+      "ci_high": 0.0,
+      "ci_low": 0.0,
+      "diff": 0.0,
+      "direction": "none",
+      "flagged": false,
+      "gate": "fail",
+      "interval_sources": null,
+      "interval_status": "ok",
+      "labels": {
+        "split": "public"
+      },
+      "method": "paired case bootstrap (no trial level)",
+      "metric": "acc",
+      "n_new": 12,
+      "n_old": 12,
+      "n_shared": 12,
+      "new": 1.0,
+      "not_paired": {
+        "new": 0,
+        "old": 0
+      },
+      "note": "every one of the 12 shared cases moved by the same amount",
+      "old": 1.0,
+      "p_holm": 1.0,
+      "p_value": 1.0,
+      "pairing": "paired",
+      "partial_overlap": false,
+      "regression": false,
+      "regression_severity": null,
+      "unit": "rate"
+    }
+  ],
+  "errors": [],
+  "exit_code": 1,
+  "flagged": 1,
+  "gates": "/private/tmp/claude-502/-Users-biplob-chakraborty-EvalKit/6315ab10-a49c-4ec4-bd96-b7660af43450/scratchpad/verify56b/w5/ho.yaml",
+  "holm": {
+    "alpha": 0.05,
+    "family": 2
+  },
+  "missing": [],
+  "new": {
+    "kind": "metrics-1",
+    "path": "/private/tmp/claude-502/-Users-biplob-chakraborty-EvalKit/6315ab10-a49c-4ec4-bd96-b7660af43450/scratchpad/verify56b/w5/ho_n/metrics.json",
+    "per_case_values": true,
+    "project": "course-assistant",
+    "run_id": "r1",
+    "simulated": false,
+    "status": "complete"
+  },
+  "old": {
+    "kind": "metrics-1",
+    "path": "/private/tmp/claude-502/-Users-biplob-chakraborty-EvalKit/6315ab10-a49c-4ec4-bd96-b7660af43450/scratchpad/verify56b/w5/ho_o/metrics.json",
+    "per_case_values": true,
+    "project": "course-assistant",
+    "run_id": "r1",
+    "simulated": false,
+    "status": "complete"
+  },
+  "regressions": 1,
+  "resamples": 10000,
+  "schema_version": "compare-1",
+  "seed": 7,
+  "settings": {
+    "differences": [],
+    "status": "same"
+  },
+  "verdict": "regression"
+}
