@@ -19,6 +19,8 @@ from evalkit.runtime import Executor
 from evalkit.schemas import Answer, Case, Completion, RunConfig
 from evalkit.schemas._base import Fraction, Model, NonBlank, NonNegInt
 
+__all__ = ["FaithfulnessItem", "FaithfulnessResult", "JudgedClaim", "faithfulness"]  # since 0.3.0
+
 EXPLANATION = "explanation"  # the "model" name in claim ids: {item}:explanation:{i}
 
 

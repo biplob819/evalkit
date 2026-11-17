@@ -25,13 +25,13 @@ def _checkout(tmp_path: Path) -> Path:
         raise SystemExit("importing downstream code is forbidden")
         from evalkit.scorers import sql_match
         from evalkit.adapters.base import SystemAdapter
-        from evalkit.cost import call_cost, load_prices
+        from evalkit.cost import price_for, UnknownPrice
         from evalkit.stats import _quantile
         import evalkit.runtime
         import os
         """,
     )
-    _write(root, "src/proj/b.py", "from evalkit.cost import call_cost\n")
+    _write(root, "src/proj/b.py", "from evalkit.cost import price_for\n")
     _write(root, "tests/test_uses.py", "from evalkit.schemas import Case\n")
     _write(root, "tests/test_plain.py", "import json\n")
     _write(root, "scripts/tool.py", "from evalkit import __version__\n")
@@ -57,9 +57,9 @@ def test_every_import_is_listed_and_classed(tmp_path):
     assert uses[("evalkit.schemas", "Case")].kind == "public"
     elsewhere = uses[("evalkit.adapters.base", "SystemAdapter")]
     assert elsewhere.kind == "public-elsewhere" and elsewhere.public_at == "evalkit.adapters"
-    assert uses[("evalkit.cost", "call_cost")].kind == "internal"
-    assert uses[("evalkit.cost", "call_cost")].files == 2
-    assert uses[("evalkit.cost", "load_prices")].files == 1
+    assert uses[("evalkit.cost", "price_for")].kind == "internal"
+    assert uses[("evalkit.cost", "price_for")].files == 2
+    assert uses[("evalkit.cost", "UnknownPrice")].files == 1
     assert uses[("evalkit.stats", "_quantile")].kind == "private"
     assert uses[("evalkit.runtime", "*")].kind == "internal"
     assert ("os", "*") not in uses
@@ -76,7 +76,7 @@ def test_virtual_envs_and_unscanned_dirs_are_skipped(tmp_path):
 def test_unparsable_file_is_reported_not_fatal(tmp_path):
     report = di.audit(_checkout(tmp_path))
     assert report.unparsable == ["src/proj/broken.py"]
-    assert ("evalkit.cost", "call_cost") in _by_key(report)
+    assert ("evalkit.cost", "price_for") in _by_key(report)
 
 
 def test_tests_flag_lists_only_evalkit_importing_tests(tmp_path, capsys):
@@ -101,7 +101,7 @@ def test_json_is_stable_and_sorted(tmp_path, capsys):
 def test_text_output_groups_by_class(tmp_path, capsys):
     di.main([str(_checkout(tmp_path))])
     out = capsys.readouterr().out
-    assert "internal" in out and "evalkit.cost.call_cost" in out
+    assert "internal" in out and "evalkit.cost.price_for" in out
     assert "evalkit.adapters.base.SystemAdapter -> evalkit.adapters" in out
     assert "import evalkit.runtime" in out
 

@@ -72,7 +72,47 @@ PUBLIC: dict[str, list[str]] = {
         "Threshold",
         "Trajectory",
     ],
+    # v0.3 (B5.2, D-61 rule 2): internals two or more downstream projects import, and the names
+    # that are part of their contract (specs/B5.2-public-api/spec.md).
+    "evalkit.calibration": [
+        "AgreementTable",
+        "CalibrationPair",
+        "agreement_table",
+        "cluster_kappa",
+        "kappa_from",
+    ],
+    "evalkit.cost": ["Price", "call_cost", "estimate_tokens", "load_prices"],
+    "evalkit.errors": ["SchemaError"],
+    "evalkit.identity": ["EXTRACTOR_VERSION", "JUDGE_PROMPT_HASH"],
+    "evalkit.retry": ["with_retries"],
+    "evalkit.scorers.faithfulness": [
+        "FaithfulnessItem",
+        "FaithfulnessResult",
+        "JudgedClaim",
+        "faithfulness",
+    ],
+    "evalkit.stats": ["Resamples", "holm", "interval", "paired", "percentile_ms"],
 }
+
+# v0.3 (B5.2, PUB-02/03): internal paths downstream projects import whose names now have a
+# public home (old path -> public path). Paths in MOVED raise a DeprecationWarning naming the
+# new path until 0.4.0; the others are where EvalKit defines the name and stay silent. The
+# import audit reports every one as public-elsewhere.
+PROMOTED: dict[str, str] = {
+    "evalkit.pipeline.answer.SchemaError": "evalkit.errors.SchemaError",
+    "evalkit.pipeline.calibrate._Pair": "evalkit.calibration.CalibrationPair",
+    "evalkit.pipeline.calibrate.cluster_kappa": "evalkit.calibration.cluster_kappa",
+    "evalkit.pipeline.calibrate.kappa_from": "evalkit.calibration.kappa_from",
+    "evalkit.pipeline.extract.EXTRACTOR_VERSION": "evalkit.identity.EXTRACTOR_VERSION",
+    "evalkit.pipeline.judge.JUDGE_PROMPT_HASH": "evalkit.identity.JUDGE_PROMPT_HASH",
+}
+MOVED: frozenset[str] = frozenset(
+    {
+        "evalkit.pipeline.calibrate._Pair",
+        "evalkit.pipeline.calibrate.cluster_kappa",
+        "evalkit.pipeline.calibrate.kappa_from",
+    }
+)
 
 # CLI (docs/versioning.md): every subcommand, its options and positionals, and the exit codes.
 CLI: dict[str, set[str]] = {
@@ -160,6 +200,10 @@ def missing() -> list[str]:
     for module, names in PUBLIC.items():
         mod = importlib.import_module(module)
         out += [f"{module}.{n}" for n in names if not hasattr(mod, n)]
+    for new in PROMOTED.values():
+        module, name = new.rsplit(".", 1)
+        if name not in PUBLIC.get(module, ()):
+            out.append(f"{new} (promoted, not public)")
     return out
 
 

@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 import pytest
 
+from evalkit import calibration
 from evalkit.pipeline import calibrate as cal
 from evalkit.pipeline.aggregate import calibration_status_of
 from evalkit.pipeline.judge import BLIND_DENYLIST, JUDGE_PROMPT_HASH
@@ -277,9 +278,9 @@ def verdict(cid, v, h=JUDGE_PROMPT_HASH):
 
 
 def test_kappa_matches_hand_computation():
-    assert cal.kappa_from(40, 5, 5, 50) == pytest.approx((0.9 - 0.505) / 0.495)
-    assert cal.kappa_from(10, 0, 0, 0) == 1.0  # both constant and agreeing
-    assert cal.kappa_from(0, 10, 0, 0) == 0.0
+    assert calibration.kappa_from(40, 5, 5, 50) == pytest.approx((0.9 - 0.505) / 0.495)
+    assert calibration.kappa_from(10, 0, 0, 0) == 1.0  # both constant and agreeing
+    assert calibration.kappa_from(0, 10, 0, 0) == 0.0
 
 
 def labelled_world(agree_rate=0.9):
@@ -319,7 +320,7 @@ def test_agreement_on_heldout_with_confusion_and_families():
     assert tp + fn + fp + tn == len(held)
     assert a.agreement == pytest.approx((tp + tn) / len(held))
     assert a.kappa.lo <= a.kappa.point <= a.kappa.hi and a.kappa.point == pytest.approx(
-        cal.kappa_from(tp, fn, fp, tn)
+        calibration.kappa_from(tp, fn, fp, tn)
     )
     assert set(a.by_family) == {"anthropic", "openai"}
     assert a.task == "pubmedqa" and a.judge_prompt_hash == JUDGE_PROMPT_HASH
@@ -355,10 +356,10 @@ def test_cluster_bootstrap_is_wider_when_claims_within_an_answer_agree_together(
         human = rng.random() < 0.5
         judge = human if rng.random() < 0.8 else not human
         for k in range(5):  # five claims per answer, all moving together
-            clustered.append(cal._Pair(f"a{a}", human, judge))
-            independent.append(cal._Pair(f"a{a}-{k}", human, judge))
-    c = cal.cluster_kappa(clustered, seed=1, n_resamples=1000)
-    i = cal.cluster_kappa(independent, seed=1, n_resamples=1000)
+            clustered.append(calibration._Pair(f"a{a}", human, judge))
+            independent.append(calibration._Pair(f"a{a}-{k}", human, judge))
+    c = calibration.cluster_kappa(clustered, seed=1, n_resamples=1000)
+    i = calibration.cluster_kappa(independent, seed=1, n_resamples=1000)
     assert c.point == pytest.approx(i.point)
     assert (c.hi - c.lo) > 1.5 * (i.hi - i.lo)
 
@@ -571,10 +572,10 @@ def test_a_judge_must_cover_the_held_out_claims():
 
 def test_kappa_on_an_asymmetric_table_and_confusion_orientation():
     # tp=30 fn=10 fp=5 tn=55: po=0.85, pe=(40*35+60*65)/100^2=0.53
-    assert cal.kappa_from(30, 10, 5, 55) == pytest.approx((0.85 - 0.53) / 0.47)
-    pairs = [cal._Pair("a", True, True)] * 3 + [cal._Pair("b", True, False)] * 2
-    pairs += [cal._Pair("c", False, True)] + [cal._Pair("d", False, False)] * 4
-    assert cal._confusion(pairs) == (3, 2, 1, 4)
+    assert calibration.kappa_from(30, 10, 5, 55) == pytest.approx((0.85 - 0.53) / 0.47)
+    pairs = [calibration._Pair("a", True, True)] * 3 + [calibration._Pair("b", True, False)] * 2
+    pairs += [calibration._Pair("c", False, True)] + [calibration._Pair("d", False, False)] * 4
+    assert calibration._confusion(pairs) == (3, 2, 1, 4)
 
 
 def test_per_family_kappa_is_computed_on_that_family_only():
@@ -610,7 +611,8 @@ def test_kappa_interval_is_the_95_percent_cluster_percentile():
         per[cal._answer_of(lab.claim_id)][(0 if j else 1) if h else (2 if j else 3)] += 1
     rs = Resamples(len(answers), 500, seed=4)
     boot = sorted(
-        cal.kappa_from(*[sum(per[answers[i]][k] for i in row) for k in range(4)]) for row in rs.rows
+        calibration.kappa_from(*[sum(per[answers[i]][k] for i in row) for k in range(4)])
+        for row in rs.rows
     )
     assert a.kappa.lo == pytest.approx(min(_quantile(boot, 0.025), a.kappa.point))
     assert a.kappa.hi == pytest.approx(max(_quantile(boot, 0.975), a.kappa.point))

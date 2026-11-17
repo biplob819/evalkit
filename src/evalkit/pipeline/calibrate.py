@@ -18,14 +18,16 @@ import json
 import math
 import random
 import secrets
+import warnings
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
+from evalkit import calibration as _calibration
+from evalkit.calibration import CalibrationPair, _confusion
 from evalkit.pipeline.judge import JUDGE_PROMPT_HASH, redact
 from evalkit.schemas import (
     Case,
@@ -37,7 +39,6 @@ from evalkit.schemas import (
 from evalkit.schemas._base import SCHEMA_VERSION, FrozenMap, Model, NonBlank
 from evalkit.schemas.calibration import CalibrationLabel, CalibrationReport
 from evalkit.schemas.summary import JudgeAgreement
-from evalkit.stats import Resamples, _quantile
 
 Split = Literal["tuning", "heldout"]
 KAPPA_DROP_TOLERANCE = 0.05  # CAL-06: a larger held-out kappa drop fails CI
@@ -294,68 +295,6 @@ def import_labels(
 # ---- CAL-03/04 agreement ---------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class _Pair:
-    answer: str
-    human: bool  # supported?
-    judge: bool
-
-
-def _confusion(pairs: Sequence[_Pair]) -> tuple[int, int, int, int]:
-    tp = sum(p.human and p.judge for p in pairs)
-    fn = sum(p.human and not p.judge for p in pairs)
-    fp = sum(not p.human and p.judge for p in pairs)
-    tn = sum(not p.human and not p.judge for p in pairs)
-    return tp, fn, fp, tn
-
-
-def kappa_from(tp: int, fn: int, fp: int, tn: int) -> float:
-    """Cohen's kappa for two raters on a binary label. When chance agreement is total (both
-    raters constant) kappa is undefined; it is reported as 1.0 if they agree, else 0.0."""
-    n = tp + fn + fp + tn
-    if n == 0:
-        return 0.0
-    po = (tp + tn) / n
-    pe = ((tp + fn) * (tp + fp) + (fp + tn) * (fn + tn)) / (n * n)
-    if pe >= 1.0:
-        return 1.0 if po == 1.0 else 0.0
-    return (po - pe) / (1 - pe)
-
-
-def cluster_kappa(
-    pairs: Sequence[_Pair], *, seed: int, n_resamples: int = 10_000, alpha: float = 0.05
-) -> Interval:
-    """Kappa with a percentile bootstrap that resamples answers, not claims: claims in one
-    answer share a context and a writer, so treating them as independent would overstate
-    precision."""
-    if not pairs:
-        raise ValueError("no labelled claims to compare")
-    answers = sorted({p.answer for p in pairs})
-    per: dict[str, list[int]] = {a: [0, 0, 0, 0] for a in answers}
-    for p in pairs:
-        c = per[p.answer]
-        i = (0 if p.judge else 1) if p.human else (2 if p.judge else 3)
-        c[i] += 1
-    point = kappa_from(*_confusion(pairs))
-    if len(answers) < 2:
-        return Interval(point=point, lo=point, hi=point)
-    rs = Resamples(len(answers), max(n_resamples, 100), seed=seed)
-    counts = [per[a] for a in answers]
-    boot = []
-    for row in rs.rows:
-        tp = fn = fp = tn = 0
-        for idx in row:
-            c = counts[idx]
-            tp += c[0]
-            fn += c[1]
-            fp += c[2]
-            tn += c[3]
-        boot.append(kappa_from(tp, fn, fp, tn))
-    boot.sort()
-    lo, hi = _quantile(boot, alpha / 2), _quantile(boot, 1 - alpha / 2)
-    return Interval(point=point, lo=min(lo, point), hi=max(hi, point))
-
-
 def _answer_of(claim_id: str) -> str:
     return claim_id.rsplit(":", 1)[0]  # "{case}:{model}:{i}" -> "{case}:{model}"
 
@@ -396,7 +335,7 @@ def agreement(
             f"({coverage:.0%}); at least {min_coverage:.0%} is needed to certify"
         )
     pairs = [
-        _Pair(
+        CalibrationPair(
             _answer_of(lab.claim_id),
             lab.label == "supported",
             verdicts[lab.claim_id].verdict == "supported",
@@ -405,9 +344,9 @@ def agreement(
     ]
     tp, fn, fp, tn = _confusion(pairs)
     by_family: dict[str, Interval] = {}
-    for fam in sorted({family_of(p.answer.split(":", 1)[1]) for p in pairs}):
-        sub_pairs = [p for p in pairs if family_of(p.answer.split(":", 1)[1]) == fam]
-        by_family[fam] = cluster_kappa(sub_pairs, seed=seed, n_resamples=n_resamples)
+    for fam in sorted({family_of(p.cluster.split(":", 1)[1]) for p in pairs}):
+        sub_pairs = [p for p in pairs if family_of(p.cluster.split(":", 1)[1]) == fam]
+        by_family[fam] = _calibration.cluster_kappa(sub_pairs, seed=seed, n_resamples=n_resamples)
     return JudgeAgreement(
         judge=judge,
         task=task,
@@ -415,7 +354,7 @@ def agreement(
         split=split,
         n_claims=len(pairs),
         coverage=coverage,
-        kappa=cluster_kappa(pairs, seed=seed, n_resamples=n_resamples),
+        kappa=_calibration.cluster_kappa(pairs, seed=seed, n_resamples=n_resamples),
         agreement=(tp + tn) / len(pairs),
         confusion=((tp, fn), (fp, tn)),
         by_family=by_family,
@@ -433,7 +372,7 @@ def self_consistency(
     """Kappa between the owner's relabel and first pass, on claims labelled in both rounds."""
     first = {lab.claim_id: lab for lab in labels if lab.split != "relabel"}
     pairs = [
-        _Pair(
+        CalibrationPair(
             _answer_of(lab.claim_id),
             first[lab.claim_id].label == "supported",
             lab.label == "supported",
@@ -441,7 +380,7 @@ def self_consistency(
         for lab in labels
         if lab.split == "relabel" and lab.claim_id in first
     ]
-    return cluster_kappa(pairs, seed=seed, n_resamples=n_resamples) if pairs else None
+    return _calibration.cluster_kappa(pairs, seed=seed, n_resamples=n_resamples) if pairs else None
 
 
 class HeldoutReused(ValueError):
@@ -558,3 +497,24 @@ def publish_guard(summary: RunSummary) -> None:
         missing.append("finished judging")
     if missing:
         raise PublishRefused("cannot publish: needs " + "; ".join(missing))
+
+
+# ---- moved to the public `evalkit.calibration` in 0.3.0 (B5.2, PUB-02) ----------------------
+
+_MOVED = {  # old name -> its public replacement (the same object, except `_Pair`'s new shape)
+    "_Pair": "evalkit.calibration.CalibrationPair",
+    "cluster_kappa": "evalkit.calibration.cluster_kappa",
+    "kappa_from": "evalkit.calibration.kappa_from",
+}
+
+
+def __getattr__(name: str) -> Any:  # Any: typed callers of the old path keep type-checking
+    """The old paths work until 0.4.0, with a DeprecationWarning naming the new one."""
+    if name not in _MOVED:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    warnings.warn(
+        f"{__name__}.{name} is deprecated and will be removed in 0.4.0; use {_MOVED[name]}",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(_calibration, name)

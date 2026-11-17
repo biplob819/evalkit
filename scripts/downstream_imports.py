@@ -11,7 +11,9 @@ Usage:
 Classes:
     public            the module and name are in the public contract (check_public_api.PUBLIC),
                       or a public module imported whole
-    public-elsewhere  the name is public but imported from a submodule path; fix the import
+    public-elsewhere  the name is public but imported from a submodule path, or from an
+                      internal path whose name was promoted (check_public_api.PROMOTED);
+                      fix the import
     internal          anything else
     private           an internal name starting with "_"
 
@@ -29,7 +31,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_public_api import PUBLIC
+from check_public_api import PROMOTED, PUBLIC
 
 SCANNED_DIRS = ("src", "tests", "scripts", "demo")
 SKIPPED_PARTS = {".git", "node_modules", "__pycache__", "site-packages", ".tox", ".nox"}
@@ -70,6 +72,10 @@ def classify(module: str, name: str) -> tuple[str, str]:
         for pkg, names in PUBLIC.items():
             if module.startswith(pkg + ".") and name in names:
                 return "public-elsewhere", pkg
+        new = PROMOTED.get(f"{module}.{name}")
+        if new:  # where the same name is public, or the replacement's full path if renamed
+            home, new_name = new.rsplit(".", 1)
+            return "public-elsewhere", home if new_name == name else new
     if name.startswith("_") and name != "__version__":
         return "private", ""
     return "internal", ""
@@ -171,7 +177,7 @@ def _self_test() -> int:
         (root / "src" / "a.py").write_text(
             "from evalkit.scorers import sql_match\n"
             "from evalkit.adapters.base import SystemAdapter\n"
-            "from evalkit.cost import call_cost\n"
+            "from evalkit.cost import price_for\n"
             "from evalkit.stats import _quantile\n",
             encoding="utf-8",
         )
@@ -182,7 +188,7 @@ def _self_test() -> int:
         want = {
             ("evalkit.scorers", "sql_match"): "public",
             ("evalkit.adapters.base", "SystemAdapter"): "public-elsewhere",
-            ("evalkit.cost", "call_cost"): "internal",
+            ("evalkit.cost", "price_for"): "internal",
             ("evalkit.stats", "_quantile"): "private",
             ("evalkit", "*"): "public",
         }

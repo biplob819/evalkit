@@ -14,6 +14,8 @@ from typing import TypeVar
 
 from evalkit.schemas import Interval
 
+__all__ = ["Resamples", "holm", "interval", "paired", "percentile_ms"]  # public since 0.3.0
+
 ALPHA = 0.05
 K = TypeVar("K", bound=Hashable)
 
