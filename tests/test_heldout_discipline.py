@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-import shutil
 import subprocess
 import sys
 import time
@@ -804,7 +803,8 @@ def test_append_only_verdict_is_the_same_on_a_fresh_clone(tmp_path):
     _git(tmp_path, "clone", "-q", str(root), str(clone))
     there = H.append_only_problems(clone / "log.jsonl", [base])
     assert here == there and here != []
-    shutil.rmtree(clone)
+    # no explicit cleanup: pytest removes tmp_path, and on Windows git's read-only object files
+    # make a plain shutil.rmtree fail (CI 724db3a)
 
 
 # =============================== verifier findings (B5.14 review) ===============================
