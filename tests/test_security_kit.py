@@ -1789,7 +1789,8 @@ def test_heldout_category_statistics_each_need_five_cases(tmp_path):
     ]
     s = S.summarise(trials, scripted=scripted, n_resamples=100, heldout_categories=cats)
     rows = {r["owasp"]: r for r in s["heldout_categories"]["rows"]}
-    assert rows["LLM01"]["scripted"]["stopped"]["text"].startswith("5 of 5")
+    # all or nothing: LLM02 has one scripted case, so no row shows a scripted figure
+    assert rows["LLM01"]["scripted"] == {"suppressed": True, "min_cases": 5}
     assert rows["LLM02"]["scripted"] == {"suppressed": True, "min_cases": 5}
     assert s["splits"]["heldout"]["scripted"]["cases"] == 6  # split level stays
     paths = S.write_outputs(
@@ -1832,3 +1833,117 @@ def test_an_id_shared_across_splits_is_not_printed():
     assert any("repeats across splits" in p for p in problems)
     assert not any("pub-shared-01" in p for p in problems)
     assert any("pub-dup" in p for p in S.check_cases([_case(id="pub-dup"), _case(id="pub-dup")]))
+
+
+def _suppressed(value: Any) -> bool:
+    return isinstance(value, dict) and value.get("suppressed") is True
+
+
+@pytest.mark.safety
+def test_no_suppressed_heldout_cell_is_recoverable_from_the_split_total(tmp_path):
+    """All or nothing per statistic: when any held-out category cell is below the minimum for
+    a statistic, that statistic is suppressed on every category row, so no suppressed cell
+    equals the split total minus the cells shown (summary, report, metrics)."""
+    trials, cats = _held_trials({"LLM01": 5, "LLM02": 5})
+    llm02 = [k for k, v in cats.items() if v == "LLM02"]
+    scripted = [
+        S.ScriptedResult(case=k, split="heldout", owasp=None, layers=("guard",), passed=True)
+        for k, v in cats.items()
+        if v == "LLM01"
+    ] + [
+        S.ScriptedResult(
+            case=llm02[0], split="heldout", owasp=None, layers=("executed",), passed=False
+        )
+    ]
+    s = S.summarise(trials, scripted=scripted, n_resamples=100, heldout_categories=cats)
+    rows = s["heldout_categories"]["rows"]
+    assert len(rows) == 2
+    for key in rows[0]:
+        if key == "owasp":
+            continue
+        states = {_suppressed(r[key]) for r in rows}
+        assert len(states) == 1, key  # never some rows suppressed and others shown
+    assert all(_suppressed(r["scripted"]) for r in rows)
+    assert s["splits"]["heldout"]["scripted"]["cases"] == 6  # the split total may stay
+    paths = S.write_outputs(
+        tmp_path, s, project="p", run_id="r", created_at=CREATED, heldout_categories=True
+    )
+    m = parse_metrics(paths["metrics"].read_text(encoding="utf-8"))
+    assert not any(x.name == "scripted_attacker_stopped" and "owasp" in x.labels for x in m.metrics)
+    report = paths["report"].read_text(encoding="utf-8")
+    cat_section = report.split("## Held-out categories")[1].split("##")[0]
+    assert "scripted" not in cat_section.lower() or "suppressed" in cat_section.lower()
+    # when every cell has 5 scripted cases, every row shows its scripted figure
+    full = [
+        S.ScriptedResult(case=k, split="heldout", owasp=None, layers=("guard",), passed=True)
+        for k in cats
+    ]
+    s2 = S.summarise(trials, scripted=full, n_resamples=100, heldout_categories=cats)
+    assert not any(_suppressed(r["scripted"]) for r in s2["heldout_categories"]["rows"])
+
+
+@pytest.mark.safety
+def test_hostile_class_names_and_str_subclasses_reveal_nothing_on_heldout_cases():
+    """An adversarial system: a returned object whose class name, an exception whose class
+    name, and a str-subclass layer that pretends to equal everything, all built from held-out
+    text. Held-out errors name a fixed category only; nothing of the case reaches the chain."""
+    full = _suite()
+    held_only = S.AttackSuite(tuple(full.heldout), PUBLIC, full.heldout_path, full.manifest_path)
+
+    def hostile_name(case: Any) -> str:
+        return "".join(ch if ch.isalnum() else "_" for ch in str(case.prompt))
+
+    class Sneaky(str):
+        def __eq__(self, other: object) -> bool:
+            return True
+
+        __hash__ = str.__hash__
+
+    class ReturnsHostile:
+        def attack(self, case: Any, *, trial: int, seed: int) -> Any:
+            return type(hostile_name(case), (), {})()
+
+    class RaisesHostile:
+        def attack(self, case: Any, *, trial: int, seed: int) -> Any:
+            raise type(hostile_name(case), (Exception,), {})(case.prompt)
+
+        def call(self, tool: str, arguments: Any) -> Any:
+            raise type("X" + str(arguments).replace(" ", "_")[:40], (Exception,), {})("x")
+
+    class SneakyLayer:
+        def attack(self, case: Any, *, trial: int, seed: int) -> Any:
+            return S.Observation(_traj(), layer=Sneaky(case.prompt))
+
+        def call(self, tool: str, arguments: Any) -> Any:
+            return S.ToolReply(error="guard: x", layer=Sneaky(str(arguments)))
+
+    class OddReply:
+        def call(self, tool: str, arguments: Any) -> Any:
+            return S.ToolReply(text=Sneaky(str(arguments)))
+
+    secrets = [hostile_name(c) for c in full.heldout] + _heldout_secrets()
+    attempts = [
+        (
+            lambda: S.run_attacks(held_only, ReturnsHostile(), allowed_tools=TOOLS, k=1),
+            "unexpected type",
+        ),
+        (
+            lambda: S.run_attacks(held_only, RaisesHostile(), allowed_tools=TOOLS, k=1),
+            "raised an exception",
+        ),
+        (lambda: S.run_scripted(held_only, RaisesHostile()), "raised an exception"),
+        (
+            lambda: S.run_attacks(held_only, SneakyLayer(), allowed_tools=TOOLS, k=1),
+            "unknown layer",
+        ),
+        (lambda: S.run_scripted(held_only, SneakyLayer()), "unknown layer"),
+        (lambda: S.run_scripted(held_only, OddReply()), "unexpected type"),
+    ]
+    for fn, phrase in attempts:
+        with pytest.raises(S.SecurityError) as err:
+            fn()
+        assert phrase in str(err.value)
+        text = _walk_exc(err.value)
+        assert err.value.__cause__ is None and err.value.__context__ is None
+        for secret in secrets:
+            assert secret not in text, phrase
