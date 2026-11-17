@@ -120,18 +120,16 @@ function and a task scorer; none calls a model.
   sentences for `FaithfulnessItem.evidence`, so `faithfulness()` judges each reason against
   the record (`"The amount is {amt_vs_usual} times the card's usual spend."`,
   `"{merchant_first_seen?First purchase at this merchant.|A known merchant.}"`).
-  `value_check(reason, record, *, phrases=(), tolerance=0.1, aliases=None, constants=(),
-  ignore=())` checks the reason's numbers against the record's fields, and each
-  `ValuePhrase(pattern, field=...)` or `ValuePhrase(pattern, holds="hour < 5")` you declare
-  ("9x usual spend", "at night"). A comparison word before a number ("above 900", "at least
-  3") is checked as that comparison; a minus sign must match a negative value; a phrase over
-  a field the record lacks is unchecked with `missing_value:<field>`. Conditional texts may
-  hold colons (`{flag?yes: really|no}`).
-  `value_check_scorer(phrases=..., name=..., aliases=..., constants=..., ignore=...)` checks
-  each string in a JSON answer's `reasons` list; each check keeps its own `reason`
-  (`missing_value:...`, `type_error:...`, `no_field`, `ambiguous_negation`) and carries
-  `reason_index`, the position of its reason in the list. Each reason is verified,
-  contradicted or unverifiable; see [Three outcomes](#value_check-three-outcomes-d-72).
+  `value_check(reason, record, *, phrases=(), tolerance=0.0, aliases=None, units=None,
+  constants=(), ignore=(), unreadable=())` checks the numbers in a reason against the record's fields,
+  strictly (0.4.0, B5.16, D-74): see [Strict binding](#value_check-strict-binding-d-74).
+  Each `ValuePhrase(pattern, field=...)` binds the one number in its match to that field
+  ("9x usual spend"), and each `ValuePhrase(pattern, holds="hour < 5")` checks a condition
+  ("at night"). Conditional texts in templates may hold colons (`{flag?yes: really|no}`).
+  `value_check_scorer(phrases=..., name=..., aliases=..., units=..., ...)` checks each string
+  in a JSON answer's `reasons` list; each check carries `reason_index`, the position of its
+  reason in the list. Each reason is verified, contradicted or unverifiable; see
+  [Three outcomes](#value_check-three-outcomes-d-72).
 
 #### value_check: three outcomes (D-72)
 
@@ -139,39 +137,99 @@ Every reason gets one outcome, in `details["outcome"]`:
 
 | Outcome | When | `value` |
 | --- | --- | --- |
-| `verified` | at least one check, every check is `ok`, and no time, window or constant was left unchecked | 1.0 |
-| `contradicted` | at least one check `failed`: the record says otherwise (a false claim), even if other checks in the reason are ambiguous | 0.0 |
-| `unverifiable` | no check failed, but at least one is `ambiguous` or `unchecked`, a time, window or constant was read but not checked, or nothing in the reason was checkable | 0.0 |
+| `verified` | at least one check, and every check is `ok` | 1.0 |
+| `contradicted` | at least one check `failed`: a bound statement the record clearly says otherwise about | 0.0 |
+| `unverifiable` | no check failed, but a number is unbound, a check is ambiguous or unchecked, or nothing in the reason was checkable | 0.0 |
 
-Each check carries `status`:
+Each check carries `status` and `reason`:
 
-- `ok`: the claim holds.
-- `failed`: false on a clear reading. A number or phrase whose field the record holds with
-  another value ("Risk score of 0.3" on 0.39, "rare category" on `category_freq` 0.07 when
-  rare is declared as `< 0.05`), or a plain number that no field equals ("It was 950").
-- `ambiguous`: the checker is not sure of its reading. `ambiguous_negation`: a negation
-  elsewhere in the sentence ("no doubt above $900") or after the claim ("Amount above $800
-  is not true") leaves it unsettled. `unclear_field`: the clause names more than one field and
-  the comparison holds for some but not all, or names a field only by one shared word ("card",
-  "risk"). `unclear_subject`: a word after the compared number names something else ("more
-  than 50 earlier transactions"). `unclear_comparison`: a comparison word in the clause is not
-  directly before the number ("above what the policy allows, 812.40"). `unclear_time`: an hour
-  field holds a whole hour and the minutes would decide it ("before 3:30 a.m." on hour 3).
-- `unchecked`: the record cannot settle it: `missing_value:<field>`, `type_error:<field>`,
-  or `no_field`, a comparison whose clause names no field and that no field is near
-  ("It is below the 10x limit", "spend is under 50" without an alias for spend).
+- `ok`: the bound claim holds.
+- `failed`: the bound claim is clearly false ("risk score is 0.3" on 0.83, "card history is 44"
+  on 40, "rare category" declared as `category_freq < 0.05` on 0.07).
+- `unbound`: a number the text does not bind to exactly one field. `reason`: `no_field`,
+  `unclear_subject`, `unclear_field`, `unclear_comparison`, `unit`, `hedged`, `time`,
+  `malformed`, `constant`, `number_word` or `non_ascii_number`.
+- `ambiguous`: bound, but the reason may not assert it: `negation`, `hypothetical`, `denial`,
+  `respectively`, `question`, `unclear_comparison` or `unreadable` (anywhere in the reason),
+  `unclear_field`, `rule_id` or `block_word` (in its clause), or `rounding` and
+  `coarse_rounding` (a correct rounding of the value, too coarse to verify).
+- `unchecked`: the record cannot settle it: `missing_value:<field>`, `type_error:<field>`, or
+  `unit:<field>` (a bare number above 1 on a `fraction` field).
 
-Ambiguous and unchecked checks are never verified and never counted as contradictions; nor
-is a reason with a time, window or constant read but left unchecked (B5.13 verifier pass 6:
-"Purchase at 7 p.m., amount $812.40" with no hour field named is unverifiable, never verified
-on its amount alone).
-`value` keeps its meaning "verified": 1.0 only for `verified`, so a false claim never scores
-1.0 and neither does a claim the checker could not read. This changes one older reading: a
-reason with nothing checkable (no number, no declared phrase, only times, ids or constants)
-used to score 1.0; it now scores 0.0 as `unverifiable`, never as `contradicted`. Details
-also hold `failed` (the text of each failed check), `unverified` (the text of each ambiguous
-or unchecked check, then each unchecked time, window or constant), `checks`, `n_checked` and
-`unchecked`.
+Details also hold `checks` (kind, text, field, op, claimed, found, ok, status, reason),
+`failed` and `unverified` (the texts of failed checks and of all others not ok), `n_checked`
+(every number, boolean and condition read) and `unchecked` (numbers inside `ignore` spans).
+
+#### value_check: strict binding (D-74)
+
+`verified` only when every number-bearing statement in the reason is bound to a field by
+positive evidence and holds. No number is ever matched to a field because its value is close.
+
+- **Field names.** A field is named by its whole record key or an alias you declare
+  (`aliases={"card_history_n": ["card history", "earlier purchases"]}`), case-insensitive,
+  with spaces and underscores interchangeable (`risk_score` = "risk score" = "RISK_SCORE" =
+  "riskscore"). Partial names ("card history" for `card_history_n` without the alias),
+  plurals, hyphenations, typos and other subjects ("price", "total") name nothing.
+- **Shapes.** A number binds to a field only in these shapes, with nothing else between:
+  `<field> is|was|of|at|=|:|equals|totals <n>`, `<field> (<n>)`, `<field> <n>`,
+  `<field> [is|was] <cmp> <n>` with cmp one of above, over, below, under, exceeds, more /
+  greater / higher / less / fewer / lower than, at least, at most, at or above, at or below,
+  `>`, `<`, `>=`, `<=`, `≥`, `≤`; `[<cmp>] <n> <field>` ("The card has 40 earlier purchases", "more than 30 earlier
+  purchases"); and the one number inside a `ValuePhrase(field=...)` match (a comparison
+  word right before it is read). The word before a field named first must be the start,
+  punctuation, a determiner, or a joining word (and, but, while, with, so, because, as,
+  when, where, at, then, also, which, that): "risk of the amount is 5" and "the average
+  amount is 5" bind nothing. The word after the number (or after a field named after it)
+  must be the end, punctuation, a line break, or and, but, while, whereas, so, which, is,
+  was, are, were. Fields joined by and / or / `,` / `/` / `&` ("Risk score and hour: 3"),
+  a field on both sides of a number, a field named for two numbers, and a number bound to two
+  fields bind nothing. "41 or more" is not read as a comparison: the reason is unverifiable.
+- **Clauses.** A clause runs between sentence ends, commas, brackets, dashes, line breaks and
+  joining words (and, but, while, whereas, so, which, yet, because, although, though, since).
+  A clause whose checks bind two fields ("amount 11.01 is 0.21 times the card's usual"),
+  hold a rule id ("Amount is 11.01 under P3.1"), or keep a threshold, baseline or range word
+  outside every phrase match ("limit", "threshold", "signal", "rule", "usual", "average",
+  "between", "each", "+") has those checks ambiguous.
+- **Units.** Declare them per field: `units={"risk_score": "fraction", "amt_vs_usual":
+  "multiple", "amount": "currency", "hour": "hour"}`. `fraction` (field 0 to 1; "83%" is
+  0.83), `percent` (field 0 to 100), `multiple` ("9x", "9 times", "9-fold"), `currency`
+  ("$812.40", "812.40 USD"), `hour` (field 0 to 23; "3 a.m.", "3pm", "15:00"; other
+  minutes are unbound). Without a declared unit only a bare number binds: "risk score is 83%"
+  is unverifiable. On a `fraction` field a bare number above 1 ("category freq is 3.8") is
+  unchecked. Scales and suffixes ("5k", "thousand", "cents", "3rd", "1e9") never bind.
+  A phrase-bound number may carry a multiple or currency mark.
+- **Tolerance.** Integer fields (an `int` in the record) are exact, whatever `tolerance`
+  says. A non-integer field equals a claim when it rounds to the claim at the claim's
+  displayed precision and is within 0.005 or 0.5% of it, and at most 10% off ("risk score is
+  0.83" on 0.8312 holds; "risk score is 0.8" on 0.83 and "9x" on 9.1 are correct but coarse
+  roundings, unverifiable), or within `tolerance` (relative, default 0, for non-integer fields
+  only). One unit off in the last digit shown is a truncation ("18.21 times" on 18.215),
+  unverifiable; more is a failure. Comparisons are exact. These are fraud-review-bedrock's
+  D-42 tolerances where they are the stricter.
+- **Never verified.** Approximate words ("about", "roughly", "~", "or so"), ranges
+  ("between", "800-900"), lists with "respectively", times with no hour field, numbers in
+  words ("forty", "twice", "midnight"), non-ASCII digits, malformed or very long numbers, and
+  policy constants ("the 0.9 threshold": `constants` only label them) are unbound. Ids glued
+  to letters ("P7.1") are not numbers; numbers inside `ignore=[regex, ...]` spans are ids,
+  listed in `unchecked`, but negations there are still read. A negation (not, no, never, n't,
+  without, ...), a hypothetical or time shift (if, would, may, expected, previously, last,
+  ...; also requires, needs, must, when, otherwise, criteria, conditions, eligible, allows,
+  satisfies, qualifies), a denial ("false", "untrue", "wrong"), "respectively", a "?", or a
+  comparison word no binding used ("$812, or less than that", "under P6.1") anywhere in the
+  reason makes every check of that reason ambiguous: it neither verifies nor contradicts.
+- **Claims it cannot read.** Words the check does not read ("rare", "brand new") can make a
+  reason false while its numbers are true. Declare them with `unreadable=[regex, ...]`: a
+  match outside every `ValuePhrase` match makes the reason unverifiable; a phrase that reads
+  the word ("rare category" -> `category_freq < 0.05`) checks it instead.
+- **Booleans and conditions.** `<field> is true|false` (and `<field>: false`,
+  `(<field> true)`) is checked against a boolean field; `ValuePhrase(holds=...)` conditions
+  use the rule grammar and are never executed.
+
+This is stricter than B5.13's checker, which matched an unbound number to a nearby field or
+any field close in value. On fraud-review-bedrock's 10,225 recorded reasons, 12.5% are
+verified (8.7% when its rarity vocabulary is declared `unreadable`), 3.7% contradicted and
+the rest unverifiable; every verified reason is one whose numbers the text binds, and its
+mutation test (D-42, 160,000 false claims) verifies none.
 
 `value_check_scorer` scores a case: its `outcome` is `contradicted` when any reason is,
 `verified` when every reason is (at least one), else `unverifiable`, and its value is 1.0
@@ -187,18 +245,21 @@ To report the three shares across a run, pass the results (of `value_check` or
 `nothing_checked` (the unverifiable reasons with no check at all) and `n_skipped` (results
 without an outcome, such as failed calls), and `verified_share`, `contradicted_share` and
 `unverifiable_share`, each a share of all reasons with an exact (Clopper-Pearson) 1 - alpha
-interval, or null with no reasons. Cite them as counts and shares, for example "of 3,913
-reasons, 2,941 verified (75.2%), 199 contradicted (5.1%), 773 unverifiable (19.8%)".
+interval, or null with no reasons. Cite them as counts and shares, for example "of 10,225
+reasons, 1,279 verified (12.5%), 381 contradicted (3.7%), 8,565 unverifiable (83.8%)".
 
 ```python
 from evalkit.scorers import value_check, value_check_shares
 
-results = [value_check(r, record, aliases=ALIASES, constants=CONSTANTS) for r in reasons]
+results = [value_check(r, record, aliases=ALIASES, units=UNITS) for r in reasons]
 shares = value_check_shares(results)
 print(shares.contradicted, shares.n_reasons, shares.contradicted_share)
 ```
 
-Comparisons in `value_check`: a number after a comparison word (above, over, exceeds, more/greater/higher than, at least, at or above, below, under, less/fewer/lower than, at most, up to, at or below, "... or equal to") is checked as that comparison; a negation directly before the word (not, no, never, cannot, n't: "not above", "doesn't exceed", "no more than") inverts it; any other negation in the same sentence ("no doubt above $900", "not only above", "without exceeding", double negatives) makes the check ambiguous (status `ambiguous`, reason `ambiguous_negation`), so its reason is unverifiable: a false claim never passes because of a negation, and some true ones cannot be verified (a documented limit), and a phrase right after the number ("$800 or less", "41 or more") states it too. "Any other negation in the same sentence" means anywhere earlier in the sentence, however far back. Which field a comparison talks about: the fields its clause names. A record key is named by its whole name as words, case-insensitive (`risk_score` by "risk score" or "risk_score"; `card_history_n` by "card history", a last token under three letters may be left out), and by the phrases you pass in `aliases={"amt_vs_usual": ["usual", "card's usual"]}`; one shared word ("card", "risk", "history") is not a mention, but the field it may mean is a candidate. A clause ends at a sentence end, `;`, or a contrast (", but", ", while", ", whereas", ", yet", ", though", ", although"); every mention before the number in its clause counts, and one after it unless a comma, "and", "which", "so" or another boundary lies between (a one-word mention after it only within three words). A comparison is verified only when it holds for every candidate field and contradicted only when it fails for every one; otherwise it is `unclear_field` (so "The risk score, unlike the amount, is above 0.9" is unverifiable, never verified on the amount). A word right after the compared number that is not a unit, a function word, a threshold word or a field ("more than 50 earlier transactions") makes it `unclear_subject`. So "risk score is below 0.9" passes on risk_score 0.39 even though 0.39 is far from 0.9, and "risk score below 0.9" fails on risk_score 0.95 even when another field is near 0.9. A multiple ("5x", "5X", "5 x", "5 times", "10 or more times") names only a field whose key marks a ratio (vs, ratio, multiple, times, x, fold, relative), never a plain amount named nearby. "...and the 10x limit" after "above the 5x signal" shares that comparison; ", which is at least 200" right after a number refers to that number's field. A comparison that names no field is unchecked as `no_field` and its reason unverifiable: it is never checked against a field that happens to be near the number (a documented limit: "It is below the 10x limit" and "$800 or more" with no field in their clause are never verified). "exceeds the threshold of 0.9", "below the extreme-spend limit of 10", "meets the threshold (10x)", "above USD 850" and "above both 800 and 900" (both bounds) are read as comparisons; any other comparison word in the clause that is not directly before the number makes it `unclear_comparison`, never an equality. A negation after the claim in its sentence makes it ambiguous when no clause boundary lies between ("Amount above $800 is not true"), when it follows the claim's comma directly ("812.40, not 900"), or when a word of truth follows it ("..., which is not true", "... the record does not show"); so do a denial word ("untrue", "wrong") and a next sentence that is only a denial ("A new merchant? Not at all."). A negation in a later clause with its own subject ("..., which is not a spend signal") and a hyphenated rule name after the claim ("the 10x never-auto-clear limit") deny nothing. Times of day ("10 p.m.", "6am", "10:30 pm", "22:00") are not free numbers: one is checked against an hour field (a key with the word hour, such as `hour` or `ts_hour`) named in its clause, or against the field of a `ValuePhrase` that matches it, and otherwise recorded in `unchecked` (never a failure, but its reason is unverifiable). A whole hour allows any minute of it: "3 a.m." equals hour 3, "3:45 a.m." or "before 3:30 a.m." cannot be settled by it (`unclear_time`). A window ("10 p.m. to 6 a.m.", "midnight-to-5 a.m.", "10 to 6 a.m.", read both ways when its first hour is bare) is checked against the hour field its clause names when the clause says how the hour sits against it (in, inside, within, during, between; outside, beyond; after; before; only one kind), else `unclear_time`; with no hour field named it is recorded in `unchecked` and its reason is unverifiable. `constants=[5, 10, 0.9]` declares policy thresholds: a number equal to one, with a threshold word next to it ("the 5x signal", "threshold of 0.9"), not compared and equal to no field its clause names, is recorded in `unchecked` as a constant, and its reason is unverifiable (a constant never makes a reason verified); a comparison ("below the 0.9 threshold") is always checked. Numbers after "rule", "clause" or "section" are ids, and ids glued to letters ("P7.1") are never numbers. `ignore=[regex, ...]` records the numbers inside matched spans as unchecked; it never hides a negation. A negation directly before a `holds` phrase ("not a first purchase at this merchant", "isn't at night") inverts the condition; any other negation earlier in the sentence makes it ambiguous (`ambiguous_negation`), as for comparisons (negations inside the phrase's own match, as in "never been used at this merchant", are its words). Details carry `unchecked` (text and kind: time, time_window, constant, id, ignored) next to `checks`, `failed` and `n_checked`. A percent compared with a field held as a fraction (|value| <= 1, e.g. `risk_score` 0.83) is read as a fraction, so "over 80%" passes and "at most 1%" fails. A field of the wrong type leaves its claim unchecked with reason `type_error:<field>`; `value_check` never raises on record contents. In `rule_compliance`, when the allow predicate reads a field (e.g. `action == "clear"`), a structured `label` that says clear does not override an answer JSON whose `action` says hold: the decision is read from the field the predicate names.
+In `rule_compliance`, when the allow predicate reads a field (e.g. `action == "clear"`), a
+structured `label` that says clear does not override an answer JSON whose `action` says hold:
+the decision is read from the field the predicate names.
+
 
 ```python
 from evalkit.scorers import Rule, RuleSet, rule_compliance_scorer
