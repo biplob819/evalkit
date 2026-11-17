@@ -14,11 +14,13 @@ from __future__ import annotations
 import bisect
 import math
 from collections import Counter, defaultdict
+from collections.abc import Collection
 from decimal import Decimal
 from typing import Any
 
 from evalkit.schemas import ResultSet
 from evalkit.scorers.base import ScoreResult
+from evalkit.scorers.sql_equivalences import check_names, variants
 
 Norm = tuple[str, Any]
 
@@ -189,14 +191,58 @@ def sql_match(
     rel_tol: float = 1e-6,
     abs_tol: float = 1e-9,
     allow_extra_columns: bool = False,
+    question: str | None = None,
+    equivalences: Collection[str] = (),
 ) -> ScoreResult:
     """1.0 if `predicted` returns the same rows and values as `gold`, else 0.0 with a reason.
 
     With `allow_extra_columns` (the agent track, D-55), a table with more columns than the gold
     passes when some choice of its columns (matched by name, else by values) reproduces the
-    gold exactly; extra or missing rows still fail."""
+    gold exactly; extra or missing rows still fail.
+
+    `equivalences` (B5.15, D-71) names opt-in shape equivalences, `percent_scale`, `pivot`,
+    `empty_check` and `period_number` (`sql_equivalences.EQUIVALENCES`, rules there), and
+    `question` is the question text two of them read. None is on by default, and with none
+    named the result is exactly the strict one. With any named, the strict match runs first;
+    only when it fails is each named reshaping of `predicted` matched strictly in turn, and
+    `details` gains `correct_strict`, the `equivalences` that matched (empty when none did or
+    none was needed) and, on a rescue, `strict_reason`."""
     if not (0 <= rel_tol < 1) or abs_tol < 0:
         raise ValueError("rel_tol must be in [0, 1) and abs_tol >= 0")
+    if question is not None and not isinstance(question, str):
+        raise TypeError("question must be the question text or None")
+    names = check_names(equivalences)
+    strict = _strict(predicted, gold, rel_tol, abs_tol, allow_extra_columns)
+    if not names:
+        return strict
+    if strict.value == 1.0:
+        return ScoreResult(
+            value=1.0, details={**strict.details, "correct_strict": True, "equivalences": []}
+        )
+    for rules, variant in variants(predicted, gold, names, question, rel_tol, abs_tol):
+        res = _strict(variant, gold, rel_tol, abs_tol, allow_extra_columns)
+        if res.value == 1.0:
+            return ScoreResult(
+                value=1.0,
+                details={
+                    **res.details,
+                    "correct_strict": False,
+                    "equivalences": list(rules),
+                    "strict_reason": strict.details["reason"],
+                },
+            )
+    return ScoreResult(
+        value=0.0, details={**strict.details, "correct_strict": False, "equivalences": []}
+    )
+
+
+def _strict(
+    predicted: ResultSet,
+    gold: ResultSet,
+    rel_tol: float,
+    abs_tol: float,
+    allow_extra_columns: bool,
+) -> ScoreResult:
     if allow_extra_columns and len(predicted.columns) > len(gold.columns):
         tried = _assignments(predicted, gold, rel_tol, abs_tol)
         for order in tried:
