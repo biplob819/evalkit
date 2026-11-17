@@ -34,3 +34,4 @@ The result is tied to the exact judge rubric (`judge_prompt_hash`). If the rubri
 - Labels belong to one exported sheet and one round. Labels made for another export, or first-pass labels offered as the relabel round, are refused.
 - A published headline (`evalkit report --publish`) needs both judges and calibration for this task and rubric. A single-judge or uncalibrated run is refused.
 - CI keeps your labels and the recorded verdicts as a regression fixture. A judge model or rubric change that drops held-out kappa by more than 0.05 fails the build.
+- For your own held-out splits (pinning them by a manifest of hashes, scoring once per rubric, scanning the repository for leaked held-out text, and a tamper-evident log that decides what is certified), see [heldout.md](heldout.md).

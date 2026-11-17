@@ -57,6 +57,10 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 - `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 
+## 0.4.0 additions (on main ahead of the release)
+
+- `evalkit.heldout` (B5.14, D-65): held-out manifest of hashes and counts, score-once guard, exposure scan and hash-chained append-only log; `python -m evalkit.heldout manifest|verify|scan|verify-log` (exit codes 0, 1, 2). See [heldout.md](heldout.md).
+
 ## Deprecation
 
 A public name that is going away keeps working, with a `DeprecationWarning`, for at least one
