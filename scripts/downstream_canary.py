@@ -81,11 +81,10 @@ ENV_ALLOW = {
 }  # not UV_INDEX_URL: an index URL can carry credentials
 ENV_ALLOW_WINDOWS = {"SYSTEMROOT", "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "WINDIR"}
 _COUNT_RE = re.compile(r"(\d+) (passed|failed|errors?|skipped)")
-# pytest's final line, e.g. "== 1 failed, 41 passed, 2 skipped in 9.10s ==" or, under -q,
+# pytest's final line (plugins may add words such as "3 subtests passed"), e.g. "== 1 failed, 41 passed, 2 skipped in 9.10s ==" or, under -q,
 # "41 passed in 9.10s"; anchored so no other output line can be taken for it.
 _SUMMARY_RE = re.compile(
-    r"^=*\s*(?:\d+ (?:passed|failed|errors?|skipped|deselected|xfailed|xpassed|warnings?)"
-    r"(?:, )?)+ in [\d.]+s(?: \([\d:]+\))?\s*=*$"
+    r"^=*\s*(?:\d+ [a-z][\w ]*?(?:, )?)+ in [\d.]+s(?: \([\d:]+\))?\s*=*$"
 )
 _SHORT_RE = re.compile(r"^(FAILED|ERROR|PASSED) (.+?)(?: - .*)?$")
 STDERR_MARK = "----- stderr -----"
@@ -343,7 +342,7 @@ def _run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner) -> di
                 **result,
                 "counts": counts,
                 "failures": failures,
-                "known_fixed": sorted(known & set(parse_passed(out))),  # seen passing
+                "known_fixed": sorted((known & set(parse_passed(out))) - set(failures)),
                 "status": status,
                 "detail": "" if status == "pass" else "\n".join(tail),
             }

@@ -116,6 +116,7 @@ def test_child_environment_has_no_keys_or_secrets(monkeypatch, tmp_path):
 def test_pytest_summary_is_parsed():
     stderr_noise = f"== 5 passed in 1.0s ==\n{dc.STDERR_MARK}\nworker: 2 skipped retries in 0.3s"
     assert dc.parse_counts(stderr_noise)["passed"] == 5, "stderr never supplies the counts"
+    assert dc.parse_counts("== 3 subtests passed, 4 passed in 0.2s ==")["passed"] == 4
     noisy = "2 passed in 0.5s\nretry 3 failed attempts\n"
     assert dc.parse_counts(noisy)["failed"] == 0 and dc.parse_counts(noisy)["passed"] == 2
     line = "== 3 failed, 41 passed, 2 skipped, 1 error in 9.1s =="
