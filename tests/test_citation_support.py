@@ -10,6 +10,7 @@ import io
 import json
 import math
 import re
+import sys
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -366,7 +367,9 @@ BEFORE = {
         "run.json": "013702511c8c2d49",
     },
 }
-ESTIMATE_BEFORE = "6a194982a4e4d495"
+# Python 3.12 made sum() of floats compensated, so the estimate total differs in the last digit
+# on 3.11 (0.4638 vs 0.46380000000000005); every line item is identical (L-27).
+ESTIMATE_BEFORE = "7a7b7f9244cdd3c5" if sys.version_info < (3, 12) else "6a194982a4e4d495"
 
 
 @pytest.fixture

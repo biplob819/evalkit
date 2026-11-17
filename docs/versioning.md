@@ -35,6 +35,10 @@ release. A reader should ignore fields it does not know.
 while it is empty, so a run that uses none of them writes exactly what 0.1.0 wrote and 0.1.0
 can read it; a run that uses them needs 0.2.0 or later to read its records and summary.
 
+## 0.3.0 additions
+
+- `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate` (B5.12, D-65), each omitted from JSON when empty.
+
 ## Deprecation
 
 A public name that is going away keeps working, with a `DeprecationWarning`, for at least one
