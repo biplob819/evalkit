@@ -42,8 +42,8 @@ then, pin the tag: `evalkit-harness @ git+https://github.com/biplob819/evalkit@v
 - **`evalkit compare` `MIN_CASES`**: a change is claimed (enters Holm, can be flagged, can exit
   1) only from at least `MIN_CASES` = 10 shared cases and a non-zero-width interval.
 - **`sql_match` details are deterministic**: on a mismatch the first difference reported is
-  the same on every run (gold's groups first); a group with no gold rows carries
-  `example_predicted_row` instead of `example_gold_row`. Scores are unchanged.
+  the same on every run (gold's groups first), and `example_gold_row` is always a gold row (in
+  0.2 it could hold a predicted row). Scores are unchanged.
 - **Moved calibration paths warn**: `evalkit.pipeline.calibrate._Pair`, `cluster_kappa` and
   `kappa_from` raise a `DeprecationWarning` naming `evalkit.calibration`; a test suite that
   turns warnings into errors fails until the import is changed.
@@ -84,8 +84,8 @@ then, pin the tag: `evalkit-harness @ git+https://github.com/biplob819/evalkit@v
 | `evalkit.demo.guard.Ticket` | internal (keep) | keep (as `Guard`) |
 | `evalkit.agents.score.MIN_STEPS` | internal (keep) | keep (local checkout only, not on `main`) |
 
-Behaviour changes that affect it: `sql_match` mismatch details (`example_predicted_row`, gold
-groups first) if a test pins the details; one-sided gate bounds and `MIN_CASES` once it adopts
+Behaviour changes that affect it: `sql_match` mismatch details (`example_gold_row` always a
+gold row, gold groups first) if a test pins the details; one-sided gate bounds and `MIN_CASES` once it adopts
 `evalkit gate` and `evalkit compare`.
 
 Capabilities it asked for (OWNER D-75, D-81):
@@ -158,7 +158,7 @@ replace.
 | `evalkit.scorers.attack_outcome` | public (same path) | `evalkit.scorers.attack_outcome` |
 
 Behaviour changes that affect it: `sql_match` mismatch details (gold groups first,
-`example_predicted_row`); one-sided 95% Clopper-Pearson gate bounds for every k (D-70; its
+`example_gold_row` always a gold row); one-sided 95% Clopper-Pearson gate bounds for every k (D-70; its
 pass and fail cases at n=150 hold); `MIN_CASES` in `evalkit compare`.
 
 Capabilities it asked for (OWNER D-62, D-64):
@@ -174,7 +174,7 @@ Capabilities it asked for (OWNER D-62, D-64):
 
 ## course-assistant
 
-- **Current pin**: `evalkit-harness>=0.2,<0.3` (its `eval` extra)
+- **Current pin**: `evalkit-harness>=0.2,<0.3` (its `eval` extra and its `dev` dependency group; move both)
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (same extra)
 - **Release-candidate canary**: known-drift. Its pin test
   `tests/eval/test_evalkit_contract.py::test_the_released_0_2_line_is_installed_and_pinned` is
@@ -260,16 +260,14 @@ Capabilities it asked for (OWNER D-53, D-66, D-68; EvalKit D-65, D-69):
 
 ## fraud-review-bedrock
 
-- **Current pin**: `evalkit-harness @ git+https://github.com/biplob819/evalkit@add5af9b8af3bc8482f1408aa1206edd6340bfbe`
-  (a 0.3.0 development commit; the registry said 43df77e, the v0.2.0 commit, until B5.4)
-- **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4`, **only after** the value checks below
-  move off EvalKit; until then stay on add5af9.
-- **Release-candidate canary**: fail, caused by 0.3.0 (D-74). `src/fraudreview/evalkit_bridge.py`
-  imports `ValuePhrase` (and `tests/test_evalkit_bridge.py` and `doctor.check_evalkit` import
-  `value_check`) from `evalkit.scorers`, so `tests/test_evalkit_bridge.py` fails at collection
-  and the suite stops before any test runs. A diagnostic rerun on the same clone without that
-  file: 1145 passed, 2 failed (`tests/test_doctor.py`: its exact-commit pin test and the doctor's
-  EvalKit check, which imports `value_check`). Nothing else in it depends on the withheld names.
+- **Current pin**: `evalkit-harness @ git+https://github.com/biplob819/evalkit@118b661f570b412c952df48736e59d16b6455a6d`
+  (the 0.3.0 release candidate, pinned at its e41ddc9; it was add5af9, a 0.3.0 development commit, before)
+- **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (move from the release-candidate commit to the tag).
+- **Release-candidate canary**: pass (1264 passed) on its e41ddc9, which moved its bridge test and
+  doctor check to its own strict `valuecheck` module (its D-42) and pins the release candidate.
+  Before that change the suite stopped at collection on the withheld `ValuePhrase` (D-74).
+
+It imported these before e41ddc9; the value-check names now come from its own module:
 
 | Import today | Class in 0.3.0 | Replace with |
 |---|---|---|

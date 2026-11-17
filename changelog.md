@@ -29,6 +29,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
   a 95% interval (paired two-level bootstrap on shared cases, case-only, or unpaired and
   labelled), Holm-adjusted flags, settings differences, held-out rows as split aggregates;
   exit codes 0/1/2.
+- [FIX] [S2.4] — `evalkit.scorers.faithfulness.faithfulness` extracts claims through its own node (`extract_faithfulness_claims`, D-60) and reads an explanation as an answer to its question by default (`question_words=True`); the benchmark extractor and its cache keys are unchanged.
 - [FEAT] [B5.12] — Citation support: task scorer `citation_support`, `evalkit.schemas.CitationVerdict`,
   optional `Record.citation_support`, `ModelSummary`/`SliceSummary` `citation_precision` and
   `aim_citation_rate` (omitted when empty).
@@ -53,8 +54,8 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 - `evalkit compare` claims a change only from at least `MIN_CASES` (10) shared cases and a
   non-zero-width interval.
 - `sql_match` mismatch details are deterministic across hash seeds: gold's groups are reported
-  first; a group with no gold rows carries `example_predicted_row` instead of
-  `example_gold_row`. Scores are unchanged.
+  first, and `example_gold_row` is always a gold row (in 0.2 it could hold a predicted row).
+  Scores are unchanged.
 - `RunConfig.systems` (added in 0.2.0) is a field a config spec that lists every `RunConfig`
   field must name (gemma-grounded-health's `test_spec_covers_every_run_config_field`).
 - Moved paths warn: `evalkit.pipeline.calibrate._Pair`, `cluster_kappa` and `kappa_from` raise a

@@ -288,7 +288,7 @@ def test_behaviour_changes_and_offers_are_named():
     assert "equal-width" in offers and "D-73" in offers
     assert "D-74" in sections["fraud-review-bedrock"]
     text = GUIDE.read_text(encoding="utf-8")
-    for needed in ("D-70", "efficiency", "MIN_CASES", "sql_match", "example_predicted_row"):
+    for needed in ("D-70", "efficiency", "MIN_CASES", "sql_match", "example_gold_row"):
         assert needed in text, needed
 
 
