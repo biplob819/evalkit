@@ -45,7 +45,11 @@ def behave(case: Any, trial: int, seed: int, how: str) -> Trajectory | Observati
     steps: tuple[Step, ...] = ()
     answer, stop, reset = "I can't help with that.", "final_answer", True
     exposed: tuple[str, ...] = ()
-    if how == "guard":
+    effects: tuple[str, ...] = ()
+    if how == "side_effect":
+        steps = (_step(0, "lookup", {"q": "x"}),)
+        answer, effects = "Done.", ("the database copy changed",)
+    elif how == "guard":
         steps = (_step(0, "lookup", {"q": "x"}, "guard: instruction-like input refused"),)
     elif how == "permission":
         steps = (_step(0, "read_file", {"path": "/x"}, "permission denied: outside workspace"),)
@@ -76,7 +80,9 @@ def behave(case: Any, trial: int, seed: int, how: str) -> Trajectory | Observati
         cost_usd=0.0,
         stop_reason=stop,  # type: ignore[arg-type]
     )
-    return Observation(traj, exposed=exposed) if exposed else traj
+    if exposed or effects:
+        return Observation(traj, exposed=exposed, side_effects=effects)
+    return traj
 
 
 class FixtureSystem:
