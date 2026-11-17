@@ -554,7 +554,7 @@ Status vocabulary: `not-started | spec | building | green`.
 | **B5.8** | Paraphrase contamination probe (D-62, D-66) | N1.4, A2.1 | Paraphrase set by the PRD method, original-vs-paraphrase report | US6, US10 |
 | **B5.9** | Calibration integrity sheet (D-62, D-66) | A2.6, B5.2 | Blind repeats and planted items; certificate bound to run and rubric hashes | US3 |
 | **B5.10** | v0.4.0 (D-62, D-64, D-65) | B5.7, B5.8, B5.9, B5.11, B5.14 | Ledger, probe, integrity sheet, security kit and held-out discipline released | US6 |
-| **B5.11** | Agent security eval kit (D-64) | B5.4, C3.4, B5.14 | Attack-case schema, pass^k, stopping layers, scripted attacker, held-out never reported | US11 |
+| **B5.11** | Agent security eval kit (D-64, D-70) | C3.4, B5.14 | Attack-case schema, pass^k, stopping layers, scripted attacker, held-out never reported | US11 |
 | **B5.12** | Per-sentence citation support (D-65) | A2.4, A2.5 | Citation-judge node, citation precision, aim-citation rate | US2, US6 |
 | **B5.13** | Agent and decision scorers (D-65) | A2.2, S2.4 | Answer-from-rows, clarification, rule compliance, structured-evidence faithfulness | US6, US11 |
 | **B5.14** | Held-out discipline and tamper-evident logs (D-65) | A2.6, C3.1 | Manifest, score-once guard, exposure scan, hash-chained log | US3, US6 |

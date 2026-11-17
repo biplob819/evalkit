@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [HARNESS] [B5.3, B5.11] — D-70: summary.json gains an optional `efficiency` field; gate bounds use one-sided 95% Clopper-Pearson; B5.11 spec written and assigned to assay-pipeline's session on `lane/b5.11`, depending on C3.4 and B5.14. Spend: $0.
 - [FEAT] [B5.9] — Calibration integrity sheet (lane build, merged): `evalkit.integrity` — sheets for any criterion (course-assistant's V/C integrity labels, labeller-only context, per-judge kappa on held-out), blind repeats and planted items with labeller self-agreement, certification only through B5.14's logged line; `evalkit calibrate ... --criterion`. The groundedness sheet is byte-identical. Spend: $0.
 - [FEAT] [B5.8, B5.13] — Green. B5.8: errors can no longer flag contamination; coverage and run settings reported; provisional until the owner's spot-check. B5.13: after five verifier passes, value checks are fail-safe on negation and never raise on record contents. Spend: $0.
 - [FEAT] [B5.3] — Gates on any metric (lane build, merged): `evalkit.metrics` (metrics-1), `evalkit.gates`, `evalkit gate` (exit precedence 2 > 3 > 4 > 1 > 0, `gate.json` on every path, input-classes table), exact Clopper-Pearson (`clopper_pearson`, n=150: k=0 → 0.0198, k=1 → 0.0366), disparity gates, fail/warn severity, held-out aggregates only, the efficiency block in metrics-1 and the report. Tested on assay-pipeline's and respectful-offers' real exports. Spend: $0.
