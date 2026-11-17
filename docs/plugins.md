@@ -125,14 +125,70 @@ function and a task scorer; none calls a model.
   `ValuePhrase(pattern, field=...)` or `ValuePhrase(pattern, holds="hour < 5")` you declare
   ("9x usual spend", "at night"). A comparison word before a number ("above 900", "at least
   3") is checked as that comparison; a minus sign must match a negative value; a phrase over
-  a field the record lacks fails with `missing_value:<field>`. Conditional texts may hold
-  colons (`{flag?yes: really|no}`).
+  a field the record lacks is unchecked with `missing_value:<field>`. Conditional texts may
+  hold colons (`{flag?yes: really|no}`).
   `value_check_scorer(phrases=..., name=..., aliases=..., constants=..., ignore=...)` checks
   each string in a JSON answer's `reasons` list; each check keeps its own `reason`
-  (`missing_value:...`, `type_error:...`, `ambiguous_negation`) and carries `reason_index`,
-  the position of its reason in the list.
+  (`missing_value:...`, `type_error:...`, `no_field`, `ambiguous_negation`) and carries
+  `reason_index`, the position of its reason in the list. Each reason is verified,
+  contradicted or unverifiable; see [Three outcomes](#value_check-three-outcomes-d-72).
 
-Comparisons in `value_check`: a number after a comparison word (above, over, exceeds, more/greater/higher than, at least, at or above, below, under, less/fewer/lower than, at most, up to, at or below, "... or equal to") is checked as that comparison; a negation directly before the word (not, no, never, cannot, n't: "not above", "doesn't exceed", "no more than") inverts it; any other negation in the same sentence ("no doubt above $900", "not only above", "without exceeding", double negatives) makes the check ambiguous and it fails with reason `ambiguous_negation`: a false claim never passes because of a negation, and some true ones fail (a documented limit), and a phrase right after the number ("$800 or less", "41 or more") states it too. "Any other negation in the same sentence" means anywhere earlier in the sentence, however far back. Which field a comparison talks about: the field its clause names, the nearest mention before the number first (then after it). A record key is named by its words, case-insensitive (`risk_score` by "risk score", "risk_score", or "risk" when that first word belongs to no other key), and by the phrases you pass in `aliases={"amt_vs_usual": ["usual", "card's usual"]}`; a clause ends at a sentence end, `;`, or a contrast (", but", ", while", ", whereas", ", yet", ", though", ", although"). So "risk score is below 0.9" passes on risk_score 0.39 even though 0.39 is far from 0.9, and "risk score below 0.9" fails on risk_score 0.95 even when another field is near 0.9. A multiple ("5x", "5 times", "10 or more times") names only a field whose key marks a ratio (vs, ratio, multiple, times, x, fold, relative), never a plain amount named nearby. "...and the 10x limit" after "above the 5x signal" shares that comparison; ", which is at least 200" right after a number refers to that number's field. A comparison that names no field is checked against the first field within tolerance of the number; with none it fails (a documented limit: "It is below the 10x limit" with no field in its sentence fails). Times of day ("10 p.m.", "6am", "10:30 pm", "22:00") are not free numbers: one is checked against an hour field (a key with the word hour, such as `hour` or `ts_hour`) named in its clause, or against the field of a `ValuePhrase` that matches it, and otherwise recorded in `unchecked` (never a failure); a window ("10 p.m. to 6 a.m.", "midnight-to-5 a.m.") is recorded as unchecked. `constants=[5, 10, 0.9]` declares policy thresholds: a number equal to one, with a threshold word next to it ("the 5x signal", "threshold of 0.9"), and not compared or claimed of a named field, is recorded in `unchecked` as a constant; a comparison ("below the 0.9 threshold") is always checked. Numbers after "rule", "clause" or "section" are ids, and ids glued to letters ("P7.1") are never numbers. `ignore=[regex, ...]` records the numbers inside matched spans as unchecked; it never hides a negation. A negation directly before a `holds` phrase ("not a first purchase at this merchant", "isn't at night") inverts the condition; any other negation earlier in the sentence fails it as `ambiguous_negation`, as for comparisons (negations inside the phrase's own match, as in "never been used at this merchant", are its words). Details carry `unchecked` (text and kind: time, time_window, constant, id, ignored) next to `checks`, `failed` and `n_checked`. A percent compared with a field held as a fraction (|value| <= 1, e.g. `risk_score` 0.83) is read as a fraction, so "over 80%" passes and "at most 1%" fails. A field of the wrong type fails its claim with reason `type_error:<field>`; `value_check` never raises on record contents. In `rule_compliance`, when the allow predicate reads a field (e.g. `action == "clear"`), a structured `label` that says clear does not override an answer JSON whose `action` says hold: the decision is read from the field the predicate names.
+#### value_check: three outcomes (D-72)
+
+Every reason gets one outcome, in `details["outcome"]`:
+
+| Outcome | When | `value` |
+| --- | --- | --- |
+| `verified` | at least one check, and every check is `ok` | 1.0 |
+| `contradicted` | at least one check `failed`: the record says otherwise (a false claim), even if other checks in the reason are ambiguous | 0.0 |
+| `unverifiable` | no check failed, but at least one is `ambiguous` or `unchecked`, or nothing in the reason was checkable | 0.0 |
+
+Each check carries `status`:
+
+- `ok`: the claim holds.
+- `failed`: false on a clear reading. A number or phrase whose field the record holds with
+  another value ("Risk score of 0.3" on 0.39, "rare category" on `category_freq` 0.07 when
+  rare is declared as `< 0.05`), or a plain number that no field equals ("It was 950").
+- `ambiguous`: `ambiguous_negation`, the fail-safe: a negation elsewhere in the sentence
+  ("no doubt above $900") leaves the claim's direction unsettled.
+- `unchecked`: the record cannot settle it: `missing_value:<field>`, `type_error:<field>`,
+  or `no_field`, a comparison whose clause names no field and that no field is near
+  ("It is below the 10x limit", "spend is under 50" without an alias for spend).
+
+Ambiguous and unchecked checks are never verified and never counted as contradictions.
+`value` keeps its meaning "verified": 1.0 only for `verified`, so a false claim never scores
+1.0 and neither does a claim the checker could not read. This changes one older reading: a
+reason with nothing checkable (no number, no declared phrase, only times, ids or constants)
+used to score 1.0; it now scores 0.0 as `unverifiable`, never as `contradicted`. Details
+also hold `failed` (the text of each failed check), `unverified` (the text of each ambiguous
+or unchecked check), `checks`, `n_checked` and `unchecked`.
+
+`value_check_scorer` scores a case: its `outcome` is `contradicted` when any reason is,
+`verified` when every reason is (at least one), else `unverifiable`, and its value is 1.0
+only for `verified`. A run's mean of this task score is therefore the share of cases whose
+every reason was verified. The per-reason figures sit in the details: `reasons` (index,
+outcome, `n_checked` per reason), `n_reasons`, `counts` and `shares` (each outcome's count
+and share of the case's reasons; `shares` is null with no reasons). A failed call scores 0.0
+with no outcome.
+
+To report the three shares across a run, pass the results (of `value_check` or
+`value_check_scorer`) to `value_check_shares(results, alpha=0.05)`. It returns
+`ValueCheckShares`: `n_reasons`, the counts `verified`, `contradicted`, `unverifiable`,
+`nothing_checked` (the unverifiable reasons with no check at all) and `n_skipped` (results
+without an outcome, such as failed calls), and `verified_share`, `contradicted_share` and
+`unverifiable_share`, each a share of all reasons with an exact (Clopper-Pearson) 1 - alpha
+interval, or null with no reasons. Cite them as counts and shares, for example "of 3,913
+reasons, 2,941 verified (75.2%), 199 contradicted (5.1%), 773 unverifiable (19.8%)".
+
+```python
+from evalkit.scorers import value_check, value_check_shares
+
+results = [value_check(r, record, aliases=ALIASES, constants=CONSTANTS) for r in reasons]
+shares = value_check_shares(results)
+print(shares.contradicted, shares.n_reasons, shares.contradicted_share)
+```
+
+Comparisons in `value_check`: a number after a comparison word (above, over, exceeds, more/greater/higher than, at least, at or above, below, under, less/fewer/lower than, at most, up to, at or below, "... or equal to") is checked as that comparison; a negation directly before the word (not, no, never, cannot, n't: "not above", "doesn't exceed", "no more than") inverts it; any other negation in the same sentence ("no doubt above $900", "not only above", "without exceeding", double negatives) makes the check ambiguous (status `ambiguous`, reason `ambiguous_negation`), so its reason is unverifiable: a false claim never passes because of a negation, and some true ones cannot be verified (a documented limit), and a phrase right after the number ("$800 or less", "41 or more") states it too. "Any other negation in the same sentence" means anywhere earlier in the sentence, however far back. Which field a comparison talks about: the field its clause names, the nearest mention before the number first (then after it). A record key is named by its words, case-insensitive (`risk_score` by "risk score", "risk_score", or "risk" when that first word belongs to no other key), and by the phrases you pass in `aliases={"amt_vs_usual": ["usual", "card's usual"]}`; a clause ends at a sentence end, `;`, or a contrast (", but", ", while", ", whereas", ", yet", ", though", ", although"). So "risk score is below 0.9" passes on risk_score 0.39 even though 0.39 is far from 0.9, and "risk score below 0.9" fails on risk_score 0.95 even when another field is near 0.9. A multiple ("5x", "5 times", "10 or more times") names only a field whose key marks a ratio (vs, ratio, multiple, times, x, fold, relative), never a plain amount named nearby. "...and the 10x limit" after "above the 5x signal" shares that comparison; ", which is at least 200" right after a number refers to that number's field. A comparison that names no field is checked against the first field within tolerance of the number; with none it is unchecked as `no_field` and its reason unverifiable (a documented limit: "It is below the 10x limit" with no field in its sentence is never verified). Times of day ("10 p.m.", "6am", "10:30 pm", "22:00") are not free numbers: one is checked against an hour field (a key with the word hour, such as `hour` or `ts_hour`) named in its clause, or against the field of a `ValuePhrase` that matches it, and otherwise recorded in `unchecked` (never a failure); a window ("10 p.m. to 6 a.m.", "midnight-to-5 a.m.") is recorded as unchecked. `constants=[5, 10, 0.9]` declares policy thresholds: a number equal to one, with a threshold word next to it ("the 5x signal", "threshold of 0.9"), and not compared or claimed of a named field, is recorded in `unchecked` as a constant; a comparison ("below the 0.9 threshold") is always checked. Numbers after "rule", "clause" or "section" are ids, and ids glued to letters ("P7.1") are never numbers. `ignore=[regex, ...]` records the numbers inside matched spans as unchecked; it never hides a negation. A negation directly before a `holds` phrase ("not a first purchase at this merchant", "isn't at night") inverts the condition; any other negation earlier in the sentence makes it ambiguous (`ambiguous_negation`), as for comparisons (negations inside the phrase's own match, as in "never been used at this merchant", are its words). Details carry `unchecked` (text and kind: time, time_window, constant, id, ignored) next to `checks`, `failed` and `n_checked`. A percent compared with a field held as a fraction (|value| <= 1, e.g. `risk_score` 0.83) is read as a fraction, so "over 80%" passes and "at most 1%" fails. A field of the wrong type leaves its claim unchecked with reason `type_error:<field>`; `value_check` never raises on record contents. In `rule_compliance`, when the allow predicate reads a field (e.g. `action == "clear"`), a structured `label` that says clear does not override an answer JSON whose `action` says hold: the decision is read from the field the predicate names.
 
 ```python
 from evalkit.scorers import Rule, RuleSet, rule_compliance_scorer

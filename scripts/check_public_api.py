@@ -30,6 +30,7 @@ PUBLIC: dict[str, list[str]] = {
         "Rule",  # v0.3 (B5.13)
         "RuleError",  # v0.3 (B5.13)
         "RuleSet",  # v0.3 (B5.13)
+        "ValueCheckShares",  # v0.3 (B5.13, D-72)
         "ValuePhrase",  # v0.3 (B5.13)
         "answer_from_rows",  # v0.3 (B5.13)
         "clarification_rates",  # v0.3 (B5.13)
@@ -39,6 +40,7 @@ PUBLIC: dict[str, list[str]] = {
         "unsupported_numbers",  # v0.3 (B5.13)
         "value_check",  # v0.3 (B5.13)
         "value_check_scorer",  # v0.3 (B5.13)
+        "value_check_shares",  # v0.3 (B5.13, D-72)
     ],
     "evalkit.adapters": [
         "ALLOWED_PARAMS",

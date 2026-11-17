@@ -12,7 +12,8 @@ Copyright (c) 2026 Biplob Chakraborty, the same author) and general to any decis
   `hour < 5`) and every other number, within the displayed precision or a relative tolerance;
   a comparison against the field its clause names ("risk score is below 0.9"); times of day
   against a named hour field; declared policy constants and rule ids are recorded, not
-  checked.
+  checked. Each reason is `verified`, `contradicted` or `unverifiable` (D-72), and
+  `value_check_shares` gives each share across a run with its count and an exact interval.
 
 Templates read plain field names only; conditions use the RUL-01 predicate grammar. Nothing
 from a record, template, phrase or reason is ever executed.
@@ -23,14 +24,14 @@ from __future__ import annotations
 import bisect
 import math
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import model_validator
 
-from evalkit.schemas import Case, Completion
-from evalkit.schemas._base import Model, Name, NonBlank
+from evalkit.schemas import Case, Completion, Interval
+from evalkit.schemas._base import Model, Name, NonBlank, NonNegInt
 from evalkit.scorers.base import Scorer, ScoreResult
 from evalkit.scorers.rows import Number, extract_numbers
 from evalkit.scorers.rules import (
@@ -43,6 +44,7 @@ from evalkit.scorers.rules import (
     parse_predicate,
     register_task_scorer,
 )
+from evalkit.stats import clopper_pearson
 
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _SPEC = re.compile(r"[<>=^]?[+\- ]?#?0?[0-9]{0,3}[,_]?(?:\.[0-9]{1,3})?[eEfFgG%d]?")
@@ -233,8 +235,9 @@ _OP = {
 _NEGATE = {">": "<=", ">=": "<", "<": ">=", "<=": ">"}
 # Any negation word. One in the same sentence that is not directly before the comparison word
 # ("no doubt above $900", "not only above", "without exceeding", "not no more than") makes the
-# comparison ambiguous: the check then fails rather than guess (B5.13 verifier pass 5). False
-# claims never pass because of a negation; some true ones fail (documented limit).
+# comparison ambiguous: the check is then `ambiguous` rather than guessed (B5.13 verifier pass
+# 5), and its reason unverifiable, never verified (D-72). False claims never pass because of a
+# negation; some true ones cannot be verified (documented limit).
 _ANY_NEGATION = re.compile(
     r"(?:\b(?:not|no|non|never|nothing|none|nor|neither|without|cannot|no-one|nobody)\b"
     r"|n['’‘]t\b)",
@@ -645,16 +648,20 @@ def _value_check(
     kind: str,
     via: str | None = None,
 ) -> dict[str, Any]:
-    """A number checked as `op` against the field `name` (None: no field backs it)."""
+    """A number checked as `op` against the field `name` (None: no field backs it). A plain
+    number that no field backs is a mismatch (it fails); a comparison that no field backs has
+    no subject the record can settle ("below the 10x limit"): `no_field`, unverifiable."""
     check: dict[str, Any] = {"text": text, "kind": kind, "field": name, "op": op}
     if via is not None:
         check["via"] = via
     check["claimed"] = _claimed(n)
     if name is None:
+        if op in _NEGATE:
+            return {**check, "found": None, "ok": False, "reason": "no_field"}
         return {**check, "found": None, "ok": False}
     try:
         value = _numeric(record, name, where)
-    except RuleError:  # a field of the wrong type fails this claim; never raises
+    except RuleError:  # a field of the wrong type: unchecked (type_error); never raises
         return {**check, "found": None, "ok": False, "reason": f"type_error:{name}"}
     ok = value is not None and _finite(n) and _claim(n, op, value, tolerance)
     check.update(found=value, ok=ok)
@@ -892,7 +899,35 @@ def _check_reason(
     for c in checks:
         if c.get("op") == AMBIGUOUS and "reason" not in c:
             c["reason"] = "ambiguous_negation"
+        c["status"] = _status(c)
     return checks, unchecked
+
+
+Outcome = Literal["verified", "contradicted", "unverifiable"]
+OUTCOMES: tuple[Outcome, ...] = ("verified", "contradicted", "unverifiable")
+
+
+def _status(check: Mapping[str, Any]) -> str:
+    """ok; failed (false on a clear reading); ambiguous (a negation the reading cannot
+    settle); unchecked (the record cannot settle it: missing_value, type_error, or no_field,
+    a comparison whose subject is no field)."""
+    if check["ok"]:
+        return "ok"
+    why = check.get("reason") or ""
+    if why == "ambiguous_negation" or check.get("op") == AMBIGUOUS:
+        return "ambiguous"
+    if why == "no_field" or why.startswith(("missing_value:", "type_error:")):
+        return "unchecked"
+    return "failed"
+
+
+def _outcome(checks: Sequence[Mapping[str, Any]]) -> Outcome:
+    """D-72: contradicted when any check failed (even if others are ambiguous); verified when
+    there is at least one check and every one is ok; else unverifiable."""
+    statuses = {c["status"] for c in checks}
+    if "failed" in statuses:
+        return "contradicted"
+    return "verified" if statuses == {"ok"} else "unverifiable"
 
 
 def _comparison(text: str, read: _Text, start: int, end: int, *, time: bool = False) -> str:
@@ -965,10 +1000,17 @@ def value_check(
     constants: Sequence[float] = (),
     ignore: Sequence[str] = (),
 ) -> ScoreResult:
-    """Check every number and declared phrase in `reason` against `record`. 1.0 when nothing
-    fails (also when nothing was checkable), else 0.0. Details: `checks`, `failed` (the text of
-    each failed check), `n_checked`, and `unchecked` (times, windows, rule ids, constants and
-    ignored spans that were read but not checked; they never fail).
+    """Check every number and declared phrase in `reason` against `record`.
+
+    Outcome (D-72), in `details["outcome"]`: `contradicted` when any check failed on a clear
+    reading (a false claim, even if other checks are ambiguous); `verified` when there is at
+    least one check and every check is ok; else `unverifiable` (an ambiguous or unchecked
+    check, or nothing checkable). The value is 1.0 only when verified, else 0.0. Each check
+    carries `status`: `ok`, `failed`, `ambiguous` (`ambiguous_negation`) or `unchecked`
+    (`missing_value:<field>`, `type_error:<field>`). Details also hold `checks`, `failed` (the
+    text of each failed check), `unverified` (the text of each ambiguous or unchecked check),
+    `n_checked`, and `unchecked` (times, windows, rule ids, constants and ignored spans that
+    were read but not checked; they never contradict).
 
     A number written with a minus must match a negative value; an unsigned number ("fell
     0.83") is compared with the value's magnitude. A comparison ("risk score is below 0.9",
@@ -978,8 +1020,8 @@ def value_check(
     first. A multiple ("5x", "5 times") names only a ratio field ("amt_vs_usual"). "...and the
     10x limit" after "above the 5x signal" shares its comparison; ", which is at least 200"
     refers to the number before it. A comparison naming no field is checked against the
-    first field within tolerance, and fails when there is none. A plain number passes when a
-    field equals it within the displayed precision or `tolerance`.
+    first field within tolerance; with none it is unchecked (`no_field`). A plain number is
+    ok when a field equals it within the displayed precision or `tolerance`, else failed.
 
     Times of day ("10 p.m.", "6am", "22:00") are not free numbers: one is checked against an
     hour field (a key with the word "hour") named in its clause, else recorded as unchecked;
@@ -992,8 +1034,9 @@ def value_check(
 
     A negation directly before a comparison or a condition phrase inverts it ("not above 900",
     "not a first purchase at this merchant"); any other negation earlier in the same sentence
-    makes the check fail as `ambiguous_negation`. A field the record lacks, or a missing
-    value, fails the claim that needs it, with `reason` `missing_value:<field>`."""
+    makes the check `ambiguous` (`reason` `ambiguous_negation`). A field the record lacks, or a
+    missing value, leaves the claim that needs it `unchecked`, with `reason`
+    `missing_value:<field>`; neither is ever verified."""
     if not 0 <= tolerance < 1:
         raise ValueError("tolerance must be in [0, 1)")
     opts = _options(aliases, constants, ignore)
@@ -1004,12 +1047,14 @@ def value_check(
 
 
 def _result(checks: list[dict[str, Any]], unchecked: list[dict[str, Any]]) -> ScoreResult:
-    failed = [c["text"] for c in checks if not c["ok"]]
+    outcome = _outcome(checks)
     return ScoreResult(
-        value=0.0 if failed else 1.0,
+        value=1.0 if outcome == "verified" else 0.0,
         details={
+            "outcome": outcome,
             "checks": checks,
-            "failed": failed,
+            "failed": [c["text"] for c in checks if c["status"] == "failed"],
+            "unverified": [c["text"] for c in checks if c["status"] in ("ambiguous", "unchecked")],
             "n_checked": len(checks),
             "unchecked": unchecked,
         },
@@ -1030,7 +1075,15 @@ def value_check_scorer(
     """Register a task scorer that runs `value_check` on each record: the record from
     `case.meta[record_key]`, each string in the `reasons` list of a JSON-object answer (else
     the answer text). Each check and unchecked entry carries `reason_index`, the position of
-    its reason. A failed call scores 0.0."""
+    its reason.
+
+    Each reason gets its own `value_check` outcome, listed in `details["reasons"]` (index,
+    outcome, n_checked), counted in `counts` and divided by `n_reasons` in `shares` (None with
+    no reasons). The case's `outcome` is contradicted when any reason is, verified when every
+    reason is (at least one), else unverifiable; the value is 1.0 only when the case is
+    verified, else 0.0, so a run's mean is the share of cases whose every reason was verified.
+    `value_check_shares` turns the results into per-reason shares across a run. A failed call
+    scores 0.0 with no outcome."""
     if not 0 <= tolerance < 1:
         raise ValueError("tolerance must be in [0, 1)")
     fixed = tuple(phrases)
@@ -1047,6 +1100,7 @@ def value_check_scorer(
             reasons = [completion.answer.answer]
         checks: list[dict[str, Any]] = []
         unchecked: list[dict[str, Any]] = []
+        per_reason: list[dict[str, Any]] = []
         for k, reason in enumerate(reasons):
             got, skipped = _check_reason(
                 reason, record, fixed, tolerance, aliases=al, constants=consts, ignore=patterns
@@ -1054,7 +1108,76 @@ def value_check_scorer(
             # a check's own `reason` (missing_value, type_error, ambiguous_negation) is kept
             checks += [{**c, "reason_index": k} for c in got]
             unchecked += [{**c, "reason_index": k} for c in skipped]
-        return _result(checks, unchecked)
+            per_reason.append({"index": k, "outcome": _outcome(got), "n_checked": len(got)})
+        counts = {o: sum(r["outcome"] == o for r in per_reason) for o in OUTCOMES}
+        n = len(per_reason)
+        outcome: Outcome = "unverifiable"
+        if counts["contradicted"]:
+            outcome = "contradicted"
+        elif n and counts["verified"] == n:
+            outcome = "verified"
+        details = dict(_result(checks, unchecked).details)
+        details |= {
+            "outcome": outcome,
+            "reasons": per_reason,
+            "n_reasons": n,
+            "counts": counts,
+            "shares": {o: counts[o] / n for o in OUTCOMES} if n else None,
+        }
+        return ScoreResult(value=1.0 if outcome == "verified" else 0.0, details=details)
 
     run.__doc__ = value_check_scorer.__doc__
     return register_task_scorer(run, name, version)
+
+
+class ValueCheckShares(Model):
+    """Per-reason value_check outcomes across a run (D-72): each count and its share."""
+
+    n_reasons: NonNegInt
+    verified: NonNegInt
+    contradicted: NonNegInt
+    unverifiable: NonNegInt
+    nothing_checked: NonNegInt  # the unverifiable reasons with no check at all
+    n_skipped: NonNegInt  # results with no value_check outcome (a failed call)
+    verified_share: Interval | None  # None when there are no reasons
+    contradicted_share: Interval | None
+    unverifiable_share: Interval | None
+    method: Literal["clopper-pearson"] = "clopper-pearson"
+
+
+def value_check_shares(results: Iterable[ScoreResult], *, alpha: float = 0.05) -> ValueCheckShares:
+    """Count the reasons in `value_check` or `value_check_scorer` results by outcome; each
+    share of all reasons gets a (1 - alpha) Clopper-Pearson interval. A result without an
+    outcome (a failed call) is counted in `n_skipped`."""
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be in (0, 1)")
+    counts: dict[str, int] = dict.fromkeys(OUTCOMES, 0)
+    nothing = skipped = 0
+    for r in results:
+        d: Mapping[str, Any] = r.details
+        if "reasons" in d:  # a value_check_scorer result: one row per reason
+            rows: Sequence[Mapping[str, Any]] = d["reasons"]
+        elif "outcome" in d:  # one value_check result
+            rows = [{"outcome": d["outcome"], "n_checked": d["n_checked"]}]
+        else:
+            skipped += 1
+            continue
+        for row in rows:
+            outcome = row["outcome"]
+            if outcome not in counts:
+                raise ValueError(f"unknown value_check outcome {outcome!r}")
+            counts[outcome] += 1
+            nothing += outcome == "unverifiable" and row["n_checked"] == 0
+    n = sum(counts.values())
+    share = {o: clopper_pearson(counts[o], n, alpha) if n else None for o in OUTCOMES}
+    return ValueCheckShares(
+        n_reasons=n,
+        verified=counts["verified"],
+        contradicted=counts["contradicted"],
+        unverifiable=counts["unverifiable"],
+        nothing_checked=nothing,
+        n_skipped=skipped,
+        verified_share=share["verified"],
+        contradicted_share=share["contradicted"],
+        unverifiable_share=share["unverifiable"],
+    )
