@@ -13,6 +13,8 @@ import random
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
+__all__ = ["with_retries"]  # public since 0.3.0
+
 T = TypeVar("T")
 RETRY_STATUS = frozenset({408, 409, 429})
 TRANSIENT_NAMES = frozenset(

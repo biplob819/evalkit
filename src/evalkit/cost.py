@@ -16,6 +16,8 @@ from pydantic import Field
 from evalkit.schemas import RunConfig
 from evalkit.schemas._base import Model, Name, NonNegFloat, NonNegInt
 
+__all__ = ["Price", "call_cost", "estimate_tokens", "load_prices"]  # public since 0.3.0
+
 PRICES_YAML = Path(__file__).with_name("prices.yaml")
 PER_M = 1_000_000
 
