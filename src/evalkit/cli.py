@@ -1,4 +1,5 @@
-"""Command-line interface (B2.2): `evalkit run`, `evalkit calibrate`, `evalkit report`.
+"""Command-line interface (B2.2): `evalkit run`, `evalkit calibrate`, `evalkit report`,
+`evalkit gate` (B5.3).
 
 stdlib argparse keeps the install light. Exit codes (Tech Spec §4, OWNER D-44): 0 every
 threshold passed, 1 a threshold failed, 2 configuration or runtime error, 3 stopped at the
@@ -35,6 +36,14 @@ EXIT_CODES = """exit codes:
   3  stopped at the cost cap (completed work is cached; resume with the same command)
   4  judging pending (rerun the same command to collect, at no extra cost); for agent-run,
      trials interrupted by provider failures (rerun the same command to finish them)"""
+
+GATE_EXIT_CODES = """exit codes (precedence 2 > 3 > 4 > 1 > 0):
+  0  every fail gate holds (warn gates may fail; they are listed)
+  1  a fail gate fails
+  2  bad input: unreadable file, schema error, unknown metric, a gate matching nothing,
+     a bound without an interval, a value outside its unit's domain
+  3  an EvalKit summary from a run stopped at its cost cap
+  4  an EvalKit summary with judging pending"""
 
 _JSON_MODE = False
 
@@ -618,6 +627,37 @@ def cmd_demo_cache(args: argparse.Namespace) -> int:
     return 3 if stopped else 0
 
 
+def cmd_gate(args: argparse.Namespace) -> int:
+    """B5.3: gate a metrics-1 file or an EvalKit summary.json. No model call, no network.
+    gate.json is written on every exit path, including exit 2 (GAT-09)."""
+    from evalkit.gates import EXIT_INPUT, GateReport, render_text, report_json, run_gate
+
+    try:
+        report = run_gate(Path(args.summary), Path(args.config) if args.config else None)
+    except Exception as exc:  # still a gate.json, with the error (never an echo of the input)
+        report = GateReport(
+            EXIT_INPUT,
+            "error",
+            None,
+            errors=[f"unexpected {type(exc).__name__}"],
+            source={"path": str(args.summary)},
+        )
+    out = Path(args.out)
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        tmp = out.with_name(f".{out.name}.tmp")
+        tmp.write_text(report_json(report), encoding="utf-8", newline="\n")
+        tmp.replace(out)
+    except OSError as exc:
+        report.errors.append(f"cannot write {out}: {type(exc).__name__}")
+        report.exit_code, report.verdict = EXIT_INPUT, "error"
+    if args.json:
+        print(report_json(report), end="")
+    else:
+        print(render_text(report) + f"\ngate.json: {out}")
+    return report.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="evalkit",
@@ -748,6 +788,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     doc.add_argument("--json", action="store_true", help="print one JSON object")
     doc.set_defaults(func=cmd_doctor)
+
+    g = sub.add_parser(
+        "gate",
+        help="gate a metrics-1 file or summary.json on any metric (no model calls)",
+        epilog=GATE_EXIT_CODES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    g.add_argument("summary", help="a metrics-1 JSON file or an EvalKit summary.json")
+    g.add_argument(
+        "--config",
+        default=None,
+        help="gates YAML (default for an EvalKit summary: every model passes its thresholds)",
+    )
+    g.add_argument("--out", default="gate.json", help="where to write gate.json (default ./)")
+    g.add_argument("--json", action="store_true", help="print the gate.json object")
+    g.set_defaults(func=cmd_gate)
     return p
 
 

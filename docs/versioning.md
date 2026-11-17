@@ -27,7 +27,9 @@ listing exactly these in its `__all__` (its other names stay internal):
 - **`evalkit.cost`** (since 0.3.0): `Price`, `load_prices`, `call_cost`, `estimate_tokens`.
 - **`evalkit.retry`** (since 0.3.0): `with_retries`.
 - **`evalkit.stats`** (since 0.3.0): `Resamples`, `interval`, `paired`, `holm`,
-  `percentile_ms`.
+  `percentile_ms`; and (B5.3) `clopper_pearson`, `rate_wording`.
+- **`evalkit.metrics`** and **`evalkit.gates`** (since 0.3.0, B5.3): every name in their
+  `__all__` (the `metrics-1` format and `evalkit gate`; see [gates.md](gates.md)).
 - **`evalkit.scorers.faithfulness`** (since 0.3.0): `faithfulness`, `FaithfulnessItem`,
   `FaithfulnessResult`, `JudgedClaim`. Import them from this module; they are not
   re-exported from `evalkit.scorers`.
@@ -58,6 +60,12 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 - `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer`, `render_evidence`, `ValuePhrase`, `value_check`, `value_check_scorer` (B5.13, D-65).
 - `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 
+- The `evalkit gate` command (B5.3, D-62..D-65), with a summary file and the options `--config`, `--json` and `--out`: gates on any named metric from a `metrics-1` file or an EvalKit `summary.json`; exit codes 0/1/2/3/4 with precedence 2 > 3 > 4 > 1 > 0; no model or network call. See [gates.md](gates.md).
+- `evalkit.metrics` (B5.3): the frozen `metrics-1` format (`MetricsSummary`, `Metric`, `Provenance`, `parse_metrics`, `load_metrics`, `MetricsError`, `SCHEMA`), the standard efficiency names (`EFFICIENCY_NAMES`, D-67), `from_run_summary` and `efficiency_metrics`, and `safe_text`.
+- `evalkit.gates` (B5.3): `Gate`, `GatesFile`, `parse_gates`, `load_gates`, `evaluate`, `run_gate`, `GateReport`, `GateRow`, `RunStatus`, `disparity_gap`, `render_text`, the input-classes table `INPUTS` and the exit-code constants.
+- `evalkit.stats.clopper_pearson` and `evalkit.stats.rate_wording` (B5.3, GAT-07): exact binomial intervals and the "0 of n, below X% at 95%" wording.
+- The run report gains an Efficiency section (cost per case and per correct, latency p50/p95/p99 with seeded 95% bootstrap intervals, tokens per case, error rate); `summary.json` is unchanged. `run.json` gains `stopped_at_cost_cap`, written only when a run stops at its cap (omitted otherwise, so run folders keep their bytes).
+
 ## 0.4.0 additions (on main ahead of the release)
 
 - `evalkit.heldout` (B5.14, D-65): held-out manifest of hashes and counts, score-once guard, exposure scan and hash-chained append-only log; `python -m evalkit.heldout manifest|verify|scan|verify-log` (exit codes 0, 1, 2). See [heldout.md](heldout.md).
@@ -85,7 +93,8 @@ v0.1 runs whose tasks name only the six benchmark scorers are byte-identical und
 ## 0.2 → 0.3 migration
 
 Nothing breaks in 0.3: every named import that worked in 0.2 still works (`from x import *` is narrower: modules that gained an `__all__` — `cost`, `stats`, `retry`, `scorers.faithfulness` — export only their public names, and `pipeline.calibrate` no longer exports `cluster_kappa` or `kappa_from` by `*`; no registered project uses `*`), and run outputs (summaries,
-records, reports, cache keys) are byte-identical. Some imports change home
+records, cache keys) are byte-identical. Reports gain an efficiency section (D-67, B5.3) and
+runs stopped at the cost cap record `stopped_at_cost_cap` in `run.json`; nothing else in a report changes. Some imports change home
 (`python scripts/downstream_imports.py <checkout>` lists yours as `public-elsewhere`):
 
 | 0.2 import | 0.3 public import | Old path |
