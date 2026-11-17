@@ -109,6 +109,52 @@ def _ms(v: int | None) -> str:
     return "—" if v is None else f"{v:,} ms"
 
 
+def _efficiency(records: Sequence[Record]) -> str:
+    """Per-model efficiency block (B5.3, EFF-02, spec §1b) from the run's records: cost per
+    case and per correct answer and latency p50/p95/p99, each with a seeded 95% bootstrap
+    interval over cases; token means per case and the error rate (k of n)."""
+    if not records:
+        return ""
+    from evalkit.metrics import efficiency_metrics
+    from evalkit.stats import rate_wording
+
+    by: dict[str, dict[str, Any]] = {}
+    for m in efficiency_metrics(records):
+        by.setdefault(str(m.labels["model"]), {})[m.name] = m
+
+    def ci(m: Any, fmt: Any) -> str:
+        if m is None:
+            return "—"
+        if m.ci_low is None:
+            return fmt(m.value)
+        return f"{fmt(m.value)} <span class=muted>({fmt(m.ci_low)} to {fmt(m.ci_high)})</span>"
+
+    def ms(v: float) -> str:
+        return f"{round(v):,} ms"
+
+    rows = []
+    for model, ms_ in by.items():
+        err = ms_["error_rate"]
+        lat = " / ".join(ci(ms_.get(f"latency_p{q}"), ms) for q in (50, 95, 99))
+        tokens = f"{ms_['tokens_in_per_case'].value:,.0f} / {ms_['tokens_out_per_case'].value:,.0f}"
+        rows.append(
+            f"<tr><th scope=row>{escape(model)}</th>"
+            f"<td>{ci(ms_.get('cost_per_case'), money)}</td>"
+            f"<td>{ci(ms_.get('cost_per_correct'), money)}</td>"
+            f"<td>{lat}</td><td>{tokens}</td>"
+            f"<td>{escape(rate_wording(err.k, err.n))}</td></tr>"
+        )
+    return (
+        "<h2 id=eff-h>Efficiency</h2><div class=card><table id=efficiency><caption>Per model, "
+        "generation calls (live). 95% bootstrap intervals over cases, seeded.</caption><thead><tr>"
+        "<th scope=col>Model</th><th scope=col>Cost per case</th>"
+        "<th scope=col>Cost per correct</th><th scope=col>Latency p50 / p95 / p99</th>"
+        "<th scope=col>Tokens in / out per case</th><th scope=col>Errors</th></tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table></div>"
+    )
+
+
 def _p(p: float) -> str:
     return "&lt;0.001" if p < 0.001 else f"{p:.3f}"
 
@@ -455,6 +501,7 @@ def render_report(
         f"<h1>{escape(summary.task)} · run {escape(summary.run_id)}</h1>{meta}{stamp_html}"
         f"<h2 id=headline>Headline</h2>{headline}"
         f"<h2 id=models-h>Models</h2><div class=card>{_model_table(summary)}</div>"
+        f"{_efficiency(records)}"
         f"{_slices(summary)}"
         f"<h2 id=pairs-h>Pairwise comparisons</h2><div class=card>{_pairs_table(summary)}</div>"
         f"<h2 id=cal-h>Judge calibration</h2><div class=card>"

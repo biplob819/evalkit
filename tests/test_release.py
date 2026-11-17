@@ -77,6 +77,7 @@ NOT_RUN_HERE = {
     "calibrate score": "needs human labels: tests/golden test_golden_calibration_end_to_end",
     "report --publish": "needs a calibrated run: tests/report/test_readme.py",
     "--version": "tests/test_cli.py",
+    "gate ": "needs a metrics-1 file or a finished run: tests/test_gates.py",
 }
 
 

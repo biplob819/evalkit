@@ -46,7 +46,22 @@ jobs:
       - name: Estimate
         run: evalkit run evalkit.yaml --task "$TASK" --n "$N" --dry-run
       - name: Evaluate (fails the job when a threshold fails)
+        id: evaluate
         run: evalkit run evalkit.yaml --task "$TASK" --n "$N" --wait 45 --out runs
+      # Release gate (docs/gates.md): no model calls, no keys. With gates.yaml in the repository
+      # it checks those gates; without one, every model must pass its thresholds. It writes
+      # gate.json on every exit path (0 pass, 1 a fail gate failed, 2 bad input, 3 cost cap,
+      # 4 judging pending). A project that does not use `evalkit run` can gate its own
+      # metrics-1 file the same way: evalkit gate results/metrics.json --config gates.yaml
+      - name: Gate the release
+        if: always() && steps.evaluate.outcome != 'skipped'
+        run: |
+          summary=$(ls -t runs/*/summary.json | head -n 1)
+          if [ -f gates.yaml ]; then
+            evalkit gate "$summary" --config gates.yaml --out gate.json
+          else
+            evalkit gate "$summary" --out gate.json
+          fi
       - name: Save the cache and run folders, pass or fail
         if: always()
         uses: actions/cache/save@v4

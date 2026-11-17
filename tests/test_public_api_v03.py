@@ -44,6 +44,9 @@ COMPANIONS = {
     "evalkit.calibration.AgreementTable",
     "evalkit.calibration.agreement_table",  # PUB-04, asked for by its owner (D-65)
     "evalkit.identity.EXTRACTOR_VERSION",
+    # B5.3 (GAT-07, D-64): new capabilities in a public module, not promotions (D-62)
+    "evalkit.stats.clopper_pearson",
+    "evalkit.stats.rate_wording",
 }
 
 

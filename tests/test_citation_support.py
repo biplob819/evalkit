@@ -355,7 +355,7 @@ BEFORE = {
         "config_hash": "b575b3c6437d81c9",
         "records.jsonl": "0e6a06998620cb43",
         "summary.json": "799a81349c3c967b",
-        "report.html": "025a60d9cebf1d76",
+        "report.html": "2df7f66fc596a663",  # B5.3: + Efficiency section (was 025a60d9cebf1d76)
         "run.json": "ca541de96c8854f1",
     },
     "loc.yaml": {
@@ -363,7 +363,7 @@ BEFORE = {
         "config_hash": "b575b3c6437d81c9",
         "records.jsonl": "f6972a7f9d9c2e07",
         "summary.json": "ba6f73735b4d229b",
-        "report.html": "d8d13a8d628ec17b",
+        "report.html": "481552c97b673f21",  # B5.3: + Efficiency section (was d8d13a8d628ec17b)
         "run.json": "013702511c8c2d49",
     },
 }

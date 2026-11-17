@@ -104,7 +104,15 @@ PUBLIC: dict[str, list[str]] = {
         "JudgedClaim",
         "faithfulness",
     ],
-    "evalkit.stats": ["Resamples", "holm", "interval", "paired", "percentile_ms"],
+    "evalkit.stats": [
+        "Resamples",
+        "holm",
+        "interval",
+        "paired",
+        "percentile_ms",
+        "clopper_pearson",  # v0.3 (B5.3, GAT-07)
+        "rate_wording",  # v0.3 (B5.3, GAT-07)
+    ],
     "evalkit.heldout": [  # B5.14 (v0.4): held-out manifest, score once, exposure scan, log
         "GENESIS",
         "AlreadyScored",
@@ -131,6 +139,38 @@ PUBLIC: dict[str, list[str]] = {
         "tracked_files",
         "verify_manifest",
         "write_manifest",
+    ],
+    "evalkit.metrics": [  # v0.3 (B5.3): the metrics-1 format and EvalKit's summary in it
+        "EFFICIENCY_NAMES",
+        "SCHEMA",
+        "Metric",
+        "MetricsError",
+        "MetricsSummary",
+        "Provenance",
+        "efficiency_metrics",
+        "from_run_summary",
+        "load_metrics",
+        "parse_metrics",
+        "safe_text",
+    ],
+    "evalkit.gates": [  # v0.3 (B5.3): gates on any metric, `evalkit gate`
+        "EXIT_COST_CAP",
+        "EXIT_FAIL",
+        "EXIT_INPUT",
+        "EXIT_PASS",
+        "EXIT_PENDING",
+        "INPUTS",
+        "Gate",
+        "GateReport",
+        "GateRow",
+        "GatesFile",
+        "RunStatus",
+        "disparity_gap",
+        "evaluate",
+        "load_gates",
+        "parse_gates",
+        "render_text",
+        "run_gate",
     ],
 }
 
@@ -191,6 +231,7 @@ CLI: dict[str, set[str]] = {
     "report": {"run_dir", "--example", "--out", "--publish", "--json"},
     "init": {"dir", "--force", "--json"},
     "doctor": {"--offline", "--store", "--config", "--json"},
+    "gate": {"summary", "--config", "--json", "--out"},  # v0.3 (B5.3)
 }
 EXIT_CODES = {"0", "1", "2", "3", "4", "130"}
 

@@ -14,7 +14,15 @@ from typing import TypeVar
 
 from evalkit.schemas import Interval
 
-__all__ = ["Resamples", "holm", "interval", "paired", "percentile_ms"]  # public since 0.3.0
+__all__ = [  # public since 0.3.0
+    "Resamples",
+    "clopper_pearson",  # 0.3.0 (B5.3, GAT-07)
+    "holm",
+    "interval",
+    "paired",
+    "percentile_ms",
+    "rate_wording",  # 0.3.0 (B5.3, GAT-07)
+]
 
 ALPHA = 0.05
 K = TypeVar("K", bound=Hashable)
@@ -140,3 +148,112 @@ def percentile_ms(values: Sequence[int], q: float) -> int:
     xs = sorted(values)
     rank = max(1, math.ceil(q * len(xs)))
     return xs[rank - 1]
+
+
+# ---- exact binomial intervals (B5.3, GAT-07, OWNER D-64) ---------------------------------------
+
+
+def _betacf(a: float, b: float, x: float) -> float:
+    """Continued fraction for the regularized incomplete beta (modified Lentz)."""
+    tiny = 1e-300
+    qab, qap, qam = a + b, a + 1.0, a - 1.0
+    c = 1.0
+    d = 1.0 - qab * x / qap
+    d = 1.0 / (d if abs(d) > tiny else tiny)
+    h = d
+    for m in range(1, 1000):
+        m2 = 2 * m
+        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
+        d = 1.0 + aa * d
+        d = 1.0 / (d if abs(d) > tiny else tiny)
+        c = 1.0 + aa / c
+        c = c if abs(c) > tiny else tiny
+        h *= d * c
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
+        d = 1.0 + aa * d
+        d = 1.0 / (d if abs(d) > tiny else tiny)
+        c = 1.0 + aa / c
+        c = c if abs(c) > tiny else tiny
+        step = d * c
+        h *= step
+        if abs(step - 1.0) < 1e-16:
+            break
+    return h
+
+
+def _betainc(a: float, b: float, x: float) -> float:
+    """Regularized incomplete beta I_x(a, b) for a, b > 0."""
+    if x <= 0.0:
+        return 0.0
+    if x >= 1.0:
+        return 1.0
+    log_front = (
+        math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log1p(-x)
+    )
+    front = math.exp(log_front)
+    if x < (a + 1.0) / (a + b + 2.0):
+        return front * _betacf(a, b, x) / a
+    return 1.0 - front * _betacf(b, a, 1.0 - x) / b
+
+
+def _beta_quantile(q: float, a: float, b: float) -> float:
+    """The x in [0, 1] with I_x(a, b) = q, by bisection (I_x is increasing in x)."""
+    lo, hi = 0.0, 1.0
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        if mid in (lo, hi):
+            break
+        if _betainc(a, b, mid) < q:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def _check_counts(k: int, n: int, alpha: float) -> None:
+    for name, v in (("k", k), ("n", n)):
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise TypeError(f"{name} must be an integer, got {type(v).__name__}")
+    if n < 1:
+        raise ValueError("an exact interval needs n >= 1")
+    if not 0 <= k <= n:
+        raise ValueError(f"need 0 <= k <= n, got k={k}, n={n}")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+
+
+def clopper_pearson(k: int, n: int, alpha: float = ALPHA) -> Interval:
+    """Exact (Clopper-Pearson) 1 - alpha interval for k successes in n trials, point k / n.
+
+    Convention (GAT-07, OWNER D-64): at k = 0 the lower bound is fixed at 0, so the whole alpha
+    goes to the upper side: upper = 1 - alpha**(1/n) (n = 150: 0.0198). At k = n, symmetrically,
+    lower = alpha**(1/n). Otherwise the tails are equal (alpha/2 each) and the bounds are beta
+    quantiles: lower = B(alpha/2; k, n-k+1), upper = B(1-alpha/2; k+1, n-k) (n = 150, k = 1:
+    0.0365). The beta quantile is found by bisection on the regularized incomplete beta."""
+    _check_counts(k, n, alpha)
+    if k == 0:
+        lo, hi = 0.0, 1.0 - alpha ** (1.0 / n)
+    elif k == n:
+        lo, hi = alpha ** (1.0 / n), 1.0
+    else:
+        lo = _beta_quantile(alpha / 2, k, n - k + 1)
+        hi = _beta_quantile(1 - alpha / 2, k + 1, n - k)
+    point = k / n
+    return Interval(point=point, lo=min(lo, point), hi=max(hi, point))
+
+
+def _pct(x: float) -> str:
+    return f"{x * 100:.3g}%"
+
+
+def rate_wording(k: int, n: int, alpha: float = ALPHA) -> str:
+    """How a report states k of n with its exact interval. Zero is never written as "0%":
+    `0 of 150, below 1.98% at 95%`; `150 of 150, above 98% at 95%`; otherwise
+    `1 of 150 (0.667%, 95% CI 0.0169%–3.65%)`."""
+    iv = clopper_pearson(k, n, alpha)
+    level = f"{(1 - alpha) * 100:g}%"
+    if k == 0:
+        return f"0 of {n}, below {_pct(iv.hi)} at {level}"
+    if k == n:
+        return f"{n} of {n}, above {_pct(iv.lo)} at {level}"
+    return f"{k} of {n} ({_pct(iv.point)}, {level} CI {_pct(iv.lo)}–{_pct(iv.hi)})"

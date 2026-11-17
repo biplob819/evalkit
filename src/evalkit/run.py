@@ -57,7 +57,7 @@ from evalkit.pipeline.task_scorers import (
     wants_citation_support,
 )
 from evalkit.report import write_report
-from evalkit.runtime import Executor, Store
+from evalkit.runtime import BudgetExceeded, Executor, Store
 from evalkit.runtime.canonical import sha256_hex
 from evalkit.sampling import stratified_sample
 from evalkit.schemas import Case, Record, RunConfig, RunSummary, TaskConfig
@@ -97,8 +97,11 @@ class RunManifest(Model):
     finished_at: Timestamp | None = None
     spent_usd: float = 0.0  # all real spend on this run folder, across resumes (cap is total)
     slices: tuple[NonBlank, ...] = ()  # v0.2: the task's slice fields, for re-aggregation
+    # B5.3: the last invocation stopped at the cost cap (cleared by the next one); `evalkit
+    # gate` exits 3 on this run's summary. Omitted while false, so run.json keeps its bytes.
+    stopped_at_cost_cap: bool = False
 
-    _omit_if_default: ClassVar[tuple[str, ...]] = ("slices",)
+    _omit_if_default: ClassVar[tuple[str, ...]] = ("slices", "stopped_at_cost_cap")
 
 
 @dataclass(frozen=True)
@@ -520,19 +523,23 @@ async def execute(
     )
     _atomic_write(run_dir / "run.json", manifest.model_dump_json(indent=2) + "\n")
     _atomic_write(run_dir / "cases.jsonl", _jsonl(plan.cases))
+    stopped = False
     try:
         return await _graph(
             plan, manifest, ex, adapters, prices, selection, say, wait_s, live_judges, now
         )
+    except BudgetExceeded:
+        stopped = True
+        raise
     finally:
-        if ex.spent_usd:  # persist new spend even when the run stops at the cap or fails
+        if ex.spent_usd or stopped:  # persist new spend even when the run stops or fails
             latest = read_manifest(run_dir)
+            update: dict[str, Any] = {"spent_usd": spent_before + ex.spent_usd}
+            if stopped:
+                update["stopped_at_cost_cap"] = True
             _atomic_write(
                 run_dir / "run.json",
-                latest.model_copy(
-                    update={"spent_usd": spent_before + ex.spent_usd}
-                ).model_dump_json(indent=2)
-                + "\n",
+                latest.model_copy(update=update).model_dump_json(indent=2) + "\n",
             )
 
 
