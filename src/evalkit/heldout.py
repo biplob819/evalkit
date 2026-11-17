@@ -25,13 +25,17 @@ release gate (its D-54, D-55, D-57, D-59) and assay-pipeline's held-out manifest
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import hashlib
+import html
 import json
 import math
+import os
 import re
 import subprocess
 import sys
+import time
 import unicodedata
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -96,8 +100,9 @@ def _canonical(obj: Any) -> str:
 
 
 def case_id_hash(case_id: str) -> str:
-    """sha256 hex of a case id."""
-    return _sha(str(case_id))
+    """sha256 hex of a case id, after Unicode NFC normalisation (so an id typed precomposed
+    and the same id typed decomposed are one case). ASCII ids are unchanged by NFC."""
+    return _sha(unicodedata.normalize("NFC", str(case_id)))
 
 
 def manifest_id(case_id: str) -> str:
@@ -108,8 +113,12 @@ def manifest_id(case_id: str) -> str:
 def content_hash(case: Mapping[str, Any], *, id_field: str = "id") -> str:
     """sha256 of the case without its id, as canonical JSON (sorted keys, compact, ASCII;
     non-JSON scalars such as YAML dates as `str`). The id is pinned by its own hash, so the
-    same case under another id is still recognised."""
-    return _sha(_canonical({k: v for k, v in case.items() if k != id_field}))
+    same case under another id is still recognised. Raises `HeldoutError` for a case that has
+    no canonical form (keys of mixed types, a self-referencing value)."""
+    try:
+        return _sha(_canonical({k: v for k, v in case.items() if k != id_field}))
+    except (TypeError, ValueError, RecursionError):  # the message may quote the case
+        raise HeldoutError("a case has keys of mixed types or a self-referencing value") from None
 
 
 def _rows_of(data: Any, id_field: str) -> list[Any]:
@@ -160,6 +169,12 @@ def _load_file(path: Path, id_field: str) -> list[dict[str, Any]]:
         value = row.get(id_field)
         if not isinstance(value, str | int) or isinstance(value, bool) or not str(value).strip():
             raise HeldoutError(f"{path.name} {at} has no {id_field!r}")
+        try:
+            content_hash(row, id_field=id_field)
+        except HeldoutError:
+            raise HeldoutError(
+                f"{path.name} {at} has keys of mixed types or a self-referencing value"
+            ) from None
         out.append(dict(row))
     return out
 
@@ -332,6 +347,8 @@ def split_aggregate(
 
     want = _split_ids(manifest, split)
     by_hash = {case_id_hash(str(k)): v for k, v in values.items()}
+    if len(by_hash) != len(values):
+        raise HeldoutError("two values are for the same case id (after NFC normalisation)")
     stray = [h for h in by_hash if h not in want]
     if stray:
         raise HeldoutError(f"{len(stray)} value(s) are for cases outside split {split}")
@@ -371,6 +388,40 @@ def ids_in_text(text: str, manifest: Mapping[str, Any], *, split: str = "heldout
 
 # =============================== HLD-04 tamper-evident log ===============================
 
+_RUBRIC = re.compile(r"[0-9a-z][0-9a-z._:+-]{0,127}")
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+LOCK_TIMEOUT = 60.0  # seconds to wait for another writer's lock on the log
+
+
+def _rubric(value: Any) -> str:
+    """A rubric hash, stripped and lowercased: 1 to 128 ASCII letters, digits or `._:+-`,
+    starting with a letter or digit (a hex digest, `sha256:<hex>`, or a name such as
+    `groundedness-v3`)."""
+    if not isinstance(value, str) or not value.strip():
+        raise HeldoutError("a scoring needs a non-blank rubric hash")
+    norm = value.strip().lower()
+    if not _RUBRIC.fullmatch(norm):
+        raise HeldoutError(
+            "a rubric hash is 1 to 128 ASCII letters, digits or ._:+- starting with a "
+            f"letter or digit ({len(norm)} character(s) given)"
+        )
+    return norm
+
+
+def _case_ids(case_ids: Any) -> list[str]:
+    """Case ids as strings; a bare string (whose characters would each become an id) and any
+    id that is not a string or an integer are refused."""
+    if isinstance(case_ids, str | bytes | bytearray):
+        raise HeldoutError("case_ids must be a collection of ids, not a single string")
+    try:
+        items = list(case_ids)
+    except TypeError:
+        raise HeldoutError("case_ids must be an iterable of ids") from None
+    for i in items:
+        if isinstance(i, bool) or not isinstance(i, str | int):
+            raise HeldoutError("each case id must be a string or an integer")
+    return [str(i) for i in items]
+
 
 def _lines(path: Path) -> list[str]:
     raw = path.read_bytes().decode("utf-8", errors="replace").replace("\r\n", "\n")
@@ -395,11 +446,49 @@ def read_log(path: str | Path) -> list[dict[str, Any]]:
     return out
 
 
+def _scoring_shape_ok(row: Mapping[str, Any]) -> bool:
+    rubric, hashes = row.get("rubric_hash"), row.get("case_id_sha256")
+    return (
+        isinstance(rubric, str)
+        and bool(rubric.strip())
+        and isinstance(hashes, list)
+        and bool(hashes)
+        and all(isinstance(h, str) and _HEX64.fullmatch(h) for h in hashes)
+    )
+
+
+def _rescored(
+    rows: Iterable[Mapping[str, Any]],
+) -> Iterator[tuple[int, Mapping[str, Any], str | None, list[str]]]:
+    """For each `heldout_scored` row (numbered from 1): the row, its normalised rubric hash
+    (None when malformed) and the case hashes an earlier row already scored under it."""
+    seen: set[tuple[str, str]] = set()
+    for n, row in enumerate(rows, start=1):
+        if row.get("kind") != SCORED:
+            continue
+        if not _scoring_shape_ok(row):
+            yield n, row, None, []
+            continue
+        rubric = str(row["rubric_hash"]).strip().lower()
+        hashes = sorted(set(row["case_id_sha256"]))
+        yield n, row, rubric, [h for h in hashes if (rubric, h) in seen]
+        seen.update((rubric, h) for h in hashes)
+
+
+def _already(rubric: str, hashes: Iterable[str]) -> str:
+    ids = sorted({h[:12] for h in hashes})
+    return f"{len(ids)} held-out case(s) already scored under rubric {rubric}: " + ", ".join(ids)
+
+
 def chain_problems(path: str | Path) -> list[str]:
     """Each line names the sha256 of the line before it (`prev`; `GENESIS` for the first), so
-    an edited, dropped, inserted or reordered line breaks the chain."""
+    an edited, dropped, inserted or reordered line breaks the chain. The score-once rule
+    (HLD-02) is checked on the log itself: a malformed `heldout_scored` line, or one that
+    scores a case already scored under the same (stripped, lowercased) rubric hash, is a
+    problem however it was written."""
     prev = GENESIS
     out = []
+    rows: list[dict[str, Any]] = []
     for n, line in enumerate(_lines(Path(path)), start=1):
         try:
             row = json.loads(line)
@@ -407,61 +496,141 @@ def chain_problems(path: str | Path) -> list[str]:
             row = None
         if not isinstance(row, dict):
             out.append(f"log line {n} is not a JSON object")
+            row = {}
         elif row.get("prev") != prev:
             out.append(f"log line {n} does not follow line {n - 1} (edited, dropped or reordered)")
+        rows.append(row)
         prev = _sha(line)
+    for n, _row, rubric, again in _rescored(rows):
+        if rubric is None:
+            out.append(f"log line {n} is a malformed {SCORED} entry")
+        elif again:
+            out.append(f"log line {n} scores {_already(rubric, again)} (HLD-02)")
     return out
 
 
-def append_entry(path: str | Path, entry: Mapping[str, Any]) -> dict[str, Any]:
-    """Append one entry with `prev` set to the hash of the last line. Refuses a broken chain,
-    an entry that sets `prev` itself, or an entry that is not a mapping."""
-    if not isinstance(entry, Mapping):
-        raise HeldoutError("a log entry must be a mapping")
-    if "prev" in entry:
-        raise HeldoutError("a log entry may not set prev: the log sets it")
-    p = Path(path)
-    lines: list[str] = []
-    if p.is_file():
-        if chain_problems(p):
-            raise HeldoutError("the log's hash chain is broken: restore it before appending")
-        lines = _lines(p)
+@contextlib.contextmanager
+def _log_lock(path: Path, timeout: float = LOCK_TIMEOUT) -> Iterator[None]:
+    """An exclusive lock on the log file (created when absent), held across read-check-append:
+    `fcntl.flock` on POSIX; on Windows `msvcrt.locking` of one byte far past the end of the
+    file, so readers of the log are never blocked. The OS releases it if the process dies."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open(mode="ab") as handle:  # binary; never written through: only locked
+        fd = handle.fileno()
+        _acquire(fd, path, timeout)
+        try:
+            yield
+        finally:
+            _release(fd)
+
+
+_WIN_LOCK_OFFSET = 0x7FFFFFF0
+
+
+def _try_lock(fd: int) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        os.lseek(fd, _WIN_LOCK_OFFSET, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _acquire(fd: int, path: Path, timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            _try_lock(fd)
+            return
+        except OSError:
+            if time.monotonic() >= deadline:
+                raise HeldoutError(
+                    f"{path.name}: another process holds the log lock (waited {timeout:g} s)"
+                ) from None
+            time.sleep(0.02)
+
+
+def _release(fd: int) -> None:
+    if sys.platform == "win32":
+        import msvcrt
+
+        os.lseek(fd, _WIN_LOCK_OFFSET, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _append_locked(p: Path, entry: Mapping[str, Any], *, doing: str) -> dict[str, Any]:
+    """Check the chain and the score-once rule, then append; the caller holds the lock."""
+    lines = _lines(p) if p.is_file() else []
+    if lines and chain_problems(p):
+        raise HeldoutError(f"the log's hash chain is broken: restore it before {doing}")
+    if entry.get("kind") == SCORED:
+        *_, (_, _, rubric, again) = _rescored([*read_log(p), entry])
+        if rubric is not None and again:
+            raise AlreadyScored(_already(rubric, again))
     row = {**entry, "prev": _sha(lines[-1]) if lines else GENESIS}
     text = _canonical(row)
-    p.parent.mkdir(parents=True, exist_ok=True)
     lead = "\n" if p.is_file() and p.stat().st_size and not p.read_bytes().endswith(b"\n") else ""
     with p.open("a", encoding="utf-8", newline="\n") as fh:
         fh.write(lead + text + "\n")
     return json.loads(text)
 
 
+def append_entry(path: str | Path, entry: Mapping[str, Any]) -> dict[str, Any]:
+    """Append one entry with `prev` set to the hash of the last line, under an exclusive lock
+    on the log. Refuses a broken chain, an entry that sets `prev` itself, an entry that is not
+    a mapping, a malformed `heldout_scored` entry, and (`AlreadyScored`) a `heldout_scored`
+    entry for a case already scored under the same rubric hash."""
+    if not isinstance(entry, Mapping):
+        raise HeldoutError("a log entry must be a mapping")
+    if "prev" in entry:
+        raise HeldoutError("a log entry may not set prev: the log sets it")
+    if entry.get("kind") == SCORED and not _scoring_shape_ok(entry):
+        raise HeldoutError(
+            f"a malformed {SCORED} entry: it needs a non-blank rubric_hash and a non-empty "
+            "list of sha256 hex case_id_sha256"
+        )
+    p = Path(path)
+    with _log_lock(p):
+        return _append_locked(p, entry, doing="appending")
+
+
 def is_certified(log: str | Path, case_ids: Iterable[str], rubric_hash: str) -> bool:
-    """True only when the log exists, its chain holds, and a `heldout_scored` line has this
-    rubric hash and exactly these case ids (by hash). Append-only against git is CI's check
-    (`append_only_problems`), not part of this call."""
-    p = Path(log)
-    want = sorted({case_id_hash(str(i)) for i in case_ids})
-    if not want or not p.is_file() or chain_problems(p):
+    """True only when the log exists, its chain and score-once rule hold, and a
+    `heldout_scored` line has this rubric hash (normalised) and exactly these case ids (by
+    hash). False on every error (unreadable log, arguments of the wrong type): it never
+    raises. Append-only against git is CI's check (`append_only_problems`), not this call."""
+    try:
+        rubric = _rubric(rubric_hash)
+        want = sorted({case_id_hash(i) for i in _case_ids(case_ids)})
+        p = Path(log)
+        if not want or not p.is_file() or chain_problems(p):
+            return False
+        return any(
+            r == rubric and sorted(set(row["case_id_sha256"])) == want
+            for _, row, r, _again in _rescored(read_log(p))
+        )
+    except Exception:  # fail closed: whatever went wrong, nothing is certified
         return False
-    return any(
-        e.get("kind") == SCORED
-        and e.get("rubric_hash") == rubric_hash
-        and isinstance(e.get("case_id_sha256"), list)
-        and sorted(set(e["case_id_sha256"])) == want
-        for e in read_log(p)
-    )
 
 
 # =============================== HLD-02 score once ===============================
 
 
 def scored_before(log: str | Path, case_ids: Iterable[str], rubric_hash: str) -> list[str]:
-    """Manifest ids of the given cases already scored under this rubric."""
-    want = {case_id_hash(str(i)) for i in case_ids}
+    """Manifest ids of the given cases already scored under this rubric (normalised)."""
+    rubric = _rubric(rubric_hash)
+    want = {case_id_hash(i) for i in _case_ids(case_ids)}
     hit: set[str] = set()
-    for e in read_log(log):
-        if e.get("kind") == SCORED and e.get("rubric_hash") == rubric_hash:
-            hit |= want & set(e.get("case_id_sha256") or ())
+    for _, row, r, _again in _rescored(read_log(log)):
+        if r == rubric:
+            hit |= want & set(row["case_id_sha256"])
     return sorted(h[:12] for h in hit)
 
 
@@ -474,36 +643,39 @@ def record_scoring(
     note: str | None = None,
 ) -> dict[str, Any]:
     """Record that these held-out cases were scored under this rubric; refuses (AlreadyScored)
-    when any of them already was. Call it before showing the scores to anyone. `note` is
-    logged as given: never put held-out text in it."""
-    ids = [str(i) for i in case_ids]
+    when any of them already was. The check and the append run under an exclusive lock on the
+    log, so two processes cannot both score a case. The rubric hash is stored stripped and
+    lowercased. Call it before showing the scores to anyone. `note` is logged as given: never
+    put held-out text in it."""
+    ids = _case_ids(case_ids)
     hashes = sorted({case_id_hash(i) for i in ids})
     if not hashes:
         raise HeldoutError("no cases to record")
-    if not isinstance(rubric_hash, str) or not rubric_hash.strip():
-        raise HeldoutError("a scoring needs a non-blank rubric hash")
-    p = Path(log)
-    if p.is_file() and chain_problems(p):
-        raise HeldoutError("the log's hash chain is broken: restore it before scoring")
-    done = scored_before(p, ids, rubric_hash)
-    if done:
-        raise AlreadyScored(
-            f"{len(done)} held-out case(s) already scored under rubric {rubric_hash}: "
-            + ", ".join(done)
-        )
+    rubric = _rubric(rubric_hash)
     entry: dict[str, Any] = {
         "kind": SCORED,
-        "rubric_hash": rubric_hash,
+        "rubric_hash": rubric,
         "case_id_sha256": hashes,
         "n_cases": len(hashes),
         "at": at or dt.datetime.now(dt.UTC).date().isoformat(),
     }
     if note is not None:
         entry["note"] = note
-    return append_entry(p, entry)
+    p = Path(log)
+    with _log_lock(p):
+        return _append_locked(p, entry, doing="scoring")
 
 
 # =============================== git ===============================
+
+SHALLOW_HINT = (
+    "the clone is shallow: fetch the full history "
+    "(actions/checkout with fetch-depth: 0, or git fetch --unshallow)"
+)
+
+
+class _Unreadable(Exception):
+    """git failed to read a file at a revision for a reason other than its absence."""
 
 
 class _Git:
@@ -528,13 +700,78 @@ class _Git:
         top = self.out("rev-parse", "--show-toplevel")
         return Path(top.strip()).resolve() if top and top.strip() else None
 
-    def exists(self, rev: str) -> bool:
-        return self.out("rev-parse", "--verify", "-q", f"{rev}^{{commit}}") is not None
+    def commit(self, rev: str) -> str | None:
+        """The full sha of the commit `rev` names, or None when it is not in the clone."""
+        if not rev or rev.startswith("-"):
+            return None
+        sha = self.out("rev-parse", "--verify", "-q", f"{rev}^{{commit}}")
+        return sha.strip() if sha and sha.strip() else None
 
-    def show(self, rev: str, rel: str) -> str:
-        """The file at `rev`; empty when the file is absent there."""
-        text = self.out("show", f"{rev}:{rel}")
-        return (text or "").replace("\r\n", "\n")
+    def exists(self, rev: str) -> bool:
+        return self.commit(rev) is not None
+
+    def entry(self, sha: str, rel: str) -> tuple[str, str] | None:
+        """(type, object id) of the exact path `rel` at commit `sha`, compared byte for byte
+        (case-sensitively); None when absent. Raises `_Unreadable` when git fails."""
+        done = self.run("--literal-pathspecs", "ls-tree", "-z", "--full-tree", sha, "--", rel)
+        if done is None or done.returncode:
+            raise _Unreadable
+        want = rel.encode("utf-8")
+        for record in done.stdout.split(b"\0"):
+            meta, sep, name = record.partition(b"\t")
+            parts = meta.split()
+            if sep and name == want and len(parts) == 3:
+                return parts[1].decode("ascii", "replace"), parts[2].decode("ascii", "replace")
+        return None
+
+    def file_at(self, sha: str, rel: str) -> str:
+        """The file at commit `sha`; empty when the path is absent there. Raises `_Unreadable`
+        for any other failure (a folder at that path, a missing object, git not starting)."""
+        found = self.entry(sha, rel)
+        if found is None:
+            return ""
+        kind, oid = found
+        if kind != "blob":
+            raise _Unreadable
+        done = self.run("cat-file", "blob", oid)
+        if done is None or done.returncode:
+            raise _Unreadable
+        return done.stdout.decode("utf-8", errors="replace").replace("\r\n", "\n")
+
+    def tracked_name(self, sha: str, top: Path, path: Path, rel: str) -> str | None:
+        """The exact tracked path at `sha` naming the file `path`: `rel` itself, or on a
+        case-insensitive file system the one tracked path that differs only in case and is the
+        same file on disk. None when the file is not tracked there."""
+        if self.entry(sha, rel) is not None:
+            return rel
+        names = self.out("ls-tree", "-r", "-z", "--name-only", "--full-tree", sha)
+        if names is None:
+            raise _Unreadable
+        folded = rel.casefold()
+        same = []
+        for name in names.split("\0"):
+            if name and name.casefold() == folded:
+                with contextlib.suppress(OSError):
+                    if os.path.samefile(top / name, path):
+                        same.append(name)
+        return same[0] if len(same) == 1 else None
+
+    def shallow_cuts(self) -> set[str] | None:
+        """Commits whose parents a shallow clone cut off (empty for a full clone); None when
+        the clone is shallow but the list cannot be read."""
+        flag = (self.out("rev-parse", "--is-shallow-repository") or "").strip()
+        where = self.out("rev-parse", "--git-path", "shallow")
+        path = Path(where.strip()) if where and where.strip() else None
+        if path is not None and not path.is_absolute():
+            path = self.cwd / path
+        if flag != "true" and (path is None or not path.is_file()):
+            return set()
+        try:
+            text = path.read_text(encoding="ascii") if path is not None else ""
+        except (OSError, UnicodeDecodeError):
+            return None
+        cuts = {x.strip() for x in text.splitlines() if x.strip()}
+        return cuts or None
 
     def lines(self, *args: str) -> list[str]:
         return [x for x in (self.out(*args) or "").splitlines() if x.strip()]
@@ -559,10 +796,13 @@ def append_only_problems(
     default_tip: str | None = None,
     root: str | Path | None = None,
 ) -> list[str]:
-    """The log must be append-only against git (HLD-04): the working file starts with the file
-    at HEAD and at each revision; every commit in `<rev>..HEAD` (full history, merges
-    included) keeps the file of each parent as a prefix; at `default_tip` the two agree on
-    their common length. A revision not in the clone, or no git repository, is a problem."""
+    """The log must be append-only against git (HLD-04): the log must be tracked at HEAD
+    (under its exact, case-sensitive path); the working file starts with the file at HEAD and
+    at each revision; every commit in `<rev>..HEAD` (full history, merges included) keeps the
+    file of each parent as a prefix; at `default_tip` the two agree on their common length.
+    Fails closed: a revision not in the clone, a commit whose parents a shallow clone cut off,
+    a file git cannot read (anything but the path being absent at a revision), or no git
+    repository is a problem."""
     p = Path(path).resolve()
     if not p.is_file():
         raise HeldoutError(f"{p.name}: no such log")
@@ -573,50 +813,76 @@ def append_only_problems(
     git = _Git(top)
     if not p.is_relative_to(top):
         return [f"the log {p.name} is not inside the git work tree"]
-    rel = p.relative_to(top).as_posix()
+    head = git.commit("HEAD")
+    if head is None:
+        return [f"the log {p.name} is not tracked at HEAD (there is no commit yet)"]
+    try:
+        rel = git.tracked_name(head, top, p, p.relative_to(top).as_posix())
+    except _Unreadable:
+        return [f"git cannot read HEAD to find the log {p.name}"]
+    if rel is None:
+        return [f"the log {p.relative_to(top).as_posix()} is not tracked at HEAD (commit it)"]
     work = p.read_bytes().decode("utf-8", errors="replace").replace("\r\n", "\n")
     out: list[str] = []
-    if git.exists("HEAD"):
-        head = git.show("HEAD", rel)
-        if not work.startswith(head):
-            out.append(f"the log rewrites line {_first_diff(head, work)} as committed at HEAD")
-    cache: dict[str, str] = {}
+    cache: dict[str, str | None] = {}
 
-    def at(sha: str) -> str:
+    def at(sha: str) -> str | None:
         if sha not in cache:
-            cache[sha] = git.show(sha, rel)
+            try:
+                cache[sha] = git.file_at(sha, rel)
+            except _Unreadable:
+                cache[sha] = None
+                out.append(f"git cannot read {rel} at {sha[:12]} (fail closed)")
         return cache[sha]
 
+    head_text = at(head)
+    if head_text is not None and not work.startswith(head_text):
+        out.append(f"the log rewrites line {_first_diff(head_text, work)} as committed at HEAD")
+    cuts = git.shallow_cuts()
+    if cuts is None:
+        out.append(f"the shallow clone's list of cut commits cannot be read: {SHALLOW_HINT}")
+        cuts = set()
     flagged: set[str] = set()
     for rev in dict.fromkeys(revisions):
-        if not git.exists(rev):
+        sha = git.commit(rev)
+        if sha is None:
             out.append(f"revision {rev[:12]} is not in this clone (fetch the full history)")
             continue
-        old = at(rev)
-        if not work.startswith(old):
+        old = at(sha)
+        if old is not None and not work.startswith(old):
             out.append(f"the log rewrites line {_first_diff(old, work)} as committed at {rev[:12]}")
         for line in git.lines(
-            "rev-list", "--reverse", "--full-history", "--parents", f"{rev}..HEAD"
+            "rev-list", "--reverse", "--full-history", "--parents", f"{sha}..{head}"
         ):
-            sha, *parents = line.split()
-            dropped = [q for q in parents if not at(sha).startswith(at(q))]
-            if dropped and sha not in flagged:
-                flagged.add(sha)
+            commit, *parents = line.split()
+            if commit in cuts and commit not in flagged:
+                flagged.add(commit)
+                out.append(f"commit {commit[:12]} has its parents cut off: {SHALLOW_HINT}")
+                continue
+            new = at(commit)
+            dropped = []
+            for q in parents:
+                old_q = at(q)
+                if new is not None and old_q is not None and not new.startswith(old_q):
+                    dropped.append(q)
+            if dropped and commit not in flagged:
+                flagged.add(commit)
                 what = "merge" if len(parents) > 1 else "commit"
                 out.append(
-                    f"{what} {sha[:12]} drops or rewrites log lines of its parent "
+                    f"{what} {commit[:12]} drops or rewrites log lines of its parent "
                     f"{', '.join(q[:12] for q in dropped)}"
                 )
     if default_tip is not None:
-        if not git.exists(default_tip):
+        tip = git.commit(default_tip)
+        if tip is None:
             out.append(f"revision {default_tip[:12]} is not in this clone (fetch the full history)")
         else:
-            main = at(default_tip)
-            if not (work.startswith(main) or main.startswith(work)):
+            main = at(tip)
+            if main is not None and not (work.startswith(main) or main.startswith(work)):
                 out.append(
                     f"the log disagrees with {default_tip} from line {_first_diff(main, work)}"
                 )
-    return out
+    return list(dict.fromkeys(out))
 
 
 def ci_revisions(
@@ -625,7 +891,8 @@ def ci_revisions(
     """What CI compares the log with: the push base (on a new branch, whose base is empty or
     all zeros, the merge-base with the default branch tip) and every parent of HEAD; and the
     default branch tip (`origin/<branch>`, else `<branch>`; returned even when absent, so the
-    check fails closed)."""
+    check fails closed). Raises `HeldoutError` in a shallow clone that cut off HEAD's parents
+    or the merge-base, telling CI to fetch the full history."""
     git = _Git(Path(root).resolve())
     tip: str | None = None
     if default_branch:
@@ -633,11 +900,19 @@ def ci_revisions(
             (r for r in (f"origin/{default_branch}", default_branch) if git.exists(r)),
             default_branch,
         )
+    cuts = git.shallow_cuts()
+    if cuts is None:
+        raise HeldoutError(f"the shallow clone's cut commits cannot be read: {SHALLOW_HINT}")
+    head = git.commit("HEAD")
+    if head is not None and head in cuts:
+        raise HeldoutError(f"HEAD {head[:12]} has its parents cut off: {SHALLOW_HINT}")
     revs: list[str] = []
     if not _zero(base):
         revs.append(str(base).strip())
     elif tip is not None and git.exists(tip):
         found = git.lines("merge-base", "HEAD", tip)
+        if not found and cuts:
+            raise HeldoutError(f"no merge-base of HEAD and {tip}: {SHALLOW_HINT}")
         revs += found[:1]
     parents = git.lines("rev-list", "--parents", "-n", "1", "HEAD")
     if parents:
@@ -658,6 +933,8 @@ class Exposure:
 
 _JSON_ESCAPE = re.compile(r'\\(u[0-9a-fA-F]{4}|["\\/bfnrt])')
 _SIMPLE = {'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t"}
+# a word broken over a line by a hyphen ("contami-\nnation"), also behind a quote or comment mark
+_HYPHEN_BREAK = re.compile(r"(\w)-[ \t]*\r?\n[\s>#*/;-]*?(\w)")
 
 
 def _normalise(text: str) -> str:
@@ -671,6 +948,22 @@ def _unescape_json(text: str) -> str:
         lambda m: chr(int(m.group(1)[1:], 16)) if m.group(1)[0] == "u" else _SIMPLE[m.group(1)],
         text,
     )
+
+
+def _views(data: bytes) -> set[str]:
+    """The normalised texts a file is compared as: as written, after JSON unescaping, after
+    HTML unescaping, with hyphenated line breaks joined, and (when it holds NUL bytes, as
+    UTF-16 or binary files do) with the NUL bytes removed. Undecodable bytes are dropped."""
+    raw = [data.decode("utf-8", errors="ignore")]
+    if b"\0" in data:
+        raw.append(data.replace(b"\0", b"").decode("utf-8", errors="ignore"))
+    texts: set[str] = set()
+    for text in raw:
+        unescaped = _unescape_json(text)
+        for t in {text, unescaped, html.unescape(text), html.unescape(unescaped)}:
+            texts.add(t)
+            texts.add(_HYPHEN_BREAK.sub(r"\1\2", t))
+    return {_normalise(t) for t in texts}
 
 
 def _grams(words: Sequence[str], window: int) -> Iterator[str]:
@@ -700,6 +993,52 @@ def tracked_files(root: str | Path) -> list[str]:
     return sorted(f for f in done.stdout.decode("utf-8", errors="replace").split("\0") if f)
 
 
+def _work_tree_contents(root: Path) -> Iterator[tuple[str, bytes]]:
+    for rel in tracked_files(root):
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            yield rel, path.read_bytes()
+        except OSError:
+            continue
+
+
+def _index_contents(root: Path) -> Iterator[tuple[str, bytes]]:
+    """Each index entry's staged content (`git show :path`), read in one `git cat-file`."""
+    tracked_files(root)  # the same refusal for a folder that is not a work tree
+    done = _Git(root).run("ls-files", "-s", "-z")
+    if done is None or done.returncode:
+        raise HeldoutError(f"{root}: not a git work tree")
+    entries: list[tuple[str, str]] = []
+    for record in done.stdout.split(b"\0"):
+        meta, sep, name = record.partition(b"\t")
+        parts = meta.split()
+        if not sep or len(parts) != 3 or parts[0] == b"160000":  # 160000: a submodule
+            continue
+        entries.append((name.decode("utf-8", errors="replace"), parts[1].decode("ascii")))
+    if not entries:
+        return
+    stdin = "".join(oid + "\n" for _, oid in entries).encode("ascii")
+    try:
+        batch = subprocess.run(
+            ["git", "cat-file", "--batch"], cwd=root, input=stdin, capture_output=True, check=False
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        raise HeldoutError(f"{root}: git cannot be started") from None
+    if batch.returncode:
+        raise HeldoutError(f"{root}: git cannot read the index")
+    data, pos = batch.stdout, 0
+    for rel, _oid in entries:
+        end = data.find(b"\n", pos)
+        header = data[pos:end].split()
+        if end < 0 or len(header) != 3:
+            raise HeldoutError(f"{root}: git cannot read the staged {rel}")
+        size = int(header[2])
+        yield rel, data[end + 1 : end + 1 + size]
+        pos = end + 1 + size + 1
+
+
 def exposure_scan(
     cases: Sequence[Mapping[str, Any]],
     root: str | Path,
@@ -709,11 +1048,15 @@ def exposure_scan(
     public: Sequence[Mapping[str, Any]] = (),
     min_chars: int = EXPOSURE_MIN_CHARS,
     window: int = EXPOSURE_WINDOW,
+    index: bool = False,
 ) -> list[Exposure]:
-    """Tracked text files that hold held-out text (HLD-03): a case string of at least
-    `min_chars` normalised characters on word boundaries, or any `window` consecutive words of
-    one (at least `min_chars` characters). Normalised: NFKC, casefolded, every run of
-    non-word characters one space; each file as written and after JSON unescaping.
+    """Tracked files that hold held-out text (HLD-03): a case string of at least `min_chars`
+    normalised characters on word boundaries, or any `window` consecutive words of one (at
+    least `min_chars` characters). Normalised: NFKC, casefolded, every run of non-word
+    characters one space. Each file is compared as written, after JSON unescaping, after HTML
+    unescaping, with hyphenated line breaks joined, and with NUL bytes removed (files holding
+    NUL bytes are scanned too, undecodable bytes dropped). `index=True` scans the staged
+    content of each index entry instead of the work tree file (a pre-commit hook).
 
     `fields` limits held-out text to those top-level fields (default: every field but the
     id). A window of words that also occurs in a `public` case (a shared instruction
@@ -730,6 +1073,8 @@ def exposure_scan(
     wholes: list[tuple[str, str]] = []
     shingles: dict[str, set[str]] = {}
     for n, case in enumerate(cases, start=1):
+        if not isinstance(case, Mapping):
+            raise HeldoutError(f"case {n} is not a mapping")
         if id_field not in case:
             raise HeldoutError(f"case {n} has no {id_field!r}")
         mid = manifest_id(str(case[id_field]))
@@ -742,25 +1087,11 @@ def exposure_scan(
                 if len(gram) >= min_chars and gram not in public_grams:
                     shingles.setdefault(gram, set()).add(mid)
     r = Path(root)
-    files = tracked_files(r)
+    contents = _index_contents(r) if index else _work_tree_contents(r)
     found: set[Exposure] = set()
-    for rel in files:
-        path = r / rel
-        if not path.is_file():
-            continue
-        try:
-            data = path.read_bytes()
-        except OSError:
-            continue
-        if b"\0" in data:
-            continue  # binary by content
-        text = data.decode("utf-8", errors="replace")
-        views = {_normalise(text)}
-        unescaped = _unescape_json(text)
-        if unescaped != text:
-            views.add(_normalise(unescaped))
+    for rel, data in contents:
         hits: set[str] = set()
-        for view in views:
+        for view in _views(data):
             padded = f" {view} "
             hits |= {mid for needle, mid in wholes if needle in padded}
             if shingles:
@@ -814,6 +1145,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--min-chars", type=int, default=EXPOSURE_MIN_CHARS)
     s.add_argument("--window", type=int, default=EXPOSURE_WINDOW)
+    s.add_argument(
+        "--staged",
+        action="store_true",
+        help="scan the staged (index) content of each file, as a pre-commit hook would",
+    )
     lg = sub.add_parser("verify-log", help="check a log's hash chain and append-only history")
     lg.add_argument("log", type=Path)
     lg.add_argument("--rev", action="append", default=[], metavar="REV")
@@ -847,6 +1183,7 @@ def _run(args: argparse.Namespace) -> int:
             public=public,
             min_chars=args.min_chars,
             window=args.window,
+            index=args.staged,
         )
         for e in found:
             print(f"{e.path}\t{e.manifest_id}")
