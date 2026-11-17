@@ -2,9 +2,10 @@
 result rows it was computed from.
 
 Ported from agentic-analytics `src/agentic_analytics/scoring/numbers.py` (SCR-04, MIT licence,
-Copyright (c) 2026 Biplob Chakraborty, the same author), with three changes for a general
+Copyright (c) 2026 Biplob Chakraborty, the same author), with four changes for a general
 library: the relative tolerance is a parameter, bare years are claims unless the caller gives a
-`year_range`, and an `x` multiple may be derived as the ratio of two cells of one column.
+`year_range`, a written minus must match a negative cell, and an `x` multiple may be derived as
+the ratio of the cells of two rows the sentence names.
 
 A number is supported when one of these holds:
 
@@ -12,7 +13,8 @@ A number is supported when one of these holds:
    *Displayed precision* is half a unit of the last digit written, in the number's own scale:
    ``190k`` has a unit of 1,000 and covers 189,500 to 190,500; ``£254.3k`` covers 254,250 to
    254,350; ``1.2m`` covers 1,150,000 to 1,250,000; ``12.5%`` covers 12.45 to 12.55. The 0.5%
-   rule covers trailing-zero roundings such as ``£190,000`` for 190,312. Signs are ignored
+   rule covers trailing-zero roundings such as ``£190,000`` for 190,312. A number written
+   with a minus (``-3.2%``) needs a negative cell; an unsigned one may match either sign
    ("fell 3.2%" is backed by a cell of -3.2).
    *Percentages* compare by the column's name. In a ``share``, ``ratio``, ``fraction``,
    ``proportion`` or ``rate`` column a cell of at most 1 is a fraction, so 12.5% matches 0.125
@@ -26,8 +28,15 @@ A number is supported when one of these holds:
    rules as the answer ("FLAT 12", "10 DOWNING STREET", a column "SALES 5000"), same value.
 5. **It is the N of a top-N question** or **the number of rows returned**. Both apply to
    plain integers only (no currency, sign, decimals, suffix or percent).
-6. **It is an ``x`` multiple derivable as stated**: ``6.6x`` is backed when two numeric cells
-   of one column have that ratio, to the precision displayed (skipped above 20,000 pairs).
+6. **It is an ``x`` multiple derivable as stated**: "Kensington is 6.6x Manchester" is backed
+   when the sentence (up to 200 characters each side) names two rows, by a word of a text
+   cell that belongs to one row only, and their cells in one numeric column have that ratio
+   to the precision displayed (6.56 rounds to 6.6 or 7, not 2). The rows named before the
+   multiple are the numerator and those after it the denominator (either order when all are on
+   one side); both cells have one sign; when the sentence names a numeric column ("median
+   price") only that column counts. With fewer than two named rows nothing is derived, as in
+   the reference: a multiple then needs a cell that matches it. At most 20,000 cell pairs
+   are tried.
 
 What is not a number claim and is skipped: digits after letters (postcodes ``M1``, ``SW1A``,
 quarters ``Q3``); ordinals (``3rd``); one- or two-digit numbers glued to a word (``2bed``,
@@ -43,7 +52,8 @@ Formats read: ``£ $ €`` and ``GBP USD EUR`` prefixes, ``c.`` (circa), thousan
 decimals, a leading minus (ASCII or Unicode), ``k K m M mn bn b B`` suffixes, ``thousand
 million billion``, ``%``, ``percent``, ``per cent``, ``percentage points``, ``pp``, ``x``
 multiples, number words that carry a scale word (``three million``, ``four thousand one
-hundred``, ``half a million``, ``a quarter of a million``), and ranges, where ``2019-2024`` is
+hundred``, ``half a million``, ``a quarter of a million``; at most 12 words read as one
+number), and ranges, where ``2019-2024`` is
 two years and ``£1.2-1.3m`` scales the first figure by the second's suffix (either reading may
 match). Locale forms are parsed and checked like any number: Indian grouping
 (``12,34,567`` = 1,234,567) and European separators with a decimal comma (``9.999,5``) or two or
@@ -65,6 +75,8 @@ from evalkit.scorers.base import ScoreResult, scorer
 
 REL_TOL = 0.005  # 0.5% relative (agentic-analytics Tech Spec §6.1)
 MAX_RATIO_PAIRS = 20_000  # cell pairs tried when deriving an `x` multiple
+MAX_NUMBER_WORDS = 12  # longest run of number words read as one number
+_MULTIPLE_WINDOW = 200  # characters each side of an `x` multiple searched for row names
 
 Kind = Literal["num", "pct"]
 
@@ -181,6 +193,7 @@ class Number:
     year_like: bool  # a bare four-digit integer
     decade: bool = False  # "1990s"
     multiple: bool = False  # "6.6x"
+    negative: bool = False  # written with a leading minus ("-3.2%")
 
     @property
     def value(self) -> float:
@@ -233,6 +246,7 @@ class _Raw:
     year_like: bool = False
     decade: bool = False
     multiple: bool = False
+    negative: bool = False
 
 
 def _parse_core(core: str) -> tuple[float, int]:
@@ -303,6 +317,7 @@ def _core_numbers(t: str) -> list[_Raw]:
                 year_like=plain and len(core) == 4 and core.isdigit(),
                 decade=decade,
                 multiple=multiple,
+                negative=negative,
             )
         )
     return out
@@ -349,8 +364,10 @@ def _evaluate_words(words: list[str]) -> tuple[float, float] | None:
     value = total + current
     if not seen_number or value <= 0:
         return None
+    if not math.isfinite(value):
+        return None
     zeros = 0
-    while value % 10 ** (zeros + 1) == 0:
+    while zeros < 30 and value % 10 ** (zeros + 1) == 0:
         zeros += 1
     last_scale = next(_WORD_SCALES[w] for w in reversed(words) if w in _WORD_SCALES)
     return value, min(10.0**zeros, last_scale)  # "twenty thousand" reads like "20k"
@@ -374,7 +391,8 @@ def _word_numbers(t: str) -> list[_Raw]:
             if words[i] in ("and", "of"):
                 i += 1
                 continue
-            for j in range(len(run), i, -1):  # longest run from i first
+            # longest run from i first, at most MAX_NUMBER_WORDS words: linear in the text
+            for j in range(min(len(run), i + MAX_NUMBER_WORDS), i, -1):
                 k = j
                 while k > i and words[k - 1] in _LINKS:
                     k -= 1
@@ -417,39 +435,48 @@ def extract_numbers(text: str) -> list[Number]:
                 year_like=r.year_like,
                 decade=r.decade,
                 multiple=r.multiple,
+                negative=r.negative and r.value != 0,  # "-0" is zero
             )
         )
     return out
 
 
 @dataclass
-class _Cells:
-    every: list[float] = field(default_factory=list)  # all numeric cells (absolute values)
+class _Pool:
+    """Sorted absolute values of cells, by how a number may match them."""
+
+    every: list[float] = field(default_factory=list)  # all numeric cells
     percent_units: list[float] = field(default_factory=list)  # cells read as percent units
     fractions: list[float] = field(default_factory=list)  # cells read as fractions (<= 1)
     # numbers written inside text cells and column names ("FLAT 12", "SALES 5000")
     in_text: list[float] = field(default_factory=list)
-    columns: list[list[float]] = field(default_factory=list)  # numeric cells per column
-    _ratios: list[float] | None = None
 
-    def ratios(self) -> list[float]:
-        """Sorted ratios a/b (a >= b > 0) of two cells in one column, built on first use;
-        empty when there would be more than MAX_RATIO_PAIRS pairs."""
-        if self._ratios is None:
-            pairs = sum(len(c) * (len(c) - 1) // 2 for c in self.columns)
-            out: list[float] = []
-            if pairs <= MAX_RATIO_PAIRS:
-                for col in self.columns:
-                    vals = sorted(v for v in col if v > 0)
-                    for a in range(len(vals)):
-                        for b in range(a + 1, len(vals)):
-                            out.append(vals[b] / vals[a])
-            out.sort()
-            self._ratios = out
-        return self._ratios
+    def sort(self) -> None:
+        for vals in (self.every, self.percent_units, self.fractions, self.in_text):
+            vals.sort()
+
+
+@dataclass
+class _Cells:
+    any_sign: _Pool = field(default_factory=_Pool)  # every cell; backs an unsigned number
+    negative: _Pool = field(default_factory=_Pool)  # negative cells; back a written minus
+    grid: list[list[float | None]] = field(default_factory=list)  # signed numeric cells
+    row_names: dict[str, int] = field(default_factory=dict)  # word -> the one row it names
+    column_names: list[frozenset[str]] = field(default_factory=list)  # words per numeric column
+    numeric_columns: list[int] = field(default_factory=list)
+
+
+_NAME_WORD = re.compile(r"[A-Za-z]{3,}")
+_NAME_STOP = frozenset({"and", "the", "for", "with", "from", "per"})
+_BOUNDARY = re.compile(r"[.!?;](?=\s|$)|\n")
+
+
+def _name_words(text: str) -> set[str]:
+    return {w.lower() for w in _NAME_WORD.findall(text)} - _NAME_STOP
 
 
 def _cell_number(cell: object) -> float | None:
+    """A cell's signed numeric value, or None for text, booleans and missing values."""
     if isinstance(cell, bool) or cell is None:
         return None
     v: float | None = None
@@ -460,7 +487,7 @@ def _cell_number(cell: object) -> float | None:
             v = float(cell.replace(",", ""))
         except ValueError:
             return None
-    return abs(v) if v is not None and math.isfinite(v) else None
+    return v if v is not None and math.isfinite(v) else None
 
 
 def _cells(rs: ResultSet | None) -> _Cells:
@@ -469,37 +496,55 @@ def _cells(rs: ResultSet | None) -> _Cells:
         return out
     fraction_col = [bool(_FRACTION_NAMES.search(c)) for c in rs.columns]
     percent_col = [bool(_PERCENT_NAMES.search(c)) for c in rs.columns]
-    out.columns = [[] for _ in rs.columns]
+    numeric_col = [False] * len(rs.columns)
     texts: set[str] = set(rs.columns)
-    for row in rs.rows:
+    rows_of: dict[str, set[int]] = {}
+    for i, row in enumerate(rs.rows):
+        line: list[float | None] = []
         for j, cell in enumerate(row):
-            v = _cell_number(cell)
-            if v is None:
+            signed = _cell_number(cell)
+            line.append(signed)
+            if signed is None:
                 if isinstance(cell, str):
                     texts.add(cell)
+                    for w in _name_words(cell):
+                        rows_of.setdefault(w, set()).add(i)
                 continue
-            out.every.append(v)
-            out.columns[j].append(v)
-            if v <= 1 and (fraction_col[j] or percent_col[j]):
-                out.fractions.append(v)
-                if percent_col[j] and not fraction_col[j]:
-                    out.percent_units.append(v)
-            else:
-                out.percent_units.append(v)
+            numeric_col[j] = True
+            v = abs(signed)
+            pools = (out.any_sign, out.negative) if signed < 0 else (out.any_sign,)
+            for pool in pools:
+                pool.every.append(v)
+                if v <= 1 and (fraction_col[j] or percent_col[j]):
+                    pool.fractions.append(v)
+                    if percent_col[j] and not fraction_col[j]:
+                        pool.percent_units.append(v)
+                else:
+                    pool.percent_units.append(v)
+        out.grid.append(line)
+    out.row_names = {w: next(iter(rows)) for w, rows in rows_of.items() if len(rows) == 1}
+    out.numeric_columns = [j for j, numeric in enumerate(numeric_col) if numeric]
+    out.column_names = [
+        frozenset(_name_words(c)) if numeric_col[j] else frozenset()
+        for j, c in enumerate(rs.columns)
+    ]
     for text in sorted(texts):
         for n in extract_numbers(text):
-            out.in_text.extend(_values(n))
-    for vals in (out.every, out.percent_units, out.fractions, out.in_text):
-        vals.sort()
+            out.any_sign.in_text.extend(_values(n))
+            if n.negative:
+                out.negative.in_text.extend(_values(n))
+    out.any_sign.sort()
+    out.negative.sort()
     return out
 
 
 def _in_text(n: Number, cells: _Cells) -> bool:
     """The number is written, token for token, inside a text cell or a column name."""
+    in_text = (cells.negative if n.negative else cells.any_sign).in_text
     for x in _values(n):
         eps = 1e-9 * max(1.0, x)
-        i = bisect.bisect_left(cells.in_text, x - eps)
-        if i < len(cells.in_text) and cells.in_text[i] <= x + eps:
+        i = bisect.bisect_left(in_text, x - eps)
+        if i < len(in_text) and in_text[i] <= x + eps:
             return True
     return False
 
@@ -508,25 +553,64 @@ def _near(x: float, half: float, cells: list[float], rel_tol: float) -> bool:
     eps = 1e-9 * max(1.0, x)
     w = max(half, rel_tol * x / (1 - rel_tol)) + eps
     lo, hi = bisect.bisect_left(cells, x - w), bisect.bisect_right(cells, x + w)
-    for v in cells[lo:hi]:
-        d = abs(v - x)
-        if d <= half + eps or d <= rel_tol * max(v, x) + eps:
+    return any(_within(v, x, half, rel_tol) for v in cells[lo:hi])
+
+
+def _within(v: float, x: float, half: float, rel_tol: float) -> bool:
+    eps = 1e-9 * max(1.0, x)
+    d = abs(v - x)
+    return d <= half + eps or d <= rel_tol * max(v, x) + eps
+
+
+def _matches_cells(n: Number, cells: _Cells, rel_tol: float) -> bool:
+    pool = cells.negative if n.negative else cells.any_sign
+    for x, half, kind in n.candidates:
+        if kind == "num" and _near(x, half, pool.every, rel_tol):
+            return True
+        if kind == "pct" and (
+            _near(x, half, pool.percent_units, rel_tol)
+            or _near(x / 100, half / 100, pool.fractions, rel_tol)
+        ):
             return True
     return False
 
 
-def _matches_cells(n: Number, cells: _Cells, rel_tol: float) -> bool:
-    for x, half, kind in n.candidates:
-        if kind == "num" and _near(x, half, cells.every, rel_tol):
-            return True
-        if kind == "pct" and (
-            _near(x, half, cells.percent_units, rel_tol)
-            or _near(x / 100, half / 100, cells.fractions, rel_tol)
-        ):
-            return True
-    if n.multiple:
-        x, half, _ = n.candidates[0]
-        return _near(x, half, cells.ratios(), rel_tol)
+def _derived_multiple(n: Number, text: str, cells: _Cells, rel_tol: float) -> bool:
+    """`n` is an `x` multiple and its clause names two rows whose cells in one numeric column
+    (one named in the clause, if any is) have that ratio to the precision displayed. Rows named
+    before the multiple are the numerator and rows after it the denominator; with all names on
+    one side, either order. Nothing is derived without two named rows."""
+    if not (n.multiple and cells.row_names) or n.negative:
+        return False
+    start, end = n.start, n.start + len(n.text)
+    before = text[max(0, start - _MULTIPLE_WINDOW) : start]
+    after = text[end : end + _MULTIPLE_WINDOW]
+    cut = [m.end() for m in _BOUNDARY.finditer(before)]
+    if cut:
+        before = before[cut[-1] :]
+    if stop := _BOUNDARY.search(after):
+        after = after[: stop.start()]
+    words_before, words_after = _name_words(before), _name_words(after)
+    rows_before = {cells.row_names[w] for w in words_before if w in cells.row_names}
+    rows_after = {cells.row_names[w] for w in words_after if w in cells.row_names}
+    if rows_before and rows_after:
+        pairs = [(a, b) for a in sorted(rows_before) for b in sorted(rows_after) if a != b]
+    else:
+        named = sorted(rows_before | rows_after)
+        pairs = [(a, b) for a in named for b in named if a != b]
+    words = words_before | words_after
+    named_columns = [j for j, names in enumerate(cells.column_names) if names & words]
+    columns = named_columns or cells.numeric_columns
+    if not pairs or len(pairs) * len(columns) > MAX_RATIO_PAIRS:
+        return False
+    x, half, _ = n.candidates[0]
+    for a, b in pairs:
+        for j in columns:
+            va, vb = cells.grid[a][j], cells.grid[b][j]
+            if va is None or vb is None or va == 0 or vb == 0 or (va < 0) != (vb < 0):
+                continue
+            if _within(va / vb, x, half, rel_tol):
+                return True
     return False
 
 
@@ -598,7 +682,11 @@ def _check(
                 continue
             if any(_same_value(n, q) for q in asked):
                 continue
-            if _matches_cells(n, cells, rel_tol) or _in_text(n, cells):
+            if (
+                _matches_cells(n, cells, rel_tol)
+                or _in_text(n, cells)
+                or _derived_multiple(n, answer, cells, rel_tol)
+            ):
                 continue
         if n.text not in left:
             left.append(n.text)

@@ -17,6 +17,7 @@ from a record, template, phrase or reason is ever executed.
 
 from __future__ import annotations
 
+import bisect
 import math
 import re
 from collections.abc import Mapping, Sequence
@@ -54,12 +55,13 @@ def _scalar(value: Any, field: str) -> str:
 
 
 def _placeholder(body: str, record: Mapping[str, Any], missing: list[str]) -> str:
-    """One `{...}`: `name`, `name:spec` or `name?if true|if false`."""
+    """One `{...}`: `name`, `name:spec` or `name?if true|if false` (the first `:` or `?`
+    ends the name, so the texts of a condition may hold colons)."""
     name, sep, rest = body, "", ""
-    for mark in (":", "?"):
-        if mark in body:
-            name, sep, rest = body.partition(mark)
-            break
+    marks = [i for i in (body.find(":"), body.find("?")) if i != -1]
+    if marks:
+        cut = min(marks)
+        name, sep, rest = body[:cut], body[cut], body[cut + 1 :]
     if not _NAME.fullmatch(name):
         raise ValueError(f"template placeholder {{{body}}} must start with a plain field name")
     if name not in record:
@@ -159,6 +161,7 @@ _COMPARATOR = re.compile(
     r"at most|exceeding|exceeds|above|below|under|over|>=|<=|≥|≤|>|<)\s*[$£€]?\s*$",
     re.IGNORECASE,
 )
+_COMPARATOR_WINDOW = 40  # characters before a number searched for a comparison word
 _OP = {
     "no more than": "<=",
     "at most": "<=",
@@ -184,8 +187,11 @@ _OP = {
 
 
 def _close(n: Number, v: float, tolerance: float) -> bool:
-    """`n` equals |v| to its displayed precision or within the relative tolerance; a percent
-    may also equal v as a fraction."""
+    """`n` equals v to its displayed precision or within the relative tolerance; a percent
+    may also equal v as a fraction. A number written with a minus needs a negative v; an
+    unsigned one is compared with |v|."""
+    if n.negative and v >= 0:
+        return False
     v = abs(v)
     for x, half, kind in n.candidates:
         for xx, hh in ((x, half), (x / 100, half / 100)) if kind == "pct" else ((x, half),):
@@ -198,30 +204,35 @@ def _close(n: Number, v: float, tolerance: float) -> bool:
 def _claim(n: Number, op: str, v: float, tolerance: float) -> bool:
     if op == "≈":
         return _close(n, v, tolerance)
-    x, v = n.value, abs(v)
+    # a written minus compares signed values; an unsigned number compares with |v|
+    x, v = (-n.value, v) if n.negative else (n.value, abs(v))
     return {">": v > x, ">=": v >= x, "<": v < x, "<=": v <= x}[op]
 
 
 def _numeric(record: Mapping[str, Any], name: str, where: str) -> float | None:
-    if name not in record:
-        raise RuleError(f"{where}: the record has no field {name!r}")
-    value = record[name]
-    if _missing(value):
+    """The field's value; None when the record lacks it or it is missing."""
+    value: Any = record.get(name)
+    if value is None or _missing(value):
         return None
     if _type(value) != "number":
         raise RuleError(f"{where}: record field {name!r} is not a number")
     return float(value)
 
 
-def _condition(holds: str, record: Mapping[str, Any], where: str) -> tuple[bool, dict[str, Any]]:
+def _condition(
+    holds: str, record: Mapping[str, Any], where: str
+) -> tuple[bool, dict[str, Any], str | None]:
+    """(holds, the values read, `missing_value:<field>` when a field is absent or missing)."""
     tree = parse_predicate(holds, None, where)
     names = _names(tree)
-    for name in names:
-        if name not in record:
-            raise RuleError(f"{where}: the record has no field {name!r}")
-    found = {n: record[n] for n in names}
-    if any(_missing(v) for v in found.values()):
-        return False, {n: (None if _missing(v) else v) for n, v in found.items()}
+    found = {n: record.get(n) for n in names}
+    absent = [n for n, v in found.items() if _missing(v)]
+    if absent:
+        return (
+            False,
+            {n: (None if _missing(v) else v) for n, v in found.items()},
+            (f"missing_value:{absent[0]}"),
+        )
     types: dict[str, Any] = {}
     for name, value in found.items():
         kind = _type(value)
@@ -229,7 +240,7 @@ def _condition(holds: str, record: Mapping[str, Any], where: str) -> tuple[bool,
             raise RuleError(f"{where}: record field {name!r} is not a number, bool or text")
         types[name] = kind
     typed = parse_predicate(holds, types, where)
-    return bool(_evaluate(typed.body, record, strict=True)), found
+    return bool(_evaluate(typed.body, record, strict=True)), found, None
 
 
 def _finite(n: Number) -> bool:
@@ -240,64 +251,83 @@ def _check_reason(
     reason: str, record: Mapping[str, Any], phrases: Sequence[ValuePhrase], tolerance: float
 ) -> list[dict[str, Any]]:
     numbers = extract_numbers(reason)
+    starts = [n.start for n in numbers]  # extract_numbers returns reading order
     used: set[int] = set()
     checks: list[dict[str, Any]] = []
     for ph in phrases:
         where = f"phrase {ph.pattern!r}"
-        for m in re.finditer(ph.pattern, reason, re.IGNORECASE):
-            if ph.holds is not None:
-                ok, found = _condition(ph.holds, record, where)
-                checks.append(
-                    {
-                        "text": m.group(0),
-                        "kind": "condition",
-                        "holds": ph.holds,
-                        "found": found,
-                        "ok": ok,
-                    }
-                )
-                continue
-            assert ph.field is not None
-            inside = [
-                i for i, n in enumerate(numbers) if m.start() <= n.start < m.end() and i not in used
-            ]
-            if not inside:
-                continue  # the phrase states no number here
-            i = inside[0]
-            used.add(i)
-            n = numbers[i]
-            cmp = _COMPARATOR.search(reason[: n.start])
-            op = _OP[cmp.group(1).lower()] if cmp else "≈"
-            value = _numeric(record, ph.field, where)
-            ok = value is not None and _finite(n) and _claim(n, op, value, tolerance)
-            checks.append(
-                {
+        if ph.holds is not None:
+            condition: tuple[bool, dict[str, Any], str | None] | None = None
+            for m in re.finditer(ph.pattern, reason, re.IGNORECASE):
+                if condition is None:  # the record does not change: evaluate once
+                    condition = _condition(ph.holds, record, where)
+                ok, found, why = condition
+                check = {
                     "text": m.group(0),
-                    "kind": "value",
-                    "field": ph.field,
-                    "op": op,
-                    "claimed": n.value if _finite(n) else None,
-                    "found": value,
+                    "kind": "condition",
+                    "holds": ph.holds,
+                    "found": found,
                     "ok": ok,
                 }
+                checks.append({**check, "reason": why} if why else check)
+            continue
+        assert ph.field is not None
+        for m in re.finditer(ph.pattern, reason, re.IGNORECASE):
+            i = bisect.bisect_left(starts, m.start())
+            while i < len(numbers) and starts[i] < m.end() and i in used:
+                i += 1
+            if not (i < len(numbers) and starts[i] < m.end()):
+                continue  # the phrase states no number here
+            used.add(i)
+            n = numbers[i]
+            op = _comparison(reason, n)
+            value = _numeric(record, ph.field, where)
+            ok = value is not None and _finite(n) and _claim(n, op, value, tolerance)
+            check = {
+                "text": m.group(0),
+                "kind": "value",
+                "field": ph.field,
+                "op": op,
+                "claimed": _claimed(n),
+                "found": value,
+                "ok": ok,
+            }
+            checks.append(
+                {**check, "reason": f"missing_value:{ph.field}"} if value is None else check
             )
     numeric = {k: float(v) for k, v in record.items() if not _missing(v) and _type(v) == "number"}
     for i, n in enumerate(numbers):
         if i in used:
             continue
+        # the field the number names: the first within tolerance; a comparison word before
+        # the number ("above 900") then checks that comparison against it
         match = next((k for k, v in numeric.items() if _close(n, v, tolerance)), None)
-        ok = _finite(n) and match is not None
+        op = _comparison(reason, n)
+        ok = _finite(n) and match is not None and _claim(n, op, numeric[match], tolerance)
         checks.append(
             {
                 "text": n.text,
                 "kind": "number",
                 "field": match,
-                "claimed": n.value if _finite(n) else None,
+                "op": op,
+                "claimed": _claimed(n),
                 "found": numeric[match] if match else None,
                 "ok": ok,
             }
         )
     return checks
+
+
+def _comparison(reason: str, n: Number) -> str:
+    """The comparison a word right before the number states, else "≈" (equal)."""
+    cmp = _COMPARATOR.search(reason[max(0, n.start - _COMPARATOR_WINDOW) : n.start])
+    return _OP[cmp.group(1).lower()] if cmp else "≈"
+
+
+def _claimed(n: Number) -> float | None:
+    if not _finite(n):
+        return None
+    return -n.value if n.negative else n.value
 
 
 def value_check(
@@ -309,8 +339,13 @@ def value_check(
 ) -> ScoreResult:
     """Check every number and declared phrase in `reason` against `record`. 1.0 when nothing
     fails (also when nothing was checkable), else 0.0. Details: `checks`, `failed` (the text of
-    each failed check), `n_checked`. Signs are ignored, as in AFR-01; a missing record value
-    fails the claim that needs it."""
+    each failed check), `n_checked`.
+
+    A number written with a minus must match a negative value; an unsigned number ("fell
+    0.83") is compared with the value's magnitude. A number after a comparison word ("above
+    900", "at least 3") is checked as that comparison against the field it names (the first
+    within tolerance). A field the record lacks, or a missing value, fails the claim that needs
+    it, with `reason` `missing_value:<field>` on the check."""
     if not 0 <= tolerance < 1:
         raise ValueError("tolerance must be in [0, 1)")
     checks = _check_reason(reason, record, phrases, tolerance)

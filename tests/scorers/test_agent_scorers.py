@@ -36,6 +36,7 @@ from evalkit.scorers import (
     value_check_scorer,
 )
 from evalkit.scorers import base as scorer_base
+from evalkit.scorers.rules import decision_fields
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "agent_scorers"
 SRC = Path(__file__).resolve().parents[2] / "src" / "evalkit" / "scorers"
@@ -761,3 +762,165 @@ def test_agent_scorers_run_as_task_scorers_in_the_pipeline(registry):
         "policy_check": 1.0,  # a hold citing a real signal
         "reason_values": 1.0,  # hour 3 is at night
     }
+
+
+# ================================ verifier findings (B5.13 fixes) ========================
+
+
+def test_rul_structured_fields_win_over_answer_json(registry):
+    """A clear completion whose answer JSON says hold is still checked as a clear."""
+    s = rule_compliance_scorer(
+        RULES, name="fp_struct", cited_key="policy_clauses", allow='label == "clear"'
+    )
+    risky = case({"record": {**BASE, "risk_score": 0.95}})
+    lying = json.dumps({"label": "hold", "policy_clauses": ["P7.1"]})
+    res = s(risky, completion("clear", lying))
+    assert res.details["allow"] is True and res.value == 0.0
+    assert "never:P8.9" in res.details["reasons"]
+    # the answer text cannot replace the structured label, answer or citations
+    fields = decision_fields(completion("clear", lying))
+    assert fields["label"] == "clear" and fields["answer"] == lying
+    assert fields["policy_clauses"] == ["P7.1"]
+
+
+def test_rul_either_source_saying_allow_is_checked(registry):
+    """Fail closed: a hold whose answer JSON says clear is checked against the never rules."""
+    s = rule_compliance_scorer(
+        RULES, name="fp_either", cited_key="policy_clauses", allow='label == "clear"'
+    )
+    risky = case({"record": {**BASE, "risk_score": 0.95}})
+    res = s(risky, completion("hold", json.dumps({"label": "clear", "policy_clauses": ["P7.1"]})))
+    assert res.details["allow"] is True and res.value == 0.0
+    assert "never:P8.9" in res.details["reasons"]
+    honest = s(risky, completion("hold", json.dumps({"policy_clauses": ["P3.1"]})))
+    assert honest.details["allow"] is False and honest.value == 1.0
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "text",
+    ["a " * 2_000, "one " * 2_000, "one hundred and " * 1_000, "half " * 2_000, "and " * 5_000],
+    ids=["a", "one", "hundred-and", "half", "and"],
+)
+def test_afr_number_word_runs_are_linear(text):
+    t0 = time.perf_counter()
+    unsupported_numbers(text, None, "")
+    assert time.perf_counter() - t0 < 0.5
+
+
+@pytest.mark.safety
+def test_afr_long_hundred_chains_do_not_crash():
+    for k in (50, 160, 400):
+        unsupported_numbers("one " + "hundred " * k + "million", None, "")
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize("text", ["$1 " * 5_000, "a " * 2_000], ids=["dollars", "words"])
+def test_sev_value_check_long_reasons_are_linear(text):
+    t0 = time.perf_counter()
+    value_check(text, SEV["record"], phrases=PHRASES)
+    assert time.perf_counter() - t0 < 0.5
+
+
+def test_afr_multiple_needs_the_named_rows_ratio():
+    """The reference flags "2x" (true ratio 6.56); no unrelated cell pair may back it."""
+    assert unsupported_numbers("Kensington is 2x Manchester", ROWS, Q) == ("2x",)
+    assert unsupported_numbers("Kensington is 6.6x Manchester", ROWS, Q) == ()
+    assert unsupported_numbers("Kensington is 7x Manchester", ROWS, Q) == ()  # 6.56 rounds to 7
+    assert unsupported_numbers("Leeds is 1.3x Manchester", ROWS, Q) == ()  # 254,312 / 190,312
+    # direction and a named column count
+    assert unsupported_numbers("Manchester's median price is 6.6x Kensington's", ROWS, Q) == (
+        "6.6x",
+    )
+    # without two named rows nothing is derived (1.6 is a share ratio of unnamed rows)
+    assert unsupported_numbers("Prices rose 1.6x", ROWS, Q) == ("1.6x",)
+    for k in (2, 5, 8, 9, 10, 11):  # 3x and 4x match the cells 3.2 and 4.0 directly
+        assert unsupported_numbers(f"Kensington is {k}x Manchester", ROWS, Q) == (f"{k}x",)
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "decision",
+    [
+        {"a": {}, "b": {}},
+        {"a": [1], "b": [2]},
+        {"a": "x", "b": "y"},
+        {"a": True, "b": False},
+        {"a": {"k": 1}, "b": {"k": 2}},
+    ],
+    ids=["dicts", "lists", "strings", "bools", "nested"],
+)
+def test_rul_untyped_allow_type_errors_fail_the_decision(decision, registry):
+    res = rule_compliance({**decision, "rule_ids": ["P7.1"]}, BASE, RULES, allow="a < b")
+    assert res.value == 0.0 and "type_error:allow" in res.details["reasons"]
+    assert res.details["allow"] is True  # still checked, fail safe
+    s = rule_compliance_scorer(RULES, name="typed_allow", allow="label < answer")
+    out = s(case({"record": BASE}), completion("clear", "zzz"))
+    assert out.value == 0.0 and "type_error:allow" in out.details["reasons"]
+
+
+def test_sev_phrase_over_absent_field_fails_the_claim():
+    rec = {k: v for k, v in SEV["record"].items() if k not in ("hour", "amount")}
+    night = value_check("Purchase at night", rec, phrases=PHRASES)
+    assert night.value == 0.0
+    assert night.details["checks"][0]["reason"] == "missing_value:hour"
+    dollars = value_check("A $812.40 purchase", rec, phrases=PHRASES)
+    assert dollars.value == 0.0
+    assert dollars.details["checks"][0]["reason"] == "missing_value:amount"
+
+
+def test_sev_loose_comparator_numbers_are_comparisons():
+    rec = SEV["record"]  # amount 812.4
+    assert value_check("amount above 900", rec).value == 0.0
+    assert value_check("amount over 1,000", rec).value == 0.0
+    assert value_check("amount under 800", rec).value == 0.0
+    assert value_check("amount over 800", rec).value == 1.0
+    assert value_check("at least 3 a.m.", rec).value == 1.0  # hour 3
+    check = value_check("amount above 900", rec).details["checks"][0]
+    assert (check["field"], check["op"], check["ok"]) == ("amount", ">", False)
+
+
+def test_afr_written_signs_are_honoured():
+    assert unsupported_numbers("Leeds -4%", ROWS, Q) == ("-4%",)  # the cell is +4.0
+    assert unsupported_numbers("Manchester -3.2%", ROWS, Q) == ()
+    assert unsupported_numbers("Manchester fell 3.2%", ROWS, Q) == ()  # unsigned: either sign
+    assert unsupported_numbers("Kensington -12.5%", ROWS, Q) == ("-12.5%",)
+
+
+def test_sev_written_signs_are_honoured():
+    rec = SEV["record"]
+    assert value_check("risk score of -0.83", rec).value == 0.0
+    assert value_check("risk fell 0.83", {**rec, "risk_score": -0.83}).value == 1.0
+    assert value_check("risk moved -0.83", {**rec, "risk_score": -0.83}).value == 1.0
+    assert value_check("risk above -0.9", {**rec, "risk_score": -0.83}).value == 1.0
+    assert value_check("risk below -0.9", {**rec, "risk_score": -0.83}).value == 0.0
+
+
+def test_rul_allow_string_match_ignores_case():
+    kw: dict[str, Any] = {"cited_key": "policy_clauses", "allow": 'action == "clear"'}
+    risky = {**BASE, "risk_score": 0.95}
+    res = rule_compliance({"action": "Clear", "policy_clauses": ["P7.1"]}, risky, RULES, **kw)
+    assert res.details["allow"] is True and "never:P8.9" in res.details["reasons"]
+    hold = rule_compliance({"action": " HOLD ", "policy_clauses": ["P3.1"]}, risky, RULES, **kw)
+    assert hold.details["allow"] is False and hold.value == 1.0
+
+
+@pytest.mark.safety
+def test_rul_category_values_outside_the_set_are_refused():
+    with pytest.raises(RuleError, match="category"):
+        rule_compliance({"rule_ids": ["P7.1"]}, {**BASE, "category": "bogus"}, RULES)
+    grocery = RuleSet(
+        rules=(Rule(id="G", kind="allow", when="category == 'grocery_pos'"),),
+        fields=POL["rule_set"]["fields"],
+    )
+    with pytest.raises(RuleError, match="category"):
+        grocery.holds("G", {**BASE, "category": "Grocery_POS"})
+
+
+def test_sev_conditional_text_may_hold_colons():
+    t = ["{flag?yes: really|no: not}"]
+    assert render_evidence({"flag": True}, t) == ["yes: really"]
+    assert render_evidence({"flag": False}, t) == ["no: not"]
+    assert render_evidence({"x": 1.5}, ["{x:.2f}"]) == ["1.50"]
+    with pytest.raises(ValueError):
+        render_evidence({"x": 1.5}, ["{x:.2f?a|b}"])
