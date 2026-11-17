@@ -1,36 +1,64 @@
 """Opt-in shape equivalences for `sql_match` (SQE-01, SQE-02; D-71, B5.15).
 
 Lifted from agentic-analytics (MIT, same author), `src/agentic_analytics/scoring/tolerant.py`
-at commit f6abdec ("OWNER D-81: tolerant headline scoring"), and adapted to `sql_match`'s
-arguments: the question is plain text, one `rel_tol`/`abs_tol` covers every numeric column,
-and naming `empty_check` stands for agentic-analytics' `expects_empty`.
+at commit f6abdec ("OWNER D-81: tolerant headline scoring"), adapted to `sql_match`'s
+arguments (the question is plain text; naming `empty_check` stands for agentic-analytics'
+`expects_empty`) and made stricter where the reference can turn a wrong answer into a match
+(B5.15 verifier): an equivalence may only reshape a right answer.
 
 Each rule is a pre-normalisation of the predicted rows, tried only after the strict match
 failed and only when the caller names it; the normalised rows must then pass the strict match
-unchanged (same tolerance, same column handling, same row count, `gold.ordered`). The gold is
-never changed.
+(same tolerance, same column handling, same row count, `gold.ordered`). The gold is never
+changed. A column a rule converted must be compared with a gold column of the kind it was
+converted for (a scaled fraction with a percent column, a month number with a month column);
+any other column mapping fails. Column names are read as whole words, case-insensitive, split
+at ``_``, ``-``, spaces, other punctuation and letter/digit changes (``NEW_BUILD_PCT`` is new,
+build, pct; ``q1`` is q, 1). A name that must *name* something (a percent, month, quarter or
+count column) is not split at case changes (``newBuildPct`` is one word, not a percent
+column); a word that *excludes* a column (a summary word, a measure) is also found at case
+changes (``avgPrice`` has avg). Where agentic-analytics' D-91 rules (a638db9) and these
+differ, the stricter is kept.
 
-1. **percent_scale.** The question asks for a percentage (its text says "percent",
-   "percentage", "per cent" or "%"), `abs_tol` is a percent-unit tolerance (at least 0.01) and
-   a gold column is named as a percentage (``pct``, ``percent`` or ``points`` in its name). A
-   predicted numeric column is multiplied by 100 when, so scaled, its values fit such a gold
-   column within the tolerance and, unscaled, they do not (0.0817 for 8.17).
+1. **percent_scale.** The question asks for a percentage: it says "percent", "percentage",
+   "per cent" or "%" ("percentile" is not one) and nowhere negates one ("not %", "not a
+   percentage", "no percent", "rather than as a percent", "instead of a percentage"). A gold
+   column is named as a percentage: a word ``pct``, ``percent`` or ``percentage`` in its name
+   (not ``percentile``, ``pcnt``, ``rate``, ``share`` or ``ratio``), or both words ``points``
+   and ``change`` (``change_points``) when the question asks for percentage points
+   (``avg_loyalty_points`` is not one). A predicted numeric column is multiplied by 100 when,
+   so scaled, its values fit such a gold column and, unscaled, they do not (0.0817 for 8.17).
+   The scaled column alone is compared with a percent-unit tolerance, `abs` = max(`abs_tol`,
+   0.01) with the caller's `rel_tol` (agentic-analytics D-51's per-column tolerance); every
+   other column keeps the caller's `abs_tol`.
 2. **pivot.** The gold is long: two columns, one all-text label column and one all-numeric
    value column, at least one row, distinct labels. The prediction is one wide row whose
    column names are the gold's labels (case-insensitive; spaces, ``-`` and ``_`` are the same
-   separator). Every gold label must be a predicted column; any other predicted column must
-   hold a numeric zero (a label the gold's GROUP BY omitted, e.g. ``unknown = 0``). The row is
-   unpivoted into the gold's two columns.
-3. **empty_check.** With an empty gold, a single predicted row counts as no rows when it has
-   at least one numeric cell, every numeric cell (numbers, and text that is a plain number) is
-   zero, and every other cell is text or null (the dates of a no-data check:
-   ``earliest_sale_date, latest_sale_date, sales_in_1994 = 0``).
+   separator). Every gold label must be a predicted column. Any other predicted column must
+   hold a numeric zero and look like a label the gold's GROUP BY omitted (``unknown = 0``):
+   no summary or metric word in its name (``SUMMARY_WORDS``: total, sum, all, overall, count,
+   n, avg, pct, share, ...), not one of the gold's own column names, and written only with the
+   kinds of character the gold's labels use (letters, digits, separators, anything else), so
+   ``unknown`` beside year labels is not one. The row is unpivoted into the gold's columns.
+3. **empty_check.** With an empty gold, a single predicted row counts as no rows when it is a
+   zero count with nothing but dates and nulls beside it: at least one number, every number
+   (numbers, and text that is a plain number) zero and in a count column, and every other
+   cell null or an ISO date or timestamp (``YYYY-MM-DD[ hh:mm[:ss[.f]]][zone]``), as in
+   ``earliest_sale_date, latest_sale_date, sales_in_1994 = 0``. A count column has a word of
+   ``COUNT_WORDS`` (count, cnt, n, num, number, rows, records, sales, transactions, orders,
+   items) in its name and none of
+   ``NOT_COUNT_WORDS`` (avg, mean, median, min, max, sum, price, amount, value, revenue, pct,
+   ratio, rate, share, ...): ``total_sales`` counts by "sales", ``total`` or
+   ``total_revenue`` does not. An error message, a zero average or a zero total is not a
+   no-data check.
 4. **period_number.** A predicted column of dates that are all month starts
    (``YYYY-MM-01``, optionally with a midnight time) in one calendar year becomes the month
-   number (1-12) when the question names months and the gold has a column of month numbers,
-   or the quarter number (1-4) when every date is a quarter start, the question names quarters
-   and the gold has a column of quarter numbers. Dates over two or more years never convert:
-   their month numbers would merge different periods.
+   number (1-12) when the question names months and a gold column named as a month (a word
+   ``month``) holds integers 1-12, or the quarter number (1-4) when every date is a quarter
+   start, the question names quarters and a gold column named as a quarter (a word
+   ``quarter`` or ``qtr``) holds integers 1-4; the converted column must be compared with such
+   a column. When the question names a year (four digits 19xx or 20xx not inside a longer
+   number, so "FY2024" names 2024), the dates' year must be one it names. Dates over two or
+   more years never convert: their month numbers would merge different periods.
 
 percent_scale and period_number act on columns and may apply together (a monthly percentage
 change returned as month dates and fractions); pivot and empty_check reshape the whole result
@@ -42,7 +70,8 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from collections.abc import Collection, Iterator, Sequence
+from collections.abc import Collection, Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
@@ -52,18 +81,60 @@ EQUIVALENCES: tuple[str, ...] = ("percent_scale", "pivot", "empty_check", "perio
 
 PERCENT_ABS = 0.01  # a percent-unit column's absolute tolerance (agentic-analytics D-51)
 PERCENT_SCALE = 100
-_ASKS_PERCENT = re.compile(r"\bper\s?cent(?:age)?s?\b|%", re.IGNORECASE)
-_PERCENT_COLUMN = re.compile(r"pct|percent|points", re.IGNORECASE)
+_PERCENT_WORD = r"(?:%|\bper\s?cent(?:age)?s?\b)"  # "percentile" is not one
+_ASKS_PERCENT = re.compile(_PERCENT_WORD, re.IGNORECASE)
+_NOT_PERCENT = re.compile(
+    r"\b(?:not|no|never|without|rather\s+than|instead\s+of|non-?)\s*"
+    r"(?:(?:a|an|as|in|into|the|expressed|given|shown|returned|reported)\s+){0,3}" + _PERCENT_WORD,
+    re.IGNORECASE,
+)
+_ASKS_POINTS = re.compile(r"\bper\s?cent(?:age)?[\s-]+points?\b", re.IGNORECASE)
+PERCENT_WORDS = frozenset({"pct", "percent", "percentage"})
+POINT_CHANGE_WORDS = frozenset({"points", "change"})  # a percentage-point change
 _NAMES_MONTHS = re.compile(r"\bmonths?\b", re.IGNORECASE)
 _NAMES_QUARTERS = re.compile(r"\bquarters?\b", re.IGNORECASE)
+_NAMES_YEAR = re.compile(r"(?<![0-9])((?:19|20)[0-9]{2})(?![0-9])")
+MONTH_WORDS = frozenset({"month"})
+QUARTER_WORDS = frozenset({"quarter", "qtr"})
 _PERIOD_START = re.compile(
     r"(\d{4})-(\d{2})-01(?:[T ]00:00(?::00(?:\.0+)?)?(?:Z|[+-]00:?00)?)?", re.ASCII
 )
+_ISO_DATE = re.compile(
+    r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?",
+    re.ASCII,
+)
 _PLAIN_NUMBER = re.compile(r"\s*[-+]?\d+(?:\.\d+)?\s*", re.ASCII)
 _SEPARATORS = re.compile(r"[\s_-]+")
+_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
+_WORD = re.compile(r"[a-z]+|[0-9]+")
+COUNT_WORDS = frozenset(
+    {"count", "counts", "cnt", "n", "num", "number", "rows", "records"}
+    | {"sales", "transactions", "orders", "items"}
+)
+NOT_COUNT_WORDS = frozenset(
+    {"avg", "average", "mean", "median", "min", "max", "sum", "price", "amount", "value"}
+    | {"revenue", "pct", "percent", "percentage", "ratio", "rate", "share"}
+)
+SUMMARY_WORDS = frozenset(
+    {"total", "totals", "subtotal", "sum", "all", "overall", "grand", "count", "counts", "cnt"}
+    | {"n", "num", "avg", "average", "mean", "median", "min", "max", "pct", "percent"}
+    | {"percentage", "share", "ratio", "rate"}
+)
 QUARTER_STARTS = frozenset({1, 4, 7, 10})
 
-Variant = tuple[tuple[str, ...], ResultSet]
+Converted = dict[int, tuple[list[Any], frozenset[int]]]  # column: (new values, gold targets)
+
+
+@dataclass(frozen=True)
+class Variant:
+    """A normalised form of the predicted rows, with the rules that made it. `bound` maps each
+    converted predicted column to the gold columns it may be compared with; `percent` lists
+    the converted columns compared with the percent-unit tolerance."""
+
+    rules: tuple[str, ...]
+    predicted: ResultSet
+    bound: Mapping[int, frozenset[int]] = field(default_factory=dict)
+    percent: frozenset[int] = frozenset()
 
 
 def check_names(equivalences: Collection[str]) -> frozenset[str]:
@@ -75,6 +146,19 @@ def check_names(equivalences: Collection[str]) -> frozenset[str]:
     if unknown:
         raise ValueError(f"unknown sql_match equivalences {unknown}; known: {list(EQUIVALENCES)}")
     return names
+
+
+def words(name: str) -> frozenset[str]:
+    """A column name's whole words, case-insensitive, not split at case changes: the words
+    that may name a column (``NEW_BUILD_PCT`` -> new, build, pct; ``newBuildPct`` ->
+    newbuildpct)."""
+    return frozenset(_WORD.findall(name.casefold()))
+
+
+def any_words(name: str) -> frozenset[str]:
+    """`words` plus the words found at case changes (``avgPrice`` -> avgprice, avg, price):
+    the words that may exclude a column."""
+    return words(name) | frozenset(_WORD.findall(_CAMEL.sub(" ", name).casefold()))
 
 
 def _is_num(v: Any) -> bool:
@@ -112,33 +196,37 @@ def variants(
     rel_tol: float,
     abs_tol: float,
 ) -> Iterator[Variant]:
-    """Each normalised form of `predicted` the named rules allow, with the rules that made it,
-    in the order tried."""
+    """Each normalised form of `predicted` the named rules allow, in the order tried."""
     if "empty_check" in names and (empty := empty_check(predicted, gold)) is not None:
-        yield ("empty_check",), empty
+        yield Variant(("empty_check",), empty)
     if "pivot" in names and (long := pivot(predicted, gold)) is not None:
-        yield ("pivot",), long
-    scaled: dict[int, list[Any]] = {}
-    periods: list[dict[int, list[Any]]] = []
+        yield Variant(("pivot",), long)
+    scaled: Converted = {}
+    periods: list[Converted] = []
     if "percent_scale" in names and question is not None:
         scaled = percent_columns(predicted, gold, question, rel_tol, abs_tol)
     if "period_number" in names and question is not None:
         periods = period_columns(predicted, gold, question)
+    pct = frozenset(scaled)
     if scaled:
-        yield ("percent_scale",), _replace(predicted, scaled)
+        yield _variant(("percent_scale",), predicted, scaled, pct)
     for period in periods:
-        yield ("period_number",), _replace(predicted, period)
+        yield _variant(("period_number",), predicted, period, frozenset())
     if scaled:
         for period in periods:
-            yield ("percent_scale", "period_number"), _replace(predicted, {**scaled, **period})
+            both = {**scaled, **period}
+            yield _variant(("percent_scale", "period_number"), predicted, both, pct)
 
 
-def _replace(rs: ResultSet, columns: dict[int, list[Any]]) -> ResultSet:
+def _variant(
+    rules: tuple[str, ...], rs: ResultSet, columns: Converted, percent: frozenset[int]
+) -> Variant:
     rows = tuple(
-        tuple(columns[i][k] if i in columns else v for i, v in enumerate(row))
+        tuple(columns[i][0][k] if i in columns else v for i, v in enumerate(row))
         for k, row in enumerate(rs.rows)
     )
-    return ResultSet(columns=rs.columns, rows=rows)
+    bound = {i: targets for i, (_, targets) in columns.items()}
+    return Variant(rules, ResultSet(columns=rs.columns, rows=rows), bound, percent)
 
 
 def _column(rs: ResultSet, i: int) -> list[Any]:
@@ -148,32 +236,46 @@ def _column(rs: ResultSet, i: int) -> list[Any]:
 # 1. percent_scale
 
 
-def _gold_percent_columns(gold: ResultSet, question: str, abs_tol: float) -> list[int]:
-    if abs_tol < PERCENT_ABS or not _ASKS_PERCENT.search(question):
+def asks_percent(question: str) -> bool:
+    """The question asks for a percentage and nowhere negates one."""
+    return bool(_ASKS_PERCENT.search(question)) and not _NOT_PERCENT.search(question)
+
+
+def _gold_percent_columns(gold: ResultSet, question: str) -> list[int]:
+    if not asks_percent(question):
         return []
-    return [j for j, name in enumerate(gold.columns) if _PERCENT_COLUMN.search(name)]
+    points = bool(_ASKS_POINTS.search(question))
+    return [
+        j
+        for j, name in enumerate(gold.columns)
+        if PERCENT_WORDS & words(name) or (points and words(name) >= POINT_CHANGE_WORDS)
+    ]
 
 
 def percent_columns(
     predicted: ResultSet, gold: ResultSet, question: str, rel_tol: float, abs_tol: float
-) -> dict[int, list[Any]]:
-    """{predicted column: its values x100} for each fraction column that fits a gold percent
-    column only once scaled; {} when the rule does not apply."""
-    targets = [_Column(_column(gold, j)) for j in _gold_percent_columns(gold, question, abs_tol)]
+) -> Converted:
+    """{predicted column: (its values x100, the gold percent columns they fit)} for each
+    fraction column that fits a gold percent column only once scaled, under the percent-unit
+    tolerance; {} when the rule does not apply."""
+    targets = [(j, _Column(_column(gold, j))) for j in _gold_percent_columns(gold, question)]
     if not targets:
         return {}
-    out: dict[int, list[Any]] = {}
+    tol = max(abs_tol, PERCENT_ABS)
+    out: Converted = {}
     for i in range(len(predicted.columns)):
         values = _column(predicted, i)
         if not any(_is_num(v) for v in values):
             continue
         scaled = [v * PERCENT_SCALE if _is_num(v) else v for v in values]
         before, after = _Column(values), _Column(scaled)
-        if any(
-            after.fits(g, rel_tol, abs_tol) and not before.fits(g, rel_tol, abs_tol)
-            for g in targets
-        ):
-            out[i] = scaled
+        fit = frozenset(
+            j
+            for j, g in targets
+            if after.fits(g, rel_tol, tol) and not before.fits(g, rel_tol, tol)
+        )
+        if fit:
+            out[i] = (scaled, fit)
     return out
 
 
@@ -182,6 +284,23 @@ def percent_columns(
 
 def _label_key(text: str) -> str:
     return _SEPARATORS.sub("_", text.strip().casefold())
+
+
+def _char_kinds(text: str) -> frozenset[str]:
+    return frozenset(
+        "letter" if c.isalpha() else "digit" if c.isdigit() else "sep" if c in " _-" else "other"
+        for c in text.strip()
+    )
+
+
+def _omitted_label(name: str, labels: Collection[str], gold: ResultSet) -> bool:
+    """A predicted column name that could be a label the gold's GROUP BY left out."""
+    if SUMMARY_WORDS & any_words(name):
+        return False
+    if _label_key(name) in {_label_key(c) for c in gold.columns}:
+        return False
+    kinds = frozenset().union(*(_char_kinds(lab) for lab in labels))
+    return bool(name.strip()) and _char_kinds(name) <= kinds
 
 
 def pivot(predicted: ResultSet, gold: ResultSet) -> ResultSet | None:
@@ -206,12 +325,12 @@ def pivot(predicted: ResultSet, gold: ResultSet) -> ResultSet | None:
         return None
     (row,) = predicted.rows
     long: list[tuple[Any, Any]] = []
-    for key, cell in zip(keys, row, strict=True):
+    for name, key, cell in zip(predicted.columns, keys, row, strict=True):
         if key in labels:
             pair = (labels[key], cell) if label_col == 0 else (cell, labels[key])
             long.append(pair)
-        elif not (_is_num(cell) and cell == 0):
-            return None  # an extra label must be one the gold omitted, so zero
+        elif not (_is_num(cell) and cell == 0 and _omitted_label(name, labels.values(), gold)):
+            return None  # an extra column must be a label the gold omitted, so zero
     return ResultSet(columns=gold.columns, rows=tuple(long))
 
 
@@ -226,17 +345,26 @@ def _numeric(cell: Any) -> float | None:
     return None
 
 
+def is_count_column(name: str) -> bool:
+    """A column named as a count (``n``, ``sales_in_1994``) and not as another measure."""
+    return bool(words(name) & COUNT_WORDS) and not any_words(name) & NOT_COUNT_WORDS
+
+
 def empty_check(predicted: ResultSet, gold: ResultSet) -> ResultSet | None:
     """No rows, in the gold's columns, when the one predicted row is a no-data check."""
     if gold.rows or len(predicted.rows) != 1:
         return None
     (row,) = predicted.rows
-    counts = [n for n in (_numeric(c) for c in row) if n is not None]
-    if not counts or any(n != 0 for n in counts):
-        return None
-    if any(_numeric(c) is None and not (c is None or isinstance(c, str)) for c in row):
-        return None  # booleans and nested values are not a no-data check
-    return ResultSet(columns=gold.columns, rows=())
+    counts = 0
+    for name, cell in zip(predicted.columns, row, strict=True):
+        n = _numeric(cell)
+        if n is not None:
+            if n != 0 or not is_count_column(name):
+                return None
+            counts += 1
+        elif not (cell is None or (isinstance(cell, str) and _ISO_DATE.fullmatch(cell.strip()))):
+            return None  # text, booleans and nested values are not a no-data check
+    return ResultSet(columns=gold.columns, rows=()) if counts else None
 
 
 # 4. period_number
@@ -256,35 +384,47 @@ def _period_starts(values: Sequence[Any]) -> list[tuple[int, int] | None] | None
     return out if any(p is not None for p in out) else None
 
 
-def _has_numbers(gold: ResultSet, top: int) -> bool:
-    """A gold column whose every cell is an integer in 1..top."""
-    for j in range(len(gold.columns)):
+def _period_numbers(gold: ResultSet, named: frozenset[str], top: int) -> frozenset[int]:
+    """The gold columns named as the period whose every cell is an integer in 1..top."""
+    out = []
+    for j, name in enumerate(gold.columns):
         cells = _column(gold, j)
-        if cells and all(_is_num(v) and float(v).is_integer() and 1 <= v <= top for v in cells):
-            return True
-    return False
+        if not named & words(name) or not cells:
+            continue
+        if all(_is_num(v) and float(v).is_integer() and 1 <= v <= top for v in cells):
+            out.append(j)
+    return frozenset(out)
 
 
-def period_columns(
-    predicted: ResultSet, gold: ResultSet, question: str
-) -> list[dict[int, list[Any]]]:
-    """The month-number and quarter-number readings of the predicted date columns that apply."""
+def period_columns(predicted: ResultSet, gold: ResultSet, question: str) -> list[Converted]:
+    """The month-number and quarter-number readings of the predicted date columns that apply,
+    each converted column bound to the gold columns named as that period."""
     if not gold.rows:
         return []
+    years = {int(y) for y in _NAMES_YEAR.findall(question)}
     dates: dict[int, list[tuple[int, int] | None]] = {}
     for i in range(len(predicted.columns)):
         starts = _period_starts(_column(predicted, i))
-        if starts is not None and len({p[0] for p in starts if p is not None}) == 1:
+        if starts is None:
+            continue
+        in_years = {p[0] for p in starts if p is not None}
+        if len(in_years) == 1 and (not years or in_years <= years):
             dates[i] = starts
     if not dates:
         return []
-    out: list[dict[int, list[Any]]] = []
-    if _NAMES_MONTHS.search(question) and _has_numbers(gold, 12):
-        out.append({i: [None if p is None else p[1] for p in s] for i, s in dates.items()})
+    out: list[Converted] = []
+    months = _period_numbers(gold, MONTH_WORDS, 12)
+    if _NAMES_MONTHS.search(question) and months:
+        out.append(
+            {i: ([None if p is None else p[1] for p in s], months) for i, s in dates.items()}
+        )
+    quarters = _period_numbers(gold, QUARTER_WORDS, 4)
     quarter_starts = all(p is None or p[1] in QUARTER_STARTS for s in dates.values() for p in s)
-    if quarter_starts and _NAMES_QUARTERS.search(question) and _has_numbers(gold, 4):
-        quarters = {
-            i: [None if p is None else (p[1] - 1) // 3 + 1 for p in s] for i, s in dates.items()
-        }
-        out.append(quarters)
+    if quarter_starts and _NAMES_QUARTERS.search(question) and quarters:
+        out.append(
+            {
+                i: ([None if p is None else (p[1] - 1) // 3 + 1 for p in s], quarters)
+                for i, s in dates.items()
+            }
+        )
     return out

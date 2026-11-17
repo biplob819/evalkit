@@ -20,7 +20,7 @@ from typing import Any
 
 from evalkit.schemas import ResultSet
 from evalkit.scorers.base import ScoreResult
-from evalkit.scorers.sql_equivalences import check_names, variants
+from evalkit.scorers.sql_equivalences import PERCENT_ABS, Variant, check_names, variants
 
 Norm = tuple[str, Any]
 
@@ -112,18 +112,20 @@ def _group_matches(
     gold: list[tuple[Norm, ...]],
     num_idx: list[int],
     rel_tol: float,
-    abs_tol: float,
+    abs_tols: list[float],
 ) -> bool:
     if len(pred) != len(gold):
         return False
     if not num_idx:
         return Counter(pred) == Counter(gold)
 
+    num_tols = [abs_tols[i] for i in num_idx]
+
     def nums(row: tuple[Norm, ...]) -> tuple[float | int, ...]:
         return tuple(row[i][1] for i in num_idx)
 
     def row_close(a: tuple[float | int, ...], b: tuple[float | int, ...]) -> bool:
-        return all(_close(x, y, rel_tol, abs_tol) for x, y in zip(a, b, strict=True))
+        return all(_close(x, y, rel_tol, t) for x, y, t in zip(a, b, num_tols, strict=True))
 
     p_nums = sorted(nums(r) for r in pred)
     g_nums = sorted(nums(r) for r in gold)
@@ -132,7 +134,7 @@ def _group_matches(
     keys = [g[0] for g in g_nums]
     adj: list[list[int]] = []
     for a in p_nums:
-        w = _window(a[0], rel_tol, abs_tol)
+        w = _window(a[0], rel_tol, num_tols[0])
         lo, hi = bisect.bisect_left(keys, a[0] - w), bisect.bisect_right(keys, a[0] + w)
         adj.append([j for j in range(lo, hi) if row_close(a, g_nums[j])])
     return _max_matching(adj, len(g_nums)) == len(p_nums)
@@ -219,15 +221,15 @@ def sql_match(
         return ScoreResult(
             value=1.0, details={**strict.details, "correct_strict": True, "equivalences": []}
         )
-    for rules, variant in variants(predicted, gold, names, question, rel_tol, abs_tol):
-        res = _strict(variant, gold, rel_tol, abs_tol, allow_extra_columns)
+    for variant in variants(predicted, gold, names, question, rel_tol, abs_tol):
+        res = _strict(variant.predicted, gold, rel_tol, abs_tol, allow_extra_columns, variant)
         if res.value == 1.0:
             return ScoreResult(
                 value=1.0,
                 details={
                     **res.details,
                     "correct_strict": False,
-                    "equivalences": list(rules),
+                    "equivalences": list(variant.rules),
                     "strict_reason": strict.details["reason"],
                 },
             )
@@ -236,17 +238,36 @@ def sql_match(
     )
 
 
+def _abs_tols(order: list[int], abs_tol: float, variant: Variant | None) -> list[float] | None:
+    """Per gold column abs tolerances for a column mapping, or None when it breaks a variant's
+    binding (a converted column compared with a gold column of another kind). Without a
+    variant every column has `abs_tol`; a scaled percent column has the percent-unit abs."""
+    tols = [abs_tol] * len(order)
+    if variant is None:
+        return tols
+    for k, i in enumerate(order):
+        if i in variant.bound and k not in variant.bound[i]:
+            return None
+        if i in variant.percent:
+            tols[k] = max(abs_tol, PERCENT_ABS)
+    return tols
+
+
 def _strict(
     predicted: ResultSet,
     gold: ResultSet,
     rel_tol: float,
     abs_tol: float,
     allow_extra_columns: bool,
+    variant: Variant | None = None,
 ) -> ScoreResult:
     if allow_extra_columns and len(predicted.columns) > len(gold.columns):
         tried = _assignments(predicted, gold, rel_tol, abs_tol)
         for order in tried:
-            res = _compare(predicted, gold, order, "subset", rel_tol, abs_tol)
+            tols = _abs_tols(order, abs_tol, variant)
+            if tols is None:
+                continue
+            res = _compare(predicted, gold, order, "subset", rel_tol, tols)
             if res.value == 1.0:
                 return res
         return ScoreResult(
@@ -269,7 +290,10 @@ def _strict(
             value=0.0,
             details={"reason": "column_count", "predicted": len(pcols), "gold": len(gcols)},
         )
-    return _compare(predicted, gold, order, mode, rel_tol, abs_tol)
+    tols = _abs_tols(order, abs_tol, variant)
+    if tols is None:
+        return ScoreResult(value=0.0, details={"reason": "row_mismatch", "columns": mode})
+    return _compare(predicted, gold, order, mode, rel_tol, tols)
 
 
 def _compare(
@@ -278,7 +302,7 @@ def _compare(
     order: list[int],
     mode: str,
     rel_tol: float,
-    abs_tol: float,
+    abs_tols: list[float],
 ) -> ScoreResult:
     p_rows = [tuple(_norm_value(r[i]) for i in order) for r in predicted.rows]
     g_rows = [tuple(_norm_value(v) for v in r) for r in gold.rows]
@@ -294,11 +318,11 @@ def _compare(
         )
 
     def same(a: tuple[Norm, ...], b: tuple[Norm, ...]) -> bool:
-        for x, y in zip(a, b, strict=True):
+        for x, y, tol in zip(a, b, abs_tols, strict=True):
             if x[0] != y[0]:
                 return False
             if x[0] == "num":
-                if not _close(x[1], y[1], rel_tol, abs_tol):
+                if not _close(x[1], y[1], rel_tol, tol):
                     return False
             elif x != y:
                 return False
@@ -334,25 +358,22 @@ def _compare(
         groups_p[signature(r)].append(r)
     for r in left_g:
         groups_g[signature(r)].append(r)
-    # gold's groups first, in row order, then predicted-only ones: the first difference reported
-    # is the same on every run (a set's order changes with PYTHONHASHSEED; B5.15 finding)
-    for sig in [*groups_g, *(g for g in groups_p if g not in groups_g)]:
+    # Gold's groups only, in row order, so the first difference reported is the same on every
+    # run (a set's order changes with PYTHONHASHSEED; B5.15 finding). Predicted-only groups need
+    # no visit: both sides have the same number of rows left, so if every gold group matches
+    # (equal sizes) the predicted rows are all used and no predicted-only group exists.
+    for sig, gold_rows in groups_g.items():
         num_idx = [i for i, part in enumerate(sig) if part == "num"]
-        if not _group_matches(
-            groups_p.get(sig, []), groups_g.get(sig, []), num_idx, rel_tol, abs_tol
-        ):
+        pred_rows = groups_p.get(sig, [])
+        if not _group_matches(pred_rows, gold_rows, num_idx, rel_tol, abs_tols):
             return ScoreResult(
                 value=0.0,
                 details={
                     "reason": "rows_differ",
                     "columns": mode,
-                    "unmatched_predicted": len(groups_p.get(sig, [])),
-                    "unmatched_gold": len(groups_g.get(sig, [])),
-                    **(
-                        {"example_gold_row": [v for _, v in groups_g[sig][0]]}
-                        if groups_g.get(sig)
-                        else {"example_predicted_row": [v for _, v in groups_p[sig][0]]}
-                    ),
+                    "unmatched_predicted": len(pred_rows),
+                    "unmatched_gold": len(gold_rows),
+                    "example_gold_row": [v for _, v in gold_rows[0]],
                 },
             )
     return ScoreResult(value=1.0, details={"columns": mode, "ordered": False})

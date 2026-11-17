@@ -211,30 +211,55 @@ policy_check = rule_compliance_scorer(
 name the shapes you accept, per call, and pass the question text:
 
 ```python
-sql_match(predicted, gold, rel_tol=0.005, abs_tol=0.01, allow_extra_columns=True,
+sql_match(predicted, gold, allow_extra_columns=True,
           question="What percentage of sales were new builds?",
           equivalences=("percent_scale", "pivot", "empty_check", "period_number"))
 ```
 
+Every rule may only reshape a right answer, never make a wrong one right. A column a rule
+converted must be compared with a gold column of its kind. Column names are read as whole
+words (split at `_`, `-`, spaces and digits, any case). A word that must name a column is not
+split at camelCase (`newBuildPct` is not a percent column), but an excluding word is
+(`avgPrice` contains avg).
+
 - `percent_scale`: the question asks for a percentage ("percent", "percentage", "per cent",
-  "%"; not "share", "proportion" or "percentile"), `abs_tol >= 0.01` (percent units) and a
-  gold column is named `pct`, `percent` or `points`: a predicted column that fits it only
-  once multiplied by 100 (0.0817 for 8.17) is scaled.
+  "%"; not "share", "proportion" or "percentile") and never negates one ("not %", "not a
+  percentage", "rather than a percent", "instead of a percentage"). A gold column has the
+  word `pct`, `percent` or `percentage` in its name, or both `points` and `change` when the
+  question asks for percentage points. `latency_percentile_95`, `avg_loyalty_points`,
+  `pcnt` and `rate` do not count. A predicted column that fits such a column only once
+  multiplied by 100 (0.0817 for 8.17) is scaled. That column alone is compared with a
+  percent-unit tolerance, `abs` = max(`abs_tol`, 0.01), with your `rel_tol`. Every other
+  column keeps your tolerance, so counts beside a percentage can stay exact. Note that the
+  scaled column is compared at 0.01 percentage points even when `abs_tol` is smaller.
 - `pivot`: a long gold (distinct text labels and numbers, two columns) matches one wide
   predicted row whose column names are the labels (case-insensitive; space, `-` and `_` alike).
-  Any other predicted column must be a numeric 0 (a label the gold left out).
-- `empty_check`: an empty gold matches one predicted row with at least one number, every
-  number 0 and every other cell text or null (`earliest, latest, sales_in_1994 = 0`). Name it
-  only for questions whose answer is "no data".
-- `period_number`: predicted month-start or quarter-start dates in one calendar year match
-  gold month (1–12) or quarter (1–4) numbers when the question names months or quarters.
+  Any other predicted column must be a numeric 0 and look like a label the gold left out
+  (`unknown = 0`). So it may not be a summary or metric word (`total`, `grand_total`, `sum`,
+  `all`, `overall`, `count`, `n`, `avg`, `pct`, `share`, ...). It may not be one of the gold's
+  column names. It may use only the kinds of character the gold's labels use: `unknown` beside
+  year labels `2023`, `2024` is rejected, `2025` is accepted.
+- `empty_check`: an empty gold matches one predicted row that is a zero count with only
+  dates and nulls beside it (`earliest, latest, sales_in_1994 = 0`). Every number must be 0
+  and sit in a count column. A count column is named with count, cnt, n, num, number, rows,
+  records, sales, transactions, orders or items, and with none of avg, average, mean, median,
+  min, max, sum, price, amount, value, revenue, pct, ratio, rate or share. Every other cell
+  must be null or an ISO date or timestamp. So `total_sales = 0` counts, while
+  `avg_price = 0.0`, `total = 0` and an error message do not. Name this rule only for
+  questions whose answer is "no data".
+- `period_number`: predicted month-start or quarter-start dates in one calendar year can
+  match gold numbers. They match month numbers (1–12) in a gold column named `month`, or
+  quarter numbers (1–4) in a column named `quarter` or `qtr`, when the question names months
+  or quarters. When the question names a year (19xx or 20xx), the dates must fall in a named
+  year. A count of 1–12 is never read as a month.
 
 The strict match runs first; only when it fails is each named reshaping of `predicted`
-matched strictly in turn (same tolerance, columns, row count and `gold.ordered`). With
-equivalences named, `details` carries `correct_strict` and the `equivalences` that matched
-(and `strict_reason` on a rescue), so report both scores. With none named, the result is
-byte-for-byte what it was before 0.4.0. The rules are agentic-analytics' (its OWNER D-81,
-EvalKit D-71).
+matched strictly in turn (same tolerance apart from the scaled percent column, same columns,
+row count and `gold.ordered`). With equivalences named, `details` carries `correct_strict`
+and the `equivalences` that matched (and `strict_reason` on a rescue), so report both
+scores. With none named, the result is byte-for-byte what it was before 0.4.0. The rules
+start from agentic-analytics' (its OWNER D-81, EvalKit D-71). Where its D-91 narrowing and
+EvalKit differ, EvalKit keeps the stricter rule.
 
 ## Writing a model adapter
 
