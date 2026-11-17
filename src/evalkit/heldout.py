@@ -75,6 +75,10 @@ __all__ = [
 MANIFEST_SCHEMA = "evalkit.heldout.manifest/1"
 GENESIS = "0" * 64
 SCORED = "heldout_scored"
+# Reserved for B5.9's calibration pair (`evalkit.integrity`), written only by its own writer:
+# the public `append_entry` and `record_scoring` refuse both.
+CALIBRATION_SCORED = "calibration_scored"
+CALIBRATION_PREFIX = "calibration:"
 EXPOSURE_MIN_CHARS = 25  # course-assistant D-54
 EXPOSURE_WINDOW = 10  # words
 _SUFFIXES = (".jsonl", ".json", ".yaml", ".yml")
@@ -572,30 +576,82 @@ def _release(fd: int) -> None:
 
 def _append_locked(p: Path, entry: Mapping[str, Any], *, doing: str) -> dict[str, Any]:
     """Check the chain and the score-once rule, then append; the caller holds the lock."""
+    return _append_many_locked(p, [entry], doing=doing)[0]
+
+
+def _append_many_locked(
+    p: Path, entries: Sequence[Mapping[str, Any]], *, doing: str
+) -> list[dict[str, Any]]:
+    """Check the chain and the score-once rule for every entry, chain each to the one before
+    it, then append them all in ONE write, so a crash leaves all of them or none (a torn
+    write leaves a line that is not JSON: a broken chain). The caller holds the lock."""
     lines = _lines(p) if p.is_file() else []
     if lines and chain_problems(p):
         raise HeldoutError(f"the log's hash chain is broken: restore it before {doing}")
-    if entry.get("kind") == SCORED:
-        *_, (_, _, rubric, again) = _rescored([*read_log(p), entry])
-        if rubric is not None and again:
-            raise AlreadyScored(_already(rubric, again))
-    row = {**entry, "prev": _sha(lines[-1]) if lines else GENESIS}
-    text = _canonical(row)
+    rows: list[Mapping[str, Any]] = list(read_log(p))
+    prev = _sha(lines[-1]) if lines else GENESIS
+    texts = []
+    for entry in entries:
+        if entry.get("kind") == SCORED:
+            *_, (_, _, rubric, again) = _rescored([*rows, entry])
+            if rubric is not None and again:
+                raise AlreadyScored(_already(rubric, again))
+        text = _canonical({**entry, "prev": prev})
+        texts.append(text)
+        rows.append(entry)
+        prev = _sha(text)
     lead = "\n" if p.is_file() and p.stat().st_size and not p.read_bytes().endswith(b"\n") else ""
-    with p.open("a", encoding="utf-8", newline="\n") as fh:
-        fh.write(lead + text + "\n")
-    return json.loads(text)
+    _write_lines(p, lead + "".join(t + "\n" for t in texts))
+    return [json.loads(t) for t in texts]
+
+
+def _write_lines(p: Path, text: str) -> None:
+    """Append `text` (whole lines) to the log in a single write."""
+    view = memoryview(text.encode("utf-8"))
+    with p.open(mode="ab", buffering=0) as fh:  # unbuffered: each write() is one system call
+        while view:  # a regular file takes it in one write; loop only on a short write
+            n = fh.write(view)
+            if not n:
+                raise HeldoutError(f"{p.name}: the log could not be written")
+            view = view[n:]
+
+
+def _reserved(entry: Mapping[str, Any]) -> str | None:
+    """Why the public writers refuse an entry B5.9's calibration writer reserves (None: they
+    do not). A calibration counts only as a pair written together by `evalkit.integrity`."""
+    if entry.get("kind") == CALIBRATION_SCORED:
+        return f"a {CALIBRATION_SCORED} entry"
+    rubric = entry.get("rubric_hash")
+    if (
+        entry.get("kind") == SCORED
+        and isinstance(rubric, str)
+        and rubric.strip().lower().startswith(CALIBRATION_PREFIX)
+    ):
+        return f"a {SCORED} entry under a {CALIBRATION_PREFIX}* rubric"
+    return None
+
+
+def _refuse_reserved(entry: Mapping[str, Any]) -> None:
+    why = _reserved(entry)
+    if why:
+        raise HeldoutError(
+            f"{why} is written only by evalkit.integrity's calibration scoring (the pair of "
+            "lines in one append), never through append_entry or record_scoring"
+        )
 
 
 def append_entry(path: str | Path, entry: Mapping[str, Any]) -> dict[str, Any]:
     """Append one entry with `prev` set to the hash of the last line, under an exclusive lock
     on the log. Refuses a broken chain, an entry that sets `prev` itself, an entry that is not
-    a mapping, a malformed `heldout_scored` entry, and (`AlreadyScored`) a `heldout_scored`
-    entry for a case already scored under the same rubric hash."""
+    a mapping, a malformed `heldout_scored` entry, (`AlreadyScored`) a `heldout_scored`
+    entry for a case already scored under the same rubric hash, and the entries B5.9 reserves
+    for its calibration pair (a `calibration_scored` entry, or a `heldout_scored` entry whose
+    rubric starts `calibration:`)."""
     if not isinstance(entry, Mapping):
         raise HeldoutError("a log entry must be a mapping")
     if "prev" in entry:
         raise HeldoutError("a log entry may not set prev: the log sets it")
+    _refuse_reserved(entry)
     if entry.get("kind") == SCORED and not _scoring_shape_ok(entry):
         raise HeldoutError(
             f"a malformed {SCORED} entry: it needs a non-blank rubric_hash and a non-empty "
@@ -651,12 +707,13 @@ def record_scoring(
     when any of them already was. The check and the append run under an exclusive lock on the
     log, so two processes cannot both score a case. The rubric hash is stored stripped and
     lowercased. Call it before showing the scores to anyone. `note` is logged as given: never
-    put held-out text in it."""
+    put held-out text in it. A `calibration:` rubric is refused: B5.9 writes those itself."""
     ids = _case_ids(case_ids)
     hashes = sorted({case_id_hash(i) for i in ids})
     if not hashes:
         raise HeldoutError("no cases to record")
     rubric = _rubric(rubric_hash)
+    _refuse_reserved({"kind": SCORED, "rubric_hash": rubric})
     entry: dict[str, Any] = {
         "kind": SCORED,
         "rubric_hash": rubric,

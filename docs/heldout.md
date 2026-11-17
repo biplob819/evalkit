@@ -52,6 +52,7 @@ Call it before anyone sees the scores. A second scoring of any of these cases un
 - **`case_ids`** must be a collection of string or integer ids. A bare string is refused (its characters would otherwise each become an id).
 - **One writer at a time.** The check and the append run under an exclusive lock on the log file (`fcntl.flock` on Linux and macOS, `msvcrt.locking` on Windows), so two processes scoring the same case at once cannot both succeed: one waits, then gets `AlreadyScored`. The operating system releases the lock when the process ends, so a crash leaves nothing to clean up.
 - **The log enforces the rule too.** `append_entry` refuses a `heldout_scored` line that re-scores a case, and `verify-log` reports one however it got into the file (see section 4).
+- **Calibration lines are reserved.** `append_entry` and `record_scoring` refuse a `calibration_scored` entry and any `heldout_scored` entry whose rubric starts `calibration:`. Those are written only by EvalKit's criterion calibration (`evalkit.integrity`, see [calibrate-your-task.md](calibrate-your-task.md#calibrate-any-criterion)), as a pair of lines in one write, so a crash leaves both or neither.
 
 A scoring counts as certified only when the log holds a matching line:
 
@@ -120,5 +121,6 @@ A deliberate history rewrite by someone with commit rights is outside what a rep
 ## Limits
 
 - **The manifest hash is not a signature.** `manifest_sha256` is an unkeyed sha256: it catches a careless hand edit, but anyone who edits a case and rebuilds the manifest gets a valid one. What stops a deliberate change is git review of `MANIFEST.json` (protect it with CODEOWNERS or required review). The log's chain is unkeyed too.
+- **Anyone who can write the log file can forge a whole chain by hand.** The chain, the score-once rule and the refusals in `append_entry` and `record_scoring` stop forgery through EvalKit's own functions and keep an honest crash from leaving half a record. They cannot stop someone from editing the file directly and recomputing every `prev`. Protection against that rests on git review of every change to the log plus the CI `verify-log` check in section 4: `verify-log` refuses any change to the committed log other than appending, and review is what catches a line appended by hand rather than by EvalKit. Run both.
 - **Look-alike letters are not folded.** NFKC maps full-width and compatibility forms to plain letters, but not letters of one script that look like another's: a Cyrillic `а` in place of a Latin `a` stays a different letter, so a leak typed with look-alikes is missed. Case ids get NFC only.
 - **The lock covers one file system.** It serialises writers that share the log file; two clones that each append and then merge are caught by `verify-log` instead (rebase and append again).
