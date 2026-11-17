@@ -1,0 +1,255 @@
+{
+  "alarms": 2,
+  "calibration": {
+    "bins": "not available",
+    "bins_status": "bins_not_aligned",
+    "deltas": [
+      {
+        "changed": true,
+        "ci_high": 0.012694685424949236,
+        "ci_low": 0.011592190909167887,
+        "delta": 0.012129000000000001,
+        "method": "MOVER (unpaired)",
+        "name": "brier",
+        "p_holm": 0.0,
+        "p_value": 0.0,
+        "status": "alarm",
+        "tolerance": 0.01,
+        "worse": true
+      },
+      {
+        "changed": false,
+        "ci_high": 0.0006856709460973508,
+        "ci_low": -0.0007011341024812276,
+        "delta": 0.0,
+        "method": "parametric bootstrap of each side's bins (seed 7, 10000)",
+        "name": "ece",
+        "p_holm": 1.0,
+        "p_value": 1.0,
+        "status": "ok",
+        "tolerance": 0.02,
+        "worse": false
+      }
+    ],
+    "holm_family": 2,
+    "level": "alarm",
+    "new": {
+      "binning": null,
+      "bins": [
+        {
+          "bin": "0",
+          "mean_pred": 0.004937,
+          "n": 96844,
+          "obs_rate": 0.005473
+        },
+        {
+          "bin": "1",
+          "mean_pred": 0.007904,
+          "n": 96843,
+          "obs_rate": 0.019919
+        },
+        {
+          "bin": "2",
+          "mean_pred": 0.010753,
+          "n": 96843,
+          "obs_rate": 0.023667
+        },
+        {
+          "bin": "3",
+          "mean_pred": 0.013715,
+          "n": 96843,
+          "obs_rate": 0.036523
+        },
+        {
+          "bin": "4",
+          "mean_pred": 0.015629,
+          "n": 96843,
+          "obs_rate": 0.040168
+        },
+        {
+          "bin": "5",
+          "mean_pred": 0.020662,
+          "n": 96843,
+          "obs_rate": 0.038743
+        },
+        {
+          "bin": "6",
+          "mean_pred": 0.025354,
+          "n": 96843,
+          "obs_rate": 0.042161
+        },
+        {
+          "bin": "7",
+          "mean_pred": 0.038338,
+          "n": 96843,
+          "obs_rate": 0.05132
+        },
+        {
+          "bin": "8",
+          "mean_pred": 0.112632,
+          "n": 96843,
+          "obs_rate": 0.141032
+        },
+        {
+          "bin": "9",
+          "mean_pred": 0.375428,
+          "n": 96843,
+          "obs_rate": 0.488471
+        }
+      ],
+      "brier": {
+        "ci_high": 0.0716,
+        "ci_low": 0.0708,
+        "ci_method": "block-bootstrap percentile 95% (D-16)",
+        "value": 0.0712
+      },
+      "ece": {
+        "ci_high": null,
+        "ci_low": null,
+        "ci_method": null,
+        "value": 0.026213
+      },
+      "n": null,
+      "source": "metrics"
+    },
+    "reference": {
+      "binning": null,
+      "bins": [
+        {
+          "bin": "0",
+          "mean_pred": 0.004937,
+          "n": 96844,
+          "obs_rate": 0.005473
+        },
+        {
+          "bin": "1",
+          "mean_pred": 0.007904,
+          "n": 96843,
+          "obs_rate": 0.019919
+        },
+        {
+          "bin": "2",
+          "mean_pred": 0.010753,
+          "n": 96843,
+          "obs_rate": 0.023667
+        },
+        {
+          "bin": "3",
+          "mean_pred": 0.013715,
+          "n": 96843,
+          "obs_rate": 0.036523
+        },
+        {
+          "bin": "4",
+          "mean_pred": 0.015629,
+          "n": 96843,
+          "obs_rate": 0.040168
+        },
+        {
+          "bin": "5",
+          "mean_pred": 0.020662,
+          "n": 96843,
+          "obs_rate": 0.038743
+        },
+        {
+          "bin": "6",
+          "mean_pred": 0.025354,
+          "n": 96843,
+          "obs_rate": 0.042161
+        },
+        {
+          "bin": "7",
+          "mean_pred": 0.038338,
+          "n": 96843,
+          "obs_rate": 0.05132
+        },
+        {
+          "bin": "8",
+          "mean_pred": 0.112632,
+          "n": 96843,
+          "obs_rate": 0.141032
+        },
+        {
+          "bin": "9",
+          "mean_pred": 0.375428,
+          "n": 96843,
+          "obs_rate": 0.488471
+        }
+      ],
+      "brier": {
+        "ci_high": 0.059429,
+        "ci_low": 0.058671,
+        "ci_method": "block-bootstrap percentile 95% (D-16)",
+        "value": 0.059071
+      },
+      "ece": {
+        "ci_high": null,
+        "ci_low": null,
+        "ci_method": null,
+        "value": 0.026213
+      },
+      "n": null,
+      "source": "metrics"
+    },
+    "tolerances": {
+      "bin": 0.1,
+      "brier": 0.01,
+      "ece": 0.02
+    }
+  },
+  "exit_code": 1,
+  "features": [
+    {
+      "bins": 3,
+      "expected_psi": 4.1303966213355636e-05,
+      "feature": "plan",
+      "kind": "binned",
+      "level": "alarm",
+      "missing_share_new": null,
+      "missing_share_ref": null,
+      "n_new": 96843,
+      "n_ref": 96843,
+      "psi": 0.3850178586054454,
+      "psi_alarm": 0.25,
+      "psi_shown": "0.3850",
+      "psi_warn": 0.1,
+      "small_batch": false
+    },
+    {
+      "bins": 4,
+      "expected_psi": 6.195594932003346e-05,
+      "feature": "tenure_band",
+      "kind": "binned",
+      "level": "warn",
+      "missing_share_new": null,
+      "missing_share_ref": null,
+      "n_new": 96843,
+      "n_ref": 96843,
+      "psi": 0.13893357138476758,
+      "psi_alarm": 0.25,
+      "psi_shown": "0.1389",
+      "psi_warn": 0.1,
+      "small_batch": false
+    }
+  ],
+  "new": {
+    "kind": "metrics",
+    "source_sha256": "eccf94969da1ecb79c99caec787dc86c798be8e193c1a57d6f068c2e50a45574"
+  },
+  "reference": {
+    "created_at": "2026-11-18T11:06:40Z",
+    "profile_sha256": "8e102330f1d7e1b510c60f1ae16029deeaa718e1dc1c00f6189451779374e186",
+    "source_sha256": "8e201047989d19e12cd622f3462d3319622289756ab76898d53075f2ec2cfbba"
+  },
+  "schema": "drift-1",
+  "settings": {
+    "feature_levels": {},
+    "psi_alarm": 0.25,
+    "psi_epsilon": 0.0001,
+    "psi_warn": 0.1,
+    "resamples": 10000,
+    "seed": 7
+  },
+  "verdict": "alarm",
+  "warns": 1
+}

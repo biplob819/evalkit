@@ -282,6 +282,15 @@ def cmd_report(args: argparse.Namespace) -> int:
     except (R.RunError, FileNotFoundError) as exc:
         return _err(str(exc))
     summary = RunSummary.model_validate_json((run_dir / "summary.json").read_text("utf-8"))
+    trend = None
+    if args.history:
+        from evalkit.ledger import LedgerError
+        from evalkit.ledger.cli import add_trend_to_report
+
+        try:
+            trend = add_trend_to_report(path, run_dir, args.history)
+        except LedgerError as exc:
+            return _err(str(exc))
     caveats = stamp_lines(summary)
     if args.publish:
         try:
@@ -295,6 +304,7 @@ def cmd_report(args: argparse.Namespace) -> int:
             "published": bool(args.publish),
             "caveats": caveats,
             "example": bool(args.example),
+            "trend_charts": trend,
         },
         "".join(f"⚠ {c}\n" for c in caveats)
         + (
@@ -962,6 +972,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="--paraphrase: read flags as signals even when the two runs' settings differ",
     )
+    rep.add_argument(
+        "--history",
+        default=None,
+        metavar="LEDGER",
+        help="add a Trend section from this run ledger (B5.7)",
+    )
     rep.add_argument("--json", action="store_true")
     rep.set_defaults(func=cmd_report)
 
@@ -1028,6 +1044,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     cmp_.add_argument("--md", default=None, help="also write the markdown report here")
     cmp_.set_defaults(func=cmd_compare)
+
+    from evalkit.ledger.cli import add_commands  # B5.7: history, experiment, drift, spend
+
+    add_commands(sub)
     return p
 
 
