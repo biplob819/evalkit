@@ -1348,3 +1348,73 @@ def test_blocked_rate_two_level_interval_and_outside_public():
     assert mb["lo"] < mb["point"] < mb["hi"] == 1.0
     report = S.render_report(s)
     assert "independent" in report and "blocked rate" in report.lower()
+
+
+def test_wrong_return_types_are_input_errors_naming_no_heldout_case(tmp_path, monkeypatch, capsys):
+    """A system whose attack() returns something other than a Trajectory or Observation (or an
+    Observation whose trajectory is not one), and a surface whose call() returns something
+    other than a ToolReply: SecurityError (held-out: manifest id only); the CLI exits 2 with
+    one line and no traceback."""
+    from evalkit.security.cli import main
+
+    class Returns:
+        def __init__(self, value: Any) -> None:
+            self.value = value
+
+        def attack(self, case: Any, *, trial: int, seed: int) -> Any:
+            return self.value
+
+        def call(self, tool: str, arguments: Any) -> Any:
+            return self.value
+
+    public = S.AttackSuite(tuple(_suite().public))
+    full = _suite()
+    held_only = S.AttackSuite(tuple(full.heldout), PUBLIC, full.heldout_path, full.manifest_path)
+    bad_obs = S.Observation.__new__(S.Observation)
+    object.__setattr__(bad_obs, "trajectory", "nope")
+    object.__setattr__(bad_obs, "exposed", ())
+    object.__setattr__(bad_obs, "layer", None)
+    object.__setattr__(bad_obs, "side_effects", ())
+    for value in (42, bad_obs, "a string"):
+        with pytest.raises(S.SecurityError, match="returned"):
+            S.run_attacks(public, Returns(value), allowed_tools=TOOLS, k=1)
+        with pytest.raises(S.SecurityError, match="returned") as err:
+            S.run_attacks(held_only, Returns(value), allowed_tools=TOOLS, k=1)
+        assert "heldout:" in str(err.value)
+        for secret in _heldout_secrets():
+            assert secret not in str(err.value)
+    for value in ("a string", 42, None):
+        with pytest.raises(S.SecurityError, match="returned"):
+            S.run_scripted(public, Returns(value))
+        with pytest.raises(S.SecurityError, match="returned") as err:
+            S.run_scripted(held_only, Returns(value))
+        for secret in _heldout_secrets():
+            assert secret not in str(err.value)
+    mods = tmp_path / "mods"
+    mods.mkdir()
+    (mods / "sec_returns.py").write_text(
+        "from evalkit.security import Observation\n"
+        "class Num:\n"
+        "    def attack(self, case, *, trial, seed):\n        return 42\n"
+        "class BadObs:\n"
+        "    def attack(self, case, *, trial, seed):\n"
+        "        return Observation(trajectory='nope')\n"
+        "class Str:\n"
+        "    def call(self, tool, arguments):\n        return 'ok'\n"
+        "def num():\n    return Num()\n"
+        "def bad_obs():\n    return BadObs()\n"
+        "def text():\n    return Str()\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(mods))
+    common = ["--cases", str(PUBLIC), "--heldout", str(HELDOUT), "--manifest", str(MANIFEST)]
+    runs = [
+        ["run", *common, "--system", "sec_returns:num", "--allowed-tools", "lookup"],
+        ["run", *common, "--system", "sec_returns:bad_obs", "--allowed-tools", "lookup"],
+        ["scripted", *common, "--surface", "sec_returns:text"],
+    ]
+    for i, cmd in enumerate(runs):
+        code = main([*cmd, "--out", str(tmp_path / f"o{i}")])
+        err = capsys.readouterr().err
+        assert code == 2, cmd
+        assert "Traceback" not in err and err.startswith("error: ") and err.count("\n") == 1
