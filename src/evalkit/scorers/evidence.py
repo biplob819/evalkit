@@ -156,45 +156,55 @@ class ValuePhrase(Model):
         return self
 
 
+# A comparison word right before the number, optionally negated ("not above", "never over",
+# "doesn't exceed", "no more than"): a negation inverts the comparison (B5.13 verifier pass 3).
 _COMPARATOR = re.compile(
-    r"(not more than|not above|not over|not exceeding|not less than|not below|not under|"
-    r"no more than|no less than|more than|greater than|higher than|fewer than|less than|"
-    r"lower than|at least|at most|up to|exceeding|exceeds|above|below|under|over|"
+    r"(?P<neg>\b(?:not|no|never)\s+|n't\s+|n’t\s+)?"
+    r"(?P<cmp>less than or equal to|greater than or equal to|more than or equal to|"
+    r"at or below|at or above|more than|greater than|higher than|fewer than|less than|"
+    r"lower than|at least|at most|up to|exceeding|exceeds|exceed|above|below|under|over|"
     r">=|<=|≥|≤|>|<)\s*[$£€]?\s*$",
+    re.IGNORECASE,
+)
+# "...$800 or less", "41 or more transactions": a comparison stated after the number
+_POSTFIX = re.compile(
+    r"^\s*(?:[a-z%]+\s+){0,2}?or\s+(?P<word>less|fewer|lower|below|under|more|greater|higher|"
+    r"above|over)\b",
     re.IGNORECASE,
 )
 _COMPARATOR_WINDOW = 40  # characters before a number searched for a comparison word
 _OP = {
-    "not more than": "<=",
-    "not above": "<=",
-    "not over": "<=",
-    "not exceeding": "<=",
-    "up to": "<=",
-    "not less than": ">=",
-    "not below": ">=",
-    "not under": ">=",
-    "higher than": ">",
-    "lower than": "<",
-    "no more than": "<=",
+    "less than or equal to": "<=",
+    "at or below": "<=",
     "at most": "<=",
+    "up to": "<=",
     "<=": "<=",
     "≤": "<=",
-    "no less than": ">=",
+    "greater than or equal to": ">=",
+    "more than or equal to": ">=",
+    "at or above": ">=",
     "at least": ">=",
     ">=": ">=",
     "≥": ">=",
     "more than": ">",
     "greater than": ">",
+    "higher than": ">",
     "exceeding": ">",
     "exceeds": ">",
+    "exceed": ">",
     "above": ">",
     "over": ">",
     ">": ">",
     "fewer than": "<",
     "less than": "<",
+    "lower than": "<",
     "below": "<",
     "under": "<",
     "<": "<",
+}
+_NEGATE = {">": "<=", ">=": "<", "<": ">=", "<=": ">"}
+_POSTFIX_OP = {w: "<=" for w in ("less", "fewer", "lower", "below", "under")} | {
+    w: ">=" for w in ("more", "greater", "higher", "above", "over")
 }
 
 
@@ -226,6 +236,17 @@ def _claim(n: Number, op: str, v: float, tolerance: float) -> bool:
     return {">": v > x, ">=": v >= x, "<": v < x, "<=": v <= x}[op]
 
 
+def _as_float(v: Any) -> float | None:
+    """A finite float for a numeric record value, else None (huge ints, NaN, other types)."""
+    if _missing(v) or _type(v) != "number":
+        return None
+    try:
+        f = float(v)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
 def _numeric(record: Mapping[str, Any], name: str, where: str) -> float | None:
     """The field's value; None when the record lacks it or it is missing."""
     value: Any = record.get(name)
@@ -233,7 +254,21 @@ def _numeric(record: Mapping[str, Any], name: str, where: str) -> float | None:
         return None
     if _type(value) != "number":
         raise RuleError(f"{where}: record field {name!r} is not a number")
-    return float(value)
+    f = _as_float(value)
+    if f is None:
+        raise RuleError(f"{where}: record field {name!r} is not a finite number")
+    return f
+
+
+def _sound_with_numbers(holds: str, where: str) -> bool:
+    """True when the predicate is valid if every field it names held a number: then an error
+    evaluating it came from the record's contents, not from how the phrase was written."""
+    try:
+        tree = parse_predicate(holds, None, where)
+        parse_predicate(holds, dict.fromkeys(_names(tree), "number"), where)
+    except (RuleError, ValueError, TypeError):
+        return False
+    return True
 
 
 def _condition(
@@ -277,7 +312,13 @@ def _check_reason(
             condition: tuple[bool, dict[str, Any], str | None] | None = None
             for m in re.finditer(ph.pattern, reason, re.IGNORECASE):
                 if condition is None:  # the record does not change: evaluate once
-                    condition = _condition(ph.holds, record, where)
+                    try:
+                        condition = _condition(ph.holds, record, where)
+                    except (RuleError, OverflowError, TypeError, ValueError):
+                        if not _sound_with_numbers(ph.holds, where):
+                            raise  # the phrase itself is wrong: an author error, not data
+                        # the record's values have the wrong type: fail this claim, never raise
+                        condition = (False, {}, f"type_error:{ph.holds}")
                 ok, found, why = condition
                 check = {
                     "text": m.group(0),
@@ -327,7 +368,7 @@ def _check_reason(
             checks.append(
                 {**check, "reason": f"missing_value:{ph.field}"} if value is None else check
             )
-    numeric = {k: float(v) for k, v in record.items() if not _missing(v) and _type(v) == "number"}
+    numeric = {k: f for k, v in record.items() if (f := _as_float(v)) is not None}
     for i, n in enumerate(numbers):
         if i in used:
             continue
@@ -351,9 +392,16 @@ def _check_reason(
 
 
 def _comparison(reason: str, n: Number) -> str:
-    """The comparison a word right before the number states, else "≈" (equal)."""
+    """The comparison stated around the number, else "≈" (equal): a word right before it
+    ("above 900"), inverted by a negation ("not above 900", "doesn't exceed 900"), or a
+    phrase right after it ("900 or less")."""
     cmp = _COMPARATOR.search(reason[max(0, n.start - _COMPARATOR_WINDOW) : n.start])
-    return _OP[cmp.group(1).lower()] if cmp else "≈"
+    if cmp:
+        op = _OP[cmp.group("cmp").lower()]
+        return _NEGATE[op] if cmp.group("neg") else op
+    after = reason[n.start + len(n.text) : n.start + len(n.text) + _COMPARATOR_WINDOW]
+    post = _POSTFIX.match(after)
+    return _POSTFIX_OP[post.group("word").lower()] if post else "≈"
 
 
 def _claimed(n: Number) -> float | None:

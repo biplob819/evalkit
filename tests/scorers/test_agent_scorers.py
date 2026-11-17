@@ -957,3 +957,47 @@ def test_sev_wrong_typed_field_fails_the_claim_and_never_raises():
     got = value_check("charged $812", {"amount": "812"}, phrases=[phrase])
     assert got.value == 0.0
     assert any(c.get("reason") == "type_error:amount" for c in got.details["checks"])
+
+
+# ---- B5.13 verifier pass 3 ---------------------------------------------------------------------
+
+_REC = {"amount": 812.4, "card_history_n": 40}
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        ("amount not higher than $800", False),
+        ("no greater than $800", False),
+        ("never above $800", False),
+        ("not lower than $900", False),
+        ("no lower than $900", False),
+        ("not fewer than 41 transactions", False),
+        ("does not exceed $800", False),
+        ("doesn't exceed $800", False),
+        ("less than or equal to $800", False),
+        ("$800 or less", False),
+        ("$800 or more", True),
+        ("not above $900", True),
+        ("does not exceed $900", True),
+        ("at least 39 transactions", True),
+        ("39 transactions or fewer", False),
+    ],
+)
+def test_sev_negated_and_postfix_comparisons(reason, ok):
+    from evalkit.scorers import value_check
+
+    got = value_check(reason, _REC)
+    assert (got.value == 1.0) is ok, (reason, got.details)
+
+
+@pytest.mark.parametrize(
+    "record", [{"hour": "3"}, {"hour": True}, {"hour": [3]}, {"hour": {"h": 3}}, {"hour": 10**400}]
+)
+def test_sev_value_check_never_raises_on_record_contents(record):
+    from evalkit.scorers import ValuePhrase, value_check
+
+    phrase = ValuePhrase(pattern="at night", holds="hour < 5")
+    got = value_check("at night", record, phrases=[phrase])
+    assert got.value == 0.0
+    assert value_check("40 purchases", {"n": 10**400, "k": 40}).value == 1.0
