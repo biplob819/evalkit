@@ -159,7 +159,10 @@ class ValuePhrase(Model):
 # A comparison word right before the number, optionally negated ("not above", "never over",
 # "doesn't exceed", "no more than"): a negation inverts the comparison (B5.13 verifier pass 3).
 _COMPARATOR = re.compile(
-    r"(?P<neg>\b(?:not|no|never)\s+|n't\s+|n’t\s+)?"
+    # a negation, possibly with up to two words before the comparison ("not, in fact, above",
+    # "no purchase above", "cannot exceed", "isn‘t above")
+    r"(?P<neg>(?:\b(?:not|no|never|cannot|nothing|without)\b|n['’‘]t\b)[\s,]+"
+    r"(?:[a-z]+[\s,]+){0,2}?)?"
     r"(?P<cmp>less than or equal to|greater than or equal to|more than or equal to|"
     r"at or below|at or above|more than|greater than|higher than|fewer than|less than|"
     r"lower than|at least|at most|up to|exceeding|exceeds|exceed|above|below|under|over|"
@@ -260,17 +263,6 @@ def _numeric(record: Mapping[str, Any], name: str, where: str) -> float | None:
     return f
 
 
-def _sound_with_numbers(holds: str, where: str) -> bool:
-    """True when the predicate is valid if every field it names held a number: then an error
-    evaluating it came from the record's contents, not from how the phrase was written."""
-    try:
-        tree = parse_predicate(holds, None, where)
-        parse_predicate(holds, dict.fromkeys(_names(tree), "number"), where)
-    except (RuleError, ValueError, TypeError):
-        return False
-    return True
-
-
 def _condition(
     holds: str, record: Mapping[str, Any], where: str
 ) -> tuple[bool, dict[str, Any], str | None]:
@@ -315,9 +307,8 @@ def _check_reason(
                     try:
                         condition = _condition(ph.holds, record, where)
                     except (RuleError, OverflowError, TypeError, ValueError):
-                        if not _sound_with_numbers(ph.holds, where):
-                            raise  # the phrase itself is wrong: an author error, not data
-                        # the record's values have the wrong type: fail this claim, never raise
+                        # the phrase's grammar was checked when the ValuePhrase was built, so an
+                        # error here comes from the record's values: fail this claim, never raise
                         condition = (False, {}, f"type_error:{ph.holds}")
                 ok, found, why = condition
                 check = {

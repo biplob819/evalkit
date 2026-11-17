@@ -694,8 +694,8 @@ def test_sev_templates_cannot_reach_beyond_plain_fields(template):
 
 @pytest.mark.safety
 def test_sev_condition_phrases_use_the_safe_predicate_grammar():
-    for holds in ("__import__('os').system('x')", "hour.real < 5", "(lambda: 1)()", "hour"):
-        with pytest.raises(ValueError):  # RuleError, or pydantic's error wrapping it
+    for holds in ("__import__('os').system('x')", "hour.real < 5", "(lambda: 1)()"):
+        with pytest.raises(ValueError):  # refused when the ValuePhrase is built
             value_check(
                 "at night", SEV["record"], phrases=[ValuePhrase(pattern="night", holds=holds)]
             )
@@ -1001,3 +1001,45 @@ def test_sev_value_check_never_raises_on_record_contents(record):
     got = value_check("at night", record, phrases=[phrase])
     assert got.value == 0.0
     assert value_check("40 purchases", {"n": 10**400, "k": 40}).value == 1.0
+
+
+# ---- B5.13 verifier pass 4 ---------------------------------------------------------------------
+
+
+def test_sev_a_bare_name_over_a_number_fails_the_claim_instead_of_raising():
+    """A bare name is valid grammar (a yes/no field); over a number it is a data mismatch."""
+    got = value_check(
+        "at night", SEV["record"], phrases=[ValuePhrase(pattern="night", holds="hour")]
+    )
+    assert got.value == 0.0
+
+
+@pytest.mark.parametrize("value", ["yes", 0, 10**20, [1], {}, None])
+def test_sev_valid_predicates_over_odd_values_never_raise(value):
+    from decimal import Decimal
+
+    for holds, field in (
+        ("merchant_first_seen", "merchant_first_seen"),
+        ("category == 'x'", "category"),
+    ):
+        for v in (value, Decimal("3"), True):
+            got = value_check(
+                "new merchant", {field: v}, phrases=[ValuePhrase(pattern="new", holds=holds)]
+            )
+            assert got.value in (0.0, 1.0)
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "not, in fact, above $800",
+        "is not in fact above $800",
+        "no purchase above $800",
+        "cannot exceed $800",
+        "nothing above $800",
+        "without exceeding $800",
+        "isn\u2018t above $800",
+    ],
+)
+def test_sev_negations_with_words_between_still_invert(reason):
+    assert value_check(reason, {"amount": 812.4}).value == 0.0
