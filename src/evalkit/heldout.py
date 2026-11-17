@@ -1039,7 +1039,9 @@ def _strings(value: Any) -> Iterator[str]:
     if isinstance(value, str):
         yield value
     elif isinstance(value, Mapping):
-        for v in value.values():
+        for k, v in value.items():
+            if isinstance(k, str):  # held-out text can sit in a key (B5.11 verifier)
+                yield k
             yield from _strings(v)
     elif isinstance(value, list | tuple):
         for v in value:

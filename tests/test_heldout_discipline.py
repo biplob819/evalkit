@@ -1107,3 +1107,12 @@ def test_deeply_nested_or_unreadable_case_files_are_heldout_errors(tmp_path):
     deep_l.write_text("[" * 200_000 + "]" * 200_000 + "\n", encoding="utf-8")
     with pytest.raises(H.HeldoutError):
         H.load_cases(deep_l)
+
+
+def test_exposure_scan_reads_held_out_text_in_keys_too(tmp_path):
+    """B5.11 verifier: held-out text used as a mapping key was skipped by the scan."""
+    secret_key = "the quarterly zebra migration crosses the northern river at dawn"
+    cases = [{"id": "k1", "planted": {secret_key: "x"}}]
+    root = _secret_repo(tmp_path, {"leak.txt": f"note: {secret_key}\n"})
+    found = {e.path for e in H.exposure_scan(cases, root)}
+    assert found == {"leak.txt"}
