@@ -1,5 +1,5 @@
 {
- "_source": "Recorded citation-judge replies in the provider's raw_text form for B5.12 CIT-03; written for the fixture, no API was called",
+ "_source": "Hand-written citation-judge replies in the provider's raw_text form for B5.12 CIT-03. No API was called and no real judge produced them: they test how the pipeline handles these readings, not how a real judge reads sentence [3]. A real-judge check on this case is an owner-approved follow-up.",
  "pqa-10808977:gemma-e2b-grounded-q4:0": {
   "claude-opus-5-5": "{\"sentences\": [{\"n\": 3, \"supports\": false, \"role\": \"aim\"}]}",
   "gpt-6.1-sol": "{\"sentences\": [{\"n\": 3, \"supports\": false, \"role\": \"aim\"}]}"

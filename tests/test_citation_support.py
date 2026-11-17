@@ -556,9 +556,16 @@ def test_metrics_reach_records_summary_slices_and_report_and_match_a_hand_comput
         (plan.run_dir / "summary.json").read_text(encoding="utf-8")
     )
     assert summary == outcome.summary and summary.judging_status == "complete"
-    assert all(set(r.citation_support) == set(JUDGES) for r in records)
-    raw = json.loads((plan.run_dir / "records.jsonl").read_text(encoding="utf-8").splitlines()[0])
-    assert set(raw["citation_support"]) == set(JUDGES)
+    # A record names a judge only when that judge judged one of its citations (omitted when
+    # empty, verifier B5.12): answers whose claims all failed the precheck carry no field.
+    for r in records:
+        judged = any(c.cited for c in r.claims)
+        assert set(r.citation_support) == (set(JUDGES) if judged else set()), r.case_id
+        assert all(r.citation_support[j] for j in r.citation_support)
+    raw_lines = (plan.run_dir / "records.jsonl").read_text(encoding="utf-8").splitlines()
+    for line in raw_lines:
+        raw = json.loads(line)
+        assert "citation_support" not in raw or all(raw["citation_support"].values())
     for m in summary.models:
         rows = sorted(
             (r for r in records if r.completion.model == m.model), key=lambda r: r.case_id

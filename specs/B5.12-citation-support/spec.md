@@ -26,7 +26,7 @@ gemma-grounded-health's main run (r-f0f3b432a413, EvalKit 06591f8, PubMedQA n=10
 - While citation judging is pending, both are absent and the summary is "judging pending" (exit 4), as for claim judging.
 
 ### Tests from the asking project (CIT-03)
-- A vendored record from gemma's run, pqa-10808977, with recorded citation-judge replies: its cited sentence comes out `role=aim, supports=false`, and the answer counts in the aim-citation rate.
+- A vendored record from gemma's run, pqa-10808977, with hand-written citation-judge replies (no API call; they test the pipeline's handling, not a real judge's reading): its cited sentence comes out `role=aim, supports=false`, and the answer counts in the aim-citation rate.
 - A fixture where a claim cites an aim sentence and a result sentence and only the result supports it: precision is 1/2, the aim sentence counts as non-supporting, and the answer counts in the aim-citation rate, although the claim itself is supported.
 
 ## Out of scope

@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.12] — Green after verification: citation support confirmed; verifier fixes (empty per-judge lists omitted, `calibrate score` keeps an unfinished run pending, unjudged citation claims shown, CIT-03 fixture replies labelled as hand-written). Spend: $0.
 - [HARNESS] [B5.3, B5.7, B5.5] — D-67: a standard efficiency block for every project and model (tokens, cache hits, cost per case and per correct, latency p50/p95/p99, retries, eval overhead, mode, price date) with intervals (EFF-01, EFF-02), variation across runs (EFF-03) and an index view (EFF-04); gemma pins B5.12 once verified; respectful-offers builds its exporter now. Spend: $0.
 - [FEAT] [B5.12] — Per-sentence citation support (gemma-grounded-health, D-65): a task listing `citation_support` gets a citation-judge pass over cached claims (supports and role per cited sentence, `CITATION_PROMPT_HASH` be34ebe577bc96ae), citation precision and aim-citation rate per model and judge with bootstrap CIs in records, summary, slices and report. The claim judge's prompt hash (9a3a8246049f6f85), cache keys and every pre-existing run output are unchanged. Spend: $0.
 - [HARNESS] [B5.2, B5.13, B5.14] — D-66: parallel lanes, one builder per node in its own worktree, lead merges; dependencies rewired to real needs (B5.13, B5.14, B5.8, B5.9). B5.2, B5.13 and B5.14 started beside B5.12. Spend: $0.

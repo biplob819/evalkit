@@ -37,7 +37,7 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 ## 0.3.0 additions
 
-- `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate` (B5.12, D-65), each omitted from JSON when empty.
+- `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 
 ## Deprecation
 

@@ -158,9 +158,12 @@ def build_records(
                 git_sha=git_sha,
                 prompt_hash=prompt_hash,
                 task_scores=task_scores,
+                # judges with nothing to report are left out, so an answer with no judged
+                # citation has no `citation_support` at all (omitted when empty)
                 citation_support={
-                    j: tuple(v for c in cs.claims for v in cited[j].get(c.id, ()))
+                    j: vs
                     for j in sorted(cited)
+                    if (vs := tuple(v for c in cs.claims for v in cited[j].get(c.id, ())))
                 },
             )
         )

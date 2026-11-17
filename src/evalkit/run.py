@@ -659,7 +659,11 @@ async def _judge_citations(
                 max_wait_s=wait_s,
                 poll_interval_s=min(30.0, max(1.0, wait_s / 10)) if wait_s else 30.0,
             )
-        say("cite", f"{judge}: {r.status}, {len(r.verdicts)} claims · spent ${ex.spent_usd:.4f}")
+        say(
+            "cite",
+            f"{judge}: {r.status}, {len(r.verdicts)} claims, {r.n_errors} unjudged"
+            f" · spent ${ex.spent_usd:.4f}",
+        )
         return r
 
     outcomes = await asyncio.gather(
@@ -796,7 +800,10 @@ def cal_score(run_dir: Path, *, now: Callable[[], datetime] = lambda: datetime.n
         json.dumps({"current": entry, "history": [*history.get("history", []), entry]}, indent=1)
         + "\n",
     )
-    summary = summarise(run_dir, manifest, records, "complete")
+    # A run whose judging (claim or citation, B5.12) is unfinished stays pending: calibrating
+    # it must not publish figures from the judges that happened to finish.
+    status = "complete" if manifest.finished_at is not None else "pending"
+    summary = summarise(run_dir, manifest, records, status)
     write_summary(summary, run_dir / "summary.json")
     render(run_dir)
     return report

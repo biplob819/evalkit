@@ -277,6 +277,18 @@ def test_calibrate_export_label_score_then_report_is_calibrated(env, capsys):
     assert summary["calibration_status"] == "calibrated"
     assert "Judges not calibrated" not in (run_dir / "report.html").read_text(encoding="utf-8")
     assert cli.main(["report", str(run_dir), "--publish"]) == 0
+    # B5.12 verifier: re-scoring an unfinished run (claim or citation judging still open) keeps
+    # its summary pending instead of publishing the figures of whichever judges finished.
+    manifest_path = run_dir / "run.json"
+    finished = manifest_path.read_text(encoding="utf-8")
+    unfinished = json.loads(finished)
+    unfinished["finished_at"] = None
+    manifest_path.write_text(json.dumps(unfinished), encoding="utf-8")
+    assert cli.main(["calibrate", "score", str(run_dir), "--json"]) == 0
+    capsys.readouterr()
+    pending = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert pending["judging_status"] == "pending"
+    manifest_path.write_text(finished, encoding="utf-8")
     # A rubric change must not reuse this held-out set.
     cal = json.loads((run_dir / "calibration" / "calibration.json").read_text(encoding="utf-8"))
     for entry in cal["history"]:
