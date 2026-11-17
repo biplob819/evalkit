@@ -1,7 +1,8 @@
 """Opt-in shape equivalences for `sql_match` (SQE-01, SQE-02; D-71, B5.15).
 
 Lifted from agentic-analytics (MIT, same author), `src/agentic_analytics/scoring/tolerant.py`
-at commit f6abdec ("OWNER D-81: tolerant headline scoring"), adapted to `sql_match`'s
+at commit f6abdec ("OWNER D-81: tolerant headline scoring"), with its text period labels
+(7b3aded, OWNER D-89) and leading-word count rule (5a203a7) added later, adapted to `sql_match`'s
 arguments (the question is plain text; naming `empty_check` stands for agentic-analytics'
 `expects_empty`) and made stricter where the reference can turn a wrong answer into a match
 (B5.15 verifier): an equivalence may only reshape a right answer.
@@ -37,8 +38,10 @@ differ, the stricter is kept.
    hold a numeric zero and look like a label the gold's GROUP BY omitted (``unknown = 0``):
    no summary or metric word in its name (``SUMMARY_WORDS``: total, sum, all, overall, count,
    n, avg, pct, share, ...), not one of the gold's own column names, and written only with the
-   kinds of character the gold's labels use (letters, digits, separators, anything else), so
-   ``unknown`` beside year labels is not one. The row is unpivoted into the gold's columns.
+   kinds of character the gold's labels use (letters, digits, separators, anything else) and
+   starting with a digit when any label does, so ``unknown`` beside year labels, or beside
+   ``2023-03-01T00:00:00Z`` or ``2023 Q1``, is not one. The row is unpivoted into the gold's
+   columns.
 3. **empty_check.** With an empty gold, a single predicted row counts as no rows when it is a
    zero count with nothing but dates and nulls beside it: at least one number, every number
    (numbers, and text that is a plain number) zero and in a count column, and every other
@@ -47,18 +50,27 @@ differ, the stricter is kept.
    ``COUNT_WORDS`` (count, cnt, n, num, number, rows, records, sales, transactions, orders,
    items) in its name and none of
    ``NOT_COUNT_WORDS`` (avg, mean, median, min, max, sum, price, amount, value, revenue, pct,
-   ratio, rate, share, ...): ``total_sales`` counts by "sales", ``total`` or
-   ``total_revenue`` does not. An error message, a zero average or a zero total is not a
+   ratio, rate, share, ...), and its leading word is not one of ``NOT_A_COUNT_LEADS`` (year,
+   q, quarter, month, day, id, rank, total, grand; agentic-analytics D-91): ``sales_in_1994``
+   and ``sales_in_requested_year`` count, ``total_sales``, ``year_count``, ``total`` and
+   ``total_revenue`` do not. An error message, a zero average or a zero total is not a
    no-data check.
-4. **period_number.** A predicted column of dates that are all month starts
-   (``YYYY-MM-01``, optionally with a midnight time) in one calendar year becomes the month
-   number (1-12) when the question names months and a gold column named as a month (a word
-   ``month``) holds integers 1-12, or the quarter number (1-4) when every date is a quarter
-   start, the question names quarters and a gold column named as a quarter (a word
+4. **period_number.** A predicted column of period starts in one calendar year becomes the
+   month number (1-12) when the question names months and a gold column named as a month (a
+   word ``month``) holds integers 1-12, or the quarter number (1-4) when every period starts a
+   quarter, the question names quarters and a gold column named as a quarter (a word
    ``quarter`` or ``qtr``) holds integers 1-4; the converted column must be compared with such
-   a column. When the question names a year (four digits 19xx or 20xx not inside a longer
-   number, so "FY2024" names 2024), the dates' year must be one it names. Dates over two or
-   more years never convert: their month numbers would merge different periods.
+   a column. A period start is a month-start date (``YYYY-MM-01``, optionally with a midnight
+   time), a month label (``2023-03``, ``March 2023``, ``Mar 2023``, ``2023 March``) or a
+   quarter label (``2023 Q1``, ``Q1 2023``, ``2023-Q1``, ``Q1``; agentic-analytics OWNER
+   D-89). A quarter label never becomes a month number: when any converted column holds one,
+   there is no month reading. ``Q5``, ``2023-13`` and week labels (``2023-W05``) are not
+   period starts. When the question names a year (four digits 19xx or 20xx not inside a
+   longer number), the periods' year must be one it names. A bare ``Q1`` states no year: it is
+   read only when the question names exactly one year, as that year. A question about fiscal
+   periods (``FY2024``, ``FY 24``, "fiscal") never converts: a fiscal quarter need not be a
+   calendar one. Periods over two or more years never convert: their numbers would merge
+   different periods.
 
 percent_scale and period_number act on columns and may apply together (a monthly percentage
 change returned as month dates and fractions); pivot and empty_check reshape the whole result
@@ -118,6 +130,11 @@ COUNT_WORDS = frozenset(
 NOT_COUNT_WORDS = frozenset(
     {"avg", "average", "mean", "median", "min", "max", "sum", "price", "amount", "value"}
     | {"revenue", "pct", "percent", "percentage", "ratio", "rate", "share"}
+)
+# a count column may not lead with these: it is a period, an id, a rank or a total, not a count
+# of the rows asked for (agentic-analytics D-91; ``sales_in_requested_year`` stays a count)
+NOT_A_COUNT_LEADS = frozenset(
+    {"year", "q", "quarter", "month", "day", "id", "rank", "total", "grand"}
 )
 SUMMARY_WORDS = frozenset(
     {"total", "totals", "subtotal", "sum", "all", "overall", "grand", "count", "counts", "cnt"}
@@ -333,6 +350,10 @@ def _omitted_label(name: str, labels: Collection[str], gold: ResultSet) -> bool:
         return False
     if _label_key(name) in {_label_key(c) for c in gold.columns}:
         return False
+    # beside labels that start with a digit (years, dates, "2023 Q1") an omitted label would
+    # too: ``unknown`` is not one (agentic-analytics 5a203a7)
+    if any(_label_key(lab)[:1].isdigit() for lab in labels) and not _label_key(name)[:1].isdigit():
+        return False
     kinds = frozenset().union(*(_char_kinds(lab) for lab in labels))
     return bool(name.strip()) and _char_kinds(name) <= kinds
 
@@ -379,9 +400,23 @@ def _numeric(cell: Any) -> float | None:
     return None
 
 
+def _leading_words(name: str) -> frozenset[str]:
+    """A name's first word, read whole and at a case change (``totalSales`` -> totalsales,
+    total)."""
+    firsts = (
+        _WORD.findall(name.casefold())[:1],
+        _WORD.findall(_CAMEL.sub(" ", name).casefold())[:1],
+    )
+    return frozenset(w for first in firsts for w in first)
+
+
 def is_count_column(name: str) -> bool:
-    """A column named as a count (``n``, ``sales_in_1994``) and not as another measure."""
-    return bool(words(name) & COUNT_WORDS) and not any_words(name) & NOT_COUNT_WORDS
+    """A column named as a count (``n``, ``sales_in_1994``), not as another measure, and not
+    a column that *is* a period, an id, a rank or a total (its leading word: ``total_sales``,
+    ``year_count``)."""
+    if not words(name) & COUNT_WORDS or any_words(name) & NOT_COUNT_WORDS:
+        return False
+    return not _leading_words(name) & NOT_A_COUNT_LEADS
 
 
 def empty_check(predicted: ResultSet, gold: ResultSet) -> ResultSet | None:
@@ -404,17 +439,67 @@ def empty_check(predicted: ResultSet, gold: ResultSet) -> ResultSet | None:
 # 4. period_number
 
 
-def _period_starts(values: Sequence[Any]) -> list[tuple[int, int] | None] | None:
-    """(year, month) per cell when every non-null cell is a month start, else None."""
-    out: list[tuple[int, int] | None] = []
+_QUARTER_LABELS = (  # (pattern, year group, quarter group); a bare "Q1" states no year
+    (re.compile(r"(\d{4})[\s-]*Q([1-4])", re.ASCII | re.IGNORECASE), 1, 2),
+    (re.compile(r"Q([1-4])[\s-]*(\d{4})", re.ASCII | re.IGNORECASE), 2, 1),
+    (re.compile(r"Q([1-4])", re.ASCII | re.IGNORECASE), 0, 1),
+)
+_MONTH_NAMES = {
+    name: month
+    for month, names in enumerate(
+        (
+            ("january", "jan"), ("february", "feb"), ("march", "mar"), ("april", "apr"),
+            ("may",), ("june", "jun"), ("july", "jul"), ("august", "aug"),
+            ("september", "sep", "sept"), ("october", "oct"), ("november", "nov"),
+            ("december", "dec"),
+        ),
+        start=1,
+    )
+    for name in names
+}  # fmt: skip
+_MONTH_NUMBER_LABEL = re.compile(r"(\d{4})-(\d{2})", re.ASCII)
+_MONTH_NAME_LABELS = (  # (pattern, year group, month-name group)
+    (re.compile(r"([A-Za-z]+)\.?\s+(\d{4})", re.ASCII), 2, 1),
+    (re.compile(r"(\d{4})\s+([A-Za-z]+)", re.ASCII), 1, 2),
+)
+# fiscal periods are not calendar months or quarters ("Q1 of FY2024" may start in April)
+_FISCAL = re.compile(r"\bFY\s?'?\d{2,4}\b|\bfiscal\b", re.IGNORECASE)
+
+Period = tuple[int | None, int, bool]  # (stated year or None, first month, a quarter label)
+
+
+def _period_cell(v: Any) -> Period | None:
+    """One cell as a period start: a month-start date, a quarter label (``2023 Q1``,
+    ``Q1 2023``, ``2023-Q1``, ``Q1``) or a month label (``2023-03``, ``March 2023``,
+    ``Mar 2023``); None for anything else (``Q5``, ``2023-13``, ``2023-W05``)."""
+    if not isinstance(v, str):
+        return None
+    text = v.strip()
+    if (m := _PERIOD_START.fullmatch(text) or _MONTH_NUMBER_LABEL.fullmatch(text)) is not None:
+        month = int(m.group(2))
+        return (int(m.group(1)), month, False) if 1 <= month <= 12 else None
+    for pattern, year_at, quarter_at in _QUARTER_LABELS:
+        if (m := pattern.fullmatch(text)) is not None:
+            year = int(m.group(year_at)) if year_at else None
+            return year, 3 * int(m.group(quarter_at)) - 2, True
+    for pattern, year_at, name_at in _MONTH_NAME_LABELS:
+        m = pattern.fullmatch(text)
+        if m is not None and (month := _MONTH_NAMES.get(m.group(name_at).casefold())):
+            return int(m.group(year_at)), month, False
+    return None
+
+
+def _period_starts(values: Sequence[Any]) -> list[Period | None] | None:
+    """A period per cell when every non-null cell is a period start, else None."""
+    out: list[Period | None] = []
     for v in values:
         if v is None:
             out.append(None)
             continue
-        m = _PERIOD_START.fullmatch(v) if isinstance(v, str) else None
-        if m is None or not 1 <= int(m.group(2)) <= 12:
+        cell = _period_cell(v)
+        if cell is None:
             return None
-        out.append((int(m.group(1)), int(m.group(2))))
+        out.append(cell)
     return out if any(p is not None for p in out) else None
 
 
@@ -433,16 +518,21 @@ def _period_numbers(gold: ResultSet, named: frozenset[str], top: int) -> frozens
 
 
 def period_columns(predicted: ResultSet, gold: ResultSet, question: str) -> list[Converted]:
-    """The month-number and quarter-number readings of the predicted date columns that apply,
-    each converted column bound to the gold columns named as that period."""
-    if not gold.rows:
+    """The month-number and quarter-number readings of the predicted period columns that
+    apply, each converted column bound to the gold columns named as that period."""
+    if not gold.rows or _FISCAL.search(question):
         return []
     years = {int(y) for y in _NAMES_YEAR.findall(question)}
-    dates: dict[int, list[tuple[int, int] | None]] = {}
+    dates: dict[int, list[Period | None]] = {}
     for i in range(len(predicted.columns)):
         starts = _period_starts(_column(predicted, i))
         if starts is None:
             continue
+        if any(p is not None and p[0] is None for p in starts):
+            if len(years) != 1:
+                continue  # a bare "Q1" is read only in the one year the question names
+            (year,) = years
+            starts = [p if p is None or p[0] is not None else (year, p[1], p[2]) for p in starts]
         in_years = {p[0] for p in starts if p is not None}
         if len(in_years) == 1 and (not years or in_years <= years):
             dates[i] = starts
@@ -450,7 +540,8 @@ def period_columns(predicted: ResultSet, gold: ResultSet, question: str) -> list
         return []
     out: list[Converted] = []
     months = _period_numbers(gold, MONTH_WORDS, 12)
-    if _NAMES_MONTHS.search(question) and months:
+    quarter_labels = any(p is not None and p[2] for s in dates.values() for p in s)
+    if _NAMES_MONTHS.search(question) and months and not quarter_labels:
         out.append(
             {i: ([None if p is None else p[1] for p in s], months) for i, s in dates.items()}
         )

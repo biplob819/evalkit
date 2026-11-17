@@ -562,9 +562,10 @@ def test_empty_check_needs_count_columns_and_no_stray_text():
     assert rescue(avg, rs(("avg_price",), ()), "Average price in 1994?") == ()
     for name in ("total", "total_revenue", "median_price", "value", "year", "SalesIn1994"):
         assert rescue(rs((name,), ((0,),)), EMPTY, EMPTY_Q) == (), name
-    # an excluding word is found at a case change too
+    # an excluding word is found at a case change too; a leading total is not a count
     assert rescue(rs(("sales_avgPrice",), ((0,),)), EMPTY, EMPTY_Q) == ()
-    for name in ("n", "count", "num_sales", "sales_count", "SALES_IN_1994", "total_sales", "rows"):
+    assert rescue(rs(("total_sales",), ((0,),)), EMPTY, EMPTY_Q) == ()
+    for name in ("n", "count", "num_sales", "sales_count", "SALES_IN_1994", "rows"):
         assert rescue(rs((name,), ((0,),)), EMPTY, EMPTY_Q) == ("empty_check",), name
     stamp = rs(("earliest", "n"), (("1995-01-01T00:00:00Z", 0),))
     assert rescue(stamp, EMPTY, EMPTY_Q) == ("empty_check",)
@@ -776,3 +777,224 @@ def test_a_percentile_column_is_not_a_percent_column():
     pred = rs(("latency_pct95",), ((0.0123,),))
     res = sql_match(pred, gold, question="What percentage of time?", equivalences=["percent_scale"])
     assert res.value == 0.0
+
+
+# ---- agentic-analytics 5a203a7: text period labels (OWNER D-89) and leading-word counts --------
+
+Q035 = "What was the average (mean) price paid in each quarter of 2023?"
+Q035_TOL = (0.005, 1e-9)  # agentic-analytics: rel 0.005 on avg_price
+Q035_GOLD = rs(
+    ("quarter", "avg_price"),
+    (
+        (1, 402525.04774426745),
+        (2, 414916.01938011934),
+        (3, 410081.28997829),
+        (4, 400829.5861065616),
+    ),
+)
+Q035_VALUES = (402525.05, 414916.02, 410081.29, 400829.59)
+
+
+def _quarters(labels: tuple[str, ...]) -> ResultSet:
+    return rs(("quarter", "mean_price_gbp"), list(zip(labels, Q035_VALUES, strict=True)))
+
+
+def test_gpts_text_quarter_labels_match_quarter_numbers():
+    """The real case: GPT-6.1 Sol, q-035, every trial of agentic-analytics' baseline."""
+    for labels in (
+        ("2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4"),
+        ("Q1 2023", "Q2 2023", "Q3 2023", "Q4 2023"),
+        ("2023-Q1", "2023-q2", "2023-Q3", "2023-Q4"),
+        ("Q1", "Q2", "Q3", "Q4"),
+    ):
+        assert rescue(_quarters(labels), Q035_GOLD, Q035, tol=Q035_TOL) == ("period_number",)
+        assert run(_quarters(labels), Q035_GOLD, Q035, tol=Q035_TOL, names=()).value == 0.0
+
+
+def test_text_quarter_labels_stay_wrong_when_they_should():
+    two_years = ("2022 Q4", "2023 Q1", "2023 Q2", "2023 Q3")
+    assert rescue(_quarters(two_years), Q035_GOLD, Q035, tol=Q035_TOL) == ()
+    swapped = ("2023 Q2", "2023 Q1", "2023 Q3", "2023 Q4")
+    assert rescue(_quarters(swapped), Q035_GOLD, Q035, tol=Q035_TOL) == ()
+    assert rescue(_quarters(("Q1", "Q2", "Q3", "Q5")), Q035_GOLD, Q035, tol=Q035_TOL) == ()
+    ordinals = ("first", "second", "third", "fourth")
+    assert rescue(_quarters(ordinals), Q035_GOLD, Q035, tol=Q035_TOL) == ()
+    unnamed = "What was the average price paid in each period of 2023?"
+    labels = ("2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4")
+    assert rescue(_quarters(labels), Q035_GOLD, unnamed, tol=Q035_TOL) == ()
+
+
+def test_text_month_labels_match_month_numbers_and_quarter_labels_never_do():
+    for labels in (("2016-03", "2016-04"), ("March 2016", "April 2016"), ("Mar 2016", "Apr 2016")):
+        pred = rs(("month", "sales"), list(zip(labels, (70, 80), strict=True)))
+        assert rescue(pred, MONTHS, MONTH_Q) == ("period_number",), labels
+    # gold months 1 and 4 are what Q1 and Q2 would map to: only the guard keeps them apart
+    jan_apr = rs(("month", "sales"), ((1, 70), (4, 80)))
+    quarterly = rs(("month", "sales"), (("Q1 2016", 70), ("Q2 2016", 80)))
+    assert rescue(quarterly, jan_apr, MONTH_Q) == ()
+    as_months = rs(("month", "sales"), (("Jan 2016", 70), ("Apr 2016", 80)))
+    assert rescue(as_months, jan_apr, MONTH_Q) == ("period_number",)
+    two_years = rs(("month", "sales"), (("March 2016", 70), ("April 2017", 80)))
+    assert rescue(two_years, MONTHS, MONTH_Q) == ()
+    not_months = rs(("month", "sales"), (("Marchy 2016", 70), ("Aprilish 2016", 80)))
+    assert rescue(not_months, MONTHS, MONTH_Q) == ()
+
+
+def test_text_period_labels_in_a_year_the_question_does_not_name_stay_wrong():
+    labels = ("2022 Q1", "2022 Q2", "2022 Q3", "2022 Q4")
+    assert rescue(_quarters(labels), Q035_GOLD, Q035, tol=Q035_TOL) == ()
+    months = rs(("month", "sales"), (("March 2015", 70), ("April 2015", 80)))
+    assert rescue(months, MONTHS, MONTH_Q) == ()
+    numbered = rs(("month", "sales"), (("2015-03", 70), ("2015-04", 80)))
+    assert rescue(numbered, MONTHS, MONTH_Q) == ()
+
+
+def test_a_bare_quarter_label_needs_the_question_to_name_exactly_one_year():
+    """A bare "Q1" states no year: it is read as the one year the question names, and never
+    when the question names none or several (it could be any of them)."""
+    bare = _quarters(("Q1", "Q2", "Q3", "Q4"))
+    no_year = "What was the average (mean) price paid in each quarter?"
+    assert rescue(bare, Q035_GOLD, no_year, tol=Q035_TOL) == ()
+    two = "What was the average (mean) price paid in each quarter of 2023, against 2022?"
+    assert rescue(bare, Q035_GOLD, two, tol=Q035_TOL) == ()
+    q2024 = Q035.replace("2023", "2024")  # read as 2024, the one year named
+    assert rescue(bare, Q035_GOLD, q2024, tol=Q035_TOL) == ("period_number",)
+    assert rescue(_quarters(("Q1", "2023 Q2", "Q3", "Q4")), Q035_GOLD, q2024, tol=Q035_TOL) == ()
+    # a bare label beside a stated one reads as the named year; a different stated year fails
+    mixed = _quarters(("Q1", "2023 Q2", "Q3", "Q4"))
+    assert rescue(mixed, Q035_GOLD, Q035, tol=Q035_TOL) == ("period_number",)
+    other = _quarters(("Q1", "2022 Q2", "Q3", "Q4"))
+    assert rescue(other, Q035_GOLD, Q035, tol=Q035_TOL) == ()
+    # the year stated in the labels is enough without a named year, as for dates
+    stated = _quarters(("2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4"))
+    assert rescue(stated, Q035_GOLD, no_year, tol=Q035_TOL) == ("period_number",)
+
+
+def test_mixed_years_in_text_labels_never_convert():
+    mixed = _quarters(("2023 Q1", "Q2 2024", "2023-Q3", "2023 Q4"))
+    text = "Average price in each quarter of 2023 and 2024?"
+    assert rescue(mixed, Q035_GOLD, text, tol=Q035_TOL) == ()
+    months = rs(("month", "sales"), (("2016-03", 70), ("Apr 2017", 80)))
+    assert rescue(months, MONTHS, "Sales by month in 2016 and 2017?") == ()
+
+
+def test_a_quarter_label_never_lands_on_a_month_column():
+    """Q1 and Q2 are not months 1 and 4, nor 1 and 2, even when the question names months
+    and quarters."""
+    text = "Sales by month and quarter of 2016?"
+    for gold_months in ((1, 2), (1, 4)):
+        gold = rs(("month", "sales"), list(zip(gold_months, (70, 80), strict=True)))
+        for labels in (("Q1", "Q2"), ("2016 Q1", "2016 Q2"), ("2016-Q1", "2016-Q2")):
+            pred = rs(("month", "sales"), list(zip(labels, (70, 80), strict=True)))
+            assert rescue(pred, gold, text) == (), (gold_months, labels)
+    # a quarter label anywhere among the converted columns turns the month reading off
+    gold = rs(("month", "q", "sales"), ((1, 1, 70),))
+    pred = rs(("month", "q", "sales"), (("Jan 2016", "Q1", 70),))
+    assert rescue(pred, gold, "Sales by month of 2016?") == ()
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        ("Q1", "Q2", "Q3", "Q5"),
+        ("2023 Q0", "2023 Q2", "2023 Q3", "2023 Q4"),
+        ("2023-Q1", "2023-Q2", "2023-Q3", "2023-W05"),
+        ("2023_Q1", "2023_Q2", "2023_Q3", "2023_Q4"),
+        ("Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4"),
+        ("Q1 23", "Q2 23", "Q3 23", "Q4 23"),
+    ],
+)
+def test_malformed_quarter_labels_stay_wrong(labels):
+    assert rescue(_quarters(labels), Q035_GOLD, Q035, tol=Q035_TOL) == ()
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        ("2016-03", "2016-13"),
+        ("2016-W10", "2016-W14"),
+        ("2016-3", "2016-4"),
+        ("Mars 2016", "Avril 2016"),
+        ("2016-03-15", "2016-04-15"),
+        ("03/2016", "04/2016"),
+    ],
+)
+def test_malformed_month_labels_stay_wrong(labels):
+    pred = rs(("month", "sales"), list(zip(labels, (70, 80), strict=True)))
+    assert rescue(pred, MONTHS, MONTH_Q) == ()
+
+
+def test_text_labels_keep_every_period_number_refusal():
+    """The conditions on dates hold for labels: the question names the period, a gold column
+    named as that period (not a sub-period or count), the converted column bound to it, no
+    fiscal periods."""
+    labels = rs(("month", "sales"), (("Mar 2016", 70), ("Apr 2016", 80)))
+    assert rescue(labels, MONTHS, "How many sales on those two dates in 2016?") == ()
+    for name in ("week_of_month", "month_count", "rank"):
+        gold = rs((name, "sales"), ((3, 70), (4, 80)))
+        assert rescue(labels, gold, MONTH_Q) == (), name
+    swapped = rs(("sales", "month"), (("Mar 2016", 3), ("Apr 2016", 4)))
+    assert rescue(swapped, rs(("month", "sales"), ((3, 3), (4, 4))), MONTH_Q) == ()
+    fiscal = "What was the average (mean) price paid in each quarter of FY2023?"
+    stated = _quarters(("2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4"))
+    assert rescue(stated, Q035_GOLD, fiscal, tol=Q035_TOL) == ()
+    fiscal_dates = rs(("month", "sales"), (("2016-03-01", 70), ("2016-04-01", 80)))
+    assert rescue(fiscal_dates, MONTHS, MONTH_Q + " (fiscal months)") == ()
+
+
+def test_evalkit_stricter_empty_and_pivot_rules():
+    """agentic-analytics D-91 / 5a203a7: a zero in a column that leads with a period, id,
+    rank or total word is not a zero count; ``sales_in_requested_year`` is one."""
+    empty = rs(("month", "median_price"), ())
+    text = "What was the median price in each month of 1993?"
+    for col in ("grand_total", "year", "q"):
+        assert rescue(rs(("earliest", col), (("1995-01-01", 0),)), empty, text) == (), col
+    ok = rs(("earliest_sale_date", "sales_in_requested_year"), (("1995-01-01", 0),))
+    assert rescue(ok, empty, text) == ("empty_check",)
+    gold = rs(("duration", "sales"), (("freehold", 5), ("leasehold", 3)))
+    tenure = rs(("freehold", "leasehold", "n"), ((5, 3, 0),))
+    assert rescue(tenure, gold, "Sales by tenure?") == ()
+    years = rs(("year", "sales"), (("2022", 5), ("2023", 3)))
+    pred = rs(("2022", "2023", "unknown"), ((5, 3, 0),))
+    assert rescue(pred, years, "Sales by year?") == ()
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "total_sales",
+        "totalSales",
+        "TOTAL_ORDERS",
+        "grand_total_count",
+        "year_count",
+        "q1_sales",
+        "quarter_sales",
+        "month_count",
+        "day_count",
+        "id_count",
+        "rank_n",
+    ],
+)
+def test_empty_check_refuses_a_count_column_with_a_leading_period_or_total_word(name):
+    assert rescue(rs(("earliest", name), (("1995-01-01", 0),)), EMPTY, EMPTY_Q) == ()
+
+
+@pytest.mark.parametrize(
+    "name", ["sales_in_requested_year", "sales_in_1994", "n_sales_per_month", "count_total"]
+)
+def test_empty_check_keeps_a_count_column_whose_period_or_total_word_comes_later(name):
+    pred = rs(("earliest", name), (("1995-01-01", 0),))
+    assert rescue(pred, EMPTY, EMPTY_Q) == ("empty_check",)
+
+
+def test_pivot_extra_label_beside_digit_labels_must_start_with_a_digit():
+    """agentic-analytics 5a203a7: ``unknown`` is no omitted label beside date-like labels,
+    even when those labels hold letters (``T``, ``Z``, ``Q``) as well as digits."""
+    for labels in (("2023 Q1", "2023 Q2"), ("2023-03-01T00:00:00Z", "2023-04-01T00:00:00Z")):
+        gold = rs(("period", "n"), ((labels[0], 4), (labels[1], 5)))
+        for extra in ("unknown", "Unknown", "other", "n_a"):
+            pred = rs((*labels, extra), ((4, 5, 0),))
+            assert rescue(pred, gold, "Sales by period?") == (), (labels, extra)
+    gold = rs(("period", "n"), (("2023 Q1", 4), ("2023 Q2", 5)))
+    pred = rs(("2023 Q1", "2023 Q2", "2023 Q3"), ((4, 5, 0),))
+    assert rescue(pred, gold, "Sales by period?") == ("pivot",)
