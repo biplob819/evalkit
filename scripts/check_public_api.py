@@ -260,7 +260,15 @@ CLI: dict[str, set[str]] = {
     "calibrate label": {"run_dir", "--json", "--port", "--relabel"},
     "calibrate import": {"run_dir", "csv", "--json"},
     "calibrate score": {"run_dir", "--json"},
-    "report": {"run_dir", "--example", "--out", "--publish", "--json", "--paraphrase"},  # B5.8
+    "report": {
+        "run_dir",
+        "--example",
+        "--out",
+        "--publish",
+        "--json",
+        "--paraphrase",  # B5.8
+        "--allow-different-settings",  # B5.8 (verifier fix)
+    },
     "init": {"dir", "--force", "--json"},
     "doctor": {"--offline", "--store", "--config", "--json"},
     "gate": {"summary", "--config", "--json", "--out"},  # v0.3 (B5.3)
