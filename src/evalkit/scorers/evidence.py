@@ -10,10 +10,12 @@ Copyright (c) 2026 Biplob Chakraborty, the same author) and general to any decis
 - `value_check` checks the numbers in a reason against the record without a model, strictly
   (B5.16, D-74): a number is checked only when the text binds it to one field by positive
   evidence (the field's whole name or an alias, in a recognised shape such as "risk score is
-  0.83", "amount above 800", "40 earlier purchases", or a declared `ValuePhrase`); any other
-  number makes its reason unverifiable, and no number is ever matched to a field because its
-  value is close. Each reason is `verified`, `contradicted` or `unverifiable` (D-72), and
-  `value_check_shares` gives each share across a run with its count and an exact interval.
+  0.83", "amount above 800", "40 earlier purchases", or a declared `ValuePhrase`) in a
+  statement framed by a clause start and a clause end; every numeric token (digits anywhere,
+  number words) no such binding consumes makes its reason unverifiable (a closed world), and
+  no number is ever matched to a field because its value is close. Each reason is `verified`,
+  `contradicted` or `unverifiable` (D-72), and `value_check_shares` gives each share across
+  a run with its count and an exact interval.
 
 Templates read plain field names only; conditions use the RUL-01 predicate grammar. Nothing
 from a record, template, phrase or reason is ever executed.
@@ -24,6 +26,7 @@ from __future__ import annotations
 import bisect
 import math
 import re
+import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
@@ -237,16 +240,21 @@ _POSTFIX = _words("more higher above greater over up less lower below fewer unde
 _PRE_WORDS = _words(
     "and but while whereas with so because since as when where at then also which that"
 )
-# a determiner may stand between: "... and the amount is 812.40" (never "risk of the amount")
-_DETERMINERS = frozenset(("the", "this", "a", "an"))
-# before a number whose field is named after it ("has 40 earlier purchases")
-# before "[<cmp>] <n> <field>": the start, punctuation, a joining word, or "<subject> has"
-# whose subject is a word of that field's own name ("The card has 40 earlier purchases")
-_NUM_PRE_WORDS = _words("and but with while whereas so which")
-_HAS = _words("has had have")
-_SENTENCE_END = frozenset(".!?;")
+# before a field named first, only an article or a possessive ("the", "its", "the card's" when
+# "card" is a word of that field's own name): "The merchant's card history" binds nothing
+_DETERMINERS = frozenset(("the", "a", "an"))
+_POSSESSIVES = frozenset(("its", "their"))
+# a statement ends at the end, a line break or one of these; "," and "and" join it to another
+# fully bound statement (B5.16 closed world: anything else leaves it unframed)
+_STATEMENT_END = frozenset(".;!?")
+_JOINERS = frozenset(("and", ","))
+_ABBREVIATIONS = _words("vs eg ie etc cf ca approx est no nos ref fig avg max min mr ms dr st")
 # a hedge anywhere in a reason: nothing in it is verified or contradicted (verify516)
-_HEDGE_WORDS = _words("roughly about approximately approx around nearly almost ballpark circa")
+_HEDGE_WORDS = _words(
+    "roughly about approximately approx around nearly almost ballpark circa est estd abt apprx "
+    "aprox aproximately approximate approximated guesstimate guesstimated ish rounded rough "
+    "loosely broadly thereabout thereabouts roundabout nearest"
+)
 _HEDGE_PHRASES: tuple[tuple[str, ...], ...] = (
     ("give", "or", "take"),
     ("more", "or", "less"),
@@ -278,12 +286,17 @@ _DENIALS = _words(
     "false untrue incorrect incorrectly wrong wrongly inaccurate mistaken mistakenly "
     "erroneous erroneously misleading misreported disputed"
 )
+# every word read as a quantity (D-74 closed world): never bound, so a reason holding one is
+# unverifiable ("a single earlier purchase", "a couple of", "once", "first", "half")
 _NUMBER_WORDS = _words(
-    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
-    "fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy "
-    "eighty ninety hundred hundreds thousand thousands million millions billion billions "
-    "trillion dozen dozens twice thrice double doubled triple tripled quadruple half halved "
-    "quarter midnight noon midday"
+    "zero nil nought one two three four five six seven eight nine ten eleven twelve thirteen "
+    "fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty "
+    "seventy eighty ninety hundred hundreds thousand thousands million millions billion "
+    "billions trillion trillions dozen dozens twice thrice once double doubled triple "
+    "tripled quadruple quadrupled half halves halved quarter quarters third thirds single "
+    "singles couple couples pair pairs few several handful many multiple multiples numerous "
+    "countless lots plenty lone sole both first second fourth fifth sixth seventh eighth ninth "
+    "tenth eleventh twelfth twentieth hundredth thousandth midnight noon midday"
 )
 # a word left in a clause beside a bound number that may make it a threshold, a baseline or a
 # range (fraud-review-bedrock D-42): the clause's checks are ambiguous
@@ -339,6 +352,7 @@ class _Num:
     half: Fraction  # half of the last displayed digit
     unit: str | None  # None, pct, mult, cur, time, other
     is_time_minutes: bool = False
+    dot_end: bool = False  # "3 a.m." took the sentence's full stop
 
 
 @dataclass
@@ -346,14 +360,17 @@ class _Bind:
     field: str
     op: str  # "=", ">", ">=", "<", "<="
     via: str  # shape read: left, paren, right, phrase
+    span: tuple[int, int] | None = None  # a phrase's tokens [first, after); None: not framed
 
 
 @dataclass
 class _Reading:
-    """A number's reading: bound to one field, or unbound with a reason."""
+    """A number's reading: bound to one field, or unbound with a reason; `span` is the bound
+    statement's tokens [first, after) (subject to number, unit or field)."""
 
     binds: list[_Bind] = dc_field(default_factory=list)
     void: str | None = None
+    span: tuple[int, int] | None = None
 
 
 def _norm_tokens(name: str) -> list[str]:
@@ -469,11 +486,47 @@ class _Reader:
             k -= 1
         return k < 0 or self.text[k] == "\n"
 
-    def clean_before_mention(self, m: int) -> str | None:
-        """None when the token before mention m lets it be a subject, else the reason."""
-        p = m - 1
-        if p >= 0 and self.word(p) in _DETERMINERS:
+    def subject_start(self, m: int, f: str | None) -> int:
+        """The first token of the subject whose field is named at mention m: the mention, or
+        an article or possessive right before it ("the", "its", "the card's" when "card" is a
+        word of field f's own key or alias)."""
+        p = m
+        w = self.word(p - 1)
+        if w in _POSSESSIVES:
+            return p - 1
+        if w and f and w.endswith("'s") and w[:-2] in self.field_words.get(f, ()):
             p -= 1
+        if self.word(p - 1) in _DETERMINERS:
+            p -= 1
+        return p
+
+    def head(self, s: int) -> bool:
+        """Token s starts a clause: the start, a line break, a sentence end (. ; ! ?) or a
+        line-start bullet before it. Never after a comma, colon, dash, bracket or a word."""
+        if s == 0 or self.newline_before(s):
+            return True
+        w = self.word(s - 1)
+        if w == "." and s >= 2 and self.toks[s - 2].kind == "word":
+            # an abbreviation's full stop starts nothing ("e.g. amount", "Avg. amount"); "a.m."
+            # and "p.m." do
+            prev = self.toks[s - 2].low
+            if prev in _ABBREVIATIONS or (len(prev) == 1 and prev != "m"):
+                return False
+        return (w is not None and w in _STATEMENT_END) or self.line_start_dash(s - 1)
+
+    def tail(self, e: int) -> bool:
+        """Token e (the first after a statement) ends its clause: the end, a line break or
+        a sentence end (. ; ! ?), never a decimal point."""
+        if e >= len(self.toks) or self.newline_before(e):
+            return True
+        w = self.word(e)
+        if w == "." and e + 1 < len(self.toks) and self.adjacent(e, e + 1):
+            return self.toks[e + 1].kind != "num"
+        return w is not None and w in _STATEMENT_END
+
+    def clean_before_mention(self, m: int, f: str | None = None) -> str | None:
+        """None when the token before mention m lets it be a subject, else the reason."""
+        p = self.subject_start(m, f) - 1
         if p < 0:
             return None
         w = self.word(p)
@@ -482,6 +535,18 @@ class _Reader:
         if w is not None and (w in _PRE_WORDS or w in _PRE_PUNCT or self.line_start_dash(p)):
             return None
         return "unclear_subject"  # "risk of the amount", "the average amount", "We note amount"
+
+    def match_span(self, start: int, end: int) -> tuple[int, int] | None:
+        """The tokens [first, after) of a text match, with an article right before it; None
+        when the match cuts a token."""
+        s, e = self.at(start), self.at(end)
+        if (s > 0 and self.toks[s - 1].end > start) or (e > 0 and self.toks[e - 1].end > end):
+            return None
+        if s >= e:
+            return None
+        if self.word(s - 1) in _DETERMINERS:
+            s -= 1
+        return s, e
 
     def clean_after(self, j: int) -> bool:
         """The token at j ends a statement: the end, punctuation or a following word."""
@@ -581,7 +646,8 @@ class _Reader:
             elif hour.denominator != 1 or not 0 <= hour <= 23:
                 value = None
             half = Fraction(1, 2)
-        return _Num(i, first, j, self.toks[first].start, end, value, half, unit, minutes)
+        dot = unit == "time" and pos > t.end and self.text[pos - 1] == "."
+        return _Num(i, first, j, self.toks[first].start, end, value, half, unit, minutes, dot)
 
     def comparison_before(self, i: int) -> tuple[int, str] | None:
         return self.phrase_before(i, _CMP_PHRASES)
@@ -616,7 +682,7 @@ class _Reader:
         f = self.mention_field(m)
         if f is None:
             return None, op, m, "unclear_field"
-        why = self.clean_before_mention(m)
+        why = self.clean_before_mention(m, f)
         return f, op, m, why
 
     def right(self, n: _Num, j: int) -> tuple[str | None, int, str | None]:
@@ -664,16 +730,16 @@ class _Reader:
             elif lvoid or lf is None:
                 void = lvoid or "unclear_field"
             else:
-                structural = _Bind(lf, "=", "paren")
+                structural = _Bind(lf, "=", "paren", (self.subject_start(lm, lf), j + 1))
         elif lm >= 0:
             if lvoid or lf is None:
                 void = lvoid or "unclear_field"
-            elif self.is_mention(j):
+            elif self.is_mention(j) and not n.dot_end:
                 void = "unclear_field"  # a field on both sides
-            elif not self.clean_after(j):
+            elif not (self.clean_after(j) or n.dot_end):
                 void = "unclear_subject"
             else:
-                structural = _Bind(lf, lop, "left")
+                structural = _Bind(lf, lop, "left", (self.subject_start(lm, lf), j))
         elif rf is not None or rvoid:
             cmp = self.comparison_before(n.first)
             k = cmp[0] if cmp else n.first  # the first token of "[<cmp>] <n>"
@@ -681,10 +747,8 @@ class _Reader:
                 void = rvoid
             elif cmp and before == "over":
                 void = "unclear_comparison"  # "over 517 earlier purchases": across, or above?
-            elif self.subject_ok(k, rf or ""):
-                structural = _Bind(rf or "", cmp[1] if cmp else "=", "right")
-            else:
-                void = "unclear_subject"  # "Shipping was 108 days", "The merchant has 40 ..."
+            else:  # framed later: only at a clause start ("The merchant has 40 ..." never)
+                structural = _Bind(rf or "", cmp[1] if cmp else "=", "right", (k, rm + 1))
         if structural is not None and not self.unit_ok(n.unit, structural.field, False):
             structural, void = None, "unit"
         if phrase_void:
@@ -709,25 +773,12 @@ class _Reader:
             return _Reading(void="time" if n.unit == "time" else "no_field")
         if len({(b.field, b.op) for b in binds}) > 1:
             return _Reading(void="unclear_field")
-        return _Reading(binds=binds[:1])
-
-    def subject_ok(self, k: int, f: str) -> bool:
-        """Before "[<cmp>] <n> <field>" starting at token k: the start, a sentence end, a line
-        break, a joining word, or "<subject> has|had|have" whose subject is a word of the
-        field's own name, itself at the start of its phrase ("The card has ...")."""
-        if k == 0 or self.newline_before(k):
-            return True
-        before = self.word(k - 1)
-        if before in _SENTENCE_END or before in _NUM_PRE_WORDS:
-            return True  # never after a comma, colon, dash or bracket: "Amount, 40 card history"
-        subject = k - 2
-        return (
-            before in _HAS
-            and subject >= 0
-            and self.toks[subject].kind == "word"
-            and self.toks[subject].low in self.field_words.get(f, set())
-            and self.clean_before_mention(subject) is None
-        )
+        # the statement's tokens: every binding's, together (one missing: never framed)
+        spans = [b.span for b in binds]
+        span: tuple[int, int] | None = None
+        if all(sp is not None for sp in spans):
+            span = (min(sp[0] for sp in spans if sp), max(sp[1] for sp in spans if sp))
+        return _Reading(binds=binds[:1], span=span)
 
     def phrase_op(self, n: _Num) -> tuple[str | None, str | None]:
         """For a number inside a field phrase: (comparison, void)."""
@@ -832,6 +883,77 @@ def _cover(length: int, spans: Iterable[tuple[int, int]]) -> bytearray:
     return out
 
 
+def _count_cover(length: int, spans: Iterable[tuple[int, int]]) -> list[int]:
+    """How many of the spans cover each position."""
+    out = [0] * (length + 1)
+    for s, e in spans:
+        out[s] += 1
+        out[e] -= 1
+    for p in range(1, len(out)):
+        out[p] += out[p - 1]
+    return out
+
+
+def _is_numeric(ch: str) -> bool:
+    """A digit in any script, or a character whose NFKC form holds one ("８", "½", "²")."""
+    if ch.isascii():
+        return ch.isdigit()
+    return (
+        ch == "∞" or ch.isnumeric() or any(c.isnumeric() for c in unicodedata.normalize("NFKC", ch))
+    )
+
+
+def _numeric_runs(text: str) -> list[tuple[int, int]]:
+    """Every run of numeric characters: (start, end)."""
+    runs: list[tuple[int, int]] = []
+    start = -1
+    for p, ch in enumerate(text):
+        if _is_numeric(ch):
+            if start < 0:
+                start = p
+        elif start >= 0:
+            runs.append((start, p))
+            start = -1
+    if start >= 0:
+        runs.append((start, len(text)))
+    return runs
+
+
+def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]]) -> list[bool]:
+    """(B) Which statements ([first, after) tokens, and whether a time took the full stop) are
+    framed: each starts a clause or follows "and" / "," / ", and" after a framed statement, and
+    each ends a clause or is followed by "and" / "," / ", and" and a framed statement."""
+    by_start: dict[int, list[int]] = {}
+    by_end: dict[int, list[int]] = {}
+    for k, (s, e, _) in enumerate(stmts):
+        by_start.setdefault(s, []).append(k)
+        by_end.setdefault(e, []).append(k)
+    pre = [False] * len(stmts)
+    for k in sorted(range(len(stmts)), key=lambda k: stmts[k][0]):
+        s = stmts[k][0]
+        joins: list[int] = []
+        if not rd.newline_before(s) and rd.word(s - 1) in _JOINERS:
+            joins.append(s - 1)
+            if rd.word(s - 1) == "and" and rd.word(s - 2) == ",":
+                joins.append(s - 2)
+        pre[k] = rd.head(s) or any(pre[q] for j in joins for q in by_end.get(j, ()))
+    post = [False] * len(stmts)
+    for k in sorted(range(len(stmts)), key=lambda k: -stmts[k][1]):
+        _, e, dot = stmts[k]
+        after = e < len(rd.toks) and rd.toks[e].text[:1].isupper()
+        nxt = -1
+        if rd.word(e) == "," and rd.word(e + 1) == "and":
+            nxt = e + 2
+        elif rd.word(e) in _JOINERS:
+            nxt = e + 1
+        post[k] = (
+            rd.tail(e)
+            or (dot and (e >= len(rd.toks) or after))
+            or any(post[q] for q in by_start.get(nxt, ()))
+        )
+    return [a and b for a, b in zip(pre, post, strict=True)]
+
+
 def _check_reason(
     reason: str,
     record: Mapping[str, Any],
@@ -904,7 +1026,15 @@ def _check_reason(
                 if void:
                     phrase_void[n.tok] = void
                 else:
-                    phrase_binds.setdefault(n.tok, []).append(_Bind(ph.field, op or "=", "phrase"))
+                    span = rd.match_span(m.start(), m.end())
+                    if span is not None:  # its comparison, sign and unit are the phrase's too
+                        cmp = rd.comparison_before(n.first)
+                        first = cmp[0] if cmp else n.first
+                        if first < span[0]:
+                            first -= rd.word(first - 1) in _DETERMINERS
+                        span = (min(span[0], first), max(span[1], n.after))
+                    bind = _Bind(ph.field, op or "=", "phrase", span)
+                    phrase_binds.setdefault(n.tok, []).append(bind)
     # each number's reading; a field named for two numbers binds neither
     readings = {
         n.tok: rd.read(n, phrase_binds.get(n.tok, []), phrase_void.get(n.tok)) for n in nums
@@ -922,6 +1052,73 @@ def _check_reason(
             f = r.binds[0].field
             if any(fs != {f} for fs in named.get(clause[n.tok], ())):
                 readings[n.tok] = _Reading(void="unclear_field")
+    # (B) every bound statement must be framed: it starts a clause (after only an article or a
+    # possessive) and ends one, or is joined by "and" / "," to another framed statement
+    stmts: list[tuple[int, int, bool]] = []
+    num_stmt: dict[int, int] = {}
+    for n in nums:
+        r = readings[n.tok]
+        if r.binds and r.span is None:
+            readings[n.tok] = _Reading(void="unframed")
+        elif r.binds and r.span is not None:
+            num_stmt[n.tok] = len(stmts)
+            stmts.append((r.span[0], r.span[1], n.dot_end))
+    consumed: set[int] = set()
+    bools: list[tuple[dict[str, Any], int]] = []
+    for i, t in enumerate(toks):
+        if t.kind == "word" and t.low in ("true", "false"):
+            got = _bool_claim(rd, i, record)
+            if got is not None:
+                consumed.add(i)
+                bools.append((got[0], len(stmts)))
+                stmts.append((got[1][0], got[1][1], False))
+            else:  # a yes/no claim the text does not bind is never dropped
+                checks.append(_unbound(quote(t.start, t.end), t.start, "unclear_subject"))
+    holds_stmts: set[int] = set()
+    phrase_checks: list[dict[str, Any]] = []
+    for ph in phrases:
+        if ph.holds is None:
+            continue
+        condition: tuple[bool, dict[str, Any], str | None] | None = None
+        names = _names(parse_predicate(ph.holds, None, f"phrase {ph.pattern!r}"))
+        for m in re.finditer(ph.pattern, text, re.IGNORECASE):
+            if m.end() == m.start():
+                continue
+            phrase_spans.append((m.start(), m.end()))
+            if condition is None:  # the record does not change: evaluate once
+                try:
+                    condition = _condition(ph.holds, record, f"phrase {ph.pattern!r}")
+                except (RuleError, OverflowError, TypeError, ValueError):
+                    # the grammar was checked when the ValuePhrase was built: an error here
+                    # comes from the record's values, so the claim is unchecked, never raised
+                    condition = (False, {}, f"type_error:{ph.holds}")
+            ok, found, why = condition
+            found = {k: _plain(v) for k, v in found.items()}
+            status = "unchecked" if why else ("ok" if ok else "failed")
+            phrase_checks.append(
+                {
+                    "kind": "phrase",
+                    "text": quote(m.start(), m.end()),
+                    "start": m.start(),
+                    "_fields": names,
+                    "holds": ph.holds,
+                    "found": found,
+                    "ok": status == "ok",
+                    "status": status,
+                    "reason": why,
+                }
+            )
+            if (span := rd.match_span(m.start(), m.end())) is not None:
+                holds_stmts.add(len(stmts))
+                stmts.append((span[0], span[1], False))
+    framed = _frame(rd, stmts)
+    for tok, k in num_stmt.items():
+        if not framed[k]:
+            readings[tok] = _Reading(void="unframed")
+    for c, k in bools:
+        if not framed[k]:
+            c.update(field=None, op=None, found=None, ok=False, status="unbound", reason="unframed")
+        checks.append(c)
     used_cmp: set[int] = set()
     for n in nums:
         if readings[n.tok].binds:
@@ -929,7 +1126,12 @@ def _check_reason(
     consts = {Fraction(c) for c in constants}
     for n in nums:
         r = readings[n.tok]
-        base: dict[str, Any] = {"kind": "number", "text": quote(n.start, n.end), "start": n.start}
+        base: dict[str, Any] = {
+            "kind": "number",
+            "text": quote(n.start, n.end),
+            "start": n.start,
+            "_end": n.end,
+        }
         used_cmp.update(range(n.first, n.after))  # its own tokens are not stray words
         if r.void or not r.binds:
             why = r.void or "no_field"
@@ -965,55 +1167,65 @@ def _check_reason(
                 "reason": why,
             }
         )
-    # numbers written in words or other scripts are never bound
-    consumed: set[int] = set()
-    for i, t in enumerate(toks):
-        if t.kind == "word" and t.low in ("true", "false"):
-            got = _bool_claim(rd, i, record)
-            if got is not None:
-                consumed.add(i)
-                checks.append(got)
-            else:  # a yes/no claim the text does not bind is never dropped
-                checks.append(_unbound(quote(t.start, t.end), t.start, "unclear_subject"))
-        elif t.kind == "word" and t.low in _NUMBER_WORDS and not ignored[t.start]:
-            checks.append(_unbound(quote(t.start, t.end), t.start, "number_word"))
-        elif t.kind in ("word", "sym") and any(
-            (ch.isnumeric() and not ch.isascii()) or ch == "∞" for ch in t.text
-        ):
-            checks.append(_unbound(quote(t.start, t.end), t.start, "non_ascii_number"))
-    # condition phrases
-    for ph in phrases:
-        if ph.holds is None:
+    checks += phrase_checks
+    # (A) closed world: every numeric token (a digit anywhere, after NFKC, or a number word) is
+    # consumed by exactly one framed binding, or it is an unbound check; only `ignore` spans
+    # and field names (mentions) are exempt
+    num_ids = set(num_stmt.values())
+    num_cov = _count_cover(
+        len(text),
+        (
+            (toks[s].start, toks[e - 1].end)
+            for k, (s, e, _) in enumerate(stmts)
+            if framed[k] and k in num_ids
+        ),
+    )
+    holds_cov = _count_cover(
+        len(text),
+        (
+            (toks[s].start, toks[e - 1].end)
+            for k, (s, e, _) in enumerate(stmts)
+            if framed[k] and k in holds_stmts
+        ),
+    )
+    exempt = _cover(
+        len(text),
+        [
+            *(
+                (m.start(), m.end())
+                for p in ignore
+                for m in p.finditer(text)
+                if m.end() > m.start()
+            ),
+            *((t.start, t.end) for t in toks if t.kind == "mention"),
+        ],
+    )
+    taken = _cover(
+        len(text),
+        ((c["start"], c["_end"]) for c in checks if c["status"] == "unbound" and "_end" in c),
+    )
+    for a, b in _numeric_runs(text):
+        bad = [p for p in range(a, b) if not exempt[p] and (num_cov[p] != 1 or holds_cov[p])]
+        if not bad or any(taken[a:b]):
             continue
-        condition: tuple[bool, dict[str, Any], str | None] | None = None
-        names = _names(parse_predicate(ph.holds, None, f"phrase {ph.pattern!r}"))
-        for m in re.finditer(ph.pattern, text, re.IGNORECASE):
-            if m.end() == m.start():
-                continue
-            phrase_spans.append((m.start(), m.end()))
-            if condition is None:  # the record does not change: evaluate once
-                try:
-                    condition = _condition(ph.holds, record, f"phrase {ph.pattern!r}")
-                except (RuleError, OverflowError, TypeError, ValueError):
-                    # the grammar was checked when the ValuePhrase was built: an error here
-                    # comes from the record's values, so the claim is unchecked, never raised
-                    condition = (False, {}, f"type_error:{ph.holds}")
-            ok, found, why = condition
-            found = {k: _plain(v) for k, v in found.items()}
-            status = "unchecked" if why else ("ok" if ok else "failed")
-            checks.append(
-                {
-                    "kind": "phrase",
-                    "text": quote(m.start(), m.end()),
-                    "start": m.start(),
-                    "_fields": names,
-                    "holds": ph.holds,
-                    "found": found,
-                    "ok": status == "ok",
-                    "status": status,
-                    "reason": why,
-                }
-            )
+        prev = text[a - 1] if a else " "
+        if any(num_cov[p] + holds_cov[p] > 1 for p in bad):
+            why = "double_bound"
+        elif not text[a:b].isascii():
+            why = "non_ascii_number"
+        elif prev.isalpha() or prev == "_" or (b < len(text) and text[b].isalpha()):
+            why = "id"
+        else:
+            why = "unread_number"
+        checks.append({**_unbound(quote(a, b), a, why), "_end": b})
+    for t in toks:
+        if (
+            t.kind == "word"
+            and t.low in _NUMBER_WORDS
+            and not exempt[t.start]
+            and (holds_cov[t.start] != 1 or num_cov[t.start])
+        ):
+            checks.append(_unbound(quote(t.start, t.end), t.start, "number_word"))
     # a clause (between sentence ends, commas, brackets, dashes and joining words) that binds
     # two fields, holds a rule id, or keeps a threshold, baseline or range word beside its
     # claims is ambiguous: "amount 11.01 is 0.21 times the card's usual", "Amount is 11.01
@@ -1043,6 +1255,7 @@ def _check_reason(
     for c in checks:
         del c["start"]
         c.pop("_fields", None)
+        c.pop("_end", None)
     return checks, unchecked
 
 
@@ -1122,9 +1335,11 @@ def _unbound(text: str, start: int, why: str) -> dict[str, Any]:
     }
 
 
-def _bool_claim(rd: _Reader, i: int, record: Mapping[str, Any]) -> dict[str, Any] | None:
-    """ "<field> is true", "<field>: false", "(<field> true)": a check, or None when "true" or
-    "false" is not bound to a field this way."""
+def _bool_claim(
+    rd: _Reader, i: int, record: Mapping[str, Any]
+) -> tuple[dict[str, Any], tuple[int, int]] | None:
+    """ "<field> is true", "<field>: false", "(<field> true)": (a check, its statement's tokens
+    [first, after)), or None when "true" or "false" is not bound to a field this way."""
     w = rd.word(i - 1)
     m = i - 1 if rd.is_mention(i - 1) else -1
     if m < 0 and w in ("is", "was", "=", ":") and rd.is_mention(i - 2):
@@ -1132,8 +1347,11 @@ def _bool_claim(rd: _Reader, i: int, record: Mapping[str, Any]) -> dict[str, Any
     if m < 0 or not rd.clean_after(i + 1):
         return None
     f = rd.mention_field(m)
-    if f is None or rd.clean_before_mention(m):
+    if f is None or rd.clean_before_mention(m, f):
         return None
+    s, e = rd.subject_start(m, f), i + 1
+    if rd.word(s - 1) == "(" and rd.word(e) == ")":
+        s, e = s - 1, e + 1  # "(<field> true)" stands as one statement
     t = rd.toks[i]
     claimed = t.low == "true"
     base = {
@@ -1145,31 +1363,29 @@ def _bool_claim(rd: _Reader, i: int, record: Mapping[str, Any]) -> dict[str, Any
         "claimed": claimed,
     }
     if f not in record or _missing(record[f]):
-        return {
+        why: str | None = f"missing_value:{f}"
+        got = {**base, "found": None, "ok": False, "status": "unchecked", "reason": why}
+    elif not isinstance(record[f], bool):
+        why = f"type_error:{f}"
+        got = {
             **base,
-            "found": None,
+            "found": _plain(record[f]),
             "ok": False,
             "status": "unchecked",
-            "reason": f"missing_value:{f}",
+            "reason": why,
         }
-    found = record[f]
-    if not isinstance(found, bool):
-        return {
-            **base,
-            "found": _plain(found),
-            "ok": False,
-            "status": "unchecked",
-            "reason": f"type_error:{f}",
-        }
-    ok = found is claimed
-    return {**base, "found": found, "ok": ok, "status": "ok" if ok else "failed", "reason": None}
+    else:
+        ok = record[f] is claimed
+        got = {**base, "found": record[f], "ok": ok, "status": "ok" if ok else "failed"}
+        got["reason"] = None
+    return got, (s, e)
 
 
 def _reason_void(rd: _Reader, consumed: set[int]) -> str | None:
     for i, t in enumerate(rd.toks):
         if t.kind == "sym" and t.text == "?":
             return "question"
-        if t.kind == "sym" and t.text in ("~", "≈"):
+        if t.kind == "sym" and t.text in ("~", "≈", "±"):
             return "hedged"
         if t.kind != "word":
             continue
@@ -1264,17 +1480,30 @@ def value_check(
     shapes, nothing else between: "<field> is|was|of|at|=|:|equals|totals <n>", "<field> (<n>)",
     "<field> <n>", "<field> [is|was] above|over|below|under|exceeds|more than|less than|at
     least|at most|>|<|>=|<= <n>", "[<comparison>] <n> <field>", or the one number inside a
-    `ValuePhrase(field=...)` match. The word before a field named first is the start,
-    punctuation, a determiner or a joining word (and, with, at, ...); the word after the
-    number (or after a field named after it) is the end, punctuation, a line break or one of
-    and, but, while, whereas, so, which, is, was, are, were. "[<comparison>] <n> <field>"
-    follows the start, a sentence end, a line break, a joining word, or "<subject> has" whose
-    subject is a word of that field's own name ("The card has 40 earlier purchases", never
-    "The merchant has ..." or "Shipping was 108 days"). A phrase's or a right-hand field's
-    number binds nothing when another field is named right before it or in its clause ("Risk
-    score is 9.1x usual"). Fields joined by and, or, /, &, a field on both sides, or two
-    fields for one number bind nothing. No number is ever matched
-    to a field by value. Every other number (an unknown subject, a partial or plural name, a
+    `ValuePhrase(field=...)` match.
+
+    Closed world (verify516b). (A) Every numeric token, meaning any run of digits anywhere
+    (glued to letters, underscores or currency codes, inside markdown or quotes, in any
+    script, or a character whose NFKC form holds a digit such as "８" or "½") and every number
+    word ("forty", "single", "couple", "pair", "once", "twice", "few", "several", "first",
+    "half", "dozen", ...), must be consumed by exactly one framed binding. Any other numeric
+    token is an `unbound` check (reason id, unread_number, non_ascii_number, number_word,
+    double_bound), so its reason is unverifiable. Only `ignore` spans and the field names
+    themselves are exempt; a `constants` value is still unbound. (B) A bound statement (a
+    number shape or a "true"/"false"; a condition phrase too, which consumes its numeric
+    tokens only when framed) is framed only when it starts a clause (the start, a line break,
+    a line-start bullet or a sentence end . ; ! ?, never a comma, colon, dash, bracket or
+    word) with nothing before the field name but an article or a possessive ("the", "its",
+    "the card's" when "card" is a word of that field's own name), and ends one (the end, a
+    line break or a sentence end); "and", "," or ", and" may join it to another framed
+    statement ("Amount is 812.40 and hour is 3."). Anything else ("Amount is 812.40, which is
+    high", "For the refund, amount is 812.40", "The card has 40 earlier purchases",
+    "900-ish", "(est.)") leaves it `unbound` (`unframed`). A phrase match must be the whole
+    statement ("9.1x usual." binds; "Spend is 9.1x usual" does not). A phrase's or a
+    right-hand field's number binds nothing when another field is named right before it or
+    in its clause ("Risk score is 9.1x usual"). Fields joined by and, or, /, &, a field on
+    both sides, or two fields for one number bind nothing. No number is ever matched to a
+    field by value. Every other number (an unknown subject, a partial or plural name, a
     list, a range, "about 9", "41 or more", a time with no hour field, a constant, a number
     word) is `unbound`, so its reason is unverifiable.
 
@@ -1298,7 +1527,7 @@ def value_check(
     wrong, ...), "respectively", a "?", a comparison word no binding used, or a match of an
     `unreadable` regex outside every phrase match (claims the caller knows this check cannot
     read, such as "rare"), or a hedge (roughly, about, approximately, around, nearly, almost,
-    ballpark, circa, ~, give or take, more or less, or so) anywhere in the reason makes every
+    ballpark, circa, est, rounded, ish, ~, ±, give or take) anywhere in the reason makes every
     check `ambiguous`: it neither verifies nor contradicts. A "true" or "false" the text does
     not bind to a boolean field is an unbound claim, never dropped. Numbers inside `ignore`
     spans are ids, listed in `unchecked` and never claims; negations there are still read.
@@ -1308,7 +1537,8 @@ def value_check(
     when there is at least one check and every check is ok; else `unverifiable`; the value is
     1.0 only when verified. Each check has `status`: ok, failed, unbound (a number not bound;
     `reason` no_field, unclear_subject, unclear_field, unit, hedged, time, malformed,
-    constant, number_word, non_ascii_number), ambiguous (negation, hypothetical, denial,
+    constant, number_word, non_ascii_number, unframed, id, unread_number, double_bound),
+    ambiguous (negation, hypothetical, denial,
     respectively, question, hedged, unclear_comparison, unreadable, unclear_field, rule_id,
     block_word, rounding, coarse_rounding) or unchecked (`missing_value:<field>`,
     `type_error:<field>`, `unit:<field>`). Details also hold `failed`, `unverified` (the

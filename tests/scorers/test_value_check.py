@@ -149,7 +149,7 @@ def test_gen2_families_with_declared_units_and_aliases_verify_nothing():
         "risk_score is 0.83",
         "RISK SCORE is 0.83",
         "riskscore is 0.83",  # spaces and underscores are interchangeable
-        "The risk score (0.83) is high",
+        "The risk score (0.83).",
         "risk score above 0.8",
         "risk score is below 0.9",
         "risk score > 0.5",
@@ -159,7 +159,7 @@ def test_gen2_families_with_declared_units_and_aliases_verify_nothing():
         "amount exceeds 800",
         "card history is 40",
         "card_history_n is 40",
-        "The card has 40 earlier purchases",
+        "40 earlier purchases",
         "more than 30 earlier purchases",
         "risk score is 83%",
         "category freq is 5%",
@@ -173,7 +173,7 @@ def test_gen2_families_with_declared_units_and_aliases_verify_nothing():
         "Amount is 812.40 and risk score is 0.83; card history is 40.",
         "Amount 812.40, risk score 0.83, card history 40.",
         "- amount: 812.40\n- risk score: 0.83",
-        "risk score of 0.83, so this is a hold",
+        "Risk score of 0.83.",
     ],
 )
 def test_bound_true_claims_are_verified(reason):
@@ -182,13 +182,17 @@ def test_bound_true_claims_are_verified(reason):
 
 
 def test_fixture_phrases_bind_their_one_number():
-    assert outcome("Spend is 9.1x this card's usual spend", phrases=PHRASES) == "verified"
-    assert outcome("Spend is more than 5 times the usual spend", phrases=PHRASES) == "verified"
-    assert outcome("A $812.40 purchase", phrases=PHRASES) == "verified"
+    assert outcome("9.1x this card's usual.", phrases=PHRASES) == "verified"
+    assert outcome("More than 5 times the usual.", phrases=PHRASES) == "verified"
+    assert outcome("$812.40.", phrases=PHRASES) == "verified"
     # "9x" on 9.1 is a correct rounding but 1.1% off: too coarse to verify (D-42 tolerance)
-    assert outcome("Spend is 9x this card's usual spend", phrases=PHRASES) == "unverifiable"
-    assert outcome("Spend is 15x this card's usual spend", phrases=PHRASES) == "contradicted"
-    assert outcome("Spend is under 2 times the usual spend", phrases=PHRASES) == "contradicted"
+    assert outcome("9x this card's usual.", phrases=PHRASES) == "unverifiable"
+    assert outcome("15x this card's usual.", phrases=PHRASES) == "contradicted"
+    assert outcome("Under 2 times the usual.", phrases=PHRASES) == "contradicted"
+    # closed world: a phrase is a whole statement; words around it leave it unframed
+    assert outcome("Spend is 9.1x this card's usual spend", phrases=PHRASES) == "unverifiable"
+    assert outcome("Spend is 15x this card's usual", phrases=PHRASES) == "unverifiable"
+    assert outcome("A $812.40 purchase", phrases=PHRASES) == "unverifiable"
     # another field named in the clause (here amount): the phrase binds nothing (verify516)
     assert outcome("Amount is 9.1x this card's usual spend", phrases=PHRASES) == "unverifiable"
     assert outcome("Spend is 15x the usual amount", phrases=PHRASES) == "unverifiable"
@@ -252,6 +256,9 @@ def test_fixture_phrases_bind_their_one_number():
         ("Amount is 812.40 under P3.1", "a rule id beside the claim"),
         ("risk score is 0.83 against the threshold", "a threshold word in the clause"),
         ("amount is 812.40 on average", "a baseline word"),
+        ("The risk score (0.83) is high", "words after the statement (closed world)"),
+        ("risk score of 0.83, so this is a hold", "words after the statement (closed world)"),
+        ("The card has 40 earlier purchases", "not at a clause start (closed world)"),
         ("card history is ٤٠", "non-ASCII digits"),
         ("card history is 1.2.3", "malformed"),
     ],
@@ -375,12 +382,12 @@ def test_booleans_bind_like_numbers():
 
 
 def test_ignore_spans_are_ids_and_constants_only_label():
-    got = value_check("Amount is 812.40 (ref 950)", REC, ignore=[r"ref \d+"])
+    got = value_check("Amount is 812.40. Ref 950.", REC, ignore=[r"ref \d+"])
     assert got.details["outcome"] == "verified"
     assert got.details["unchecked"] == ({"text": "950", "kind": "ignored"},)
     # an ignored span never hides a negation
-    assert outcome("Amount is 812.40 (ref not 950)", ignore=[r"ref not \d+"]) == "unverifiable"
-    got = value_check("Amount is 812.40, the 200 limit applies", REC, constants=[200])
+    assert outcome("Amount is 812.40. Ref not 950.", ignore=[r"ref not \d+"]) == "unverifiable"
+    got = value_check("Amount is 812.40. The 200 limit applies.", REC, constants=[200])
     assert got.details["outcome"] == "unverifiable"
     assert [c["reason"] for c in got.details["checks"]] == [None, "constant"]
 
@@ -407,7 +414,7 @@ _FR = [
     (
         "Spend is 11.49 times the card's usual, which is extreme spend.",
         {"amount": 863.23, "amt_vs_usual": 11.491347177848775, "card_history_n": 387},
-        "verified",
+        "unverifiable",  # closed world: unframed prose
     ),
     (
         "Amount is 11.49 times the card's usual, which is extreme spend.",
@@ -423,18 +430,18 @@ _FR = [
         "merchant_first_seen is false, so the merchant is known to the card, and card_history_n "
         "is 846, a settled history.",
         {"amount": 9.25, "card_history_n": 846, "merchant_first_seen": False},
-        "verified",
+        "unverifiable",  # closed world: unframed prose
     ),
     (
         "Evidence points the other way too: risk_score is 0.008176721945643811, "
         "merchant_first_seen is false and card_history_n is 2261.",
         {"risk_score": 0.008176721945643811, "card_history_n": 2261, "merchant_first_seen": False},
-        "verified",
+        "unverifiable",  # closed world: unframed prose
     ),
     (
         "Card has 1309 earlier purchases, so its usual pattern is well established",
         {"amt_vs_usual": 12.438720064399277, "card_history_n": 1309},
-        "verified",
+        "unverifiable",  # closed world: unframed prose
     ),
     (
         "Screening risk score is 0.005, well below the 0.9 no-clear threshold",
@@ -466,6 +473,26 @@ _FR = [
         "category_freq is 0.073, so food_dining is a rare category for this card",
         {"category_freq": 0.07332900713822194},
         "contradicted",
+    ),
+]
+
+
+_FR += [
+    (
+        "11.49 times the card's usual.",
+        {"amount": 863.23, "amt_vs_usual": 11.491347177848775, "card_history_n": 387},
+        "verified",
+    ),
+    (
+        "merchant_first_seen is false, and card_history_n is 846.",
+        {"amount": 9.25, "card_history_n": 846, "merchant_first_seen": False},
+        "verified",
+    ),
+    (
+        "risk_score is 0.008176721945643811, merchant_first_seen is false and card_history_n "
+        "is 2261.",
+        {"risk_score": 0.008176721945643811, "card_history_n": 2261, "merchant_first_seen": False},
+        "verified",
     ),
 ]
 
@@ -819,12 +846,12 @@ def test_fraud_review_d42_true_claims_still_verify():
         "Amount is 11.01",
         "The purchase amount of $11.01",
         "amount is under 50",
-        "Spend is 0.21 times the card's usual",
+        "0.21 times the card's usual",
         "amt_vs_usual is 0.213",
         "risk score is 3.9%",
         "risk score is below 0.9",
         "category_freq 0.038",
-        "Card has 1545 earlier purchases",
+        "1545 earlier purchases",
         "card_history_n is 1545",
         "hour 22",
         "merchant_first_seen is false",
@@ -835,8 +862,8 @@ def test_fraud_review_d42_true_claims_still_verify():
 def test_unreadable_claims_void_the_reason_unless_a_phrase_reads_them():
     rare = [r"\brare\w*\b"]
     phrase = ValuePhrase(pattern=r"rare category", holds="category_freq < 0.05")
-    assert outcome("category freq is 0.05, a rare pick") == "verified"
-    assert outcome("category freq is 0.05, a rare pick", unreadable=rare) == "unverifiable"
+    assert outcome("category freq is 0.05. A rare pick") == "verified"
+    assert outcome("category freq is 0.05. A rare pick", unreadable=rare) == "unverifiable"
     got = outcome("category freq is 0.05. A rare category", unreadable=rare, phrases=[phrase])
     assert got == "contradicted"  # read by the phrase: 0.05 is not below 0.05
 
@@ -890,9 +917,12 @@ def test_a_phrase_binding_is_void_when_another_field_is_named(reason):
 
 
 def test_a_phrase_binding_stands_when_no_other_field_is_named():
-    assert g3("Spend is 9.1x usual.") == "verified"
-    assert g3("Spend is 9.1x usual, and the risk score is 0.83.") == "verified"
-    assert g3("Only 5% of the card's purchases are in this category.") == "verified"
+    assert g3("9.1x usual.") == "verified"
+    assert g3("9.1x usual, and the risk score is 0.83.") == "verified"
+    assert g3("5% of the card's purchases.") == "verified"
+    # closed world: the words around a phrase must be understood
+    assert g3("Spend is 9.1x usual.") == "unverifiable"
+    assert g3("Only 5% of the card's purchases are in this category.") == "unverifiable"
 
 
 @pytest.mark.parametrize(
@@ -911,18 +941,21 @@ def test_a_phrase_binding_stands_when_no_other_field_is_named():
         "Purchase amount, 40 card history",
         "Amount (40 earlier purchases).",
         "Amount: 40 earlier purchases.",
+        # closed world: only at a clause start, never after "<subject> has" or a joining word
+        "The card has 40 earlier purchases.",
+        "Card has 40 earlier purchases, a settled history",
+        "A settled history, with 40 earlier purchases.",
     ],
 )
 def test_the_right_hand_shape_checks_its_subject(reason):
-    """verify516 F6 (should-fix): "<n> <field>" binds only after the start, punctuation or a
-    joining word, or after "<subject> has" whose subject is a word of that field's name."""
+    """verify516 F6 (should-fix), tightened by verify516b: "[<cmp>] <n> <field>" binds only as
+    a whole framed statement (a clause start before it, a clause end after it)."""
     assert g3(reason) == "unverifiable"
 
 
 def test_the_right_hand_shape_still_binds_its_own_subject():
-    assert g3("The card has 40 earlier purchases.") == "verified"
-    assert g3("Card has 40 earlier purchases, a settled history") == "verified"
-    assert g3("A settled history, with 40 earlier purchases.") == "verified"
+    assert g3("40 earlier purchases.") == "verified"
+    assert g3("Risk score is 0.83 and 40 earlier purchases.") == "verified"
     assert g3("More than 30 earlier purchases.") == "verified"
 
 
@@ -962,3 +995,208 @@ def test_a_true_or_false_that_binds_nothing_is_never_dropped(reason):
     reason."""
     rec = {**REC, "merchant_first_seen": False}
     assert value_check(reason, rec, aliases=ALIASES).details["outcome"] != "verified"
+
+
+# ================================ verify516b (gen4): the closed world =====================
+
+G4_REC: dict[str, Any] = {
+    **REC,
+    "refund_amount": 95.5,
+    "merchant_history_n": 7,
+    "flag": True,
+    "chargeback": False,
+}
+G4_ALIASES = {
+    "card_history_n": ["card history", "earlier purchases"],
+    "risk_score": ["risk score"],
+    "merchant_history_n": ["merchant history"],
+}
+G4_UNITS: dict[str, Any] = {**UNITS, "refund_amount": "currency"}
+
+
+def g4(reason: str, **kw: Any) -> ScoreResult:
+    opts: dict[str, Any] = {"aliases": G4_ALIASES, "units": G4_UNITS, "phrases": G3_PHRASES}
+    return value_check(reason, G4_REC, **(opts | kw))
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "reason",
+    [
+        # (A) digits glued to letters, currency codes, underscores, markdown, other scripts
+        "Risk score is 0.83 and amount is USD900.00.",
+        "Risk score is 0.83 and amount is EUR900.00.",
+        "Risk score is 0.83 and amount is CHF900.00.",
+        "Risk score is 0.83; hour is h8.",
+        "Risk score is 0.83; card history is n70.",
+        "Risk score is 0.83; card history is #70.",
+        "Hour is 3; risk score is v0.93.",
+        "Card history is 40. Card history is _70_.",
+        "Card history is 40. Card history is *70*.",
+        "Card history is 40. Card history is **70**.",
+        "Card history is 40. Card history is `70`.",
+        "Card history is 40. Card history is “70”.",
+        "Card history is 40 ٧٠.",
+        "Card history is 40. Hour is ８.",
+        "Card history is 40, and ½ of them online.",
+        "Amount is 812.40. Rule P3.1 applies.",
+        "Risk score is 0.83. COVID-19 era.",
+        # (A) quantity words
+        "Risk score is 0.83. The card has a single earlier purchase.",
+        "Risk score is 0.83. The card has a couple of earlier purchases.",
+        "Risk score is 0.83. The card has a pair of earlier purchases.",
+        "Risk score is 0.83. The card was used once before.",
+        "Risk score is 0.83. This is the card's first purchase.",
+        "Risk score is 0.83. The card has a handful of earlier purchases.",
+        "Risk score is 0.83. The card has several earlier purchases.",
+        "Risk score is 0.83. The card has a few earlier purchases.",
+        "Risk score is 0.83. The card has many earlier purchases.",
+        "Risk score is 0.83. The card has a lone earlier purchase.",
+        "Risk score is 0.83. Twice the usual spend.",
+        "Risk score is 0.83. A dozen earlier purchases.",
+        "Risk score is 0.83. Half of its purchases are online.",
+        "Risk score is 0.83. Three earlier purchases.",
+        # (B) wrong subjects past joining words, prefixes and articles
+        "The merchant has complaints and 40 earlier purchases.",
+        "The merchant, with 40 earlier purchases, is new.",
+        "The merchant, and 40 earlier purchases, is new.",
+        "Risk score is 0.83. The merchant is flagged and has 40 earlier purchases.",
+        "A merchant with 40 earlier purchases.",
+        "Merchant with 40 earlier purchases; risk score is 0.83.",
+        "The merchant has refunds and more than 39 earlier purchases.",
+        "A card has 40 earlier purchases.",
+        "That card has 40 earlier purchases.",
+        "History has 40 earlier purchases.",
+        "The card has 40 earlier purchases.",
+        "For the refund, amount is $812.40.",
+        "On the merchant's side, card history is 40.",
+        "For the merchant: card history is 40.",
+        "Refund - amount $812.40.",
+        "The merchant's card history is 40.",
+        "Flag is true (for the previous card).",
+        "Flag is true, on the other card.",
+        "Flag is true. Actually flag is false.",
+        # (B) anything after the number but an end or another bound statement
+        "Amount is $812.40, which is high.",
+        "Risk score is 0.83 (high).",
+        "Risk score of 0.83, so this is a hold.",
+        "Amount is $812.40 and the merchant is new.",
+        "Card history is 40 and 70.",
+        "Card history is 40 — 70.",
+        "Card history is 40: 70.",
+    ],
+)
+def test_closed_world_false_or_unread_claims_are_never_verified(reason):
+    """verify516b (gen4): every numeric token (digits anywhere, number words) must be consumed
+    by exactly one framed binding, and a binding counts only when the tokens right around it are
+    understood; anything else makes the reason unverifiable."""
+    res = g4(reason)
+    assert res.details["outcome"] == "unverifiable", res.details
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "template",
+    [
+        "Amount is {v}, ish.",
+        "Amount: {v}, est.",
+        "Amount is {v}, give-or-take.",
+        "Amount is {v}, more-or-less.",
+        "Amount is {v} (rounded).",
+        "Amount is {v}, in round figures.",
+        "Amount is {v}, apprx.",
+        "Amount is {v}, abt.",
+        "Amount is {v}, roundabout.",
+        "Amount is {v} (est.)",
+        "Amount is {v}, plus or minus a bit.",
+        "Amount is {v}, or thereabout.",
+        "Amount is {v}, ±5.",
+        "Amount is {v} +/- 5.",
+        "Amount is {v}, loosely.",
+        "Amount is {v}, broadly.",
+        "Amount is {v}, guesstimate.",
+        "Amount is {v}, Approx.",
+        "Amount is {v} - approximately.",
+        "Amount is {v}, in the region.",
+        "Amount is {v}, roughly-speaking.",
+        "Amount is {v}, aprox.",
+        "Amount is {v}, aproximately.",
+        "Amount is {v}, more or less.",
+        "Amount is {v}, rough figure.",
+        "Amount is {v}, rounded up.",
+        "Amount is {v}, rounded down.",
+        "Amount is {v}, to the nearest hundred.",
+        "Amount is {v}, give / take.",
+        "Amount is {v}, circa.",
+        "Amount is {v}, approx",
+        "Amount is {v}, Nearly.",
+        "Amount is {v}, close enough.",
+        "Amount is {v}, or near it.",
+        "Amount is {v}, or close.",
+        "Amount is {v}, ballpark-ish.",
+        "Amount is {v}-ish.",
+        "Est. amount is {v}.",
+        "Abt. amount is {v}.",
+    ],
+)
+def test_closed_world_hedges_are_unverifiable_never_contradicted(template):
+    """verify516b D: a hedge in any spelling around a false value leaves the statement
+    unframed (or the reason hedged): unverifiable, never contradicted."""
+    res = g4(template.format(v="900.00"))
+    assert res.details["outcome"] == "unverifiable", res.details
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Amount is $812.40.",
+        "Hour is 3.",
+        "Risk score is 0.83.",
+        "Card history is 40.",
+        "The amount is $812.40.",
+        "Its risk score is 0.83.",
+        "Amount $812.40 and hour 3.",
+        "Risk score 0.83, card history 40.",
+        "Amount is $812.40, and hour is 3.",
+        "Amount is $812.40 and risk score is 0.83; card history is 40.",
+        "Hour was 3 a.m. Amount is $812.40.",
+        "Merchant history is 7.",
+        "40 earlier purchases.",
+        "More than 30 earlier purchases.",
+        "Flag is true.",
+        "Flag: true, risk score is 0.83.",
+        "(flag true)",
+        "- amount: $812.40\n- risk score: 0.83",
+        "Spend is high.\nAmount is $812.40.",
+        "9.1x usual.",
+    ],
+)
+def test_closed_world_simple_bound_claims_still_verify(reason):
+    res = g4(reason)
+    assert res.details["outcome"] == "verified", res.details
+
+
+def test_closed_world_false_simple_claims_are_contradicted():
+    assert g4("Amount is $900.00.").details["outcome"] == "contradicted"
+    assert g4("Hour is 8.").details["outcome"] == "contradicted"
+    assert g4("Amount is $812.40 and hour is 8.").details["outcome"] == "contradicted"
+    assert g4("Flag is false.").details["outcome"] == "contradicted"
+
+
+def test_closed_world_every_unread_number_is_listed():
+    """Each numeric token no framed binding consumed is an unbound check, never dropped."""
+    got = g4("Risk score is 0.83; hour is h8. The card has a couple of earlier purchases.")
+    unbound = [(c["text"], c["reason"]) for c in got.details["checks"] if c["status"] == "unbound"]
+    assert ("8", "id") in unbound and ("couple", "number_word") in unbound
+    got = g4("Amount is $812.40, which is high.")
+    assert [c["reason"] for c in got.details["checks"]] == ["unframed"]
+
+
+def test_closed_world_ignore_is_the_only_exemption():
+    """A rule id declared via `ignore` is not a claim; a declared constant still is (D-74)."""
+    rule = [r"\bP\d+(?:\.\d+)?\b"]
+    assert g4("Amount is $812.40. Rule P3.1 applies.").details["outcome"] == "unverifiable"
+    got = g4("Amount is $812.40. Rule P3.1 applies.", ignore=rule)
+    assert got.details["outcome"] == "verified"
+    got = g4("Amount is $812.40. The 200 limit applies.", constants=[200])
+    assert got.details["outcome"] == "unverifiable"

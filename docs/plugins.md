@@ -218,23 +218,39 @@ positive evidence and holds. No number is ever matched to a field because its va
   `<field> is|was|of|at|=|:|equals|totals <n>`, `<field> (<n>)`, `<field> <n>`,
   `<field> [is|was] <cmp> <n>` with cmp one of above, over, below, under, exceeds, more /
   greater / higher / less / fewer / lower than, at least, at most, at or above, at or below,
-  `>`, `<`, `>=`, `<=`, `≥`, `≤`; `[<cmp>] <n> <field>` ("more than 30 earlier purchases",
-  "The card has 40 earlier purchases") after the start, a sentence end, a line break, a
-  joining word (and, but, with, while, whereas, so, which), or `<subject> has|had|have`
-  whose subject is a word of that field's own name ("The merchant has 40 earlier purchases",
-  "Shipping was 108 days" and "Amount, 40 earlier purchases" bind nothing); and the one
-  number inside a `ValuePhrase(field=...)` match (a comparison word right before it is
-  read). A phrase's number, or a right-hand field's, binds nothing when another field is
-  named right before it or anywhere in its clause: "Risk score is 9.1x usual", "The risk
-  score (9.1x usual)" and "Amount is 9.1x the card's usual" bind nothing to `amt_vs_usual`;
-  "Spend is 9.1x the card's usual" does. The word before a field named first must be the start,
-  punctuation, a determiner, or a joining word (and, but, while, with, so, because, as,
-  when, where, at, then, also, which, that): "risk of the amount is 5" and "the average
-  amount is 5" bind nothing. The word after the number (or after a field named after it)
-  must be the end, punctuation, a line break, or and, but, while, whereas, so, which, is,
-  was, are, were. Fields joined by and / or / `,` / `/` / `&` ("Risk score and hour: 3"),
-  a field on both sides of a number, a field named for two numbers, and a number bound to two
-  fields bind nothing. "41 or more" is not read as a comparison: the reason is unverifiable.
+  `>`, `<`, `>=`, `<=`, `≥`, `≤`; `[<cmp>] <n> <field>` ("More than 30 earlier
+  purchases."); and the one number inside a `ValuePhrase(field=...)` match (a comparison
+  word right before it is read). A phrase's number, or a right-hand field's, binds nothing
+  when another field is named right before it or anywhere in its clause: "Risk score is 9.1x
+  usual" and "Amount is 9.1x the card's usual" bind nothing to `amt_vs_usual`. Fields joined
+  by and / or / `,` / `/` / `&` ("Risk score and hour: 3"), a field on both sides of a
+  number, a field named for two numbers, and a number bound to two fields bind nothing. "41
+  or more" is not read as a comparison: the reason is unverifiable.
+- **Framed statements (closed world, verify516b).** A bound statement counts only when the
+  words right around it are understood. It starts a clause: the start, a line break, a
+  line-start bullet, or a sentence end (`.` `;` `!` `?`, not an abbreviation's full stop such
+  as "e.g." or "avg."); never a comma, colon, dash, bracket or other word. Only an article or
+  a possessive may stand before the field name ("the", "a", "its", "the card's" when "card"
+  is a word of that field's own name or alias). It ends a clause: the end, a line break or a
+  sentence end; or "and", "," or ", and" joins it to another framed statement ("Amount is
+  $812.40, and hour is 3."). A phrase match must be the whole statement ("9.1x usual."
+  binds; "Spend is 9.1x usual" does not: declare the subject in the pattern if you need it).
+  Anything else leaves the statement unbound (`unframed`): "Amount is $812.40, which is
+  high", "Risk score is 0.83 (high)", "For the refund, amount is $812.40", "For the merchant:
+  card history is 40", "The card has 40 earlier purchases", "The merchant, with 40 earlier
+  purchases, is new", "Flag is true (for the previous card)", and every hedge spelling after
+  a number ("900-ish", ", est.", "(rounded)", "±5", "+/- 5", ", give-or-take").
+- **Every numeric token is read (closed world, verify516b).** Each run of digits anywhere in
+  the reason (glued to letters, underscores or currency codes as in "USD900", "h8", "P7.1";
+  inside markdown or quotes as in "_0.5_" or "`70`"; in any script, or a character whose
+  NFKC form holds a digit, such as "８", "½" or "²") and each number word ("forty",
+  "single", "couple", "pair", "once", "twice", "few", "several", "many", "first", "half",
+  "dozen", ...) must be consumed by exactly one framed binding. Any other is an unbound
+  check (`id`, `unread_number`, `non_ascii_number`, `number_word`, `double_bound`), so the
+  reason is unverifiable. The only exemptions are spans matched by `ignore=[regex, ...]`
+  (declare rule ids there, e.g. `r"\bP\d+(?:\.\d+)*\b"`) and the field names themselves; a
+  `constants` value is still unbound (D-74). A condition phrase's number words ("First
+  purchase at this merchant.") are consumed only when the phrase is a framed statement.
 - **Clauses.** A clause runs between sentence ends, commas, brackets, dashes, line breaks and
   joining words (and, but, while, whereas, so, which, yet, because, although, though, since).
   A clause whose checks bind two fields ("amount 11.01 is 0.21 times the card's usual"),
@@ -261,12 +277,14 @@ positive evidence and holds. No number is ever matched to a field because its va
   ("between", "800-900"), lists with "respectively", times with no hour field, numbers in
   words ("forty", "twice", "midnight"), non-ASCII digits, malformed or very long numbers, and
   policy constants ("the 0.9 threshold": `constants` only label them) are unbound. Ids glued
-  to letters ("P7.1") are not numbers; numbers inside `ignore=[regex, ...]` spans are ids,
-  listed in `unchecked`, but negations there are still read. A negation (not, no, never, n't,
+  to letters ("P7.1") are unbound too unless an `ignore=[regex, ...]` span covers them;
+  numbers inside `ignore` spans are ids, listed in `unchecked`, but negations there are still
+  read. A negation (not, no, never, n't,
   without, ...), a hypothetical or time shift (if, would, may, expected, previously, last,
   ...; also requires, needs, must, when, otherwise, criteria, conditions, eligible, allows,
   satisfies, qualifies), a hedge (roughly, about, approximately, around, nearly, almost,
-  ballpark, circa, `~`, give or take, more or less, or so), a denial ("false", "untrue",
+  ballpark, circa, est., abt., apprx, rounded, rough, ish, loosely, broadly, `~`, `≈`, `±`,
+  give or take, more or less, or so), a denial ("false", "untrue",
   "wrong"), "respectively", a "?", or a
   comparison word no binding used ("$812, or less than that", "under P6.1") anywhere in the
   reason makes every check of that reason ambiguous: it neither verifies nor contradicts.
@@ -280,10 +298,12 @@ positive evidence and holds. No number is ever matched to a field because its va
   use the rule grammar and are never executed.
 
 This is stricter than B5.13's checker, which matched an unbound number to a nearby field or
-any field close in value. On fraud-review-bedrock's 10,225 recorded reasons, 10.5% are
-verified (6.7% when its rarity vocabulary is declared `unreadable`), 3.7% contradicted and
-the rest unverifiable; every verified reason is one whose numbers the text binds, and its
-mutation test (D-42, 160,000 false claims) verifies none.
+any field close in value, and the closed world makes it stricter still: it verifies short,
+plain statements ("Amount is $812.40.", "Hour is 3.", "Risk score 0.83, card history 40.")
+and leaves prose unverifiable. On fraud-review-bedrock's 10,225 recorded reasons (written
+as prose, with rule ids such as "P7.1"), 8 are verified (0.08%; 11 when its rule ids are
+declared in `ignore`), 375 contradicted (3.7%, every one by a condition phrase) and the
+rest unverifiable; its mutation test (D-42, 160,000 false claims) verifies none.
 
 `value_check_scorer` scores a case: its `outcome` is `contradicted` when any reason is,
 `verified` when every reason is (at least one), else `unverifiable`, and its value is 1.0
@@ -300,7 +320,7 @@ To report the three shares across a run, pass the results (of `value_check` or
 without an outcome, such as failed calls), and `verified_share`, `contradicted_share` and
 `unverifiable_share`, each a share of all reasons with an exact (Clopper-Pearson) 1 - alpha
 interval, or null with no reasons. Cite them as counts and shares, for example "of 10,225
-reasons, 1,074 verified (10.5%), 375 contradicted (3.7%), 8,776 unverifiable (85.8%)".
+reasons, 8 verified (0.08%), 375 contradicted (3.7%), 9,842 unverifiable (96.3%)".
 
 ```python
 from evalkit.scorers.evidence import value_check, value_check_shares  # internal until 0.4.0

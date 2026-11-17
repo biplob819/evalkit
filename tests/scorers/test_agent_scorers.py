@@ -552,9 +552,11 @@ PHRASES = [ValuePhrase(**p) for p in SEV["phrases"]]
 # 0.83", "3 a.m." with no hour field), a correct but coarse rounding ("9x" on 9.1), two fields
 # in one clause ("$812.40 purchase in a rarely used category"), a phrase's number with another
 # field named in its clause ("Amount is 15x ... usual", "5 times the usual amount": verify516),
-# nothing checkable or a missing field is unverifiable; the other vendored false reasons are
+# nothing checkable or a missing field is unverifiable; a phrase with words after it ("A $2,000
+# purchase": the closed world, verify516b) is unframed; the other vendored false reasons are
 # still contradicted, and none is ever verified.
 _SEV_UNVERIFIABLE = {
+    ("A $2,000 purchase", ()),
     ("Spend is more than 5 times the usual amount", ()),
     ("Amount is 15x this card's usual spend", ()),
     ("Spend is under 2 times the usual amount", ()),
