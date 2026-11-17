@@ -60,7 +60,7 @@ MAX_SHOWN = 64  # free-text label values longer than this are never echoed (GAT-
 MAX_INT_DIGITS = 4300  # Python's int/str conversion limit: a longer JSON integer is refused
 # A rate's value must equal k / n: within 1e-6 relative, or 5e-7 absolute (half a unit in the
 # sixth decimal, so a value rounded to 6 decimals, as assay-pipeline writes, always passes).
-RATE_REL_TOL, RATE_ABS_TOL = 1e-6, 5e-7
+RATE_REL_TOL, RATE_ABS_TOL = 1e-6, 5e-7 + 1e-12  # + float slack: 3/128 as 0.023438 is 5e-7 off
 
 # Spec §1b (EFF-01, D-67): standard efficiency names and the unit each must carry. "currency" is
 # any upper-case code; latency is in ms (s accepted too, GAT-10).

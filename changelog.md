@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.6] — Green after two verifier passes: `evalkit compare` claims a change only with ≥ 10 shared cases, pairs only when most cases are shared, flags every-case-moved-alike regressions, refuses contradictory sidecars, and shows held-out splits only as aggregates. Spend: $0.
 - [FEAT] [B5.13] — value_check three outcomes (D-72): verified, contradicted, unverifiable per reason; `value_check_shares` with exact intervals. A reason with nothing checkable now scores 0.0 (unverifiable), not 1.0. On fraud-review-bedrock's reasons: 83.5% verified, 5.6% contradicted, 10.9% unverifiable of checkable reasons; 28 of 30 sampled contradictions are genuine. Spend: $0.
 - [FIX] [B5.14] — the exposure scan also reads held-out text held in mapping keys (found by the B5.11 verifier); EvalKit's own held-out agent tasks still scan clean (536 files). Spend: $0.
 - [FEAT] [B5.15] — `sql_match` shape equivalences (lane build, merged): opt-in `percent_scale`, `pivot`, `empty_check`, `period_number` under the reference's narrower rules, strict first, `correct_strict` recorded; default output byte-identical. Fix: sql_match failure details no longer depend on PYTHONHASHSEED, and a predicted row is no longer labelled `example_gold_row`. Spend: $0.

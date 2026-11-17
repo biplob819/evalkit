@@ -1082,7 +1082,11 @@ def _change(
                 # going from right to wrong must be flagged)
                 row.interval_status = OK
                 if iv.lo == iv.hi:
-                    row.note = f"every one of the {k} shared cases moved by the same amount"
+                    row.note = (
+                        f"unchanged in all {k} shared cases"
+                        if iv.point == 0
+                        else f"every one of the {k} shared cases moved by the same amount"
+                    )
             return row
         row.partial_overlap = True
         overlap = (

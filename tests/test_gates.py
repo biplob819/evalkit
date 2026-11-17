@@ -1428,3 +1428,17 @@ def test_camel_case_and_uuid_label_keys_name_ids():
         }
         with pytest.raises(Exception, match="names an id"):
             parse_metrics(json.dumps(doc))
+
+
+def test_a_six_decimal_rate_with_n_a_multiple_of_128_is_accepted():
+    """B5.6 verifier: 3/128 written as 0.023438 is 5.000000000005e-7 off and was refused."""
+    from evalkit.metrics import parse_metrics
+
+    doc = {
+        "schema_version": "metrics-1",
+        "project": "p",
+        "run_id": "r",
+        "created_at": "2026-11-17T00:00:00Z",
+        "metrics": [{"name": "r", "unit": "rate", "value": 0.023438, "k": 3, "n": 128}],
+    }
+    assert parse_metrics(json.dumps(doc)).metrics[0].value == 0.023438
