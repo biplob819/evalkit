@@ -11,6 +11,9 @@ import json
 import random
 import shutil
 import subprocess
+import sys
+import time
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -410,17 +413,19 @@ def _leaky_repo(tmp_path: Path) -> Path:
 
 
 def test_exposure_scan_finds_whole_and_partial_leaks_in_tracked_files_only(tmp_path):
-    """logical: normalised whole-string and window matches, tracked text files only."""
+    """logical: normalised whole-string and window matches, tracked files only (a file with a
+    NUL byte is scanned too: a leak behind one binary byte is still a leak)."""
     root = _leaky_repo(tmp_path)
     found = H.exposure_scan(_cases(), root)
     assert found == sorted(
         [
             H.Exposure("README.md", H.manifest_id("fx-h1")),
             H.Exposure("data.json", H.manifest_id("fx-h2")),
+            H.Exposure("image.bin", H.manifest_id("fx-h1")),
             H.Exposure("snippet.py", H.manifest_id("fx-h3")),
         ]
     )
-    assert H.exposure_scan(_cases(), root, window=12) == found[:2]  # 10 words < 12
+    assert H.exposure_scan(_cases(), root, window=12) == found[:3]  # 10 words < 12
     assert H.exposure_scan(_cases(), root, min_chars=500, window=50) == []
     assert H.tracked_files(root) == sorted(
         ["README.md", "clean.txt", "data.json", "image.bin", "snippet.py"]
@@ -497,8 +502,9 @@ def test_scan_cli_output_on_the_fixture_repo_is_exact(tmp_path, capsys):
     expected = (
         f"README.md\t{_sha('fx-h1')[:12]}\n"
         f"data.json\t{_sha('fx-h2')[:12]}\n"
+        f"image.bin\t{_sha('fx-h1')[:12]}\n"
         f"snippet.py\t{_sha('fx-h3')[:12]}\n"
-        "exposed: 3 held-out case(s) in 3 of 5 tracked file(s)\n"
+        "exposed: 3 held-out case(s) in 4 of 5 tracked file(s)\n"
     )
     assert capsys.readouterr().out == expected
 
@@ -509,7 +515,7 @@ def test_scan_never_prints_heldout_text(tmp_path, capsys):
     H.main(["scan", "--cases", str(CASES), "--root", str(root)])
     captured = capsys.readouterr()
     both = (captured.out + captured.err).casefold()
-    assert captured.out.count("\t") == 3
+    assert captured.out.count("\t") == 4
     for t in _texts():
         assert t.casefold() not in both
         if len(t.split()) >= 4:
@@ -799,3 +805,284 @@ def test_append_only_verdict_is_the_same_on_a_fresh_clone(tmp_path):
     there = H.append_only_problems(clone / "log.jsonl", [base])
     assert here == there and here != []
     shutil.rmtree(clone)
+
+
+# =============================== verifier findings (B5.14 review) ===============================
+
+
+def _raw_append(log: Path, row: dict) -> None:
+    """Append a line by hand with a correct `prev`, bypassing every library guard."""
+    lines = log.read_text(encoding="utf-8").splitlines() if log.is_file() else []
+    row = {**row, "prev": _sha(lines[-1]) if lines else H.GENESIS}
+    with log.open("a", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+
+
+def test_log_check_enforces_score_once_on_the_log_itself(tmp_path, capsys):
+    """HLD-02 on the log: a second scoring of a case under the same (normalised) rubric is a
+    problem for chain_problems and verify-log, and append_entry refuses to write it."""
+    root = _repo(tmp_path)
+    log = root / "log.jsonl"
+    first = H.record_scoring(log, ["fx-h1", "fx-h2"], "rubric-a", at=AT)
+    base = _commit(root, "one")
+    again = {k: v for k, v in first.items() if k != "prev"}
+    with pytest.raises(H.AlreadyScored):
+        H.append_entry(log, again)
+    narrower = {**again, "rubric_hash": " RUBRIC-A ", "case_id_sha256": [_sha("fx-h2")]}
+    with pytest.raises(H.AlreadyScored):
+        H.append_entry(log, narrower)
+    with pytest.raises(H.HeldoutError, match="malformed"):
+        H.append_entry(log, {"kind": "heldout_scored", "rubric_hash": "r", "case_id_sha256": [{}]})
+    assert H.chain_problems(log) == []
+    _raw_append(log, narrower)
+    problems = H.chain_problems(log)
+    assert len(problems) == 1 and "line 2" in problems[0] and H.manifest_id("fx-h2") in problems[0]
+    assert "fx-h2" not in problems[0]
+    _commit(root, "dup")
+    assert H.main(["verify-log", str(log), "--rev", base]) == 1
+    assert "already scored" in capsys.readouterr().out
+    assert not H.is_certified(log, ["fx-h1", "fx-h2"], "rubric-a")  # fail closed on a bad log
+    with pytest.raises(H.HeldoutError):
+        H.record_scoring(log, ["fx-h3"], "rubric-a", at=AT)
+    other = tmp_path / "malformed.jsonl"
+    _raw_append(other, {"kind": "heldout_scored", "rubric_hash": 3, "case_id_sha256": "x"})
+    assert "malformed" in H.chain_problems(other)[0]
+
+
+def _case_insensitive(folder: Path) -> bool:
+    probe = folder / "case-probe.txt"
+    probe.write_text("x", encoding="utf-8")
+    try:
+        return (folder / "CASE-PROBE.TXT").exists()
+    finally:
+        probe.unlink()
+
+
+def test_append_only_resolves_the_exact_tracked_path_and_fails_closed(tmp_path, monkeypatch):
+    """A differently-cased path (case-insensitive file systems), an untracked log, or a git
+    read failure is never treated as an empty committed log."""
+    root = _repo(tmp_path)
+    log = root / "log.jsonl"
+    for i in range(3):
+        H.append_entry(log, _entry(i))
+    first = _commit(root, "three lines")
+    full = log.read_text(encoding="utf-8")
+    log.write_text(full.splitlines()[0] + "\n", encoding="utf-8")  # truncated tail
+    assert any("HEAD" in p for p in H.append_only_problems(log, [first]))
+    if _case_insensitive(root):
+        out = H.append_only_problems(root / "LOG.JSONL", [first])
+        assert any("HEAD" in p for p in out), out
+    log.write_text(full, encoding="utf-8")
+    assert H.append_only_problems(log, [first]) == []
+    loose = root / "untracked.jsonl"
+    H.append_entry(loose, _entry(0))
+    assert any("not tracked at HEAD" in p for p in H.append_only_problems(loose, []))
+    real_run = H._Git.run
+
+    def broken_read(self, *args):
+        if "cat-file" in args:
+            return subprocess.CompletedProcess(["git", *args], 128, b"", b"fatal: corrupt")
+        return real_run(self, *args)
+
+    monkeypatch.setattr(H._Git, "run", broken_read)
+    out = H.append_only_problems(log, [first])
+    assert out and all("cannot read" in p for p in out), out
+
+
+def test_shallow_clone_fails_closed_with_a_fetch_hint(tmp_path, capsys):
+    root = _repo(tmp_path)
+    log = root / "log.jsonl"
+    for i in range(3):
+        H.append_entry(log, _entry(i))
+        _commit(root, f"c{i}")
+    _git(root, "checkout", "-q", "-b", "feature")
+    H.append_entry(log, _entry(3))
+    feature = _commit(root, "feature appends")
+    _git(root, "checkout", "-q", "main")
+    shallow = tmp_path / "shallow"
+    _git(tmp_path, "clone", "-q", "--depth", "1", "--no-single-branch", root.as_uri(), str(shallow))
+    clog = shallow / "log.jsonl"
+    with pytest.raises(H.HeldoutError, match="fetch-depth: 0"):
+        H.ci_revisions(shallow, base="0" * 40, default_branch="main")
+    # the walk feature..HEAD reaches a commit whose parents the shallow clone cut off
+    out = H.append_only_problems(clog, [feature])
+    assert any("shallow" in p and "fetch-depth: 0" in p for p in out), out
+    rc = H.main(["verify-log", str(clog), "--base", "0" * 40, "--default-branch", "main"])
+    assert rc != 0 and "fetch-depth: 0" in capsys.readouterr().err
+    full = tmp_path / "full"
+    _git(tmp_path, "clone", "-q", root.as_uri(), str(full))
+    revs, tip = H.ci_revisions(full, base="0" * 40, default_branch="main")
+    assert H.append_only_problems(full / "log.jsonl", revs, default_tip=tip) == []
+
+
+_SCORE_CHILD = """
+import sys, time
+from pathlib import Path
+from evalkit import heldout as H
+log, go = Path(sys.argv[1]), Path(sys.argv[2])
+while not go.exists():
+    time.sleep(0.001)
+try:
+    H.record_scoring(log, ["fx-h1"], "rubric-a", at="2026-11-17")
+except H.AlreadyScored:
+    sys.exit(3)
+"""
+
+
+def test_two_processes_cannot_both_score_a_case(tmp_path):
+    """HLD-02 under concurrency: read-check-append holds an exclusive lock on the log."""
+    for round_ in range(3):
+        log = tmp_path / f"log{round_}.jsonl"
+        go = tmp_path / f"go{round_}"
+        H.record_scoring(log, ["seed"], "rubric-0", at=AT)
+        procs = [
+            subprocess.Popen([sys.executable, "-c", _SCORE_CHILD, str(log), str(go)])
+            for _ in range(6)
+        ]
+        go.write_text("go", encoding="utf-8")
+        codes = sorted(p.wait(timeout=120) for p in procs)
+        assert codes == [0, 3, 3, 3, 3, 3], codes
+        assert H.chain_problems(log) == [] and len(H.read_log(log)) == 2
+
+
+def test_a_held_log_lock_blocks_another_writer(tmp_path):
+    log = tmp_path / "log.jsonl"
+    H.record_scoring(log, ["seed"], "rubric-0", at=AT)
+    go = tmp_path / "go"
+    go.write_text("go", encoding="utf-8")
+    with H._log_lock(log):
+        child = subprocess.Popen([sys.executable, "-c", _SCORE_CHILD, str(log), str(go)])
+        time.sleep(1.5)
+        assert child.poll() is None  # waiting for the lock
+        assert len(H.read_log(log)) == 1
+    assert child.wait(timeout=60) == 0
+    assert len(H.read_log(log)) == 2 and H.chain_problems(log) == []
+
+
+def test_rubric_hashes_are_normalised_and_case_ids_must_be_a_collection(tmp_path):
+    log = tmp_path / "log.jsonl"
+    row = H.record_scoring(log, ["fx-h1"], "  ABCDEF0123  ", at=AT)
+    assert row["rubric_hash"] == "abcdef0123"
+    for variant in ("abcdef0123", "ABCDEF0123", " abcdef0123\n"):
+        with pytest.raises(H.AlreadyScored):
+            H.record_scoring(log, ["fx-h1"], variant, at=AT)
+        assert H.scored_before(log, ["fx-h1"], variant) == [H.manifest_id("fx-h1")]
+        assert H.is_certified(log, ["fx-h1"], variant)
+    for bad in ("has space", "x" * 129, "-leading", "émoji", 7, None):
+        with pytest.raises(H.HeldoutError, match="rubric"):
+            H.record_scoring(log, ["fx-h2"], bad, at=AT)  # type: ignore[arg-type]
+        assert not H.is_certified(log, ["fx-h1"], bad)  # type: ignore[arg-type]
+    H.record_scoring(log, ["fx-h2"], "sha256:" + "a" * 64, at=AT)
+    with pytest.raises(H.HeldoutError, match="case_ids"):
+        H.record_scoring(log, "fx-h3", "rubric-a", at=AT)
+    with pytest.raises(H.HeldoutError, match="case_ids"):
+        H.scored_before(log, "fx-h1", "abcdef0123")
+    with pytest.raises(H.HeldoutError, match="case id"):
+        H.record_scoring(log, [["fx-h3"]], "rubric-a", at=AT)  # type: ignore[list-item]
+    assert not H.is_certified(log, "fx-h1", "abcdef0123")
+    assert len(H.read_log(log)) == 2
+
+
+def _secret_repo(tmp_path: Path, files: dict[str, bytes | str]) -> Path:
+    root = _repo(tmp_path, "secrets")
+    for name, data in files.items():
+        p = root / name
+        if isinstance(data, bytes):
+            p.write_bytes(data)
+        else:
+            p.write_text(data, encoding="utf-8")
+    _commit(root, "files")
+    return root
+
+
+_SYNTH = "The quarterly zebra migration doesn't follow the river past Ndutu in March"
+_SYNTH_CASES = [{"id": "s1", "q": _SYNTH}]
+
+
+def test_exposure_scan_sees_html_escapes_hyphenation_nfkc_and_binary_files(tmp_path):
+    wide = _SYNTH.translate({ord(c): ord(c) + 0xFEE0 for c in "zebra"})  # fullwidth letters
+    files: dict[str, bytes | str] = {
+        "html.html": "<p>" + _SYNTH.replace("'", "&#39;").replace(" ", "&nbsp;") + "</p>",
+        "hyphen.md": _SYNTH.replace("migration", "migra-\ntion").replace("river", "ri-\n> ver"),
+        "nul.txt": _SYNTH.encode() + b"\0\x89PNG",
+        "utf16.txt": _SYNTH.encode("utf-16"),
+        "wide.txt": wide,
+        "clean.txt": "Nothing private here at all, only a note about rivers and zebras.",
+    }
+    root = _secret_repo(tmp_path, files)
+    found = {e.path for e in H.exposure_scan(_SYNTH_CASES, root)}
+    assert found == {"html.html", "hyphen.md", "nul.txt", "utf16.txt", "wide.txt"}, found
+
+
+def test_exposure_scan_of_the_index_reads_staged_content(tmp_path, capsys):
+    root = _secret_repo(tmp_path, {"a.txt": "clean\n", "b.txt": _SYNTH})
+    (root / "a.txt").write_text(_SYNTH, encoding="utf-8")
+    _git(root, "add", "a.txt")
+    (root / "a.txt").write_text("clean again\n", encoding="utf-8")  # staged leak, clean file
+    (root / "b.txt").write_text("cleaned in the work tree only\n", encoding="utf-8")
+    sid = H.manifest_id("s1")
+    assert H.exposure_scan(_SYNTH_CASES, root) == []
+    assert H.exposure_scan(_SYNTH_CASES, root, index=True) == [
+        H.Exposure("a.txt", sid),
+        H.Exposure("b.txt", sid),
+    ]
+    cases = tmp_path / "s.jsonl"
+    cases.write_text(json.dumps(_SYNTH_CASES[0]) + "\n", encoding="utf-8")
+    assert H.main(["scan", "--cases", str(cases), "--root", str(root)]) == 0
+    assert H.main(["scan", "--cases", str(cases), "--root", str(root), "--staged"]) == 1
+    out = capsys.readouterr().out
+    assert f"a.txt\t{sid}" in out and "zebra" not in out.casefold()
+
+
+@pytest.mark.safety
+def test_is_certified_never_raises(tmp_path, monkeypatch):
+    log = tmp_path / "log.jsonl"
+    H.record_scoring(log, ["fx-h1"], "rubric-a", at=AT)
+    assert H.is_certified(log, ["fx-h1"], "rubric-a")
+    assert not H.is_certified(log, None, "rubric-a")  # type: ignore[arg-type]
+    assert not H.is_certified(log, [{"x": 1}], "rubric-a")  # type: ignore[list-item]
+    assert not H.is_certified(log, ["fx-h1"], ["rubric-a"])  # type: ignore[arg-type]
+    assert not H.is_certified(tmp_path, ["fx-h1"], "rubric-a")  # a folder
+    assert not H.is_certified(123, ["fx-h1"], "rubric-a")  # type: ignore[arg-type]
+    real = Path.read_bytes
+
+    def unreadable(self):
+        if self.name == "log.jsonl":
+            raise PermissionError("denied")
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", unreadable)
+    assert not H.is_certified(log, ["fx-h1"], "rubric-a")
+
+
+def test_malformed_cases_raise_heldout_error_and_ids_are_nfc(tmp_path, capsys):
+    secret = "a private question that must not be echoed"
+    mixed = tmp_path / "mixed.yaml"
+    mixed.write_text(f"- {{id: a, 1: x, q: '{secret}'}}\n", encoding="utf-8")
+    loop = tmp_path / "loop.yaml"
+    loop.write_text(f"- &c {{id: b, q: '{secret}', self: *c}}\n", encoding="utf-8")
+    for bad in (mixed, loop):
+        with pytest.raises(H.HeldoutError) as err:
+            H.load_cases(bad)
+        assert bad.name in str(err.value) and secret not in str(err.value)
+        out = tmp_path / "M.json"
+        assert H.main(["manifest", "--split", f"h={bad}", "--out", str(out)]) == 2
+        captured = capsys.readouterr()
+        assert "Traceback" not in captured.err and secret not in captured.out + captured.err
+    with pytest.raises(H.HeldoutError):
+        H.content_hash({"id": "a", 1: "x", "q": "y"})  # type: ignore[dict-item]
+    nfc, nfd = unicodedata.normalize("NFC", "café"), unicodedata.normalize("NFD", "café")
+    assert nfc != nfd and H.case_id_hash(nfd) == H.case_id_hash(nfc) == _sha(nfc)
+    dup = tmp_path / "dup.jsonl"
+    dup.write_text(
+        json.dumps({"id": nfc, "q": "x"}) + "\n" + json.dumps({"id": nfd, "q": "y"}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(H.HeldoutError, match="duplicate"):
+        H.build_manifest({"h": dup})
+    log = tmp_path / "log.jsonl"
+    H.record_scoring(log, [nfc], "rubric-a", at=AT)
+    with pytest.raises(H.AlreadyScored):
+        H.record_scoring(log, [nfd], "rubric-a", at=AT)
+    with pytest.raises(H.HeldoutError):
+        H.exposure_scan(["not a mapping"], tmp_path)  # type: ignore[list-item]
