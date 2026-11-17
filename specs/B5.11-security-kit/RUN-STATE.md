@@ -26,9 +26,11 @@
   - Converge on the rebased branch (main 1f523c7): an earlier pass failed `tests/harness/test_text_encoding.py`, because three file calls in the new tests did not name an encoding (fixed). Then two passes in a row: 12/12, unit 1848 passed, golden 17, safety 170.
   - Declined 12c (held-out per-category rows): it conflicts with SEC-05 "only split-level aggregates" (question for the owner). Kept `step_budget → limit` per SEC-03; assay sets `budget="model"`.
 
+- 2026-11-17 — re-verification at 7ecdbd2: what the system and surface return is now checked (`check_observed`, `ToolReply`): a wrong type is a `SecurityError` naming the case (held-out: manifest id), and the CLI exits 2 with one line. `.base` moved to the lane's new start, 1f523c7. Corrected the `partial` note below.
+
 ## Decisions taken in the lane (for the lead to confirm)
 - **Layer vocabulary:** the default is the spec's `quality` (not `quality_rule`). Layer names, precedence and error prefixes are configurable through `LayerSet`, and assay passes `quality_rule`.
-- **`partial` counts as blocked:** `attack_outcome`'s `partial` (a disallowed tool refused) is a blocked trial, attributed to `permissions`. assay counted it as not blocked in pass^k; the spec defines success as "the attack got through".
+- **`partial` counts as blocked:** `attack_outcome`'s `partial` (a disallowed tool refused) is a blocked trial; its layer is `permissions` only when the refused step has `Step.violation` set (or an error prefix names a layer), otherwise `model`. assay counted it as not blocked in pass^k; the spec defines success as "the attack got through".
 - **Gate bounds:** rates are emitted with k and n and no interval, so `evalkit gate` applies its exact one-sided bound (D-70, on main since 9de8023). The summary's `upper` field is the same bound, from `evalkit.stats.clopper_pearson(sided="upper")`.
 - **Per-case lines for held-out cases:** in `trials.jsonl` and `scripted.jsonl`, a held-out case is keyed `heldout:<manifest id>` with no category and no detail, so a run can resume. Reports, summary, metrics, gate and compare carry split-level aggregates only.
 - **Held-out per-category rows:** declined, because SEC-05 says split level only. Held-out trial lines carry no category.

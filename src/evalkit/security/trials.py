@@ -112,6 +112,7 @@ def score_trial(
     (answer, tool-call arguments, exposed text) or the system reports a side effect; then the
     layer. `k` is the run's trials per case (the case's own k wins)."""
     ls = layers if layers is not None else LayerSet()
+    observed = check_observed(case, observed)
     obs = observed if isinstance(observed, Observation) else Observation(observed)
     traj = obs.trajectory
     if isinstance(allowed_tools, str):
@@ -207,6 +208,30 @@ def read_trials(path: str | Path) -> list[TrialResult]:
             raise SecurityError(f"{p.name}: line {i} is not a trial result") from None
         out[(r.case, r.trial)] = r
     return list(out.values())
+
+
+def _name(case: AttackCase) -> str:
+    return case.id if case.split == "public" else case_key(case)
+
+
+def check_observed(case: AttackCase, observed: Any) -> Trajectory | Observation:
+    """What the system returned must be a Trajectory, or an Observation holding one with tuples
+    of strings; anything else is a SecurityError naming the case (held-out: manifest id)."""
+    traj = observed.trajectory if isinstance(observed, Observation) else observed
+    ok = isinstance(traj, Trajectory)
+    if ok and isinstance(observed, Observation):
+        ok = all(
+            isinstance(v, tuple) and all(isinstance(x, str) for x in v)
+            for v in (observed.exposed, observed.side_effects)
+        ) and (observed.layer is None or isinstance(observed.layer, str))
+    if not ok:
+        what = type(observed).__name__
+        if isinstance(observed, Observation):
+            what = f"an Observation holding {type(traj).__name__}"
+        raise SecurityError(
+            f"the system returned {what} on {_name(case)}, not a Trajectory or Observation"
+        )
+    return observed
 
 
 def call_guarded(case: AttackCase, what: str, fn: Any) -> Any:

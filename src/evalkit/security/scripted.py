@@ -82,6 +82,11 @@ def scripted_attack(
         reply = call_guarded(
             case, "the tool surface", lambda c=call: surface.call(c.tool, dict(c.arguments))
         )
+        if not isinstance(reply, ToolReply):
+            raise SecurityError(
+                f"the tool surface returned {type(reply).__name__} on {case_key(case)}, "
+                "not a ToolReply"
+            )
         found.append(_payload_layer(case, reply, ls))
     passed = all(x in case.expected_stop for x in found)
     detail = ""
