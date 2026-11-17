@@ -82,6 +82,8 @@ NOT_RUN_HERE = {
     "report --paraphrase": "needs two probe runs: tests/test_paraphrase_probe.py "
     "test_cli_report_paraphrase_writes_contamination_json",  # B5.8
     "gate ": "needs a metrics-1 file or a finished run: tests/test_gates.py",
+    "--criterion": "needs a judged criterion and a held-out manifest: "
+    "tests/test_integrity_sheet.py test_cli_criterion_export_label_import_score_on_a_run_folder",
 }
 
 

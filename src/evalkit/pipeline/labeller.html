@@ -13,9 +13,10 @@ main{max-width:760px;margin:0 auto;padding:24px 16px}
 .bar>div{height:6px;background:var(--accent);border-radius:3px}
 kbd{border:1px solid var(--line);border-radius:4px;padding:1px 6px;font:13px ui-monospace,monospace}
 .muted{color:var(--muted)} .err{color:#b3261e}
+.part{white-space:pre-wrap;margin:10px 0} .ctx{white-space:pre-wrap;font-size:.9rem;max-height:420px;overflow:auto}
 </style></head><body><main>
-<h1>Label claims</h1>
-<p class="muted">Is the claim established by the cited sentences alone? Ignore outside
+<h1 id="title">Label claims</h1>
+<p class="muted" id="help">Is the claim established by the cited sentences alone? Ignore outside
 knowledge. <kbd>S</kbd> supported, <kbd>U</kbd> unsupported, <kbd>E</kbd> extraction error
 (the claim misstates the answer; saved with the label), <kbd>Backspace</kbd> back.</p>
 <div class="bar"><div id="bar" style="width:0"></div></div>
@@ -29,9 +30,21 @@ async function load(index){
   const r=await fetch(index==null?'/api/item':'/api/item?index='+index); cur=await r.json();
   extErr=!!cur.extraction_error; render();
 }
+function labelOf(k){const m=(cur.keys||[]).find(x=>x.key===k);return m?m.label:null}
+function renderCriterion(){
+  document.getElementById('title').textContent='Label: '+cur.criterion;
+  const keys=cur.keys.map(x=>'<kbd>'+esc(x.key.toUpperCase())+'</kbd> '+esc(x.label)).join(', ');
+  document.getElementById('help').innerHTML=esc(cur.question)+' '+keys+', <kbd>Backspace</kbd> back. The context pane is for you only: it is never saved with your labels.';
+  if(cur.done){document.getElementById('item').innerHTML='<div class="card">All done. You can close this tab.</div>';return}
+  const ids=Object.entries(cur.ids).map(([k,v])=>esc(k)+': '+esc(v)).join(' · ');
+  const parts=cur.parts.map((t,i)=>'<div class="part"><span class="n">['+(i+1)+']</span>'+esc(t)+'</div>').join('');
+  const ctx=cur.context.map(c=>'<details open><summary class="muted">'+esc(c.name)+'</summary><div class="ctx">'+esc(c.text)+'</div></details>').join('')||'<div class="muted">(no context)</div>';
+  document.getElementById('item').innerHTML='<div class="card"><div class="muted">Item '+(cur.index+1)+(ids?' · '+ids:'')+'</div>'+parts+'</div><div class="card"><div class="muted">Context (labeller only)</div>'+ctx+'</div><p class="muted">Current: '+esc(cur.label||'none')+'</p>';
+}
 function render(){
   document.getElementById('bar').style.width=(100*cur.labelled/Math.max(cur.total,1))+'%';
   document.getElementById('progress').textContent=cur.labelled+' of '+cur.total+' labelled';
+  if(cur.mode==='criterion'){renderCriterion();return}
   if(cur.done){document.getElementById('item').innerHTML='<div class="card">All done. You can close this tab.</div>';return}
   const sents=cur.cited.map(s=>'<div class="sent"><span class="n">['+s.n+']</span>'+esc(s.text)+'</div>').join('')||'<div class="muted">(cites no sentence)</div>';
   document.getElementById('item').innerHTML='<div class="card"><div class="muted">Claim '+(cur.index+1)+'</div><div class="claim">'+esc(cur.claim)+'</div></div><div class="card"><div class="muted">Cited sentences</div>'+sents+'</div><p class="muted">Current: '+(cur.label||'none')+(extErr?' · extraction error (press E to clear)':'')+'</p>';
@@ -45,6 +58,10 @@ document.addEventListener('keydown',e=>{
   if(!cur)return;
   if(cur.done){if(e.key==='Backspace'){e.preventDefault();load(Math.max(0,cur.total-1))}return}
   const k=e.key.toLowerCase();
+  if(cur.mode==='criterion'){
+    if(e.key==='Backspace'){e.preventDefault();load(Math.max(0,cur.index-1))}
+    else if(labelOf(k))save(labelOf(k));
+    return}
   if(k==='s')save('supported'); else if(k==='u')save('unsupported');
   else if(k==='e'){extErr=!extErr; if(cur.label){save(cur.label,false)} else {render()}}
   else if(e.key==='Backspace'){e.preventDefault();load(Math.max(0,cur.index-1))}

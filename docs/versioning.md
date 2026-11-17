@@ -70,6 +70,7 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 - `evalkit.heldout` (B5.14, D-65): held-out manifest of hashes and counts, score-once guard, exposure scan and hash-chained append-only log; `python -m evalkit.heldout manifest|verify|scan|verify-log` (exit codes 0, 1, 2). See [heldout.md](heldout.md).
 - `evalkit.paraphrase` (B5.8, D-68): the paraphrase contamination probe set, its builder and the original-vs-paraphrase report; built-in tasks `pubmedqa-paraphrase` and `pubmedqa-paraphrase-original`; `evalkit report --paraphrase ORIGINAL_RUN PARAPHRASE_RUN`; `python -m evalkit.paraphrase verify|build` (exit codes 0, 2, 3). See [contamination.md](contamination.md).
+- `evalkit.integrity` (B5.9, D-69): calibration sheets for any declared two-way criterion (opaque keys per export, labeller-only context pane, per-judge held-out kappa with a bootstrap CI) and labeller consistency (blind repeats and planted items in a second pass), certified only through a `calibration_scored` line in the B5.14 log; the `evalkit calibrate` subcommands `export`, `label`, `import` and `score` take `--criterion FILE`, with `--manifest`, `--planted`, `--context`, `--relabel`, `--log` and `--rubric-hash`. See [calibrate-your-task.md](calibrate-your-task.md#calibrate-any-criterion).
 
 ## Deprecation
 
