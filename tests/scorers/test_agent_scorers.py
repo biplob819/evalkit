@@ -546,9 +546,14 @@ PHRASES = [ValuePhrase(**p) for p in SEV["phrases"]]
 # B5.16 (D-74): the vendored "ok" meant "nothing failed". Under the strict check a reason with
 # a number its text does not bind to a field ("5% of the card's purchases", "High risk score of
 # 0.83", "3 a.m." with no hour field), a correct but coarse rounding ("9x" on 9.1), two fields
-# in one clause ("$812.40 purchase in a rarely used category"), nothing checkable or a missing
-# field is unverifiable; every vendored false reason is still contradicted.
+# in one clause ("$812.40 purchase in a rarely used category"), a phrase's number with another
+# field named in its clause ("Amount is 15x ... usual", "5 times the usual amount": verify516),
+# nothing checkable or a missing field is unverifiable; the other vendored false reasons are
+# still contradicted, and none is ever verified.
 _SEV_UNVERIFIABLE = {
+    ("Spend is more than 5 times the usual amount", ()),
+    ("Amount is 15x this card's usual spend", ()),
+    ("Spend is under 2 times the usual amount", ()),
     ("Amount is 9x this card's usual spend", ()),
     ("A $812.40 purchase in a rarely used category", ()),
     ("Only 5% of the card's purchases are in this category", ()),

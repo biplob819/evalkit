@@ -240,7 +240,19 @@ _PRE_WORDS = _words(
 # a determiner may stand between: "... and the amount is 812.40" (never "risk of the amount")
 _DETERMINERS = frozenset(("the", "this", "a", "an"))
 # before a number whose field is named after it ("has 40 earlier purchases")
-_NUM_PRE_WORDS = _words("has had have with and but only is was are were the so")
+# before "[<cmp>] <n> <field>": the start, punctuation, a joining word, or "<subject> has"
+# whose subject is a word of that field's own name ("The card has 40 earlier purchases")
+_NUM_PRE_WORDS = _words("and but with while whereas so which")
+_HAS = _words("has had have")
+_SENTENCE_END = frozenset(".!?;")
+# a hedge anywhere in a reason: nothing in it is verified or contradicted (verify516)
+_HEDGE_WORDS = _words("roughly about approximately approx around nearly almost ballpark circa")
+_HEDGE_PHRASES: tuple[tuple[str, ...], ...] = (
+    ("give", "or", "take"),
+    ("more", "or", "less"),
+    ("or", "so"),
+    ("or", "thereabouts"),
+)
 # after a bound number (or after the field named after it)
 _FOLLOW = _words("and but while whereas so which is was are were")
 _COORD = frozenset({"and", "or", "&", "/", ","})
@@ -408,6 +420,13 @@ class _Reader:
         self.units = units
         self.toks = _tokens(text, _mention_spans(text, record, aliases))
         self.starts = [t.start for t in self.toks]
+        # the words of each field's own key and aliases ("card" for card_history_n)
+        self.field_words: dict[str, set[str]] = {}
+        for f, names in [*((k, (k,)) for k in record if isinstance(k, str)), *aliases.items()]:
+            words = self.field_words.setdefault(f, set())
+            for name in names:
+                for w in _norm_tokens(name.lower()):
+                    words.update((w, w.removesuffix("'s")))
 
     # -- small helpers
     def word(self, i: int) -> str | None:
@@ -635,7 +654,7 @@ class _Reader:
         before = self.word(n.first - 1)
         j = n.after
         lf, lop, lm, lvoid = self.left(n)
-        rf, _rm, rvoid = self.right(n, j) if lm < 0 else (None, -1, None)
+        rf, rm, rvoid = self.right(n, j) if lm < 0 else (None, -1, None)
         structural: _Bind | None = None
         void: str | None = None
         if lm >= 0 and lop == "(":
@@ -657,20 +676,24 @@ class _Reader:
                 structural = _Bind(lf, lop, "left")
         elif rf is not None or rvoid:
             cmp = self.comparison_before(n.first)
+            k = cmp[0] if cmp else n.first  # the first token of "[<cmp>] <n>"
             if rvoid:
                 void = rvoid
-            elif cmp and self.word(n.first - 1) == "over":
+            elif cmp and before == "over":
                 void = "unclear_comparison"  # "over 517 earlier purchases": across, or above?
-            elif cmp:
-                structural = _Bind(rf or "", cmp[1], "right")
-            elif n.first == 0 or before in _NUM_PRE_WORDS or before in _PRE_PUNCT:
-                structural = _Bind(rf or "", "=", "right")
+            elif self.subject_ok(k, rf or ""):
+                structural = _Bind(rf or "", cmp[1] if cmp else "=", "right")
             else:
-                void = "unclear_subject"
+                void = "unclear_subject"  # "Shipping was 108 days", "The merchant has 40 ..."
         if structural is not None and not self.unit_ok(n.unit, structural.field, False):
             structural, void = None, "unit"
         if phrase_void:
             return _Reading(void=phrase_void)
+        # a phrase's number with another field named right before or after it binds nothing
+        # ("Risk score is 9.1x usual", "The risk score (9.1x usual)": verify516)
+        attached = [self.toks[m].fields for m in (lm, rm) if m >= 0]
+        if phrase_binds and any(fs != {b.field} for fs in attached for b in phrase_binds):
+            return _Reading(void="unclear_field")
         binds = [b for b in phrase_binds if self.unit_ok(n.unit, b.field, True)]
         if phrase_binds and not binds:
             return _Reading(void="unit")
@@ -687,6 +710,24 @@ class _Reader:
         if len({(b.field, b.op) for b in binds}) > 1:
             return _Reading(void="unclear_field")
         return _Reading(binds=binds[:1])
+
+    def subject_ok(self, k: int, f: str) -> bool:
+        """Before "[<cmp>] <n> <field>" starting at token k: the start, a sentence end, a line
+        break, a joining word, or "<subject> has|had|have" whose subject is a word of the
+        field's own name, itself at the start of its phrase ("The card has ...")."""
+        if k == 0 or self.newline_before(k):
+            return True
+        before = self.word(k - 1)
+        if before in _SENTENCE_END or before in _NUM_PRE_WORDS:
+            return True  # never after a comma, colon, dash or bracket: "Amount, 40 card history"
+        subject = k - 2
+        return (
+            before in _HAS
+            and subject >= 0
+            and self.toks[subject].kind == "word"
+            and self.toks[subject].low in self.field_words.get(f, set())
+            and self.clean_before_mention(subject) is None
+        )
 
     def phrase_op(self, n: _Num) -> tuple[str | None, str | None]:
         """For a number inside a field phrase: (comparison, void)."""
@@ -868,6 +909,19 @@ def _check_reason(
     readings = {
         n.tok: rd.read(n, phrase_binds.get(n.tok, []), phrase_void.get(n.tok)) for n in nums
     }
+    # a phrase's or a right-hand field's number binds nothing when another field is named in
+    # its clause ("The hour is 5% of the card's purchases", "Amount of under 0.9 risk score")
+    clause = _clauses(rd)
+    named: dict[int, list[frozenset[str]]] = {}
+    for i, t in enumerate(toks):
+        if t.kind == "mention":
+            named.setdefault(clause[i], []).append(t.fields)
+    for n in nums:
+        r = readings[n.tok]
+        if r.binds and r.binds[0].via in ("phrase", "right"):
+            f = r.binds[0].field
+            if any(fs != {f} for fs in named.get(clause[n.tok], ())):
+                readings[n.tok] = _Reading(void="unclear_field")
     used_cmp: set[int] = set()
     for n in nums:
         if readings[n.tok].binds:
@@ -919,6 +973,8 @@ def _check_reason(
             if got is not None:
                 consumed.add(i)
                 checks.append(got)
+            else:  # a yes/no claim the text does not bind is never dropped
+                checks.append(_unbound(quote(t.start, t.end), t.start, "unclear_subject"))
         elif t.kind == "word" and t.low in _NUMBER_WORDS and not ignored[t.start]:
             checks.append(_unbound(quote(t.start, t.end), t.start, "number_word"))
         elif t.kind in ("word", "sym") and any(
@@ -963,7 +1019,6 @@ def _check_reason(
     # claims is ambiguous: "amount 11.01 is 0.21 times the card's usual", "Amount is 11.01
     # under P3.1", "risk score of 0.83 against the 0.9 threshold"
     covered = _cover(len(text), phrase_spans)
-    clause = _clauses(rd)
     flags = _clause_flags(rd, clause, checks, id_tokens, covered)
     for c in checks:
         why = flags.get(clause[max(0, bisect.bisect_right(rd.starts, c["start"]) - 1)])
@@ -1114,6 +1169,8 @@ def _reason_void(rd: _Reader, consumed: set[int]) -> str | None:
     for i, t in enumerate(rd.toks):
         if t.kind == "sym" and t.text == "?":
             return "question"
+        if t.kind == "sym" and t.text in ("~", "≈"):
+            return "hedged"
         if t.kind != "word":
             continue
         w = t.low
@@ -1125,6 +1182,10 @@ def _reason_void(rd: _Reader, consumed: set[int]) -> str | None:
             return "denial"
         if w == "respectively":
             return "respectively"
+        if w in _HEDGE_WORDS or any(
+            all(rd.word(i + k) == x for k, x in enumerate(p)) for p in _HEDGE_PHRASES
+        ):
+            return "hedged"
     return None
 
 
@@ -1206,8 +1267,13 @@ def value_check(
     `ValuePhrase(field=...)` match. The word before a field named first is the start,
     punctuation, a determiner or a joining word (and, with, at, ...); the word after the
     number (or after a field named after it) is the end, punctuation, a line break or one of
-    and, but, while, whereas, so, which, is, was, are, were. Fields joined by and, or, /, &, a
-    field on both sides, or two fields for one number bind nothing. No number is ever matched
+    and, but, while, whereas, so, which, is, was, are, were. "[<comparison>] <n> <field>"
+    follows the start, a sentence end, a line break, a joining word, or "<subject> has" whose
+    subject is a word of that field's own name ("The card has 40 earlier purchases", never
+    "The merchant has ..." or "Shipping was 108 days"). A phrase's or a right-hand field's
+    number binds nothing when another field is named right before it or in its clause ("Risk
+    score is 9.1x usual"). Fields joined by and, or, /, &, a field on both sides, or two
+    fields for one number bind nothing. No number is ever matched
     to a field by value. Every other number (an unknown subject, a partial or plural name, a
     list, a range, "about 9", "41 or more", a time with no hour field, a constant, a number
     word) is `unbound`, so its reason is unverifiable.
@@ -1231,17 +1297,19 @@ def value_check(
     (if, would, requires, when, eligible, expected, previously, ...), a denial (false, untrue,
     wrong, ...), "respectively", a "?", a comparison word no binding used, or a match of an
     `unreadable` regex outside every phrase match (claims the caller knows this check cannot
-    read, such as "rare") anywhere in the reason makes every check `ambiguous`: it neither
-    verifies nor contradicts. Numbers inside `ignore` spans are ids, listed in `unchecked`
-    and never claims; negations there are still read. `constants` only label an unbound number
-    (`reason` "constant").
+    read, such as "rare"), or a hedge (roughly, about, approximately, around, nearly, almost,
+    ballpark, circa, ~, give or take, more or less, or so) anywhere in the reason makes every
+    check `ambiguous`: it neither verifies nor contradicts. A "true" or "false" the text does
+    not bind to a boolean field is an unbound claim, never dropped. Numbers inside `ignore`
+    spans are ids, listed in `unchecked` and never claims; negations there are still read.
+    `constants` only label an unbound number (`reason` "constant").
 
     Outcome (D-72), in `details["outcome"]`: `contradicted` when any check failed; `verified`
     when there is at least one check and every check is ok; else `unverifiable`; the value is
     1.0 only when verified. Each check has `status`: ok, failed, unbound (a number not bound;
     `reason` no_field, unclear_subject, unclear_field, unit, hedged, time, malformed,
     constant, number_word, non_ascii_number), ambiguous (negation, hypothetical, denial,
-    respectively, question, unclear_comparison, unreadable, unclear_field, rule_id,
+    respectively, question, hedged, unclear_comparison, unreadable, unclear_field, rule_id,
     block_word, rounding, coarse_rounding) or unchecked (`missing_value:<field>`,
     `type_error:<field>`, `unit:<field>`). Details also hold `failed`, `unverified` (the
     text of every check neither ok nor failed), `n_checked` and `unchecked`."""

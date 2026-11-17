@@ -182,13 +182,16 @@ def test_bound_true_claims_are_verified(reason):
 
 
 def test_fixture_phrases_bind_their_one_number():
-    assert outcome("Amount is 9.1x this card's usual spend", phrases=PHRASES) == "verified"
-    assert outcome("Spend is more than 5 times the usual amount", phrases=PHRASES) == "verified"
+    assert outcome("Spend is 9.1x this card's usual spend", phrases=PHRASES) == "verified"
+    assert outcome("Spend is more than 5 times the usual spend", phrases=PHRASES) == "verified"
     assert outcome("A $812.40 purchase", phrases=PHRASES) == "verified"
     # "9x" on 9.1 is a correct rounding but 1.1% off: too coarse to verify (D-42 tolerance)
-    assert outcome("Amount is 9x this card's usual spend", phrases=PHRASES) == "unverifiable"
-    assert outcome("Amount is 15x this card's usual spend", phrases=PHRASES) == "contradicted"
-    assert outcome("Spend is under 2 times the usual amount", phrases=PHRASES) == "contradicted"
+    assert outcome("Spend is 9x this card's usual spend", phrases=PHRASES) == "unverifiable"
+    assert outcome("Spend is 15x this card's usual spend", phrases=PHRASES) == "contradicted"
+    assert outcome("Spend is under 2 times the usual spend", phrases=PHRASES) == "contradicted"
+    # another field named in the clause (here amount): the phrase binds nothing (verify516)
+    assert outcome("Amount is 9.1x this card's usual spend", phrases=PHRASES) == "unverifiable"
+    assert outcome("Spend is 15x the usual amount", phrases=PHRASES) == "unverifiable"
     # two numbers in one phrase match, a hedge, a range, a stray comparison: unbound
     assert outcome("9x usual, 10x usual spend", phrases=PHRASES) == "unverifiable"
     for reason in (
@@ -402,9 +405,14 @@ FR_ALIASES = {
 }
 _FR = [
     (
-        "Amount is 11.49 times the card's usual, which is extreme spend.",
+        "Spend is 11.49 times the card's usual, which is extreme spend.",
         {"amount": 863.23, "amt_vs_usual": 11.491347177848775, "card_history_n": 387},
         "verified",
+    ),
+    (
+        "Amount is 11.49 times the card's usual, which is extreme spend.",
+        {"amount": 863.23, "amt_vs_usual": 11.491347177848775, "card_history_n": 387},
+        "unverifiable",  # the amount is named in the phrase's clause (verify516)
     ),
     (
         "Amount is 11.49 times the card's usual, which is extreme spend under P3.9.",
@@ -473,7 +481,7 @@ def test_fraud_review_reasons_golden(reason, record, expected):
 
 def test_d72_output_shape_and_shares(registry):
     rec = {"amount": 812.4, "risk_score": 0.83}
-    both = value_check("Amount above 900; the risk score is about 0.5", rec)
+    both = value_check("Amount above 900; the risk score is high at 0.5", rec)
     assert both.details["outcome"] == "contradicted" and both.value == 0.0
     assert [c["status"] for c in both.details["checks"]] == ["failed", "unbound"]
     assert both.details["failed"] == ("900",) and both.details["unverified"] == ("0.5",)
@@ -811,7 +819,7 @@ def test_fraud_review_d42_true_claims_still_verify():
         "Amount is 11.01",
         "The purchase amount of $11.01",
         "amount is under 50",
-        "Amount is 0.21 times the card's usual",
+        "Spend is 0.21 times the card's usual",
         "amt_vs_usual is 0.213",
         "risk score is 3.9%",
         "risk score is below 0.9",
@@ -831,3 +839,126 @@ def test_unreadable_claims_void_the_reason_unless_a_phrase_reads_them():
     assert outcome("category freq is 0.05, a rare pick", unreadable=rare) == "unverifiable"
     got = outcome("category freq is 0.05. A rare category", unreadable=rare, phrases=[phrase])
     assert got == "contradicted"  # read by the phrase: 0.05 is not below 0.05
+
+
+# ================================ verify516 (gen3): phrases, right-hand subjects, hedges ====
+
+G3_PHRASES = [
+    ValuePhrase(
+        pattern=r"\d[\d.,]*\s*(?:x|×|times)\s+(?:\S+\s+){0,3}?(?:usual|normal|typical|median)",
+        field="amt_vs_usual",
+    ),
+    ValuePhrase(
+        pattern=r"\d[\d.,]*\s*(?:%|percent)\s+of\s+(?:the\s+)?(?:card's\s+)?(?:earlier\s+|prior\s+)?"
+        r"(?:purchases|transactions)",
+        field="category_freq",
+    ),
+]
+G3_ALIASES = {
+    "card_history_n": ["card history", "earlier purchases"],
+    "risk_score": ["risk score", "score"],
+    "amount": ["purchase amount"],
+}
+G3_REC: dict[str, Any] = {**REC, "days": 108, "count": 12}
+
+
+def g3(reason: str) -> str:
+    res = value_check(reason, G3_REC, phrases=G3_PHRASES, aliases=G3_ALIASES, units=UNITS)
+    return res.details["outcome"]
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Risk score is 9.1x usual spend.",
+        "Card_history_n is 9.1x usual.",
+        "Hour: 9.1x usual.",
+        "The risk score (9.1x usual) is high.",
+        "Score was 9.1 times the usual.",
+        "Risk_Score 9.1x usual.",
+        "Card history is over 8x the card's usual.",
+        "The hour is 5% of the card's purchases.",
+        "Hour was 5 percent of earlier transactions.",
+        "Amount is 9.1x usual spend.",  # amount is another field than amt_vs_usual
+    ],
+)
+def test_a_phrase_binding_is_void_when_another_field_is_named(reason):
+    """verify516 F1 (must-fix): a phrase's number is not bound when another field is named
+    right before it or anywhere in its clause."""
+    assert g3(reason) == "unverifiable"
+
+
+def test_a_phrase_binding_stands_when_no_other_field_is_named():
+    assert g3("Spend is 9.1x usual.") == "verified"
+    assert g3("Spend is 9.1x usual, and the risk score is 0.83.") == "verified"
+    assert g3("Only 5% of the card's purchases are in this category.") == "verified"
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Shipping was 108 days.",
+        "Shipping is 108 days.",
+        "Shipping has 108 days.",
+        "The merchant has 40 earlier purchases.",
+        "The other card has 40 earlier purchases.",
+        "The device has 40 earlier purchases.",
+        "The amount came in above 30 card history.",
+        "Amount of under 0.9 risk score.",
+        "Amount is 40 earlier purchases.",
+        "Amount, under 0.9 risk score",
+        "Purchase amount, 40 card history",
+        "Amount (40 earlier purchases).",
+        "Amount: 40 earlier purchases.",
+    ],
+)
+def test_the_right_hand_shape_checks_its_subject(reason):
+    """verify516 F6 (should-fix): "<n> <field>" binds only after the start, punctuation or a
+    joining word, or after "<subject> has" whose subject is a word of that field's name."""
+    assert g3(reason) == "unverifiable"
+
+
+def test_the_right_hand_shape_still_binds_its_own_subject():
+    assert g3("The card has 40 earlier purchases.") == "verified"
+    assert g3("Card has 40 earlier purchases, a settled history") == "verified"
+    assert g3("A settled history, with 40 earlier purchases.") == "verified"
+    assert g3("More than 30 earlier purchases.") == "verified"
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Roughly, the amount is 1233.26.",
+        "About: purchase amount is 1233.26.",
+        "Approximately, Amount is 1233.26.",
+        "Ballpark, the risk score is 0.3.",
+        "Give or take, hour is 20.",
+        "Around then, card history is 140.",
+        "The amount is 1233.26, more or less.",
+        "The amount is 1233.26 or so.",
+        "The amount is ~1233.26.",
+    ],
+)
+def test_a_hedge_anywhere_never_contradicts(reason):
+    """verify516 (should-fix, criterion 3): a hedged statement is unverifiable, never
+    contradicted."""
+    assert g3(reason) == "unverifiable"
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Card has above 0.5 earlier purchases, merchant_first_seen is true",
+        "Card history is 40, merchant_first_seen is true",
+        "Risk score 0.83 merchant_first_seen true",
+        "The flag is true and card history is 40",
+    ],
+)
+def test_a_true_or_false_that_binds_nothing_is_never_dropped(reason):
+    """fraud-review D-42 mutation (merchant polarity in a longer reason): a "true"/"false" the
+    text does not bind is an unbound claim, so a true number beside it cannot verify the
+    reason."""
+    rec = {**REC, "merchant_first_seen": False}
+    assert value_check(reason, rec, aliases=ALIASES).details["outcome"] != "verified"

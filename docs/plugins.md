@@ -174,9 +174,16 @@ positive evidence and holds. No number is ever matched to a field because its va
   `<field> is|was|of|at|=|:|equals|totals <n>`, `<field> (<n>)`, `<field> <n>`,
   `<field> [is|was] <cmp> <n>` with cmp one of above, over, below, under, exceeds, more /
   greater / higher / less / fewer / lower than, at least, at most, at or above, at or below,
-  `>`, `<`, `>=`, `<=`, `≥`, `≤`; `[<cmp>] <n> <field>` ("The card has 40 earlier purchases", "more than 30 earlier
-  purchases"); and the one number inside a `ValuePhrase(field=...)` match (a comparison
-  word right before it is read). The word before a field named first must be the start,
+  `>`, `<`, `>=`, `<=`, `≥`, `≤`; `[<cmp>] <n> <field>` ("more than 30 earlier purchases",
+  "The card has 40 earlier purchases") after the start, a sentence end, a line break, a
+  joining word (and, but, with, while, whereas, so, which), or `<subject> has|had|have`
+  whose subject is a word of that field's own name ("The merchant has 40 earlier purchases",
+  "Shipping was 108 days" and "Amount, 40 earlier purchases" bind nothing); and the one
+  number inside a `ValuePhrase(field=...)` match (a comparison word right before it is
+  read). A phrase's number, or a right-hand field's, binds nothing when another field is
+  named right before it or anywhere in its clause: "Risk score is 9.1x usual", "The risk
+  score (9.1x usual)" and "Amount is 9.1x the card's usual" bind nothing to `amt_vs_usual`;
+  "Spend is 9.1x the card's usual" does. The word before a field named first must be the start,
   punctuation, a determiner, or a joining word (and, but, while, with, so, because, as,
   when, where, at, then, also, which, that): "risk of the amount is 5" and "the average
   amount is 5" bind nothing. The word after the number (or after a field named after it)
@@ -214,7 +221,9 @@ positive evidence and holds. No number is ever matched to a field because its va
   listed in `unchecked`, but negations there are still read. A negation (not, no, never, n't,
   without, ...), a hypothetical or time shift (if, would, may, expected, previously, last,
   ...; also requires, needs, must, when, otherwise, criteria, conditions, eligible, allows,
-  satisfies, qualifies), a denial ("false", "untrue", "wrong"), "respectively", a "?", or a
+  satisfies, qualifies), a hedge (roughly, about, approximately, around, nearly, almost,
+  ballpark, circa, `~`, give or take, more or less, or so), a denial ("false", "untrue",
+  "wrong"), "respectively", a "?", or a
   comparison word no binding used ("$812, or less than that", "under P6.1") anywhere in the
   reason makes every check of that reason ambiguous: it neither verifies nor contradicts.
 - **Claims it cannot read.** Words the check does not read ("rare", "brand new") can make a
@@ -222,12 +231,13 @@ positive evidence and holds. No number is ever matched to a field because its va
   match outside every `ValuePhrase` match makes the reason unverifiable; a phrase that reads
   the word ("rare category" -> `category_freq < 0.05`) checks it instead.
 - **Booleans and conditions.** `<field> is true|false` (and `<field>: false`,
-  `(<field> true)`) is checked against a boolean field; `ValuePhrase(holds=...)` conditions
+  `(<field> true)`) is checked against a boolean field; any other "true" or "false" is an
+  unbound claim, so its reason is unverifiable; `ValuePhrase(holds=...)` conditions
   use the rule grammar and are never executed.
 
 This is stricter than B5.13's checker, which matched an unbound number to a nearby field or
-any field close in value. On fraud-review-bedrock's 10,225 recorded reasons, 12.5% are
-verified (8.7% when its rarity vocabulary is declared `unreadable`), 3.7% contradicted and
+any field close in value. On fraud-review-bedrock's 10,225 recorded reasons, 10.5% are
+verified (6.7% when its rarity vocabulary is declared `unreadable`), 3.7% contradicted and
 the rest unverifiable; every verified reason is one whose numbers the text binds, and its
 mutation test (D-42, 160,000 false claims) verifies none.
 
@@ -246,7 +256,7 @@ To report the three shares across a run, pass the results (of `value_check` or
 without an outcome, such as failed calls), and `verified_share`, `contradicted_share` and
 `unverifiable_share`, each a share of all reasons with an exact (Clopper-Pearson) 1 - alpha
 interval, or null with no reasons. Cite them as counts and shares, for example "of 10,225
-reasons, 1,279 verified (12.5%), 381 contradicted (3.7%), 8,565 unverifiable (83.8%)".
+reasons, 1,074 verified (10.5%), 375 contradicted (3.7%), 8,776 unverifiable (85.8%)".
 
 ```python
 from evalkit.scorers import value_check, value_check_shares
