@@ -162,8 +162,10 @@ def _heldout_categories(
     rows = [] if small else [{"owasp": cat, **b} for cat, b in blocks.items()]
     # every per-cell statistic needs its own min_cell cases: the trial figures stand on the
     # complete cases checked above; the scripted figure has its own denominator
-    for row in rows:
-        if row["scripted"]["cases"] < min_cell:
+    # all or nothing across the cells: a lone suppressed cell would equal the split total
+    # minus the cells shown
+    if any(row["scripted"]["cases"] < min_cell for row in rows):
+        for row in rows:
             row["scripted"] = {"suppressed": True, "min_cases": min_cell}
     return {"min_cases": min_cell, "suppressed_cells": small, "rows": rows}
 

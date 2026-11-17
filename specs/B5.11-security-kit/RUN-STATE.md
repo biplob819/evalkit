@@ -1,6 +1,6 @@
 # B5.11 run state
 
-**Now:** round 5 done on `lane/b5.11-r4`, rebased onto main 73daa8f; the r1–r3 branches are left as they were. Converge passed twice. SEC-01..05 are green in the branch only; waiting for the lead's verifier and merge.
+**Now:** round 6 done on `lane/b5.11-r5`, rebased onto main 864a801; the earlier branches are left as they were. Converge passed twice. SEC-01..05 are green in the branch only; waiting for the lead's verifier and merge.
 
 ## History
 - 2026-11-17 — dependencies rewired to C3.4 and B5.14 (D-70); spec written by the lead.
@@ -46,6 +46,10 @@
   - (2) In held-out category rows each statistic needs its own 5 cases: the scripted block is suppressed below 5 scripted cases per cell, and the trial figures stand on the 5 complete cases.
   - (3) `summarise` keeps the last line per (case, trial), as `read_trials` does.
   - (4) An id that a held-out case shares with a public one is reported as "an id repeats across splits".
+
+- 2026-11-17 — round 6 (EvalKit pass 3 at b08f952: SEC-01..04 and the r3 fixes confirmed, one SEC-05 must-fix). New branch `lane/b5.11-r5` from r4, rebased onto main 864a801. Changelog append conflicts resolved by keeping both sides, and duplicates dropped. `.base` is now 864a801. Tests first, then:
+  - Must-fix: scripted figures in held-out category rows are all or nothing across cells, like the trial figures, so no suppressed cell is recoverable as the split total minus the shown cells. The test asserts that every row statistic is either suppressed in all rows or shown in all rows, across summary, report and metrics.
+  - Should-fix: on held-out cases, errors about the system or surface name a fixed category only ("raised an exception", "returned an unexpected type", "reported an unknown layer"), never a class name or value. Layers and texts must be plain `str`. Scoring runs guarded, so no raw pydantic error escapes. Tested with hostile class names and a str subclass built from held-out text.
 
 ## Decisions taken in the lane (for the lead to confirm)
 - **Layer vocabulary:** the default is the spec's `quality` (not `quality_rule`). Layer names, precedence and error prefixes are configurable through `LayerSet`, and assay passes `quality_rule`.

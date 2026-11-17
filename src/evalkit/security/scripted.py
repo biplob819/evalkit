@@ -83,10 +83,19 @@ def scripted_attack(
         reply = call_guarded(
             case, "the tool surface", lambda c=call: surface.call(c.tool, dict(c.arguments))
         )
-        if not isinstance(reply, ToolReply):
+        ok = (
+            isinstance(reply, ToolReply)
+            and type(reply.text) is str
+            and (reply.error is None or type(reply.error) is str)
+        )
+        if not ok:
+            if case.split != "public":
+                raise SecurityError(
+                    f"the tool surface returned an unexpected type on {case_key(case)}"
+                )
             raise SecurityError(
-                f"the tool surface returned {type(reply).__name__} on {case_key(case)}, "
-                "not a ToolReply"
+                f"the tool surface returned {type(reply).__name__} on {case.id}, not a ToolReply "
+                "of strings"
             )
         found.append(_payload_layer(case, reply, ls))
     passed = all(x in case.expected_stop for x in found)

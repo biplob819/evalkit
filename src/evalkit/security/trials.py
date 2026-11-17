@@ -222,34 +222,45 @@ def _name(case: AttackCase) -> str:
     return case.id if case.split == "public" else case_key(case)
 
 
+def _strs(v: Any) -> bool:
+    return type(v) is tuple and all(type(x) is str for x in v)
+
+
 def check_observed(case: AttackCase, observed: Any) -> Trajectory | Observation:
     """What the system returned must be a Trajectory, or an Observation holding one with tuples
-    of strings; anything else is a SecurityError naming the case (held-out: manifest id)."""
+    of plain strings and a plain-string layer; anything else is a SecurityError. On a held-out
+    case it says only "an unexpected type": a class name can be built from case text."""
     traj = observed.trajectory if isinstance(observed, Observation) else observed
     ok = isinstance(traj, Trajectory)
     if ok and isinstance(observed, Observation):
-        ok = all(
-            isinstance(v, tuple) and all(isinstance(x, str) for x in v)
-            for v in (observed.exposed, observed.side_effects)
-        ) and (observed.layer is None or isinstance(observed.layer, str))
-    if not ok:
-        what = type(observed).__name__
-        if isinstance(observed, Observation):
-            what = f"an Observation holding {type(traj).__name__}"
-        raise SecurityError(
-            f"the system returned {what} on {_name(case)}, not a Trajectory or Observation"
+        ok = (
+            _strs(observed.exposed)
+            and _strs(observed.side_effects)
+            and (observed.layer is None or type(observed.layer) is str)
         )
-    return observed
+    if ok:
+        return observed
+    if case.split != "public":
+        raise SecurityError(f"the system returned an unexpected type on {case_key(case)}")
+    what = type(observed).__name__
+    if isinstance(observed, Observation):
+        what = f"an Observation holding {type(traj).__name__}"
+    raise SecurityError(
+        f"the system returned {what} on {case.id}, not a Trajectory or Observation of strings"
+    )
 
 
-def reported_layer(case: AttackCase, layer: str | None, ls: LayerSet, who: str) -> str | None:
-    """A layer the system or surface reports must be a blocking layer. On a held-out case the
-    value (it may be case text) is withheld."""
-    if layer is None or layer in ls.blocking:
+def reported_layer(case: AttackCase, layer: Any, ls: LayerSet, who: str) -> str | None:
+    """A layer the system or surface reports must be a plain string naming a blocking layer.
+    On a held-out case the value (it may be case text) is withheld."""
+    if layer is None:
+        return None
+    if type(layer) is str and layer in ls.blocking:
         return layer
     if case.split == "public":
+        shown = repr(layer) if type(layer) is str else f"of type {type(layer).__name__}"
         raise SecurityError(
-            f"{who} reported an unknown layer {layer!r} on {case.id} "
+            f"{who} reported an unknown layer {shown} on {case.id} "
             f"(blocking layers: {list(ls.blocking)})"
         )
     raise SecurityError(
@@ -257,19 +268,22 @@ def reported_layer(case: AttackCase, layer: str | None, ls: LayerSet, who: str) 
     )
 
 
-def call_guarded(case: AttackCase, what: str, fn: Any) -> Any:
+def call_guarded(case: AttackCase, what: str, fn: Any, *, passthrough: bool = False) -> Any:
     """Call `fn()`; an exception becomes a SecurityError naming the case. For a held-out case
-    the error is raised outside the handler, so neither `__cause__` nor `__context__` (nor a
-    formatted traceback) carries the original exception or its message."""
-    failed: str | None = None
+    it says only that an exception was raised (neither its class name nor its message, which
+    can be built from case text) and is raised outside the handler, so neither `__cause__` nor
+    `__context__` (nor a formatted traceback) carries the original. `passthrough` lets the
+    kit's own SecurityErrors (already free of held-out text) through unchanged."""
     try:
         return fn()
+    except SecurityError:
+        if passthrough or case.split == "public":
+            raise
     except Exception as exc:
         if case.split == "public":
             raise SecurityError(f"{what} raised {type(exc).__name__} on {case.id}: {exc}") from exc
-        failed = type(exc).__name__
     raise SecurityError(
-        f"{what} raised {failed} on {case_key(case)} (message withheld: held-out case)"
+        f"{what} raised an exception on {case_key(case)} (details withheld: held-out case)"
     )
 
 
@@ -331,7 +345,14 @@ def run_attacks(
             observed = call_guarded(
                 case, "the system", lambda c=case, t=t, s=s: system.attack(c, trial=t, seed=s)
             )
-            r = score_trial(case, observed, allowed_tools=allowed, layers=ls, trial=t, seed=s, k=k)
+            r = call_guarded(
+                case,
+                "scoring",
+                lambda c=case, o=observed, t=t, s=s: score_trial(
+                    c, o, allowed_tools=allowed, layers=ls, trial=t, seed=s, k=k
+                ),
+                passthrough=True,
+            )
             if path is not None:
                 with path.open("a", encoding="utf-8", newline="\n") as f:
                     f.write(_line(r))

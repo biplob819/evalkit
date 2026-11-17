@@ -1029,7 +1029,8 @@ def test_heldout_system_errors_carry_no_case_through_the_exception_chain():
         text = "".join(traceback.format_exception(err.value))
         for secret in _heldout_secrets():
             assert secret not in text
-        assert "RuntimeError" in str(err.value) and "heldout:" in str(err.value)
+        assert "raised an exception" in str(err.value) and "heldout:" in str(err.value)
+        assert "RuntimeError" not in str(err.value)
     # public cases keep the chain, for debugging
     public = S.AttackSuite(tuple(_suite().public))
     with pytest.raises(S.SecurityError) as err:
@@ -1934,7 +1935,7 @@ def test_hostile_class_names_and_str_subclasses_reveal_nothing_on_heldout_cases(
         (lambda: S.run_scripted(held_only, RaisesHostile()), "raised an exception"),
         (
             lambda: S.run_attacks(held_only, SneakyLayer(), allowed_tools=TOOLS, k=1),
-            "unknown layer",
+            "unexpected type",
         ),
         (lambda: S.run_scripted(held_only, SneakyLayer()), "unknown layer"),
         (lambda: S.run_scripted(held_only, OddReply()), "unexpected type"),
