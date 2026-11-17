@@ -83,7 +83,7 @@ v0.1 runs whose tasks name only the six benchmark scorers are byte-identical und
 
 ## 0.2 → 0.3 migration
 
-Nothing breaks in 0.3: every import that worked in 0.2 still works, and run outputs (summaries,
+Nothing breaks in 0.3: every named import that worked in 0.2 still works (`from x import *` is narrower: modules that gained an `__all__` — `cost`, `stats`, `retry`, `scorers.faithfulness` — export only their public names, and `pipeline.calibrate` no longer exports `cluster_kappa` or `kappa_from` by `*`; no registered project uses `*`), and run outputs (summaries,
 records, reports, cache keys) are byte-identical. Some imports change home
 (`python scripts/downstream_imports.py <checkout>` lists yours as `public-elsewhere`):
 

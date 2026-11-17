@@ -518,3 +518,8 @@ def __getattr__(name: str) -> Any:  # Any: typed callers of the old path keep ty
         stacklevel=2,
     )
     return getattr(_calibration, name)
+
+
+def __dir__() -> list[str]:
+    """`dir()` still lists the moved names, so tooling that inspects the module finds them."""
+    return sorted({*globals(), *_MOVED})

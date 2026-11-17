@@ -422,3 +422,20 @@ def test_owner_constant_flags_an_uninformative_kappa():
     empty = agreement_table([])
     assert (empty.n, empty.clusters, empty.owner_constant) == (0, 0, False)
     assert (empty.agreement, empty.strictness, empty.leniency, empty.kappa) == (None,) * 4
+
+
+def test_calibration_functions_accept_any_iterable():
+    """B5.2 verifier: a generator was read once and then looked empty (tp=2, the rest 0)."""
+    from evalkit.calibration import CalibrationPair, agreement_table, cluster_kappa
+
+    pairs = [
+        CalibrationPair(cluster=f"a{i % 3}", human=i % 2 == 0, judge=i % 3 != 0) for i in range(12)
+    ]
+    assert agreement_table(iter(pairs)) == agreement_table(pairs)
+    assert cluster_kappa(iter(pairs), seed=7) == cluster_kappa(pairs, seed=7)
+
+
+def test_moved_names_still_listed_by_dir():
+    import evalkit.pipeline.calibrate as old
+
+    assert {"_Pair", "cluster_kappa", "kappa_from"} <= set(dir(old))

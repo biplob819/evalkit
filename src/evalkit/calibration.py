@@ -8,7 +8,7 @@ cluster share a context and a writer (e.g. the claims or citations of one answer
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -70,11 +70,12 @@ def kappa_from(tp: int, fn: int, fp: int, tn: int) -> float:
 
 
 def cluster_kappa(
-    pairs: Sequence[_Labelled], *, seed: int, n_resamples: int = 10_000, alpha: float = 0.05
+    pairs: Iterable[_Labelled], *, seed: int, n_resamples: int = 10_000, alpha: float = 0.05
 ) -> Interval:
     """Kappa with a percentile bootstrap that resamples clusters, not units: units in one
     cluster (e.g. the claims of one answer) share a context and a writer, so treating them as
     independent would overstate precision."""
+    pairs = list(pairs)  # read several times below: an iterator would be consumed by the first
     if not pairs:
         raise ValueError("no labelled claims to compare")
     clusters = sorted({p.cluster for p in pairs})
@@ -125,11 +126,12 @@ def _ratio(num: int, den: int) -> float | None:
     return num / den if den else None
 
 
-def agreement_table(pairs: Sequence[_Labelled]) -> AgreementTable:
+def agreement_table(pairs: Iterable[_Labelled]) -> AgreementTable:
     """Confusion counts, agreement, strictness, leniency and kappa for judge vs human.
     `owner_constant` is True when every human label is the same value: kappa is then 0 by
     construction (or 1.0 when the judge is constant and agrees), whatever the judge does, so
     it says nothing about the judge; read strictness or leniency instead."""
+    pairs = list(pairs)  # read several times below: an iterator would be consumed by the first
     tp, fn, fp, tn = _confusion(pairs)
     n = tp + fn + fp + tn
     return AgreementTable(
