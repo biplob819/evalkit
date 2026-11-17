@@ -1042,4 +1042,46 @@ def test_sev_valid_predicates_over_odd_values_never_raise(value):
     ],
 )
 def test_sev_negations_with_words_between_still_invert(reason):
+    """Now read as ambiguous (pass 5): they still fail, which was the point."""
     assert value_check(reason, {"amount": 812.4}).value == 0.0
+
+
+# ---- B5.13 verifier pass 5: negation is fail-safe -----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "no doubt above $900",
+        "without doubt above $900",
+        "without question above $900",
+        "not only above $900",
+        "no wonder it exceeds $900",
+        "no, it is above $900",
+        "nothing unusual, above $900",
+        "not much, but above $900",
+        "never seen, over $900",
+        "no prior history above 41 transactions",
+        "not no more than $900",
+        "not-above $800",
+        "No-one above $800",
+        "never, ever, at all above $800",
+        "not even close to above $800",
+        "non above $800",
+        "not; above $800",
+        "not. above $800",
+    ],
+)
+def test_sev_no_negation_lets_a_false_claim_pass(reason):
+    got = value_check(reason, {"amount": 812.4, "card_history_n": 40})
+    assert got.value == 0.0, (reason, got.details)
+
+
+def test_sev_ambiguous_negation_is_named_and_a_clean_sentence_still_reads():
+    got = value_check("no doubt above $800", {"amount": 812.4})
+    assert got.value == 0.0  # documented limit: true, but ambiguous
+    assert any(c.get("reason") == "ambiguous_negation" for c in got.details["checks"])
+    # a negation in an earlier sentence does not touch this one
+    assert value_check("No fraud flags. Amount above $800.", {"amount": 812.4}).value == 1.0
+    assert value_check("not above $900", {"amount": 812.4}).value == 1.0
+    assert value_check("doesn't exceed $800", {"amount": 812.4}).value == 0.0

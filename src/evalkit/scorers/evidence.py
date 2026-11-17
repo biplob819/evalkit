@@ -159,10 +159,10 @@ class ValuePhrase(Model):
 # A comparison word right before the number, optionally negated ("not above", "never over",
 # "doesn't exceed", "no more than"): a negation inverts the comparison (B5.13 verifier pass 3).
 _COMPARATOR = re.compile(
-    # a negation, possibly with up to two words before the comparison ("not, in fact, above",
-    # "no purchase above", "cannot exceed", "isn‘t above")
-    r"(?P<neg>(?:\b(?:not|no|never|cannot|nothing|without)\b|n['’‘]t\b)[\s,]+"
-    r"(?:[a-z]+[\s,]+){0,2}?)?"
+    # a negation DIRECTLY before the comparison ("not above", "no more than", "never over",
+    # "cannot exceed", "doesn't exceed") inverts it; any other negation in the same sentence
+    # makes the comparison ambiguous (see `_comparison`)
+    r"(?P<neg>(?:\b(?:not|no|never|cannot)|n['’‘]t)\s+)?"
     r"(?P<cmp>less than or equal to|greater than or equal to|more than or equal to|"
     r"at or below|at or above|more than|greater than|higher than|fewer than|less than|"
     r"lower than|at least|at most|up to|exceeding|exceeds|exceed|above|below|under|over|"
@@ -206,6 +206,17 @@ _OP = {
     "<": "<",
 }
 _NEGATE = {">": "<=", ">=": "<", "<": ">=", "<=": ">"}
+# Any negation word. One in the same sentence that is not directly before the comparison word
+# ("no doubt above $900", "not only above", "without exceeding", "not no more than") makes the
+# comparison ambiguous: the check then fails rather than guess (B5.13 verifier pass 5). False
+# claims never pass because of a negation; some true ones fail (documented limit).
+_ANY_NEGATION = re.compile(
+    r"(?:\b(?:not|no|non|never|nothing|none|nor|neither|without|cannot|no-one|nobody)\b"
+    r"|n['’‘]t\b)",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"[.!?]\s+(?=[A-Z])")  # a new sentence starts with a capital
+AMBIGUOUS = "?"
 _POSTFIX_OP = {w: "<=" for w in ("less", "fewer", "lower", "below", "under")} | {
     w: ">=" for w in ("more", "greater", "higher", "above", "over")
 }
@@ -227,6 +238,8 @@ def _close(n: Number, v: float, tolerance: float) -> bool:
 
 
 def _claim(n: Number, op: str, v: float, tolerance: float) -> bool:
+    if op == AMBIGUOUS:
+        return False
     if op == "≈":
         return _close(n, v, tolerance)
     x = n.value
@@ -379,6 +392,9 @@ def _check_reason(
                 "ok": ok,
             }
         )
+    for c in checks:
+        if c.get("op") == AMBIGUOUS and "reason" not in c:
+            c["reason"] = "ambiguous_negation"
     return checks
 
 
@@ -386,10 +402,20 @@ def _comparison(reason: str, n: Number) -> str:
     """The comparison stated around the number, else "≈" (equal): a word right before it
     ("above 900"), inverted by a negation ("not above 900", "doesn't exceed 900"), or a
     phrase right after it ("900 or less")."""
-    cmp = _COMPARATOR.search(reason[max(0, n.start - _COMPARATOR_WINDOW) : n.start])
+    window = reason[max(0, n.start - _COMPARATOR_WINDOW) : n.start]
+    ends = list(_SENTENCE_END.finditer(window))
+    clause = window[ends[-1].end() :] if ends else window  # this sentence only
+    cmp = _COMPARATOR.search(clause)
     if cmp:
         op = _OP[cmp.group("cmp").lower()]
+        before = clause[: cmp.start("neg") if cmp.group("neg") else cmp.start("cmp")]
+        if _ANY_NEGATION.search(before):
+            return AMBIGUOUS  # a negation not directly before the comparison
         return _NEGATE[op] if cmp.group("neg") else op
+    if _ANY_NEGATION.search(clause):
+        # a negation before a number with no recognised comparison ("not-above $800",
+        # "not even close to above $800") is not read as an equality claim either
+        return AMBIGUOUS
     after = reason[n.start + len(n.text) : n.start + len(n.text) + _COMPARATOR_WINDOW]
     post = _POSTFIX.match(after)
     return _POSTFIX_OP[post.group("word").lower()] if post else "≈"
