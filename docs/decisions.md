@@ -90,3 +90,9 @@ Append-only. Each entry: ID, date, decision, alternatives, reason. `OWNER D-n` m
 **Decision (owner, via the question widget):** v0.3.0 ships now without `value_check`, which is removed from v0.3.0's public API. A new node, B5.16, redesigns it for v0.4.0 under one rule: `verified` only when a whole field name or alias is bound to its number by a recognised pattern; every other reading is `unverifiable`. Fraud-review-bedrock keeps its own checker until then.
 **Why:** a false claim scored `verified` breaks the safety rule every other scorer follows. A release should not wait on a scorer that keeps failing it, and a lower verified share that can be trusted beats a higher one that cannot.
 
+## D-75 — v0.3.0 released; value_check keeps phrase-binding strictness (OWNER, 2026-11-17)
+**Decision (owner, via the question widget):**
+1. Tag v0.3.0 at 4ddfef5 and publish it to PyPI by trusted publishing. At that commit CI was green on Linux, macOS and Windows, 2,314 tests passed, the release verifier's fixes were in, and the RC canary accounted for all seven projects.
+2. In B5.16, a recognised phrase binds nothing when another field is named in its clause. This keeps every generator at 0 false claims verified. Projects can recover such reasons by declaring an alias; a phrase is not allowed to name its own subject.
+**Why:** a release should go out on a CI-green, verified commit with the owner's explicit approval, and in the value check a lower verified share that can be trusted beats a higher one that cannot.
+

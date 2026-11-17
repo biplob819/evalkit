@@ -44,6 +44,7 @@ jobs:
           ref: ${{ matrix.branch }}
           path: project
           persist-credentials: false
+          fetch-depth: 0  # projects' own tests read their git history (course-assistant's append-only logs)
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"

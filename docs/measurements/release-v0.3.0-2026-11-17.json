@@ -1,0 +1,28 @@
+{
+ "release": "v0.3.0",
+ "node": "B5.4",
+ "tag": "v0.3.0",
+ "commit": "4ddfef50d55db653aaf57048af06f2ba606e1573",
+ "package": "evalkit-harness",
+ "version": "0.3.0",
+ "approved_by": "owner, in the EvalKit session (question widget, D-75), 2026-11-17",
+ "published_by": "trusted publishing from .github/workflows/release.yml on the tag (run 44133911150); post-release install check passed on ubuntu, windows and macos (macos re-run after its first job was cancelled before any step ran)",
+ "files": [
+  {
+   "type": "bdist_wheel",
+   "filename": "evalkit_harness-0.3.0-py3-none-any.whl",
+   "sha256": "0fe817a353f6da97d4796c1e39eda7d1a8badd01856d47c157dd69cca7baf0f7",
+   "uploaded": "2026-11-17T17:13:02.294379Z"
+  },
+  {
+   "type": "sdist",
+   "filename": "evalkit_harness-0.3.0.tar.gz",
+   "sha256": "fd9ee78f0fb8aa04c2871a6ca604684b4226c8f876232a940f7bf49ebad1e155",
+   "uploaded": "2026-11-17T17:13:03.504403Z"
+  }
+ ],
+ "ci": "green on Linux, macOS and Windows at the tagged commit",
+ "canary": "docs/measurements/downstream-canary-2026-11-17-rc.json (four pass, two known drift, one imports nothing); the tag's CI canary run failed only course-assistant's git-history test because the canary cloned projects shallow (fixed: fetch-depth 0)",
+ "source": "https://pypi.org/pypi/evalkit-harness/0.3.0/json, read 2026-11-17",
+ "spend_usd": 0
+}

@@ -305,3 +305,21 @@ def test_every_capability_named_for_a_project_imports_and_is_public():
                 assert _resolve(span) is not None, (row.project, span)
                 assert _is_public(span), f"{row.project}: capability {span} is not public"
     assert seen > 30
+
+
+def test_the_v0_3_0_release_record_matches_the_tag_the_tree_and_pypi_files():
+    """V03-03: the owner-approved release is recorded with its commit, both files and their
+    sha256 from PyPI; the tagged version equals the package version."""
+    import evalkit
+
+    rec = json.loads(
+        (ROOT / "docs" / "measurements" / "release-v0.3.0-2026-11-17.json").read_text("utf-8")
+    )
+    assert rec["tag"] == "v0.3.0" == f"v{rec['version']}"
+    assert re.fullmatch(r"[0-9a-f]{40}", rec["commit"])
+    assert evalkit.__version__ == rec["version"]
+    assert "owner" in rec["approved_by"]
+    names = sorted(f["filename"] for f in rec["files"])
+    assert names == ["evalkit_harness-0.3.0-py3-none-any.whl", "evalkit_harness-0.3.0.tar.gz"]
+    assert all(re.fullmatch(r"[0-9a-f]{64}", f["sha256"]) for f in rec["files"])
+    assert rec["spend_usd"] == 0
