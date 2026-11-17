@@ -1,0 +1,51 @@
+{
+ "source": "fraud-review-bedrock policy.md v1 and tests/test_policy.py, tests/test_router.py (MIT, same author), vendored for EvalKit B5.13 RUL-01. Kinds mapped clear -> allow, no_clear -> never; reasons mapped unknown_clause -> unknown_rule, no_clear_clause_cited -> no_allow_rule_cited, no_clear -> never. Simulated card features, no personal data.",
+ "rule_set": {
+  "fields": {
+   "amt_vs_usual": "number",
+   "hour": "number",
+   "category_freq": "number",
+   "merchant_first_seen": "bool",
+   "card_history_n": "number",
+   "amount": "number",
+   "category": ["entertainment", "food_dining", "gas_transport", "grocery_net", "grocery_pos", "health_fitness", "home", "kids_pets", "misc_net", "misc_pos", "personal_care", "shopping_net", "shopping_pos", "travel"],
+   "risk_score": "number"
+  },
+  "rules": [
+   {"id": "P3.1", "kind": "signal", "when": "amt_vs_usual >= 5", "title": "Spend far above the card's norm"},
+   {"id": "P3.9", "kind": "never", "when": "amt_vs_usual >= 10", "title": "Never auto-clear extreme spend"},
+   {"id": "P4.2", "kind": "signal", "when": "merchant_first_seen", "title": "First purchase at a merchant"},
+   {"id": "P4.9", "kind": "never", "when": "merchant_first_seen and amount >= 200", "title": "Never auto-clear a large first purchase at a merchant"},
+   {"id": "P5.1", "kind": "signal", "when": "hour < 5", "title": "Purchase at night"},
+   {"id": "P6.1", "kind": "signal", "when": "category_freq < 0.05", "title": "Rare category for this card"},
+   {"id": "P6.2", "kind": "signal", "when": "card_history_n < 5", "title": "Thin card history"},
+   {"id": "P6.9", "kind": "never", "when": "card_history_n < 3", "title": "Never auto-clear with almost no history"},
+   {"id": "P7.1", "kind": "allow", "when": "amt_vs_usual < 2 and category_freq >= 0.2 and not merchant_first_seen", "title": "Routine purchase in a usual category"},
+   {"id": "P7.2", "kind": "allow", "when": "amount < 50 and not merchant_first_seen and card_history_n >= 10", "title": "Small purchase at a known merchant"},
+   {"id": "P7.3", "kind": "allow", "when": "hour >= 8 and hour < 22 and amt_vs_usual < 1.5 and category_freq >= 0.1", "title": "Daytime purchase in the card's usual pattern"},
+   {"id": "P8.9", "kind": "never", "when": "risk_score >= 0.9", "title": "Never auto-clear a very high risk score"}
+  ]
+ },
+ "base_record": {
+  "amt_vs_usual": 1.0,
+  "hour": 14,
+  "category_freq": 0.4,
+  "merchant_first_seen": false,
+  "card_history_n": 50,
+  "amount": 30.0,
+  "category": "grocery_pos",
+  "risk_score": 0.4
+ },
+ "clearing_cases": [
+  {"cited": ["P7.1"], "changes": {}, "ok": true, "reasons": []},
+  {"cited": ["P3.1"], "changes": {}, "ok": false, "reasons": ["no_allow_rule_cited"]},
+  {"cited": ["P7.1"], "changes": {"merchant_first_seen": true}, "ok": false, "reasons": ["predicate_false:P7.1"]},
+  {"cited": ["P7.1", "P7.2"], "changes": {"merchant_first_seen": true}, "ok": false, "reasons": ["predicate_false:P7.1", "predicate_false:P7.2"]},
+  {"cited": ["P7.1"], "changes": {"risk_score": 0.95}, "ok": false, "reasons": ["never:P8.9"]},
+  {"cited": ["P7.1"], "changes": {"card_history_n": 2}, "ok": false, "reasons": ["never:P6.9"]},
+  {"cited": ["P7.1", "P42.1"], "changes": {}, "ok": false, "reasons": ["unknown_rule:P42.1"]},
+  {"cited": ["P7.1"], "changes": {"amt_vs_usual": null}, "ok": false, "reasons": ["missing_value:P7.1", "never:P3.9"]},
+  {"cited": ["P7.2"], "changes": {"amt_vs_usual": 12.0}, "ok": false, "reasons": ["never:P3.9"]},
+  {"cited": ["P7.2"], "changes": {"amount": 500.0}, "ok": false, "reasons": ["predicate_false:P7.2"]}
+ ]
+}

@@ -26,6 +26,19 @@ PUBLIC: dict[str, list[str]] = {
         "recall_at_k",
         "scorer",
         "sql_match",
+        "ClarificationRates",  # v0.3 (B5.13)
+        "Rule",  # v0.3 (B5.13)
+        "RuleError",  # v0.3 (B5.13)
+        "RuleSet",  # v0.3 (B5.13)
+        "ValuePhrase",  # v0.3 (B5.13)
+        "answer_from_rows",  # v0.3 (B5.13)
+        "clarification_rates",  # v0.3 (B5.13)
+        "render_evidence",  # v0.3 (B5.13)
+        "rule_compliance",  # v0.3 (B5.13)
+        "rule_compliance_scorer",  # v0.3 (B5.13)
+        "unsupported_numbers",  # v0.3 (B5.13)
+        "value_check",  # v0.3 (B5.13)
+        "value_check_scorer",  # v0.3 (B5.13)
     ],
     "evalkit.adapters": [
         "ALLOWED_PARAMS",

@@ -49,6 +49,14 @@ def test_builtin_scorers_keep_their_names():
     assert {"label_correct", "citation_valid", "cost", "latency"} <= set(discover())
 
 
+def test_agent_scorers_are_registered_builtins():  # v0.3 (B5.13)
+    from evalkit.scorers import discover
+    from evalkit.scorers.base import _BUILTIN
+
+    assert {"answer_from_rows", "asked_back"} <= set(discover())
+    assert {"answer_from_rows", "asked_back"} <= set(_BUILTIN)
+
+
 def test_results_format_is_versioned():
     from evalkit.schemas import SCHEMA_VERSION
 

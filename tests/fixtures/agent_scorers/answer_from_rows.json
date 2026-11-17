@@ -1,0 +1,465 @@
+{
+ "source": "agentic-analytics tests/scoring/test_numbers.py (MIT, same author), vendored for EvalKit B5.13 AFR-01; district aggregates in the shape of the public UK Price Paid data, no personal data",
+ "question": "What was the median price by district in 2024?",
+ "year_range": [
+  1995,
+  2026
+ ],
+ "rows": {
+  "columns": [
+   "district",
+   "median_price",
+   "sales",
+   "yoy_pct",
+   "share"
+  ],
+  "rows": [
+   [
+    "KENSINGTON AND CHELSEA",
+    1249000,
+    812,
+    12.5,
+    0.2
+   ],
+   [
+    "MANCHESTER",
+    190312,
+    5321,
+    -3.2,
+    0.0345
+   ],
+   [
+    "LEEDS",
+    254312.5,
+    4100,
+    4.0,
+    0.125
+   ]
+  ]
+ },
+ "cases": [
+  {
+   "answer": "The median in Manchester was £190,312.",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester: 190312",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester came in at £190312.00.",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington and Chelsea: £1,249,000",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds sold 4,100 homes and Manchester 5,321.",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds sold 4100 homes.",
+   "unsupported": []
+  },
+  {
+   "answer": "GBP 190,312 in Manchester",
+   "unsupported": []
+  },
+  {
+   "answer": "**£190,312** in Manchester",
+   "unsupported": []
+  },
+  {
+   "answer": "roughly 190k in Manchester",
+   "unsupported": []
+  },
+  {
+   "answer": "about £190k",
+   "unsupported": []
+  },
+  {
+   "answer": "£190.3k",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds was £254.3k.",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester recorded 5.3k sales",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington topped £1.2m",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington topped 1.25m",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington: 1.249 million",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington: 1.2 million",
+   "unsupported": []
+  },
+  {
+   "answer": "c.£190k",
+   "unsupported": []
+  },
+  {
+   "answer": "about £190,000 in Manchester",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds was £260k.",
+   "unsupported": [
+    "£260k"
+   ]
+  },
+  {
+   "answer": "Kensington topped £1.3m",
+   "unsupported": [
+    "£1.3m"
+   ]
+  },
+  {
+   "answer": "Manchester recorded 850 sales",
+   "unsupported": [
+    "850"
+   ]
+  },
+  {
+   "answer": "prices rose 12.6%",
+   "unsupported": [
+    "12.6%"
+   ]
+  },
+  {
+   "answer": "a total of £1.25bn changed hands",
+   "unsupported": [
+    "£1.25bn"
+   ]
+  },
+  {
+   "answer": "about £500",
+   "unsupported": [
+    "£500"
+   ]
+  },
+  {
+   "answer": "Kensington rose 12.5%",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington rose 12.5 percent",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington took 20% of sales",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester's share was 3.45%",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester fell 3.2%",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester: -3.2%",
+   "unsupported": []
+  },
+  {
+   "answer": "Manchester: −3.2%",
+   "unsupported": []
+  },
+  {
+   "answer": "a swing of 3.2 percentage points",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds was up 4.0%",
+   "unsupported": []
+  },
+  {
+   "answer": "share of 0.125",
+   "unsupported": []
+  },
+  {
+   "answer": "Between 2019-2024 prices rose.",
+   "unsupported": []
+  },
+  {
+   "answer": "From 2019 to 2024 prices rose.",
+   "unsupported": []
+  },
+  {
+   "answer": "As of 2024-01-01 the median was £190,312.",
+   "unsupported": []
+  },
+  {
+   "answer": "Sold on 01/03/2024 for £190,312.",
+   "unsupported": []
+  },
+  {
+   "answer": "In 2024/25 and 2024-03 prices held.",
+   "unsupported": []
+  },
+  {
+   "answer": "Prices in 1890 were lower.",
+   "unsupported": [
+    "1890"
+   ]
+  },
+  {
+   "answer": "By 2031 prices may double.",
+   "unsupported": [
+    "2031"
+   ]
+  },
+  {
+   "answer": "Unlike the late 1990s, prices rose.",
+   "unsupported": []
+  },
+  {
+   "answer": "Unlike the 1980s, prices rose.",
+   "unsupported": [
+    "1980s"
+   ]
+  },
+  {
+   "answer": "Prices in the 2000s rose.",
+   "unsupported": []
+  },
+  {
+   "answer": "between £200k-£300k",
+   "unsupported": [
+    "£200k",
+    "£300k"
+   ]
+  },
+  {
+   "answer": "between £1.2-1.3m",
+   "unsupported": [
+    "1.3m"
+   ]
+  },
+  {
+   "answer": "growth of 4-12.5%",
+   "unsupported": []
+  },
+  {
+   "answer": "The M1 and SW1A areas, plus LS6, were excluded.",
+   "unsupported": []
+  },
+  {
+   "answer": "In Q3 2024 the median was £190,312.",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds was the 3rd most expensive, 2nd by sales.",
+   "unsupported": []
+  },
+  {
+   "answer": "1. KENSINGTON AND CHELSEA\n2. MANCHESTER\n3) LEEDS",
+   "unsupported": []
+  },
+  {
+   "answer": "| 1 | KENSINGTON AND CHELSEA | £1,249,000 |\n| 2 | LEEDS | £254k |",
+   "unsupported": []
+  },
+  {
+   "answer": "#1 is Kensington [1]",
+   "unsupported": []
+  },
+  {
+   "answer": "Updated at 10:30 today.",
+   "unsupported": []
+  },
+  {
+   "answer": "Prices hit a 10-year high.",
+   "unsupported": []
+  },
+  {
+   "answer": "On 1st January 2024 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "```sql\nSELECT * FROM t LIMIT 50\n```\nManchester: £190k",
+   "unsupported": []
+  },
+  {
+   "answer": "",
+   "unsupported": []
+  },
+  {
+   "answer": "No sales were recorded for that district.",
+   "unsupported": []
+  },
+  {
+   "answer": "All 3 districts are listed.",
+   "unsupported": []
+  },
+  {
+   "answer": "Only 2 districts rose.",
+   "unsupported": [
+    "2"
+   ]
+  },
+  {
+   "answer": "half a million homes",
+   "unsupported": [
+    "half a million"
+   ]
+  },
+  {
+   "answer": "three million pounds",
+   "unsupported": [
+    "three million"
+   ]
+  },
+  {
+   "answer": "around a million in Kensington",
+   "unsupported": []
+  },
+  {
+   "answer": "two hundred and fifty-four thousand in Leeds",
+   "unsupported": []
+  },
+  {
+   "answer": "a quarter of a million in Leeds",
+   "unsupported": []
+  },
+  {
+   "answer": "a quarter of a billion",
+   "unsupported": [
+    "a quarter of a billion"
+   ]
+  },
+  {
+   "answer": "four thousand one hundred homes in Leeds",
+   "unsupported": []
+  },
+  {
+   "answer": "four thousand two hundred homes",
+   "unsupported": [
+    "four thousand two hundred"
+   ]
+  },
+  {
+   "answer": "On 31 December 2024 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "On 1 Jan 2024 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "On January 31, 2024 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "On 31/12/24 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "In Q3 '24 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "In Q3 ’24 Leeds was £254k.",
+   "unsupported": []
+  },
+  {
+   "answer": "| 999 |",
+   "unsupported": [
+    "999"
+   ]
+  },
+  {
+   "answer": "| 4100 |",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds sold £260,000-plus homes",
+   "unsupported": [
+    "£260,000"
+   ]
+  },
+  {
+   "answer": "Leeds sold 260,000-odd homes",
+   "unsupported": [
+    "260,000"
+   ]
+  },
+  {
+   "answer": "Leeds was c.999k",
+   "unsupported": [
+    "999k"
+   ]
+  },
+  {
+   "answer": "Leeds sold 999homes",
+   "unsupported": [
+    "999"
+   ]
+  },
+  {
+   "answer": "999. That is the median.",
+   "unsupported": [
+    "999"
+   ]
+  },
+  {
+   "answer": "Leeds: 254.312,5",
+   "unsupported": []
+  },
+  {
+   "answer": "Leeds: 9.999,5",
+   "unsupported": [
+    "9.999,5"
+   ]
+  },
+  {
+   "answer": "Kensington: 12,49,000",
+   "unsupported": []
+  },
+  {
+   "answer": "Kensington: 12,34,567",
+   "unsupported": [
+    "12,34,567"
+   ]
+  },
+  {
+   "answer": "Kensington: 1.249.000",
+   "unsupported": []
+  },
+  {
+   "answer": "0.2% of sales went to Kensington",
+   "unsupported": [
+    "0.2%"
+   ]
+  },
+  {
+   "answer": "Kensington is 10x Manchester",
+   "unsupported": [
+    "10x"
+   ]
+  },
+  {
+   "answer": "£260k, and again £260k",
+   "unsupported": [
+    "£260k"
+   ]
+  }
+ ]
+}
