@@ -1,0 +1,60 @@
+name: downstream canary
+
+# Each downstream project's EvalKit-importing tests, run against this checkout with no keys
+# (DSC-03, D-61). The registry is docs/downstream.tsv.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: echo "matrix=$(python3 scripts/downstream_canary.py --matrix)" >> "$GITHUB_OUTPUT"
+
+  canary:
+    name: ${{ matrix.project }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: evalkit
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repo }}
+          ref: ${{ matrix.branch }}
+          path: project
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: run the project's EvalKit tests against this checkout
+        run: >-
+          python3 evalkit/scripts/downstream_canary.py --run-one "${{ matrix.project }}"
+          --checkout project --evalkit evalkit --out canary-${{ matrix.project }}.json
+      - name: import audit
+        if: always()
+        run: python3 evalkit/scripts/downstream_imports.py project --json > imports-${{ matrix.project }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canary-${{ matrix.project }}
+          path: |
+            canary-${{ matrix.project }}.json
+            imports-${{ matrix.project }}.json

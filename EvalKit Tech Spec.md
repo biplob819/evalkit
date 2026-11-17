@@ -510,7 +510,7 @@ scripts/status.py            # live one-table build status (D-13)
 
 Status vocabulary: `not-started | spec | building | green`.
 
-### 11.2 Build graph: 32 nodes in six waves
+### 11.2 Build graph: 37 nodes in six waves
 
 **First public release, v0.1.0 (all Must stories): 16 nodes.** W0.1, N1.1–N1.4, A2.1–A2.6, B2.1–B2.5.
 **Full scope: 26 nodes.**
@@ -546,11 +546,16 @@ Status vocabulary: `not-started | spec | building | green`.
 | **B4.1** | EvalKit v0.2: case-aware systems, task scorers, slices (D-59) | B2.5 | `SystemAdapter` with the whole `Case`, `Case.meta`, task scorers inside `evalkit run`, per-slice summary and report, v0.2.0 | US6 |
 | **B5.1** | Downstream registry and canary (D-61) | B4.1 | `docs/downstream.tsv`, import audit, canary workflow running each project's offline contract tests against this checkout | US6 |
 | **B5.2** | Public API 0.3 (D-61) | B5.1, S2.4 | Internals used by two or more projects promoted to public names, deprecation shims at old paths | US6 |
-| **B5.3** | Gates on task scores and slices (D-61) | B5.2 | Thresholds on task scores, slices and CI lower bounds; `evalkit gate` | US6 |
-| **B5.4** | v0.3.0 and downstream migration guide (D-61) | B5.2, B5.3 | v0.3.0 on PyPI, `docs/downstream.md` | US6 |
-| **B5.5** | Cross-project eval index (D-61) | B5.4, B2.3 | Index page: per project headline with CI, calibration stamp, gate status, version, date | US5, US6 |
+| **B5.3** | Gates on any metric (D-61, D-62) | B5.2 | Metrics-summary format; thresholds on any named metric, point or CI bound, per label; held-out aggregates only; `evalkit gate` | US6 |
+| **B5.4** | v0.3.0 and downstream migration guide (D-61) | B5.2, B5.3, B5.6 | v0.3.0 on PyPI, `docs/downstream.md` | US6 |
+| **B5.5** | Cross-project eval index (D-61, D-62) | B5.4, B5.7, B2.3 | Index page: per project headline with CI, calibration stamp, gate status, improvements, lessons link, version, date | US5, US6 |
+| **B5.6** | Run-vs-run compare (D-62) | B5.3 | `evalkit compare`: change per metric and label with paired two-level bootstrap CIs, Holm flags | US6 |
+| **B5.7** | Monitoring and improvement ledger (D-62) | B5.4 | Run history, trend and alarm bands, experiment ledger with a freeze guard | US6 |
+| **B5.8** | Paraphrase contamination probe (D-62) | B5.4 | Paraphrase set by the PRD method, original-vs-paraphrase report | US6, US10 |
+| **B5.9** | Calibration integrity sheet (D-62) | B5.4 | Blind repeats and planted items; certificate bound to run and rubric hashes | US3 |
+| **B5.10** | v0.4.0 (D-62) | B5.7, B5.8, B5.9 | Ledger, probe and integrity sheet released | US6 |
 
-Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo → **B4** v0.2 for downstream needs → **B5** one eval loop across downstream projects (D-61). The first public release, v0.1.0 on PyPI, ships at B2.5.
+Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo → **B4** v0.2 for downstream needs → **B5** one eval loop across the seven downstream projects (D-61, D-62). The first public release, v0.1.0 on PyPI, ships at B2.5.
 
 ### 11.3 Dependency diagram and build order
 
@@ -919,13 +924,26 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | PUB-01 | Internals used by two or more projects become public names | D-61, US6 |
 | PUB-02 | Old paths warn for one minor release; private names get public replacements | D-61 |
 | PUB-03 | Audit shows no internal imports that a public name now covers | D-61 |
-| GAT-01 | Thresholds on task scores, slices and CI lower bounds | D-61 |
+| GAT-01 | Thresholds on any named metric, point or CI bound, per label | D-62 |
 | GAT-02 | `evalkit gate` with exit codes, `--json` and the GitHub Action | D-61 |
+| GAT-03 | Metrics-summary format a project emits without an EvalKit run | D-62 |
+| GAT-04 | Held-out splits only as aggregates; assay-pipeline's failing case as a test | D-62 |
 | V03-01 | v0.3.0 version, changelog, canary green on the release candidate | D-61 |
 | V03-02 | `docs/downstream.md` migration guide per project | D-61 |
 | V03-03 | Owner-tagged v0.3.0 on PyPI, recorded and checked | D-61 |
 | IDX-01 | Cross-project index page from pinned `summary.json` files | D-61, US5 |
 | IDX-02 | Unreadable summaries shown as missing | D-61 |
+| RVR-01 | `evalkit compare` with paired two-level bootstrap intervals | D-62 |
+| RVR-02 | Holm-adjusted flags, version differences stated, held-out aggregates only | D-62 |
+| LED-01 | Run history and `evalkit history` | D-62 |
+| LED-02 | Trend and alarm bands (drift check) | D-62 |
+| LED-03 | Experiment ledger with a held-out freeze guard | D-62 |
+| PAR-01 | Paraphrase set by the PRD's documented method | D-62, P4 |
+| PAR-02 | Original-vs-paraphrase accuracy with a paired CI | D-62 |
+| CIS-01 | Integrity sheet with blind repeats and planted items | D-62 |
+| CIS-02 | Labeller agreement reported; certificate bound to run and rubric hashes | D-62 |
+| V04-01 | v0.4.0 version, changelog, canary green | D-62 |
+| V04-02 | Owner-tagged v0.4.0 on PyPI | D-62 |
 
 ### 11.5 Node lifecycle
 

@@ -1,0 +1,274 @@
+{
+  "command": "python scripts/downstream_canary.py --all --workdir <scratch> --out <file>",
+  "date": "2026-11-17",
+  "evalkit_commit": "e31d24acae068a6692f4d5924096d6fa059c8e59",
+  "evalkit_src_note": "src/ identical to evalkit_commit; only scripts/, tests/ and docs/ of B5.1 were uncommitted",
+  "projects": {
+    "agentic-analytics": {
+      "audit": {
+        "internal": 13,
+        "private": 0,
+        "public": 3,
+        "public-elsewhere": 0
+      },
+      "commit": "9eb44309acc502427b2088d3624521edeb057bf4",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 109,
+        "skipped": 0
+      },
+      "files": [
+        "tests/aggregate/test_accuracy.py",
+        "tests/aggregate/test_consistency.py",
+        "tests/aggregate/test_uplift.py",
+        "tests/models/test_anthropic.py",
+        "tests/models/test_openai.py",
+        "tests/models/test_round2.py",
+        "tests/test_evalkit_contract.py"
+      ],
+      "imports_not_public": [
+        "evalkit.cost.Price [internal]",
+        "evalkit.cost.UnknownPrice [internal]",
+        "evalkit.cost.call_cost [internal]",
+        "evalkit.cost.load_prices [internal]",
+        "evalkit.cost.price_for [internal]",
+        "evalkit.retry.is_retryable [internal]",
+        "evalkit.retry.with_retries [internal]",
+        "evalkit.stats.Resamples [internal]",
+        "evalkit.stats.holm [internal]",
+        "evalkit.stats.interval [internal]",
+        "evalkit.stats.interval_from [internal]",
+        "evalkit.stats.paired [internal]",
+        "evalkit.stats.percentile_ms [internal]"
+      ],
+      "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119",
+      "repo": "biplob819/agentic-analytics",
+      "status": "pass"
+    },
+    "ai-visibility": {
+      "audit": {
+        "internal": 18,
+        "private": 0,
+        "public": 7,
+        "public-elsewhere": 0
+      },
+      "commit": "8d2ef2681780dc27c6d2b38d16bb80fe58c9854e",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 18,
+        "skipped": 0
+      },
+      "files": [
+        "tests/support/test_judge.py"
+      ],
+      "imports_not_public": [
+        "evalkit.cost.CostEstimate [internal]",
+        "evalkit.cost.CostLine [internal]",
+        "evalkit.cost.Price [internal]",
+        "evalkit.cost.TokenAssumptions [internal]",
+        "evalkit.cost.call_cost [internal]",
+        "evalkit.cost.estimate_tokens [internal]",
+        "evalkit.cost.load_prices [internal]",
+        "evalkit.pipeline.extract.EXTRACTOR_PROMPT [internal]",
+        "evalkit.pipeline.generate.adapter_key [internal]",
+        "evalkit.pipeline.generate.provider_for [internal]",
+        "evalkit.pipeline.judge.JUDGE_RUBRIC [internal]",
+        "evalkit.pipeline.judge.SENTENCE_FORMAT [internal]",
+        "evalkit.runtime.Executor [internal]",
+        "evalkit.runtime.Store [internal]",
+        "evalkit.scorers.faithfulness.FaithfulnessItem [internal]",
+        "evalkit.scorers.faithfulness.FaithfulnessResult [internal]",
+        "evalkit.scorers.faithfulness.JudgedClaim [internal]",
+        "evalkit.scorers.faithfulness.faithfulness [internal]"
+      ],
+      "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@218192132ad601f02976d486d839e712e39bc4e2",
+      "repo": "biplob819/ai-visibility",
+      "status": "pass"
+    },
+    "assay-pipeline": {
+      "audit": {
+        "internal": 0,
+        "private": 0,
+        "public": 6,
+        "public-elsewhere": 0
+      },
+      "commit": "9e01bba12fe11e0a1c11118feba09965c934ee17",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 60,
+        "skipped": 0
+      },
+      "files": [
+        "tests/security/test_run.py"
+      ],
+      "imports_not_public": [],
+      "pin": "evalkit-harness==0.1.0",
+      "repo": "biplob819/assay-pipeline",
+      "status": "pass"
+    },
+    "course-assistant": {
+      "audit": {
+        "internal": 40,
+        "private": 3,
+        "public": 24,
+        "public-elsewhere": 9
+      },
+      "commit": "3ff08a1fb032305385ac46bde91e351e3540b0ab",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 151,
+        "skipped": 0
+      },
+      "files": [
+        "tests/answer/test_hint_cache.py",
+        "tests/eval/offline_run.py",
+        "tests/eval/scripted_eval.py",
+        "tests/eval/test_calibration.py",
+        "tests/eval/test_course_ta.py",
+        "tests/eval/test_course_ta_fixes.py",
+        "tests/eval/test_evalkit_contract.py",
+        "tests/eval/test_full_run.py",
+        "tests/eval/test_release.py"
+      ],
+      "imports_not_public": [
+        "evalkit.adapters.base.SystemAdapter -> evalkit.adapters [public-elsewhere]",
+        "evalkit.adapters.base.register_system -> evalkit.adapters [public-elsewhere]",
+        "evalkit.cli [internal]",
+        "evalkit.config.load_task_config [internal]",
+        "evalkit.cost.Price [internal]",
+        "evalkit.cost.call_cost [internal]",
+        "evalkit.cost.estimate_tokens [internal]",
+        "evalkit.cost.load_prices [internal]",
+        "evalkit.datasets.load_jsonl_cases [internal]",
+        "evalkit.onboarding.* [internal]",
+        "evalkit.pipeline.aggregate.slice_value [internal]",
+        "evalkit.pipeline.aggregate.summary_json [internal]",
+        "evalkit.pipeline.answer.SchemaError [internal]",
+        "evalkit.pipeline.calibrate.KAPPA_DROP_TOLERANCE [internal]",
+        "evalkit.pipeline.calibrate.LabelEntry [internal]",
+        "evalkit.pipeline.calibrate.LabelFile [internal]",
+        "evalkit.pipeline.calibrate.MIN_JUDGE_COVERAGE [internal]",
+        "evalkit.pipeline.calibrate.SampledAnswer [internal]",
+        "evalkit.pipeline.calibrate._Pair [private]",
+        "evalkit.pipeline.calibrate._allocate [private]",
+        "evalkit.pipeline.calibrate._opaque [private]",
+        "evalkit.pipeline.calibrate.build_sheet [internal]",
+        "evalkit.pipeline.calibrate.cluster_kappa [internal]",
+        "evalkit.pipeline.calibrate.heldout_digest [internal]",
+        "evalkit.pipeline.calibrate.import_labels [internal]",
+        "evalkit.pipeline.calibrate.kappa_from [internal]",
+        "evalkit.pipeline.calibrate.kappa_regressions [internal]",
+        "evalkit.pipeline.calibrate.sheet_csv [internal]",
+        "evalkit.pipeline.generate.is_provider_failure [internal]",
+        "evalkit.pipeline.judge [internal]",
+        "evalkit.pipeline.judge.JUDGE_PROMPT_HASH [internal]",
+        "evalkit.pipeline.judge.redact [internal]",
+        "evalkit.pipeline.labeller.load_labels [internal]",
+        "evalkit.pipeline.labeller.save_labels [internal]",
+        "evalkit.pipeline.task_scorers.TaskScorerError [internal]",
+        "evalkit.pipeline.task_scorers.resolve_task_scorers [internal]",
+        "evalkit.pipeline.task_scorers.score_task [internal]",
+        "evalkit.retry.with_retries [internal]",
+        "evalkit.run [internal]",
+        "evalkit.run.RunError [internal]",
+        "evalkit.schemas.benchmark.Answer -> evalkit.schemas [public-elsewhere]",
+        "evalkit.schemas.benchmark.Case -> evalkit.schemas [public-elsewhere]",
+        "evalkit.schemas.benchmark.Record -> evalkit.schemas [public-elsewhere]",
+        "evalkit.schemas.benchmark.TaskScore -> evalkit.schemas [public-elsewhere]",
+        "evalkit.schemas.config.TaskConfig -> evalkit.schemas [public-elsewhere]",
+        "evalkit.schemas.summary.ModelSummary -> evalkit.schemas [public-elsewhere]",
+        "evalkit.schemas.summary.RunSummary -> evalkit.schemas [public-elsewhere]",
+        "evalkit.stats.Resamples [internal]",
+        "evalkit.stats.holm [internal]",
+        "evalkit.stats.interval [internal]",
+        "evalkit.stats.paired [internal]",
+        "evalkit.stats.percentile_ms [internal]"
+      ],
+      "pin": "evalkit-harness>=0.2,<0.3",
+      "repo": "biplob819/course-assistant",
+      "status": "pass"
+    },
+    "fraud-review-bedrock": {
+      "audit": {
+        "internal": 2,
+        "private": 0,
+        "public": 1,
+        "public-elsewhere": 0
+      },
+      "commit": "3273a860cdab3c59a3e352ee4859fdfc22e491a1",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 0,
+        "skipped": 0
+      },
+      "detail": "no test file imports evalkit",
+      "files": [],
+      "finding": "Young project (its node N1.3 is building): EvalKit is imported from src/ only, no test imports it yet, so there is nothing to run. The canary picks its tests up automatically once one imports evalkit. Its faithfulness import is internal today (evalkit.scorers.faithfulness is not in the public contract): a B5.2 promotion candidate shared with ai-visibility.",
+      "imports_not_public": [
+        "evalkit.scorers.faithfulness.FaithfulnessItem [internal]",
+        "evalkit.scorers.faithfulness.faithfulness [internal]"
+      ],
+      "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@43df77edb8efb07d6f168fc0f8b8544ec86e3aca",
+      "repo": "biplob819/fraud-review-bedrock",
+      "status": "no-tests"
+    },
+    "gemma-grounded-health": {
+      "audit": {
+        "internal": 16,
+        "private": 0,
+        "public": 6,
+        "public-elsewhere": 2
+      },
+      "commit": "fe866c46c9775a9cf68b2fd3ff1de8733c41e6f0",
+      "counts": {
+        "errors": 0,
+        "failed": 1,
+        "passed": 119,
+        "skipped": 5
+      },
+      "detail": ">       assert set(config.SPEC) == set(RunConfig.model_fields)  # nothing unchecked or dropped\nE       AssertionError: assert {'concurrency..._effort', ...} == {'concurrency..._effort', ...}\nE         \nE         Extra items in the right set:\nE         'systems'\nE         Use -v to get more diff\nFAILED tests/evals/test_config.py::test_spec_covers_every_run_config_field - ...",
+      "files": [
+        "tests/data/test_build.py",
+        "tests/evals/test_behaviour.py",
+        "tests/evals/test_config.py",
+        "tests/evals/test_smoke.py",
+        "tests/evals/test_tasks.py",
+        "tests/serve/test_bench.py",
+        "tests/serve/test_checks.py",
+        "tests/test_evalkit_contract.py",
+        "tests/train/test_format.py",
+        "tests/train/test_generate.py"
+      ],
+      "finding": "Expected drift, not an EvalKit bug: v0.2 added the optional RunConfig.systems field (D-59, allowed in a minor release by docs/versioning.md), and the project's tests/evals/test_config.py::test_spec_covers_every_run_config_field requires its config SPEC to list every RunConfig field. The project pins the v0.1.0 commit, so it is unaffected until it upgrades; the B5.4 migration guide must tell it to add `systems` to SPEC. Two pin-identity tests are deselected by the registry.",
+      "imports_not_public": [
+        "evalkit.adapters.base.CompletionRequest -> evalkit.adapters [public-elsewhere]",
+        "evalkit.adapters.base.RawCompletion -> evalkit.adapters [public-elsewhere]",
+        "evalkit.adapters.openai.OpenAICompatibleAdapter [internal]",
+        "evalkit.config.ConfigError [internal]",
+        "evalkit.config.load_run_config [internal]",
+        "evalkit.pipeline.answer.SchemaError [internal]",
+        "evalkit.pipeline.answer.answer_schema [internal]",
+        "evalkit.pipeline.answer.parse_answer [internal]",
+        "evalkit.pipeline.extract.EXTRACTOR_VERSION [internal]",
+        "evalkit.pipeline.judge.JUDGE_PROMPT_HASH [internal]",
+        "evalkit.run.load_cases [internal]",
+        "evalkit.run.load_task [internal]",
+        "evalkit.run.read_cases [internal]",
+        "evalkit.run.read_records [internal]",
+        "evalkit.tasks.builtin_task [internal]",
+        "evalkit.tasks.render_prompt [internal]",
+        "evalkit.text.number_sentences [internal]",
+        "evalkit.text.split_sentences [internal]"
+      ],
+      "pin": "evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119",
+      "repo": "biplob819/gemma-grounded-health",
+      "status": "fail"
+    }
+  },
+  "spend_usd": 0
+}

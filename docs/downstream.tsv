@@ -1,0 +1,8 @@
+project	repo	branch	pin	install	tests	summary	deselect	note
+agentic-analytics	biplob819/agentic-analytics	main	evalkit-harness @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119		auto	-	-	sql_match, stats, cost, retry, demo spend guard; own summary format
+ai-visibility	biplob819/ai-visibility	main	evalkit-harness @ git+https://github.com/biplob819/evalkit@218192132ad601f02976d486d839e712e39bc4e2	--extra support	auto	-	-	faithfulness (S2.4) at an unreleased commit; own summary format
+assay-pipeline	biplob819/assay-pipeline	main	evalkit-harness==0.1.0		auto	-	-	sql_match and attack_outcome on trajectories; public names only
+course-assistant	biplob819/course-assistant	main	evalkit-harness>=0.2,<0.3	--extra eval	auto	tests/eval/evalreg/summary.json	-	first v0.2 user: SystemAdapter, task scorers, slices, calibration
+fraud-review-bedrock	biplob819/fraud-review-bedrock	main	evalkit-harness @ git+https://github.com/biplob819/evalkit@43df77edb8efb07d6f168fc0f8b8544ec86e3aca		auto	-	-	Field PM Pack: faithfulness, attack_outcome, cross-family judges, calibration, paired bootstrap with Holm (its D-36); monitoring and improvement loop
+gemma-grounded-health	biplob819/gemma-grounded-health	main	evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119		auto	docs/results/main/summary.json	tests/evals/test_config.py::test_evalkit_is_pinned_to_the_d28_commit_and_installed_from_it,tests/test_evalkit_contract.py::test_installed_evalkit_is_the_pinned_commit	PubMedQA task, answer parsing, judge identity; EvalKit summary format
+respectful-offers	biplob819/respectful-offers	main	-		none	-	-	copies the harness and runtime design (its D-10, D-13); imports nothing

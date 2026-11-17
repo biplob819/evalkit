@@ -6,13 +6,13 @@
 Know, before any EvalKit release, which downstream projects use which EvalKit names and whether their EvalKit-facing tests still pass against the code about to ship.
 
 ## Why
-Six public projects build on EvalKit. On 2026-11-17 their pins differ and five import internal modules, one of them private names. A refactor inside `evalkit.pipeline` or `evalkit.cost` can break a project silently, and nothing today says which internals are really load-bearing.
+Seven public projects build on EvalKit (D-61, D-62). On 2026-11-17 their pins differ and five import internal modules, one of them private names. A refactor inside `evalkit.pipeline` or `evalkit.cost` can break a project silently, and nothing today says which internals are really load-bearing.
 
 ## Interface
 
 ### Registry `docs/downstream.tsv` (DSC-01)
-Columns: `project`, `repo` (`owner/name` on GitHub), `branch`, `pin` (the EvalKit requirement as written in the project's `pyproject.toml`), `install` (the `uv sync` arguments: extras and groups), `tests` (`auto`: every test file that imports `evalkit`, or `none`), `summary` (path of the committed `summary.json`, or `-`), `note`.
-- One row per project; `respectful-offers` is listed with `tests=none` (it copies the design and imports nothing).
+Columns: `project`, `repo` (`owner/name` on GitHub), `branch`, `pin` (the EvalKit requirement as written in the project's `pyproject.toml`), `install` (the `uv sync` arguments: extras and groups), `tests` (`auto`: every test file that imports `evalkit`, or `none`), `summary` (path of the committed `summary.json`, or `-`), `deselect` (comma-separated pytest node ids of tests that check the installed pin itself and so fail by design when the canary replaces it, or `-`), `note`.
+- One row per project (seven); `respectful-offers` is listed with `tests=none` (it copies the design and imports nothing).
 - `tests/downstream/test_registry.py` checks the shape offline; with `EVALKIT_CHECK_DOWNSTREAM=1` it also fetches each repo's `pyproject.toml` at the branch and checks that the recorded pin matches.
 
 ### Import audit `scripts/downstream_imports.py` (DSC-02)
@@ -27,7 +27,7 @@ Columns: `project`, `repo` (`owner/name` on GitHub), `branch`, `pin` (the EvalKi
 
 ### Canary `.github/workflows/downstream.yml` (DSC-03)
 - Triggers: weekly schedule, `workflow_dispatch`, and tags `v*` (before the release job's publish is approved).
-- One job per registry row with tests `auto` (matrix from the registry): check out EvalKit and the project (`actions/checkout` with `repository:`), `uv sync --frozen <install>` in the project, then `uv pip install --no-deps -e <evalkit>` so this checkout replaces the pin, then `uv run --no-sync pytest <files from --tests> -m "not live"`.
+- One job per registry row with tests `auto` (matrix from the registry): check out EvalKit and the project (`actions/checkout` with `repository:`), `uv sync --frozen <install>` in the project, then `uv pip install --no-deps -e <evalkit>` so this checkout replaces the pin, then `uv run --no-sync pytest <files from --tests> -m "not live"` with each `deselect` id passed as `--deselect`.
 - No secrets and no API keys in the environment; `permissions: contents: read`; each job uploads the audit JSON and the pytest summary as an artifact.
 - A failing project fails its own job only (`fail-fast: false`).
 - `scripts/downstream_canary.py` is the same run locally against checkouts already on disk (used by the golden test and by the owner before tagging).
