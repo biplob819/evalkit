@@ -149,6 +149,37 @@ policy_check = rule_compliance_scorer(
 )  # ship it under the `evalkit.scorers` entry-point group, then list `policy_check` in a task
 ```
 
+### `sql_match` shape equivalences (0.4.0, B5.15)
+
+`sql_match` is strict by default. A SQL agent can return a right answer in a different shape;
+name the shapes you accept, per call, and pass the question text:
+
+```python
+sql_match(predicted, gold, rel_tol=0.005, abs_tol=0.01, allow_extra_columns=True,
+          question="What percentage of sales were new builds?",
+          equivalences=("percent_scale", "pivot", "empty_check", "period_number"))
+```
+
+- `percent_scale`: the question asks for a percentage ("percent", "percentage", "per cent",
+  "%"; not "share", "proportion" or "percentile"), `abs_tol >= 0.01` (percent units) and a
+  gold column is named `pct`, `percent` or `points`: a predicted column that fits it only
+  once multiplied by 100 (0.0817 for 8.17) is scaled.
+- `pivot`: a long gold (distinct text labels and numbers, two columns) matches one wide
+  predicted row whose column names are the labels (case-insensitive; space, `-` and `_` alike).
+  Any other predicted column must be a numeric 0 (a label the gold left out).
+- `empty_check`: an empty gold matches one predicted row with at least one number, every
+  number 0 and every other cell text or null (`earliest, latest, sales_in_1994 = 0`). Name it
+  only for questions whose answer is "no data".
+- `period_number`: predicted month-start or quarter-start dates in one calendar year match
+  gold month (1–12) or quarter (1–4) numbers when the question names months or quarters.
+
+The strict match runs first; only when it fails is each named reshaping of `predicted`
+matched strictly in turn (same tolerance, columns, row count and `gold.ordered`). With
+equivalences named, `details` carries `correct_strict` and the `equivalences` that matched
+(and `strict_reason` on a rescue), so report both scores. With none named, the result is
+byte-for-byte what it was before 0.4.0. The rules are agentic-analytics' (its OWNER D-81,
+EvalKit D-71).
+
 ## Writing a model adapter
 
 An adapter subclasses `ModelAdapter` and implements `complete` (one request) plus

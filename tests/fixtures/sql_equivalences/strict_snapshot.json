@@ -1,0 +1,2239 @@
+{
+ "source": "sql_match at ca50e38 (before B5.15), no equivalences named, PYTHONHASHSEED=0 (its failure details depend on the hash seed)",
+ "cases": [
+  {
+   "name": "identical",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "identical+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "row_order_ignored",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      2
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "row_order_ignored+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      2
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "row_order_required",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      2
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": true
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_mismatch\",\"row\":0,\"columns\":\"by_name\"}}"
+  },
+  {
+   "name": "row_order_required+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      2
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": true
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_mismatch\",\"row\":0,\"columns\":\"by_name\"}}"
+  },
+  {
+   "name": "ordered_match",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": true
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":true}}"
+  },
+  {
+   "name": "ordered_match+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": true
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":true}}"
+  },
+  {
+   "name": "duplicates_matter",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":1,\"unmatched_gold\":1,\"example_gold_row\":[2]}}"
+  },
+  {
+   "name": "duplicates_matter+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":1,\"unmatched_gold\":1,\"example_gold_row\":[2]}}"
+  },
+  {
+   "name": "duplicates_equal",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "duplicates_equal+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ],
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "alias_positional",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "total_n"
+    ],
+    "rows": [
+     [
+      5
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "count"
+    ],
+    "rows": [
+     [
+      5
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"positional\",\"ordered\":false}}"
+  },
+  {
+   "name": "alias_positional+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "total_n"
+    ],
+    "rows": [
+     [
+      5
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "count"
+    ],
+    "rows": [
+     [
+      5
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"positional\",\"ordered\":false}}"
+  },
+  {
+   "name": "column_permutation_by_name",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "B",
+     "a"
+    ],
+    "rows": [
+     [
+      "x",
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "column_permutation_by_name+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "B",
+     "a"
+    ],
+    "rows": [
+     [
+      "x",
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "float_tolerance",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.30000000000000004
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.3
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "float_tolerance+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.30000000000000004
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.3
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "float_outside_tolerance",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.31
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.3
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":1,\"unmatched_gold\":1,\"example_gold_row\":[0.3]}}"
+  },
+  {
+   "name": "float_outside_tolerance+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.31
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0.3
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":1,\"unmatched_gold\":1,\"example_gold_row\":[0.3]}}"
+  },
+  {
+   "name": "int_vs_float",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      3
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      3.0
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "int_vs_float+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      3
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      3.0
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "numeric_string_not_coerced",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      "3"
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      3
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":0,\"unmatched_gold\":1,\"example_gold_row\":[3]}}"
+  },
+  {
+   "name": "numeric_string_not_coerced+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      "3"
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      3
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":0,\"unmatched_gold\":1,\"example_gold_row\":[3]}}"
+  },
+  {
+   "name": "bool_not_number",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      true
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":0,\"unmatched_gold\":1,\"example_gold_row\":[1]}}"
+  },
+  {
+   "name": "bool_not_number+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      true
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":0,\"unmatched_gold\":1,\"example_gold_row\":[1]}}"
+  },
+  {
+   "name": "none_only_equals_none",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      null
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":0,\"unmatched_gold\":1,\"example_gold_row\":[0]}}"
+  },
+  {
+   "name": "none_only_equals_none+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      null
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"by_name\",\"unmatched_predicted\":0,\"unmatched_gold\":1,\"example_gold_row\":[0]}}"
+  },
+  {
+   "name": "none_equals_none",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      null
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      null
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "none_equals_none+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      null
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      null
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "trailing_space_trimmed",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "s"
+    ],
+    "rows": [
+     [
+      "abc  "
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "s"
+    ],
+    "rows": [
+     [
+      "abc"
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "trailing_space_trimmed+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "s"
+    ],
+    "rows": [
+     [
+      "abc  "
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "s"
+    ],
+    "rows": [
+     [
+      "abc"
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "empty_matches_empty",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "empty_matches_empty+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "empty_vs_rows",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_count\",\"predicted\":0,\"gold\":1,\"columns\":\"by_name\"}}"
+  },
+  {
+   "name": "empty_vs_rows+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_count\",\"predicted\":0,\"gold\":1,\"columns\":\"by_name\"}}"
+  },
+  {
+   "name": "extra_row",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ],
+     [
+      3
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_count\",\"predicted\":3,\"gold\":2,\"columns\":\"by_name\"}}"
+  },
+  {
+   "name": "extra_row+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ],
+     [
+      3
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_count\",\"predicted\":3,\"gold\":2,\"columns\":\"by_name\"}}"
+  },
+  {
+   "name": "missing_column",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":1,\"gold\":2}}"
+  },
+  {
+   "name": "missing_column+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a"
+    ],
+    "rows": [
+     [
+      1
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":1,\"gold\":2}}"
+  },
+  {
+   "name": "tolerant_unordered_pairing",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "v"
+    ],
+    "rows": [
+     [
+      "y",
+      2.0000000001
+     ],
+     [
+      "x",
+      1.0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "v"
+    ],
+    "rows": [
+     [
+      "x",
+      1
+     ],
+     [
+      "y",
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "tolerant_unordered_pairing+extra",
+   "kwargs": {
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "v"
+    ],
+    "rows": [
+     [
+      "y",
+      2.0000000001
+     ],
+     [
+      "x",
+      1.0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "a",
+     "v"
+    ],
+    "rows": [
+     [
+      "x",
+      1
+     ],
+     [
+      "y",
+      2
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":1.0,\"details\":{\"columns\":\"by_name\",\"ordered\":false}}"
+  },
+  {
+   "name": "gpt_mcp-q-020",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "earliest_sale_date",
+     "latest_sale_date",
+     "sales_in_1994"
+    ],
+    "rows": [
+     [
+      "1995-01-01",
+      "2026-09-30",
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "type",
+     "sales"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":3,\"gold\":2}}"
+  },
+  {
+   "name": "gpt_mcp-q-020+tol+extra",
+   "kwargs": {
+    "rel_tol": 1e-09,
+    "abs_tol": 1e-09,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "earliest_sale_date",
+     "latest_sale_date",
+     "sales_in_1994"
+    ],
+    "rows": [
+     [
+      "1995-01-01",
+      "2026-09-30",
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "type",
+     "sales"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":3,\"gold\":2,\"assignments_tried\":0}}"
+  },
+  {
+   "name": "gpt_mcp-q-040",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "earliest_sale_date",
+     "latest_sale_date",
+     "sales_in_1993"
+    ],
+    "rows": [
+     [
+      "1995-01-01",
+      "2026-09-30",
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "month",
+     "median_price"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":3,\"gold\":2}}"
+  },
+  {
+   "name": "gpt_mcp-q-040+tol+extra",
+   "kwargs": {
+    "rel_tol": 0.005,
+    "abs_tol": 1e-09,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "earliest_sale_date",
+     "latest_sale_date",
+     "sales_in_1993"
+    ],
+    "rows": [
+     [
+      "1995-01-01",
+      "2026-09-30",
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "month",
+     "median_price"
+    ],
+    "rows": [],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":3,\"gold\":2,\"assignments_tried\":0}}"
+  },
+  {
+   "name": "cortex_analyst-q-006",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_SALES",
+     "TOTAL_SALES",
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      98150,
+      861782,
+      0.113892
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      11.389191233977966
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":3,\"gold\":1}}"
+  },
+  {
+   "name": "cortex_analyst-q-006+tol+extra",
+   "kwargs": {
+    "rel_tol": 0.005,
+    "abs_tol": 0.01,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_SALES",
+     "TOTAL_SALES",
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      98150,
+      861782,
+      0.113892
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      11.389191233977966
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_mismatch\",\"predicted\":3,\"gold\":1,\"assignments_tried\":1}}"
+  },
+  {
+   "name": "cortex_analyst-q-047",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_SALES",
+     "TOTAL_SALES",
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      1001,
+      4133,
+      0.242197
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      24.219695136704573
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":3,\"gold\":1}}"
+  },
+  {
+   "name": "cortex_analyst-q-047+tol+extra",
+   "kwargs": {
+    "rel_tol": 0.005,
+    "abs_tol": 0.01,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_SALES",
+     "TOTAL_SALES",
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      1001,
+      4133,
+      0.242197
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      24.219695136704573
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"row_mismatch\",\"predicted\":3,\"gold\":1,\"assignments_tried\":1}}"
+  },
+  {
+   "name": "cortex_analyst-q-085",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "CURR_YEAR",
+     "PREV_YEAR",
+     "CURR_SALES_COUNT",
+     "PREV_SALES_COUNT",
+     "YOY_CHG",
+     "YOY_PCT_CHG"
+    ],
+    "rows": [
+     [
+      2024,
+      2023,
+      932214,
+      861782,
+      70432,
+      0.081728
+     ],
+     [
+      2023,
+      2022,
+      861782,
+      1077406,
+      -215624,
+      -0.200133
+     ],
+     [
+      2022,
+      2021,
+      1077406,
+      1282171,
+      -204765,
+      -0.159702
+     ],
+     [
+      2021,
+      2020,
+      1282171,
+      898194,
+      383977,
+      0.427499
+     ],
+     [
+      2020,
+      2019,
+      898194,
+      1012284,
+      -114090,
+      -0.112706
+     ],
+     [
+      2019,
+      2018,
+      1012284,
+      1037647,
+      -25363,
+      -0.024443
+     ],
+     [
+      2018,
+      2017,
+      1037647,
+      1067674,
+      -30027,
+      -0.028124
+     ],
+     [
+      2017,
+      2016,
+      1067674,
+      1046796,
+      20878,
+      0.019945
+     ],
+     [
+      2016,
+      2015,
+      1046796,
+      1011804,
+      34992,
+      0.034584
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "YEAR",
+     "SALES",
+     "PCT_CHANGE"
+    ],
+    "rows": [
+     [
+      2016,
+      1046796,
+      3.4583773141833793
+     ],
+     [
+      2017,
+      1067674,
+      1.9944669257429337
+     ],
+     [
+      2018,
+      1037647,
+      -2.8123753130637255
+     ],
+     [
+      2019,
+      1012284,
+      -2.4442801839161103
+     ],
+     [
+      2020,
+      898194,
+      -11.270552532688455
+     ],
+     [
+      2021,
+      1282171,
+      42.74989590222157
+     ],
+     [
+      2022,
+      1077406,
+      -15.970178704712554
+     ],
+     [
+      2023,
+      861782,
+      -20.013254056502376
+     ],
+     [
+      2024,
+      932214,
+      8.172832572506737
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":6,\"gold\":3}}"
+  },
+  {
+   "name": "cortex_analyst-q-085+tol+extra",
+   "kwargs": {
+    "rel_tol": 0.005,
+    "abs_tol": 0.01,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "CURR_YEAR",
+     "PREV_YEAR",
+     "CURR_SALES_COUNT",
+     "PREV_SALES_COUNT",
+     "YOY_CHG",
+     "YOY_PCT_CHG"
+    ],
+    "rows": [
+     [
+      2024,
+      2023,
+      932214,
+      861782,
+      70432,
+      0.081728
+     ],
+     [
+      2023,
+      2022,
+      861782,
+      1077406,
+      -215624,
+      -0.200133
+     ],
+     [
+      2022,
+      2021,
+      1077406,
+      1282171,
+      -204765,
+      -0.159702
+     ],
+     [
+      2021,
+      2020,
+      1282171,
+      898194,
+      383977,
+      0.427499
+     ],
+     [
+      2020,
+      2019,
+      898194,
+      1012284,
+      -114090,
+      -0.112706
+     ],
+     [
+      2019,
+      2018,
+      1012284,
+      1037647,
+      -25363,
+      -0.024443
+     ],
+     [
+      2018,
+      2017,
+      1037647,
+      1067674,
+      -30027,
+      -0.028124
+     ],
+     [
+      2017,
+      2016,
+      1067674,
+      1046796,
+      20878,
+      0.019945
+     ],
+     [
+      2016,
+      2015,
+      1046796,
+      1011804,
+      34992,
+      0.034584
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "YEAR",
+     "SALES",
+     "PCT_CHANGE"
+    ],
+    "rows": [
+     [
+      2016,
+      1046796,
+      3.4583773141833793
+     ],
+     [
+      2017,
+      1067674,
+      1.9944669257429337
+     ],
+     [
+      2018,
+      1037647,
+      -2.8123753130637255
+     ],
+     [
+      2019,
+      1012284,
+      -2.4442801839161103
+     ],
+     [
+      2020,
+      898194,
+      -11.270552532688455
+     ],
+     [
+      2021,
+      1282171,
+      42.74989590222157
+     ],
+     [
+      2022,
+      1077406,
+      -15.970178704712554
+     ],
+     [
+      2023,
+      861782,
+      -20.013254056502376
+     ],
+     [
+      2024,
+      932214,
+      8.172832572506737
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":6,\"gold\":3,\"assignments_tried\":0}}"
+  },
+  {
+   "name": "cortex_analyst-q-025",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "QUARTER",
+     "SALES_COUNT"
+    ],
+    "rows": [
+     [
+      "2022-01-01",
+      248421
+     ],
+     [
+      "2022-04-01",
+      259454
+     ],
+     [
+      "2022-07-01",
+      287727
+     ],
+     [
+      "2022-10-01",
+      281804
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "QUARTER",
+     "SALES"
+    ],
+    "rows": [
+     [
+      1,
+      248421
+     ],
+     [
+      2,
+      259454
+     ],
+     [
+      3,
+      287727
+     ],
+     [
+      4,
+      281804
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"positional\",\"unmatched_predicted\":1,\"unmatched_gold\":0,\"example_gold_row\":[\"2022-07-01\",287727]}}"
+  },
+  {
+   "name": "cortex_analyst-q-025+tol+extra",
+   "kwargs": {
+    "rel_tol": 1e-09,
+    "abs_tol": 1e-09,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "QUARTER",
+     "SALES_COUNT"
+    ],
+    "rows": [
+     [
+      "2022-01-01",
+      248421
+     ],
+     [
+      "2022-04-01",
+      259454
+     ],
+     [
+      "2022-07-01",
+      287727
+     ],
+     [
+      "2022-10-01",
+      281804
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "QUARTER",
+     "SALES"
+    ],
+    "rows": [
+     [
+      1,
+      248421
+     ],
+     [
+      2,
+      259454
+     ],
+     [
+      3,
+      287727
+     ],
+     [
+      4,
+      281804
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"positional\",\"unmatched_predicted\":1,\"unmatched_gold\":0,\"example_gold_row\":[\"2022-07-01\",287727]}}"
+  },
+  {
+   "name": "gpt_mcp-q-005",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "freehold",
+     "leasehold",
+     "unknown"
+    ],
+    "rows": [
+     [
+      651962,
+      209820,
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "duration",
+     "sales"
+    ],
+    "rows": [
+     [
+      "freehold",
+      651962
+     ],
+     [
+      "leasehold",
+      209820
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":3,\"gold\":2}}"
+  },
+  {
+   "name": "gpt_mcp-q-005+tol+extra",
+   "kwargs": {
+    "rel_tol": 1e-09,
+    "abs_tol": 1e-09,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "freehold",
+     "leasehold",
+     "unknown"
+    ],
+    "rows": [
+     [
+      651962,
+      209820,
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "duration",
+     "sales"
+    ],
+    "rows": [
+     [
+      "freehold",
+      651962
+     ],
+     [
+      "leasehold",
+      209820
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":3,\"gold\":2,\"assignments_tried\":0}}"
+  },
+  {
+   "name": "gpt_mcp-q-057",
+   "kwargs": {},
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "freehold",
+     "leasehold",
+     "unknown"
+    ],
+    "rows": [
+     [
+      1869,
+      1142,
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "duration",
+     "sales"
+    ],
+    "rows": [
+     [
+      "freehold",
+      1869
+     ],
+     [
+      "leasehold",
+      1142
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"column_count\",\"predicted\":3,\"gold\":2}}"
+  },
+  {
+   "name": "gpt_mcp-q-057+tol+extra",
+   "kwargs": {
+    "rel_tol": 1e-09,
+    "abs_tol": 1e-09,
+    "allow_extra_columns": true
+   },
+   "predicted": {
+    "kind": "result_set",
+    "columns": [
+     "freehold",
+     "leasehold",
+     "unknown"
+    ],
+    "rows": [
+     [
+      1869,
+      1142,
+      0
+     ]
+    ],
+    "ordered": false
+   },
+   "gold": {
+    "kind": "result_set",
+    "columns": [
+     "duration",
+     "sales"
+    ],
+    "rows": [
+     [
+      "freehold",
+      1869
+     ],
+     [
+      "leasehold",
+      1142
+     ]
+    ],
+    "ordered": false
+   },
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":3,\"gold\":2,\"assignments_tried\":0}}"
+  }
+ ]
+}

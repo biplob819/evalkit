@@ -1,0 +1,493 @@
+{
+ "source": "baseline run-20261117T083854Z-c89eaa (trial 1 of each), gold from the bundled uk_price_paid pack; OWNER D-81 failing cases",
+ "cases": [
+  {
+   "backend": "gpt_mcp",
+   "question_id": "q-020",
+   "trial": 1,
+   "equivalence": "empty_check",
+   "question": {
+    "text": "How many sales of each property type were recorded in 1994?",
+    "category": "aggregation",
+    "tolerance": {
+     "rel": 1e-09,
+     "abs": 1e-09,
+     "columns": null
+    },
+    "ordered": false,
+    "expects_empty": true
+   },
+   "gold": {
+    "columns": [
+     "type",
+     "sales"
+    ],
+    "rows": []
+   },
+   "predicted": {
+    "columns": [
+     "earliest_sale_date",
+     "latest_sale_date",
+     "sales_in_1994"
+    ],
+    "rows": [
+     [
+      "1995-01-01",
+      "2026-09-30",
+      0
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "row_count (gold=0, predicted=1)"
+  },
+  {
+   "backend": "gpt_mcp",
+   "question_id": "q-040",
+   "trial": 1,
+   "equivalence": "empty_check",
+   "question": {
+    "text": "What was the median price paid in each month of 1993?",
+    "category": "time",
+    "tolerance": {
+     "rel": 0.005,
+     "abs": 1e-09,
+     "columns": [
+      "median_price"
+     ]
+    },
+    "ordered": false,
+    "expects_empty": true
+   },
+   "gold": {
+    "columns": [
+     "month",
+     "median_price"
+    ],
+    "rows": []
+   },
+   "predicted": {
+    "columns": [
+     "earliest_sale_date",
+     "latest_sale_date",
+     "sales_in_1993"
+    ],
+    "rows": [
+     [
+      "1995-01-01",
+      "2026-09-30",
+      0
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "row_count (gold=0, predicted=1)"
+  },
+  {
+   "backend": "cortex_analyst",
+   "question_id": "q-006",
+   "trial": 1,
+   "equivalence": "percent_scale",
+   "question": {
+    "text": "What percentage of all property sales in 2023 were new builds?",
+    "category": "aggregation",
+    "tolerance": {
+     "rel": 0.005,
+     "abs": 0.01,
+     "columns": [
+      "new_build_pct"
+     ]
+    },
+    "ordered": false,
+    "expects_empty": false
+   },
+   "gold": {
+    "columns": [
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      11.389191233977966
+     ]
+    ]
+   },
+   "predicted": {
+    "columns": [
+     "NEW_BUILD_SALES",
+     "TOTAL_SALES",
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      98150,
+      861782,
+      0.113892
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "rows_differ (columns=by_name, example_gold_row=(11.389191233977966,), unmatched_gold=1, unmatched_predicted=1)"
+  },
+  {
+   "backend": "cortex_analyst",
+   "question_id": "q-047",
+   "trial": 1,
+   "equivalence": "percent_scale",
+   "question": {
+    "text": "What percentage of property sales in the town of Milton Keynes in 2023 were new builds?",
+    "category": "geography",
+    "tolerance": {
+     "rel": 0.005,
+     "abs": 0.01,
+     "columns": [
+      "new_build_pct"
+     ]
+    },
+    "ordered": false,
+    "expects_empty": false
+   },
+   "gold": {
+    "columns": [
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      24.219695136704573
+     ]
+    ]
+   },
+   "predicted": {
+    "columns": [
+     "NEW_BUILD_SALES",
+     "TOTAL_SALES",
+     "NEW_BUILD_PCT"
+    ],
+    "rows": [
+     [
+      1001,
+      4133,
+      0.242197
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "rows_differ (columns=by_name, example_gold_row=(24.219695136704573,), unmatched_gold=1, unmatched_predicted=1)"
+  },
+  {
+   "backend": "cortex_analyst",
+   "question_id": "q-085",
+   "trial": 1,
+   "equivalence": "percent_scale",
+   "question": {
+    "text": "Show the number of property sales in each year from 2016 to 2024, with the percentage change on the previous year.",
+    "category": "yoy",
+    "tolerance": {
+     "rel": 0.005,
+     "abs": 0.01,
+     "columns": [
+      "pct_change"
+     ]
+    },
+    "ordered": false,
+    "expects_empty": false
+   },
+   "gold": {
+    "columns": [
+     "YEAR",
+     "SALES",
+     "PCT_CHANGE"
+    ],
+    "rows": [
+     [
+      2016,
+      1046796,
+      3.4583773141833793
+     ],
+     [
+      2017,
+      1067674,
+      1.9944669257429337
+     ],
+     [
+      2018,
+      1037647,
+      -2.8123753130637255
+     ],
+     [
+      2019,
+      1012284,
+      -2.4442801839161103
+     ],
+     [
+      2020,
+      898194,
+      -11.270552532688455
+     ],
+     [
+      2021,
+      1282171,
+      42.74989590222157
+     ],
+     [
+      2022,
+      1077406,
+      -15.970178704712554
+     ],
+     [
+      2023,
+      861782,
+      -20.013254056502376
+     ],
+     [
+      2024,
+      932214,
+      8.172832572506737
+     ]
+    ]
+   },
+   "predicted": {
+    "columns": [
+     "CURR_YEAR",
+     "PREV_YEAR",
+     "CURR_SALES_COUNT",
+     "PREV_SALES_COUNT",
+     "YOY_CHG",
+     "YOY_PCT_CHG"
+    ],
+    "rows": [
+     [
+      2024,
+      2023,
+      932214,
+      861782,
+      70432,
+      0.081728
+     ],
+     [
+      2023,
+      2022,
+      861782,
+      1077406,
+      -215624,
+      -0.200133
+     ],
+     [
+      2022,
+      2021,
+      1077406,
+      1282171,
+      -204765,
+      -0.159702
+     ],
+     [
+      2021,
+      2020,
+      1282171,
+      898194,
+      383977,
+      0.427499
+     ],
+     [
+      2020,
+      2019,
+      898194,
+      1012284,
+      -114090,
+      -0.112706
+     ],
+     [
+      2019,
+      2018,
+      1012284,
+      1037647,
+      -25363,
+      -0.024443
+     ],
+     [
+      2018,
+      2017,
+      1037647,
+      1067674,
+      -30027,
+      -0.028124
+     ],
+     [
+      2017,
+      2016,
+      1067674,
+      1046796,
+      20878,
+      0.019945
+     ],
+     [
+      2016,
+      2015,
+      1046796,
+      1011804,
+      34992,
+      0.034584
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "no_matching_columns (gold=3, predicted=6)"
+  },
+  {
+   "backend": "cortex_analyst",
+   "question_id": "q-025",
+   "trial": 1,
+   "equivalence": "period_number",
+   "question": {
+    "text": "How many sales were recorded in each calendar quarter of 2022?",
+    "category": "time",
+    "tolerance": {
+     "rel": 1e-09,
+     "abs": 1e-09,
+     "columns": null
+    },
+    "ordered": false,
+    "expects_empty": false
+   },
+   "gold": {
+    "columns": [
+     "QUARTER",
+     "SALES"
+    ],
+    "rows": [
+     [
+      1,
+      248421
+     ],
+     [
+      2,
+      259454
+     ],
+     [
+      3,
+      287727
+     ],
+     [
+      4,
+      281804
+     ]
+    ]
+   },
+   "predicted": {
+    "columns": [
+     "QUARTER",
+     "SALES_COUNT"
+    ],
+    "rows": [
+     [
+      "2022-01-01",
+      248421
+     ],
+     [
+      "2022-04-01",
+      259454
+     ],
+     [
+      "2022-07-01",
+      287727
+     ],
+     [
+      "2022-10-01",
+      281804
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "no_matching_columns (gold=2, predicted=2)"
+  },
+  {
+   "backend": "gpt_mcp",
+   "question_id": "q-005",
+   "trial": 1,
+   "equivalence": "pivot",
+   "question": {
+    "text": "How many sales were there in 2023 for each tenure (freehold, leasehold and unknown)?",
+    "category": "aggregation",
+    "tolerance": {
+     "rel": 1e-09,
+     "abs": 1e-09,
+     "columns": null
+    },
+    "ordered": false,
+    "expects_empty": false
+   },
+   "gold": {
+    "columns": [
+     "duration",
+     "sales"
+    ],
+    "rows": [
+     [
+      "freehold",
+      651962
+     ],
+     [
+      "leasehold",
+      209820
+     ]
+    ]
+   },
+   "predicted": {
+    "columns": [
+     "freehold",
+     "leasehold",
+     "unknown"
+    ],
+    "rows": [
+     [
+      651962,
+      209820,
+      0
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "row_count (gold=2, predicted=1)"
+  },
+  {
+   "backend": "gpt_mcp",
+   "question_id": "q-057",
+   "trial": 1,
+   "equivalence": "pivot",
+   "question": {
+    "text": "How many sales were there in the town of Brighton in 2024 for each tenure (freehold, leasehold and unknown)?",
+    "category": "geography",
+    "tolerance": {
+     "rel": 1e-09,
+     "abs": 1e-09,
+     "columns": null
+    },
+    "ordered": false,
+    "expects_empty": false
+   },
+   "gold": {
+    "columns": [
+     "duration",
+     "sales"
+    ],
+    "rows": [
+     [
+      "freehold",
+      1869
+     ],
+     [
+      "leasehold",
+      1142
+     ]
+    ]
+   },
+   "predicted": {
+    "columns": [
+     "freehold",
+     "leasehold",
+     "unknown"
+    ],
+    "rows": [
+     [
+      1869,
+      1142,
+      0
+     ]
+    ]
+   },
+   "strict_mismatch_reason": "row_count (gold=2, predicted=1)"
+  }
+ ]
+}
