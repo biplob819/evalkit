@@ -1043,14 +1043,17 @@ def test_cli_factory_failures_exit_2_without_traceback(tmp_path, monkeypatch, ca
 
     mods = tmp_path / "mods"
     mods.mkdir()
-    (mods / "sec_bad_import.py").write_text("raise RuntimeError('broken at import')\n")
+    (mods / "sec_bad_import.py").write_text(
+        "raise RuntimeError('broken at import')\n", encoding="utf-8"
+    )
     (mods / "sec_factories.py").write_text(
         "class S:\n"
         "    def attack(self, case, *, trial, seed):\n"
         "        raise ValueError('system broke')\n"
         "def raises():\n    raise RuntimeError('factory broke')\n"
         "def wrong():\n    return 42\n"
-        "def raising_system():\n    return S()\n"
+        "def raising_system():\n    return S()\n",
+        encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(mods))
     common = ["--cases", str(PUBLIC)]
@@ -1244,7 +1247,7 @@ def test_cli_layers_file_keeps_names_order_and_prefixes(tmp_path, monkeypatch, c
         )
         == 0
     )
-    assert json.loads((out / "run.json").read_text())["layers"] == ls.to_dict()
+    assert json.loads((out / "run.json").read_text(encoding="utf-8"))["layers"] == ls.to_dict()
     assert main(["report", str(out)]) == 0
     summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
     assert summary["layers"][0] == "quality_rule"
