@@ -961,7 +961,13 @@ def render_text(report: GateReport) -> str:
     header = ("metric", "labels", "bound", "op", "threshold", "observed", "severity", "result")
     table: list[tuple[str, ...]] = [header]
     for r in report.rows:
-        labels = ", ".join(f"{k}={v}" for k, v in r.labels.items()) or "(any)"
+        # strings are quoted so a text label "1" and a number 1 read differently
+        labels = (
+            ", ".join(
+                f"{k}={v!r}" if isinstance(v, str) else f"{k}={v}" for k, v in r.labels.items()
+            )
+            or "(any)"
+        )
         observed = _fmt(r.observed)
         if r.ci_low is not None and r.bound == "point":
             observed += f" [{_fmt(r.ci_low)}, {_fmt(r.ci_high)}]"

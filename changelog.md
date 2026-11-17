@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.3] — Green after two verifier passes: `evalkit gate` with one-sided 95% Clopper-Pearson bounds (D-70), summary.json `efficiency` per model, held-out numeric splits never printed, typed disparity groups, "0 of n, below X%" wording throughout. Spend: $0.
 - [HARNESS] [B5.15] — D-71: opt-in `sql_match` shape equivalences for agentic-analytics (v0.4.0). Spend: $0.
 - [HARNESS] [B5.3, B5.11] — D-70: summary.json gains an optional `efficiency` field; gate bounds use one-sided 95% Clopper-Pearson; B5.11 spec written and assigned to assay-pipeline's session on `lane/b5.11`, depending on C3.4 and B5.14. Spend: $0.
 - [FEAT] [B5.9] — Calibration integrity sheet (lane build, merged): `evalkit.integrity` — sheets for any criterion (course-assistant's V/C integrity labels, labeller-only context, per-judge kappa on held-out), blind repeats and planted items with labeller self-agreement, certification only through B5.14's logged line; `evalkit calibrate ... --criterion`. The groundedness sheet is byte-identical. Spend: $0.

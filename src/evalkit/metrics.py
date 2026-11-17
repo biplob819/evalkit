@@ -157,7 +157,11 @@ class Metric(_Strict):
     def _labels(cls, v: dict[str, Any]) -> dict[str, Any]:
         for key in v:
             low = key.lower()
-            if low in _ID_KEYS or low.endswith(("_id", "_ids")):
+            if (
+                low in _ID_KEYS
+                or low.endswith(("_id", "_ids", "uuid", "uuids"))
+                or re.search(r"[a-z0-9](Id|Ids|UUID|Uuid)$", key)  # camelCase: userId, caseUUID
+            ):
                 raise ValueError(
                     f"label {safe_text(key)!r} names an id; case and member ids are not allowed "
                     "in metrics-1 (aggregates only)"
@@ -193,8 +197,11 @@ class Metric(_Strict):
                 raise ValueError("k needs n")
             if not 0 <= self.k <= self.n:
                 raise ValueError("k must satisfy 0 <= k <= n")
+            # the absolute slack never reaches half of one count, so a value of 0 with k=1 is
+            # refused however large n is (B5.3 verifier pass 2)
+            abs_tol = min(RATE_ABS_TOL, 0.25 / self.n) if self.n else RATE_ABS_TOL
             if self.n and not math.isclose(
-                v, self.k / self.n, rel_tol=RATE_REL_TOL, abs_tol=RATE_ABS_TOL
+                v, self.k / self.n, rel_tol=RATE_REL_TOL, abs_tol=abs_tol
             ):
                 raise ValueError("a rate with k and n must have value k / n (within 1e-6)")
         lo, hi = self.ci_low, self.ci_high

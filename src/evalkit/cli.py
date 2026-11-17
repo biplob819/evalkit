@@ -707,7 +707,7 @@ def cmd_gate(args: argparse.Namespace) -> int:
     if args.json:
         print(report_json(report), end="")
     else:
-        print(render_text(report) + f"\ngate.json: {out}")
+        print(render_text(report) + ("" if problem else f"\ngate.json: {out}"))
     return report.exit_code
 
 

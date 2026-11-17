@@ -141,6 +141,15 @@ def no_network(monkeypatch):
 
     monkeypatch.setattr(socket, "create_connection", refuse)
     monkeypatch.setattr(socket.socket, "connect", connect)
+
+    def connect_ex(sock, address, *a, **k):
+        host = address[0] if isinstance(address, tuple) else None
+        if host in loopback:
+            return real_connect_ex(sock, address, *a, **k)
+        return refuse()
+
+    real_connect_ex = socket.socket.connect_ex
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
     monkeypatch.setattr("urllib.request.urlopen", refuse)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -1387,3 +1396,35 @@ def test_a_real_run_records_eval_overhead_and_price_date(tmp_path, monkeypatch, 
     )
     report = run_gate(run_dir / "summary.json", cfg)
     assert report.exit_code == EXIT_PASS and len(report.rows) == len(summary.models)
+
+
+# ---- B5.3 verifier pass 2 -----------------------------------------------------------------------
+
+
+def test_a_huge_n_cannot_hide_one_success_behind_rounding_slack():
+    from evalkit.metrics import parse_metrics
+
+    doc = {
+        "schema_version": "metrics-1",
+        "project": "p",
+        "run_id": "r",
+        "created_at": "2026-11-17T00:00:00Z",
+        "metrics": [{"name": "attack_rate", "unit": "rate", "value": 0, "k": 1, "n": 3_000_000}],
+    }
+    with pytest.raises(Exception, match="k / n"):
+        parse_metrics(json.dumps(doc))
+
+
+def test_camel_case_and_uuid_label_keys_name_ids():
+    from evalkit.metrics import parse_metrics
+
+    for key in ("userId", "member_uuid", "caseUUID"):
+        doc = {
+            "schema_version": "metrics-1",
+            "project": "p",
+            "run_id": "r",
+            "created_at": "2026-11-17T00:00:00Z",
+            "metrics": [{"name": "m", "unit": "count", "value": 1, "labels": {key: "x"}}],
+        }
+        with pytest.raises(Exception, match="names an id"):
+            parse_metrics(json.dumps(doc))
