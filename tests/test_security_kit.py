@@ -1707,3 +1707,126 @@ def test_verify_checks_the_in_memory_heldout_cases_against_the_manifest():
     with pytest.raises(S.SecurityError):
         dropped.verify()
     suite.verify()  # the untouched suite still verifies
+
+
+@pytest.mark.safety
+def test_an_invalid_reported_layer_is_withheld_on_heldout_cases(tmp_path, monkeypatch, capsys):
+    """A system or surface that reports a layer outside the layer set: on a held-out case the
+    value (which may be case text) is withheld, in the error, its chain and the CLI output;
+    on a public case it is named, for debugging."""
+    from evalkit.security.cli import main
+
+    full = _suite()
+    held_only = S.AttackSuite(tuple(full.heldout), PUBLIC, full.heldout_path, full.manifest_path)
+
+    class EchoLayer:
+        def attack(self, case: Any, *, trial: int, seed: int) -> Any:
+            return S.Observation(_traj(), layer=case.id)
+
+        def call(self, tool: str, arguments: Any) -> Any:
+            return S.ToolReply(layer=str(arguments))
+
+    for fn in (
+        lambda: S.run_attacks(held_only, EchoLayer(), allowed_tools=TOOLS, k=1),
+        lambda: S.run_scripted(held_only, EchoLayer()),
+    ):
+        with pytest.raises(S.SecurityError, match="unknown layer") as err:
+            fn()
+        text = _walk_exc(err.value)
+        assert "heldout:" in text
+        for secret in _heldout_secrets():
+            assert secret not in text
+    pub = S.AttackSuite(tuple(full.public))
+    with pytest.raises(S.SecurityError, match="pub-llm01-01"):
+        S.run_attacks(pub, EchoLayer(), allowed_tools=TOOLS, k=1)
+    mods = tmp_path / "mods"
+    mods.mkdir()
+    (mods / "sec_echo.py").write_text(
+        "from evalkit.schemas import Trajectory\n"
+        "from evalkit.security import Observation, ToolReply\n"
+        "class E:\n"
+        "    def attack(self, case, *, trial, seed):\n"
+        "        t = Trajectory(task_id='t', agent='a', trial=trial, seed=seed, steps=(),\n"
+        "                       final_answer='no', sandbox_reset_ok=True, cost_usd=0.0)\n"
+        "        return Observation(t, layer=case.prompt or case.id)\n"
+        "    def call(self, tool, arguments):\n"
+        "        return ToolReply(layer=str(arguments))\n"
+        "def make():\n    return E()\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(mods))
+    held_cases = tmp_path / "held_first.yaml"
+    held_cases.write_text("cases: []\n", encoding="utf-8")
+    common = ["--cases", str(held_cases), "--heldout", str(HELDOUT), "--manifest", str(MANIFEST)]
+    for cmd in (
+        ["run", *common, "--system", "sec_echo:make", "--allowed-tools", "lookup"],
+        ["scripted", *common, "--surface", "sec_echo:make"],
+    ):
+        out = tmp_path / cmd[0]
+        assert main([*cmd, "--out", str(out)]) == 2
+        captured = capsys.readouterr()
+        texts = [captured.out, captured.err]
+        texts += [p.read_text(encoding="utf-8") for p in out.rglob("*") if p.is_file()]
+        joined = "\n".join(texts)
+        assert "unknown layer" in joined
+        for secret in _heldout_secrets():
+            assert secret not in joined
+
+
+@pytest.mark.safety
+def test_heldout_category_statistics_each_need_five_cases(tmp_path):
+    """Every per-cell statistic needs its own 5 cases: a cell with 5 complete trial cases but
+    only one scripted case shows no scripted figure for that category (summary, report and
+    metrics), while the split-level scripted figure stays."""
+    trials, cats = _held_trials({"LLM01": 5, "LLM02": 5})
+    one = next(k for k, v in cats.items() if v == "LLM02")
+    scripted = [
+        S.ScriptedResult(case=one, split="heldout", owasp=None, layers=("guard",), passed=False)
+    ] + [
+        S.ScriptedResult(case=k, split="heldout", owasp=None, layers=("guard",), passed=True)
+        for k, v in cats.items()
+        if v == "LLM01"
+    ]
+    s = S.summarise(trials, scripted=scripted, n_resamples=100, heldout_categories=cats)
+    rows = {r["owasp"]: r for r in s["heldout_categories"]["rows"]}
+    assert rows["LLM01"]["scripted"]["stopped"]["text"].startswith("5 of 5")
+    assert rows["LLM02"]["scripted"] == {"suppressed": True, "min_cases": 5}
+    assert s["splits"]["heldout"]["scripted"]["cases"] == 6  # split level stays
+    paths = S.write_outputs(
+        tmp_path, s, project="p", run_id="r", created_at=CREATED, heldout_categories=True
+    )
+    llm02 = json.dumps(rows["LLM02"])
+    assert "0 of 1" not in llm02 and "1 of 1" not in llm02
+    for p in paths.values():
+        text = p.read_text(encoding="utf-8")
+        assert "heldout:" not in text
+    summary_text = paths["summary"].read_text(encoding="utf-8")
+    cat_part = json.dumps(json.loads(summary_text)["heldout_categories"])
+    assert "0 of 1" not in cat_part
+
+
+def test_summarise_keeps_the_last_line_per_case_and_trial():
+    """The API de-duplicates (case, trial) like read_trials: the last line wins, so repeated
+    lines cannot make a case look complete or count twice."""
+    trials, cats = _held_trials({"LLM01": 5})
+    first = [t for t in trials if t.trial == 1]
+    tripled = [t.model_copy() for t in first for _ in range(3)]
+    s = S.summarise(tripled, n_resamples=100, heldout_categories=cats)
+    assert s["splits"]["heldout"]["trials_scored"] == 5
+    assert s["splits"]["heldout"]["complete_cases"] == 0
+    assert s["heldout_categories"]["rows"] == []
+    redo = trials + [trials[0].model_copy(update={"outcome": "succeeded", "layer": "leak"})]
+    assert S.summarise(redo, n_resamples=100)["splits"]["heldout"]["successes"] == (
+        S.summarise(trials, n_resamples=100)["splits"]["heldout"]["successes"] + 1
+    )
+
+
+@pytest.mark.safety
+def test_an_id_shared_across_splits_is_not_printed():
+    """A held-out case whose id repeats a public id: 'an id repeats across splits', no id."""
+    held = _case(id="pub-shared-01", split="heldout")
+    pub = _case(id="pub-shared-01")
+    problems = S.check_cases([pub, held])
+    assert any("repeats across splits" in p for p in problems)
+    assert not any("pub-shared-01" in p for p in problems)
+    assert any("pub-dup" in p for p in S.check_cases([_case(id="pub-dup"), _case(id="pub-dup")]))
