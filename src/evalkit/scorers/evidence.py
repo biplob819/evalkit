@@ -157,12 +157,24 @@ class ValuePhrase(Model):
 
 
 _COMPARATOR = re.compile(
-    r"(no more than|no less than|more than|greater than|fewer than|less than|at least|"
-    r"at most|exceeding|exceeds|above|below|under|over|>=|<=|≥|≤|>|<)\s*[$£€]?\s*$",
+    r"(not more than|not above|not over|not exceeding|not less than|not below|not under|"
+    r"no more than|no less than|more than|greater than|higher than|fewer than|less than|"
+    r"lower than|at least|at most|up to|exceeding|exceeds|above|below|under|over|"
+    r">=|<=|≥|≤|>|<)\s*[$£€]?\s*$",
     re.IGNORECASE,
 )
 _COMPARATOR_WINDOW = 40  # characters before a number searched for a comparison word
 _OP = {
+    "not more than": "<=",
+    "not above": "<=",
+    "not over": "<=",
+    "not exceeding": "<=",
+    "up to": "<=",
+    "not less than": ">=",
+    "not below": ">=",
+    "not under": ">=",
+    "higher than": ">",
+    "lower than": "<",
     "no more than": "<=",
     "at most": "<=",
     "<=": "<=",
@@ -204,8 +216,13 @@ def _close(n: Number, v: float, tolerance: float) -> bool:
 def _claim(n: Number, op: str, v: float, tolerance: float) -> bool:
     if op == "≈":
         return _close(n, v, tolerance)
+    x = n.value
+    # a percent compared with a field held as a fraction (|v| <= 1, e.g. risk_score 0.83) is
+    # read as a fraction: "over 80%" is 0.80, "at most 1%" is 0.01 (B5.13 verifier pass 2)
+    if n.candidates[0][2] == "pct" and abs(v) <= 1:
+        x = x / 100
     # a written minus compares signed values; an unsigned number compares with |v|
-    x, v = (-n.value, v) if n.negative else (n.value, abs(v))
+    x, v = (-x, v) if n.negative else (x, abs(v))
     return {">": v > x, ">=": v >= x, "<": v < x, "<=": v <= x}[op]
 
 
@@ -281,7 +298,22 @@ def _check_reason(
             used.add(i)
             n = numbers[i]
             op = _comparison(reason, n)
-            value = _numeric(record, ph.field, where)
+            try:
+                value = _numeric(record, ph.field, where)
+            except RuleError:  # a field of the wrong type fails this claim; never raises
+                checks.append(
+                    {
+                        "text": m.group(0),
+                        "kind": "value",
+                        "field": ph.field,
+                        "op": op,
+                        "claimed": _claimed(n),
+                        "found": None,
+                        "ok": False,
+                        "reason": f"type_error:{ph.field}",
+                    }
+                )
+                continue
             ok = value is not None and _finite(n) and _claim(n, op, value, tolerance)
             check = {
                 "text": m.group(0),

@@ -924,3 +924,36 @@ def test_sev_conditional_text_may_hold_colons():
     assert render_evidence({"x": 1.5}, ["{x:.2f}"]) == ["1.50"]
     with pytest.raises(ValueError):
         render_evidence({"x": 1.5}, ["{x:.2f?a|b}"])
+
+
+# ---- B5.13 verifier pass 2 ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("reason", "ok"),
+    [
+        ("over 80% risk", True),
+        ("at most 1% risk", False),
+        ("below 85% risk", True),
+        ("above 90% risk", False),
+        ("not above 90% risk", True),
+        ("up to 85% risk", True),
+        ("higher than 80% risk", True),
+        ("lower than 80% risk", False),
+    ],
+)
+def test_sev_percent_comparisons_against_a_fraction_field(reason, ok):
+    """A percent compared with a fraction-valued field reads as a fraction (risk 0.83)."""
+    from evalkit.scorers import value_check
+
+    got = value_check(reason, {"risk_score": 0.83})
+    assert (got.value == 1.0) is ok, got
+
+
+def test_sev_wrong_typed_field_fails_the_claim_and_never_raises():
+    from evalkit.scorers import ValuePhrase, value_check
+
+    phrase = ValuePhrase(pattern=r"\$\s*[\d,.]+", field="amount")
+    got = value_check("charged $812", {"amount": "812"}, phrases=[phrase])
+    assert got.value == 0.0
+    assert any(c.get("reason") == "type_error:amount" for c in got.details["checks"])
