@@ -34,6 +34,7 @@ from evalkit.scorers import (
     unsupported_numbers,
     value_check,
     value_check_scorer,
+    value_check_shares,
 )
 from evalkit.scorers import base as scorer_base
 from evalkit.scorers.rules import decision_fields
@@ -543,6 +544,13 @@ def test_sev_render_fraud_alert_golden():
 
 
 PHRASES = [ValuePhrase(**p) for p in SEV["phrases"]]
+# D-72: the vendored "ok" meant "nothing failed". Two of those reasons hold nothing checkable
+# (an unnamed time, no number) and one fails on a missing value: all three are unverifiable.
+_SEV_UNVERIFIABLE = {
+    ("Bought at 3 a.m. local time", ()),
+    ("Purchase made in the afternoon", ()),
+    ("Amount is 9x this card's usual spend", (("amt_vs_usual", None),)),
+}
 
 
 @pytest.mark.parametrize(
@@ -553,7 +561,12 @@ PHRASES = [ValuePhrase(**p) for p in SEV["phrases"]]
 def test_sev_value_check_fraud_reasons(row):
     """fraud-review-bedrock's value checks: "9x usual spend", "at night" (logical)."""
     res = value_check(row["reason"], {**SEV["record"], **row["changes"]}, phrases=PHRASES)
+    if (row["reason"], tuple(row["changes"].items())) in _SEV_UNVERIFIABLE:
+        assert res.value == 0.0 and res.details["outcome"] == "unverifiable", res.details
+        assert res.details["failed"] == ()
+        return
     assert (res.value == 1.0) is row["ok"], res.details
+    assert res.details["outcome"] == ("verified" if row["ok"] else "contradicted"), res.details
 
 
 def test_sev_value_check_details_and_tolerance():
@@ -567,7 +580,9 @@ def test_sev_value_check_details_and_tolerance():
     assert value_check("about 8 times", rec).value == 0.0
     assert value_check("about 8 times", rec, tolerance=0.15).value == 1.0
     nothing = value_check("Looks routine", rec)
-    assert nothing.value == 1.0 and nothing.details["n_checked"] == 0
+    # D-72: nothing checkable is unverifiable, never verified, and never a contradiction
+    assert nothing.value == 0.0 and nothing.details["n_checked"] == 0
+    assert nothing.details["outcome"] == "unverifiable" and nothing.details["failed"] == ()
     with pytest.raises(ValueError):
         value_check("x", rec, tolerance=-1)
     with pytest.raises(ValueError):
@@ -655,6 +670,49 @@ def test_sev_render_and_check_are_deterministic():
     )
     again = [ValuePhrase.model_validate_json(p.model_dump_json()) for p in PHRASES]
     assert value_check(reason, rec, phrases=again) == value_check(reason, rec, phrases=PHRASES)
+
+
+def test_sev_three_outcomes_and_their_shares(registry):
+    """D-72: verified, contradicted, unverifiable per reason; a contradiction wins over an
+    ambiguous check in the same reason, and the case is contradicted when any reason is."""
+    rec = {"amount": 812.4, "risk_score": 0.83}
+    both = value_check("Amount above $900; no doubt the risk score is above 0.5", rec)
+    assert both.details["outcome"] == "contradicted" and both.value == 0.0
+    assert [c["status"] for c in both.details["checks"]] == ["failed", "ambiguous"]
+    assert both.details["failed"] == ("$900",) and both.details["unverified"] == ("0.5",)
+    s = value_check_scorer(name="three_outcomes", record_key="alert")
+    texts = ["Amount above $800", "no doubt above $800", "Amount above $900", "Routine"]
+    res = s(case({"alert": rec}), completion("hold", json.dumps({"reasons": texts})))
+    assert res.value == 0.0 and res.details["outcome"] == "contradicted"
+    assert res.details["counts"] == {"verified": 1, "contradicted": 1, "unverifiable": 2}
+    assert res.details["shares"] == {"verified": 0.25, "contradicted": 0.25, "unverifiable": 0.5}
+    assert res.details["n_reasons"] == 4
+    assert [r["n_checked"] for r in res.details["reasons"]] == [1, 1, 1, 0]
+    unsure = s(case({"alert": rec}), completion("hold", json.dumps({"reasons": texts[:2]})))
+    assert unsure.value == 0.0 and unsure.details["outcome"] == "unverifiable"
+    sure = s(case({"alert": rec}), completion("hold", json.dumps({"reasons": texts[:1]})))
+    assert sure.value == 1.0 and sure.details["outcome"] == "verified"
+    empty = s(case({"alert": rec}), completion("hold", json.dumps({"reasons": []})))
+    assert empty.details["outcome"] == "unverifiable" and empty.details["shares"] is None
+    refused = s(case({"alert": rec}), completion(error="refusal"))
+    one = value_check("Amount above $900", rec)
+    shares = value_check_shares([res, unsure, sure, empty, refused, one])
+    assert (shares.n_reasons, shares.verified, shares.contradicted, shares.unverifiable) == (
+        8,
+        3,
+        2,
+        3,
+    )
+    assert shares.nothing_checked == 1 and shares.n_skipped == 1
+    assert shares.contradicted_share is not None
+    assert shares.contradicted_share.point == 0.25
+    assert shares.contradicted_share.lo < 0.25 < shares.contradicted_share.hi
+    none = value_check_shares([refused])
+    assert none.n_reasons == 0 and none.verified_share is None
+    with pytest.raises(ValueError):
+        value_check_shares([], alpha=1.0)
+    with pytest.raises(ValueError):
+        value_check_shares([ScoreResult(value=0.0, details={"outcome": "maybe", "n_checked": 1})])
 
 
 def test_sev_value_check_scorer_checks_each_reason(registry):
@@ -864,6 +922,9 @@ def test_sev_phrase_over_absent_field_fails_the_claim():
     night = value_check("Purchase at night", rec, phrases=PHRASES)
     assert night.value == 0.0
     assert night.details["checks"][0]["reason"] == "missing_value:hour"
+    # D-72: the record cannot settle it: unchecked, so unverifiable, never verified
+    assert night.details["checks"][0]["status"] == "unchecked"
+    assert night.details["outcome"] == "unverifiable"
     dollars = value_check("A $812.40 purchase", rec, phrases=PHRASES)
     assert dollars.value == 0.0
     assert dollars.details["checks"][0]["reason"] == "missing_value:amount"
@@ -875,7 +936,10 @@ def test_sev_loose_comparator_numbers_are_comparisons():
     assert value_check("amount over 1,000", rec).value == 0.0
     assert value_check("amount under 800", rec).value == 0.0
     assert value_check("amount over 800", rec).value == 1.0
-    assert value_check("at least 3 a.m.", rec).value == 1.0  # hour 3
+    # hour 3, but no hour field named: an unchecked time, unverifiable (D-72), not a failure
+    at_least = value_check("at least 3 a.m.", rec)
+    assert at_least.value == 0.0 and at_least.details["outcome"] == "unverifiable"
+    assert value_check("hour at least 3 a.m.", rec).value == 1.0
     check = value_check("amount above 900", rec).details["checks"][0]
     assert (check["field"], check["op"], check["ok"]) == ("amount", ">", False)
 
@@ -1030,20 +1094,22 @@ def test_sev_valid_predicates_over_odd_values_never_raise(value):
 
 
 @pytest.mark.parametrize(
-    "reason",
+    ("reason", "outcome"),
     [
-        "not, in fact, above $800",
-        "is not in fact above $800",
-        "no purchase above $800",
-        "cannot exceed $800",
-        "nothing above $800",
-        "without exceeding $800",
-        "isn\u2018t above $800",
+        ("not, in fact, above $800", "unverifiable"),
+        ("is not in fact above $800", "unverifiable"),
+        ("no purchase above $800", "unverifiable"),
+        ("cannot exceed $800", "contradicted"),  # directly before: inverted, and false
+        ("nothing above $800", "unverifiable"),
+        ("without exceeding $800", "unverifiable"),
+        ("isn\u2018t above $800", "contradicted"),
     ],
 )
-def test_sev_negations_with_words_between_still_invert(reason):
-    """Now read as ambiguous (pass 5): they still fail, which was the point."""
-    assert value_check(reason, {"amount": 812.4}).value == 0.0
+def test_sev_negations_with_words_between_still_invert(reason, outcome):
+    """Read as ambiguous (pass 5): never verified, which was the point; D-72 reports an
+    ambiguous check as unverifiable, not as a contradiction."""
+    got = value_check(reason, {"amount": 812.4})
+    assert got.value == 0.0 and got.details["outcome"] == outcome, got.details
 
 
 # ---- B5.13 verifier pass 5: negation is fail-safe -----------------------------------------------
@@ -1075,16 +1141,22 @@ def test_sev_negations_with_words_between_still_invert(reason):
 def test_sev_no_negation_lets_a_false_claim_pass(reason):
     got = value_check(reason, {"amount": 812.4, "card_history_n": 40})
     assert got.value == 0.0, (reason, got.details)
+    # D-72: ambiguous, so unverifiable (never verified), not counted as a contradiction
+    assert got.details["outcome"] == "unverifiable", (reason, got.details)
+    assert [c["status"] for c in got.details["checks"]] == ["ambiguous"]
 
 
 def test_sev_ambiguous_negation_is_named_and_a_clean_sentence_still_reads():
     got = value_check("no doubt above $800", {"amount": 812.4})
     assert got.value == 0.0  # documented limit: true, but ambiguous
     assert any(c.get("reason") == "ambiguous_negation" for c in got.details["checks"])
+    assert got.details["outcome"] == "unverifiable" and got.details["failed"] == ()
+    assert got.details["unverified"] == ("$800",)
     # a negation in an earlier sentence does not touch this one
     assert value_check("No fraud flags. Amount above $800.", {"amount": 812.4}).value == 1.0
     assert value_check("not above $900", {"amount": 812.4}).value == 1.0
-    assert value_check("doesn't exceed $800", {"amount": 812.4}).value == 0.0
+    exceed = value_check("doesn't exceed $800", {"amount": 812.4})
+    assert exceed.value == 0.0 and exceed.details["outcome"] == "contradicted"
 
 
 # ---- B5.13 fraud-review integration: false negatives on real model reasons ----------------------
@@ -1146,17 +1218,27 @@ def test_sev_a_named_field_beats_the_closest_value_and_aliases_name_fields():
     assert got.details["checks"][0]["field"] == "risk_score"
     assert got.details["checks"][0]["via"] == "name"
     spend = {"amount": 7.07, "card_history_n": 3}
-    assert value_check("spend is under 50", spend).value == 0.0  # names nothing: fails
+    # names nothing and no field is near 50: never verified; the record cannot settle a
+    # comparison without a subject, so it is unverifiable (`no_field`), not a contradiction
+    nameless = value_check("spend is under 50", spend)
+    assert nameless.value == 0.0 and nameless.details["outcome"] == "unverifiable"
+    assert nameless.details["checks"][0]["reason"] == "no_field"
+    assert nameless.details["checks"][0]["status"] == "unchecked"
     assert value_check("spend is under 50", spend, aliases={"amount": ["spend"]}).value == 1.0
     assert value_check("spend is over 50", spend, aliases={"amount": ["spend"]}).value == 0.0
     # a named missing value, or an alias for a field the record lacks, fails the claim
     missing = value_check("risk score below 0.9", {"risk_score": None, "amount": 0.85})
-    assert missing.value == 0.0
+    assert missing.value == 0.0 and missing.details["outcome"] == "unverifiable"
     assert missing.details["checks"][0]["reason"] == "missing_value:risk_score"
     absent = value_check("the score is below 0.9", {"amount": 0.85}, aliases={"risk": ["score"]})
     assert absent.details["checks"][0]["reason"] == "missing_value:risk"
     # documented: a comparison naming no field, with no field within tolerance, fails
     assert value_check("well below 0.9", {"risk_score": 0.39}).value == 0.0
+    # a plain number no field backs is a mismatch: contradicted
+    stray = value_check("Risk score of 0.3", {"risk_score": 0.39})
+    assert stray.details["outcome"] == "contradicted"
+    bare = value_check("It was 950", {"amount": 812.4})
+    assert bare.details["outcome"] == "contradicted" and bare.details["failed"] == ("950",)
     # a field named in another clause is not this number's field
     two = value_check("Risk score is 0.39; well below 0.9", {"risk_score": 0.39})
     assert two.value == 0.0
@@ -1190,16 +1272,19 @@ def test_sev_a_multiple_names_only_a_ratio_field():
         ("The hour is after 10 p.m.", 23, True, 1),
         ("The hour is after 10 p.m.", 21, False, 1),
         ("The hour is before 6 a.m.", 3, True, 1),
-        ("The hour is not 11 p.m.", 23, False, 1),  # a negation before a time: ambiguous
-        ("Bought at 22:00", 3, True, 0),  # no hour field named: unchecked, not a failure
-        ("Bought at 6am", 3, True, 0),
+        ("The hour is not 11 p.m.", 23, None, 1),  # a negation before a time: ambiguous
+        ("Bought at 22:00", 3, None, 0),  # no hour field named: unchecked, not a failure
+        ("Bought at 6am", 3, None, 0),
         ("Hour 6 is after the midnight-to-5 a.m. signal window", 6, True, 1),
         ("Hour is 7, outside the 10 to 6 a.m. window", 7, True, 1),
     ],
 )
 def test_sev_times_of_day_are_not_free_numbers(reason, hour, ok, n_checked):
+    """ok None: unverifiable (D-72), so not verified and not contradicted either."""
     got = value_check(reason, {"hour": hour, "amount": 10.0, "card_history_n": 6})
-    assert (got.value == 1.0) is ok, (reason, got.details)
+    outcome = {True: "verified", False: "contradicted", None: "unverifiable"}[ok]
+    assert got.value == (1.0 if ok else 0.0), (reason, got.details)
+    assert got.details["outcome"] == outcome, (reason, got.details)
     assert got.details["n_checked"] == n_checked, got.details
 
 
@@ -1214,7 +1299,8 @@ def test_sev_times_are_recorded_and_a_phrase_may_claim_one():
     # "ts_hour" is hour-like too; a 24-hour clock past 23 is not a time
     assert value_check("ts_hour is 23 (11 p.m.)", {"ts_hour": 23}).value == 1.0
     assert value_check("ts_hour is 23 (11 p.m.)", {"ts_hour": 13}).value == 0.0
-    assert value_check("hour 25:00", {"hour": 25}).value == 1.0
+    late = value_check("hour 25:00", {"hour": 25})  # read as no time and no check: unverifiable
+    assert late.details["outcome"] == "unverifiable" and late.details["failed"] == ()
 
 
 def test_sev_policy_constants_rule_ids_and_ignored_spans():
@@ -1222,11 +1308,14 @@ def test_sev_policy_constants_rule_ids_and_ignored_spans():
     signal = "This trips the 7x fraud signal"
     assert value_check(signal, rec).value == 0.0
     got = value_check(signal, rec, constants=[7])
-    assert got.value == 1.0 and got.details["n_checked"] == 0
+    # a declared constant is recorded, never a contradiction; nothing else: unverifiable (D-72)
+    assert got.details["outcome"] == "unverifiable" and got.details["n_checked"] == 0
     assert got.details["unchecked"] == ({"text": "7x", "kind": "constant", "value": 7.0},)
-    assert value_check("the threshold of 0.9 applies", rec, constants=[0.9]).value == 1.0
+    threshold = value_check("the threshold of 0.9 applies", rec, constants=[0.9])
+    assert threshold.details["outcome"] == "unverifiable"
     # a constant needs a threshold word next to it, and a clause that names no field for it
-    assert value_check("it is 7", rec, constants=[7]).value == 0.0
+    it_is = value_check("it is 7", rec, constants=[7])
+    assert it_is.value == 0.0 and it_is.details["outcome"] == "contradicted"
     false = "The risk score is above the 0.9 threshold"
     assert value_check(false, rec, constants=_FR_CONSTANTS).value == 0.0
     assert value_check("risk score is at the 0.9 threshold", rec, constants=[0.9]).value == 0.0
@@ -1241,10 +1330,11 @@ def test_sev_policy_constants_rule_ids_and_ignored_spans():
     # clause and rule ids are never numbers
     for text in ("rule 7.1 applies", "P7.1 applies", "clause P5.9 bars it", "see §4.2", "(P5.9)."):
         got = value_check(text, {"x": 1.0})
-        assert got.value == 1.0 and got.details["n_checked"] == 0, text
+        assert got.details["n_checked"] == 0 and got.details["outcome"] == "unverifiable", text
     # ignore: numbers in the matched spans are not checked
     got = value_check("version 3 of the policy says so", rec, ignore=[r"version \d+"])
-    assert got.value == 1.0 and got.details["unchecked"][0]["kind"] == "ignored"
+    assert got.details["outcome"] == "unverifiable" and got.details["failed"] == ()
+    assert got.details["unchecked"][0]["kind"] == "ignored"
     with pytest.raises(ValueError):
         value_check("x", rec, ignore=["("])
     with pytest.raises(ValueError):
@@ -1265,6 +1355,7 @@ def test_sev_ignored_spans_and_constants_never_hide_a_negation():
         value_check(reason, rec, constants=[800]),
     ):
         assert got.value == 0.0 and got.details["checks"][0]["reason"] == "ambiguous_negation"
+        assert got.details["outcome"] == "unverifiable"
 
 
 _FIRST = ValuePhrase(pattern=r"first purchase at this merchant", holds="merchant_first_seen")
@@ -1282,13 +1373,14 @@ _NEVER = ValuePhrase(pattern=r"never (?:been )?used at this merchant", holds="me
         ("It isn't at night", {"hour": 14}, True),
         ("never at night", {"hour": 3}, False),
         # any other negation earlier in the sentence: ambiguous, fails either way
-        ("It is not true that the purchase was at night", {"hour": 3}, False),
-        ("It is not true that the purchase was at night", {"hour": 14}, False),
-        ("No flags, but a first purchase at this merchant", {"merchant_first_seen": True}, False),
+        # (None: unverifiable, never verified; D-72)
+        ("It is not true that the purchase was at night", {"hour": 3}, None),
+        ("It is not true that the purchase was at night", {"hour": 14}, None),
+        ("No flags, but a first purchase at this merchant", {"merchant_first_seen": True}, None),
         (
             "Not, as the analyst wrote in this morning's long note, made at night",
             {"hour": 3},
-            False,
+            None,
         ),
         # a negation in an earlier sentence does not count; a phrase's own words do not either
         ("No fraud flags. Purchase at night.", {"hour": 3}, True),
@@ -1298,7 +1390,9 @@ _NEVER = ValuePhrase(pattern=r"never (?:been )?used at this merchant", holds="me
 )
 def test_sev_negated_condition_phrases(reason, record, ok):
     got = value_check(reason, record, phrases=[_FIRST, _NIGHT, _NEVER])
-    assert (got.value == 1.0) is ok, (reason, got.details)
+    assert got.value == (1.0 if ok else 0.0), (reason, got.details)
+    outcome = {True: "verified", False: "contradicted", None: "unverifiable"}[ok]
+    assert got.details["outcome"] == outcome, (reason, got.details)
 
 
 @pytest.mark.safety
@@ -1315,6 +1409,7 @@ def test_sev_a_negation_far_back_in_the_sentence_is_still_ambiguous(reason):
     got = value_check(reason, {"amount": 812.4})
     assert got.value == 0.0, got.details
     assert got.details["checks"][0]["reason"] == "ambiguous_negation"
+    assert got.details["outcome"] == "unverifiable"
 
 
 def test_sev_value_check_scorer_keeps_each_checks_reason(registry):
@@ -1327,6 +1422,13 @@ def test_sev_value_check_scorer_keeps_each_checks_reason(registry):
     assert checks[1]["reason"] == "missing_value:amt_vs_usual"
     assert checks[2]["reason"] == "ambiguous_negation"
     assert "reason" not in checks[0]
+    assert [c["status"] for c in checks] == ["ok", "unchecked", "ambiguous"]
+    assert [r["outcome"] for r in res.details["reasons"]] == [
+        "verified",
+        "unverifiable",
+        "unverifiable",
+    ]
+    assert res.value == 0.0 and res.details["outcome"] == "unverifiable"
     timed = value_check_scorer(name="alert_values_time", record_key="alert", constants=[5])
     answer = json.dumps({"reasons": ["x", "at 22:00"]})
     res = timed(case({"alert": {"hour": 3}}), completion("hold", answer))
