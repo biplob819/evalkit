@@ -56,11 +56,39 @@ COLUMNS = (
     "note",
 )
 # The child environment is an allowlist: nothing else from this shell reaches downstream code.
-ENV_ALLOW = {"PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TZ", "TMPDIR", "TEMP", "TMP", "CI"}
+ENV_ALLOW = {
+    "PATH",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TERM",
+    "TZ",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "CI",
+    # network plumbing a sync needs behind a proxy, and the Python setup-uv selected
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
+    "UV_PYTHON",
+}  # not UV_INDEX_URL: an index URL can carry credentials
 ENV_ALLOW_WINDOWS = {"SYSTEMROOT", "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "WINDIR"}
 _COUNT_RE = re.compile(r"(\d+) (passed|failed|errors?|skipped)")
-_SUMMARY_RE = re.compile(r"\b\d+ (passed|failed|errors?|skipped|deselected)\b.* in [\d.]+s\b")
-_FAILED_RE = re.compile(r"^(?:FAILED|ERROR) (\S+?)(?: - .*)?$")
+# pytest's final line, e.g. "== 1 failed, 41 passed, 2 skipped in 9.10s ==" or, under -q,
+# "41 passed in 9.10s"; anchored so no other output line can be taken for it.
+_SUMMARY_RE = re.compile(
+    r"^=*\s*(?:\d+ (?:passed|failed|errors?|skipped|deselected|xfailed|xpassed|warnings?)"
+    r"(?:, )?)+ in [\d.]+s(?: \([\d:]+\))?\s*=*$"
+)
+_SHORT_RE = re.compile(r"^(FAILED|ERROR|PASSED) (.+?)(?: - .*)?$")
+STDERR_MARK = "----- stderr -----"
 _NODE_RE = re.compile(r"tests/[\w/.-]+\.py(?:::\w+)+")
 TIMEOUT_S = 1800
 
@@ -100,7 +128,11 @@ def load_registry(path: Path = REGISTRY) -> list[Row]:
         cells = line.split("\t")
         if len(cells) != len(COLUMNS):
             raise ValueError(f"{path} line {i}: {len(cells)} cells, expected {len(COLUMNS)}")
-        rows.append(Row(*(c.strip() for c in cells)))
+        row = Row(*(c.strip() for c in cells))
+        bad = [n for n in row.deselected() + row.known_failures() if not _NODE_RE.fullmatch(n)]
+        if bad:
+            raise ValueError(f"{path} line {i}: not a pytest node id: {', '.join(bad)}")
+        rows.append(row)
     return rows
 
 
@@ -111,13 +143,12 @@ def _uv_cache_dir() -> str:
     return p.stdout.strip()
 
 
-def child_env(home: Path | None = None) -> dict[str, str]:
-    """Allowlisted environment: no keys, tokens, DSNs or profiles, and a throwaway HOME so
-    dotfiles such as ~/.aws or ~/.netrc are out of reach. The uv cache is kept for speed."""
+def child_env(home: Path) -> dict[str, str]:
+    """Allowlisted environment: no keys, tokens, DSNs or profiles, and a private, empty HOME
+    (one per project run) so dotfiles such as ~/.aws or ~/.netrc are out of reach and nothing
+    carries from one project to the next. The uv cache is kept for speed."""
     allow = ENV_ALLOW | (ENV_ALLOW_WINDOWS if os.name == "nt" else set())
     env = {k: v for k, v in os.environ.items() if k in allow}
-    home = home or Path(tempfile.gettempdir()) / "evalkit-canary-home"
-    home.mkdir(parents=True, exist_ok=True)
     env["HOME"] = env["USERPROFILE"] = str(home)
     cache = _uv_cache_dir()
     if cache:
@@ -128,7 +159,7 @@ def child_env(home: Path | None = None) -> dict[str, str]:
 
 def commands(row: Row, evalkit_root: Path, test_files: list[str]) -> list[list[str]]:
     """`test_files` empty means the project's whole suite (registry `tests=all`)."""
-    pytest_cmd = ["uv", "run", "--no-sync", "pytest", "-q", "-rfE", "-p", "no:cacheprovider"]
+    pytest_cmd = ["uv", "run", "--no-sync", "pytest", "-q", "-rfEp", "-p", "no:cacheprovider"]
     return [
         ["uv", "sync", "--frozen", *row.install.split()],
         ["uv", "pip", "install", "--no-deps", "-e", str(evalkit_root)],
@@ -142,18 +173,35 @@ def commands(row: Row, evalkit_root: Path, test_files: list[str]) -> list[list[s
     ]
 
 
+def _stdout(text: str) -> str:
+    return text.split(STDERR_MARK, 1)[0]
+
+
 def parse_counts(text: str) -> dict[str, int]:
-    """Counts from pytest's final summary line only ("... in 1.2s"), never from other output."""
+    """Counts from pytest's final summary line on stdout only, never from other output."""
     out = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0}
-    lines = [ln for ln in text.splitlines() if _SUMMARY_RE.search(ln)]
+    lines = [ln for ln in _stdout(text).splitlines() if _SUMMARY_RE.match(ln.strip())]
     for n, word in _COUNT_RE.findall(lines[-1] if lines else ""):
         out["errors" if word.startswith("error") else word] = int(n)
     return out
 
 
+def _short(text: str, kinds: set[str]) -> list[str]:
+    """Node ids (spaces allowed, e.g. `test_p[a b]`) from pytest's -r short summary."""
+    found = set()
+    for ln in _stdout(text).splitlines():
+        m = _SHORT_RE.match(ln.strip())
+        if m and m[1] in kinds:
+            found.add(m[2])
+    return sorted(found)
+
+
 def parse_failures(text: str) -> list[str]:
-    """Node ids from pytest's -rfE short summary."""
-    return sorted({m[1] for ln in text.splitlines() if (m := _FAILED_RE.match(ln.strip()))})
+    return _short(text, {"FAILED", "ERROR"})
+
+
+def parse_passed(text: str) -> list[str]:
+    return _short(text, {"PASSED"})
 
 
 def stale_ids(checkout: Path, ids: list[str]) -> list[str]:
@@ -167,24 +215,18 @@ def stale_ids(checkout: Path, ids: list[str]) -> list[str]:
             continue
         try:
             tree = ast.parse(f.read_text(encoding="utf-8"))
-        except SyntaxError:
+        except (SyntaxError, UnicodeDecodeError, ValueError):
             stale.append(node)
             continue
-        scope: list[ast.stmt] = tree.body
-        for name in names:
-            hit = next(
-                (
-                    n
-                    for n in scope
-                    if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
-                    and n.name == name.split("[")[0]
-                ),
-                None,
-            )
-            if hit is None:
-                stale.append(node)
-                break
-            scope = hit.body if isinstance(hit, ast.ClassDef) else []
+        # Lenient on purpose: a name defined anywhere in the file (nested under `if`, or a
+        # method a class inherits from one defined there) counts as present.
+        defined = {
+            n.name
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
+        }
+        if any(name.split("[")[0] not in defined for name in names):
+            stale.append(node)
     return stale
 
 
@@ -192,20 +234,26 @@ class Runner(Protocol):
     def __call__(self, cmd: list[str], cwd: Path) -> tuple[int, str]: ...
 
 
-def real_runner(cmd: list[str], cwd: Path) -> tuple[int, str]:
-    try:
-        p = subprocess.run(
-            cmd,
-            cwd=cwd,
-            env=child_env(),
-            capture_output=True,
-            text=True,
-            timeout=TIMEOUT_S,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return 124, f"timed out after {TIMEOUT_S}s"
-    return p.returncode, p.stdout + p.stderr
+class RealRunner:
+    """Runs commands with the allowlisted environment and this run's private HOME."""
+
+    def __init__(self, home: Path):
+        self.env = child_env(home)
+
+    def __call__(self, cmd: list[str], cwd: Path) -> tuple[int, str]:
+        try:
+            p = subprocess.run(
+                cmd,
+                cwd=cwd,
+                env=self.env,
+                capture_output=True,
+                text=True,
+                timeout=TIMEOUT_S,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return 124, f"timed out after {TIMEOUT_S}s"
+        return p.returncode, f"{p.stdout}\n{STDERR_MARK}\n{p.stderr}"
 
 
 class FakeRunner:
@@ -234,7 +282,14 @@ STATUSES = ("pass", "known-drift", "fail", "setup-error", "nothing-ran", "no-tes
 FAILING = {"fail", "setup-error"}
 
 
-def run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner = real_runner) -> dict:
+def run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner | None = None) -> dict:
+    if runner is not None:
+        return _run_one(row, checkout, evalkit_root, runner)
+    with tempfile.TemporaryDirectory(prefix="evalkit-canary-home-") as home:
+        return _run_one(row, checkout, evalkit_root, RealRunner(Path(home)))
+
+
+def _run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner) -> dict:
     report = downstream_imports.audit(checkout)
     files = [] if row.tests == "all" else report.test_files
     result: dict = {
@@ -274,11 +329,12 @@ def run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner = real_
             counts = parse_counts(out)
             failures = parse_failures(out)
             known = set(row.known_failures())
+            every_failure_named = len(failures) == counts["failed"] + counts["errors"]
             if rc == 5 or (rc == 0 and counts["passed"] == 0):
                 status = "nothing-ran"  # nothing collected, or everything skipped
             elif rc == 0 and not counts["failed"] and not counts["errors"]:
                 status = "pass"
-            elif failures and set(failures) <= known:
+            elif failures and every_failure_named and set(failures) <= known:
                 status = "known-drift"
             else:
                 status = "fail"
@@ -287,7 +343,7 @@ def run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner = real_
                 **result,
                 "counts": counts,
                 "failures": failures,
-                "known_fixed": sorted(known - set(failures)) if known else [],
+                "known_fixed": sorted(known & set(parse_passed(out))),  # seen passing
                 "status": status,
                 "detail": "" if status == "pass" else "\n".join(tail),
             }
@@ -305,11 +361,23 @@ def _clone(row: Row, workdir: Path) -> Path:
     return dest
 
 
+def _src_matches_commit() -> bool:
+    p = subprocess.run(
+        ["git", "status", "--porcelain", "--", "src"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return p.returncode == 0 and not p.stdout.strip()
+
+
 def _record(projects: dict[str, dict]) -> dict:
     """The run record. `finding` per project is written by the person recording a baseline."""
     return {
         "date": dt.date.today().isoformat(),
         "evalkit_commit": _git_head(ROOT),
+        "evalkit_src_matches_commit": _src_matches_commit(),
         "command": "python scripts/downstream_canary.py " + " ".join(sys.argv[1:]),
         "spend_usd": 0,
         "projects": projects,
@@ -332,7 +400,8 @@ def _self_test() -> int:
             (setup["status"] == "setup-error", f"setup: {setup['status']}"),
         ]
         os.environ["SELFTEST_DB_PASS"] = "x"
-        checks.append(("SELFTEST_DB_PASS" not in child_env(), "secret leaked into child env"))
+        leaked = "SELFTEST_DB_PASS" in child_env(Path(tmp))
+        checks.append((not leaked, "secret leaked into child env"))
         del os.environ["SELFTEST_DB_PASS"]
     failed = [m for good, m in checks if not good]
     for m in failed:
@@ -364,9 +433,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.run_one:
         match = [r for r in auto if r.project == args.run_one]
-        if not match or not args.checkout:
+        if not match or not args.checkout or not args.checkout.is_dir():
             print(
-                f"downstream_canary: unknown project or no --checkout: {args.run_one}",
+                f"downstream_canary: unknown project, or --checkout missing: {args.run_one}",
                 file=sys.stderr,
             )
             return 2
@@ -386,6 +455,9 @@ def main(argv: list[str] | None = None) -> int:
             f"{row.project:24} {res['status']:12} "
             f"passed {c['passed']}, failed {c['failed']}, errors {c['errors']}"
         )
+        if os.environ.get("GITHUB_ACTIONS") and res["status"] not in {"pass", *FAILING}:
+            note = res.get("detail", "")[:200].replace("\n", " ")
+            print(f"::warning title=canary {row.project}::{res['status']}: {note}")
     record = _record(projects)
     if args.out:
         args.out.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")

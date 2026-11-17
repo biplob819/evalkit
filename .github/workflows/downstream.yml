@@ -20,6 +20,8 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - id: plan
         run: echo "matrix=$(python3 scripts/downstream_canary.py --matrix)" >> "$GITHUB_OUTPUT"
 

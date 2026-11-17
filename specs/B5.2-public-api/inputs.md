@@ -1,0 +1,4 @@
+# B5.2 inputs (collected before the spec)
+
+- ai-visibility/citewatch (ai-visibility-5f): PUB-04 accepted. Its contract test `tests/support/test_calibrate.py::test_the_evalkit_calibration_symbols_citewatch_imports_keep_their_shape` pins `_Pair` fields (answer, human, judge), `kappa_from(tp, fn, fp, tn)` and `cluster_kappa(pairs, *, seed, ...)`. It switches to `from evalkit.calibration import CalibrationPair, cluster_kappa, kappa_from, agreement_table` once this spec fixes the names. Keep `_Pair` (fields answer, human, judge) working with a DeprecationWarning for one minor release. citewatch imports evalkit behind its `support` extra; a rename surfaces as a guarded ImportError.
+- Other imports to promote or replace: see `imports_not_public` per project in docs/measurements/downstream-canary-2026-11-17.json.

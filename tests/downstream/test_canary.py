@@ -9,6 +9,7 @@ import sys
 import textwrap
 from pathlib import Path
 
+import pytest
 import yaml
 
 import downstream_canary as dc
@@ -49,6 +50,8 @@ def test_workflow_matrix_comes_from_the_registry_and_does_not_fail_fast():
     checkouts = [s for s in canary["steps"] if s.get("uses", "").startswith("actions/checkout@")]
     assert any(s.get("with", {}).get("repository") == "${{ matrix.repo }}" for s in checkouts)
     assert all(s["with"].get("persist-credentials") is False for s in checkouts), "no token on disk"
+    plan_checkout = [s for s in plan["steps"] if s.get("uses", "").startswith("actions/checkout@")]
+    assert all(s.get("with", {}).get("persist-credentials") is False for s in plan_checkout)
 
 
 def test_matrix_holds_only_projects_with_tests(capsys):
@@ -97,10 +100,11 @@ def test_child_environment_has_no_keys_or_secrets(monkeypatch, tmp_path):
     )
     for k in leaky:
         monkeypatch.setenv(k, "x")
-    env = dc.child_env(home=tmp_path / "home")
+    env = dc.child_env(tmp_path / "home")
     assert not set(leaky) & set(env), "the child environment is an allowlist"
     assert env["HOME"] == str(tmp_path / "home") != str(Path.home())
     assert env["EVALKIT_DOWNSTREAM"] == "1" and "PATH" in env
+    assert "UV_INDEX_URL" not in dc.ENV_ALLOW, "an index URL can carry credentials"
     assert set(env) <= dc.ENV_ALLOW | dc.ENV_ALLOW_WINDOWS | {
         "HOME",
         "USERPROFILE",
@@ -110,6 +114,8 @@ def test_child_environment_has_no_keys_or_secrets(monkeypatch, tmp_path):
 
 
 def test_pytest_summary_is_parsed():
+    stderr_noise = f"== 5 passed in 1.0s ==\n{dc.STDERR_MARK}\nworker: 2 skipped retries in 0.3s"
+    assert dc.parse_counts(stderr_noise)["passed"] == 5, "stderr never supplies the counts"
     noisy = "2 passed in 0.5s\nretry 3 failed attempts\n"
     assert dc.parse_counts(noisy)["failed"] == 0 and dc.parse_counts(noisy)["passed"] == 2
     line = "== 3 failed, 41 passed, 2 skipped, 1 error in 9.1s =="
@@ -186,6 +192,55 @@ def test_only_known_failures_is_known_drift_and_anything_else_fails(tmp_path):
     assert dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(out, 1))["status"] == "known-drift"
     other = "FAILED tests/test_x.py::test_y - boom\n== 1 failed, 3 passed in 0.2s =="
     assert dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(other, 1))["status"] == "fail"
+
+
+def test_a_hidden_failure_is_never_known_drift(tmp_path):
+    """Verifier pass 2: a failing id with a space was dropped, so a real failure hid behind a
+    known one. Now every failure must be named and every named one must be known."""
+    proj = _proj(tmp_path, "import evalkit\n\ndef test_x():\n    pass\n\ndef test_p():\n    pass\n")
+    known = "tests/test_x.py::test_x"
+    row = dc.Row("p", "me/p", "main", "x", "", "auto", "-", "-", known, "")
+    out = (
+        f"FAILED {known} - AssertionError\n"
+        "FAILED tests/test_x.py::test_p[a b] - boom\n"
+        "== 2 failed, 3 passed in 0.2s =="
+    )
+    res = dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(out, 1))
+    assert "tests/test_x.py::test_p[a b]" in res["failures"] and res["status"] == "fail"
+    unnamed = f"FAILED {known} - AssertionError\n== 2 failed, 3 passed in 0.2s =="
+    assert dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(unnamed, 1))["status"] == "fail"
+
+
+def test_known_fixed_lists_only_tests_seen_passing(tmp_path):
+    proj = _proj(tmp_path, "import evalkit\n\ndef test_x():\n    pass\n\ndef test_y():\n    pass\n")
+    row = dc.Row(
+        "p",
+        "me/p",
+        "main",
+        "x",
+        "",
+        "auto",
+        "-",
+        "-",
+        "tests/test_x.py::test_x,tests/test_x.py::test_y",
+        "",
+    )
+    out = "PASSED tests/test_x.py::test_x\n== 2 passed in 0.1s =="
+    assert dc.run_one(row, proj, ROOT, runner=dc.FakeRunner(out))["known_fixed"] == [
+        "tests/test_x.py::test_x"
+    ]
+
+
+def test_registry_refuses_malformed_node_ids(tmp_path):
+    bad = tmp_path / "downstream.tsv"
+    cells = ["p", "me/p", "main", "x", "", "auto", "-", "not a node id", "-", ""]
+    bad.write_text("\t".join(dc.COLUMNS) + "\n" + "\t".join(cells) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="node id"):
+        dc.load_registry(bad)
+
+
+def test_missing_checkout_exits_2(tmp_path):
+    assert dc.main(["--run-one", "assay-pipeline", "--checkout", str(tmp_path / "nope")]) == 2
 
 
 def test_stale_node_ids_are_a_setup_error(tmp_path):
