@@ -128,8 +128,19 @@ def no_network(monkeypatch):
     def refuse(*a, **k):
         raise AssertionError("evalkit gate must not touch the network")
 
+    real_connect = socket.socket.connect
+    loopback = {"127.0.0.1", "::1", "localhost"}
+
+    def connect(sock, address, *a, **k):
+        # asyncio's event loop builds its self-pipe from a loopback socketpair on Windows
+        # (socketpair() is a connect to 127.0.0.1 there): that is not the network
+        host = address[0] if isinstance(address, tuple) else None
+        if host in loopback:
+            return real_connect(sock, address, *a, **k)
+        return refuse()
+
     monkeypatch.setattr(socket, "create_connection", refuse)
-    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect", connect)
     monkeypatch.setattr("urllib.request.urlopen", refuse)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
