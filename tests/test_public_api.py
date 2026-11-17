@@ -116,3 +116,18 @@ def test_heldout_module_is_public_with_its_command_line():
     assert done.returncode == 0
     for command in ("manifest", "verify", "scan", "verify-log"):
         assert command in done.stdout
+
+
+def test_paraphrase_module_is_public_with_its_command_line():
+    """B5.8: `evalkit.paraphrase` is public, `python -m evalkit.paraphrase` is its entry and
+    `evalkit report --paraphrase` is part of the CLI contract."""
+    import subprocess
+    import sys
+
+    assert "evalkit.paraphrase" in PUBLIC and "--paraphrase" in CLI["report"]
+    done = subprocess.run(
+        [sys.executable, "-m", "evalkit.paraphrase", "--help"], capture_output=True, text=True
+    )
+    assert done.returncode == 0
+    for command in ("verify", "build"):
+        assert command in done.stdout

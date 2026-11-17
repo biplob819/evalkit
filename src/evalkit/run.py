@@ -135,6 +135,13 @@ def load_cases(task: TaskConfig, base_dir: Path | None) -> list[Case]:
         return load_pqa_l()
     if task.dataset == SCIFACT:
         return load_scifact()
+    from evalkit import paraphrase
+
+    if task.dataset in paraphrase.DATASETS:  # B5.8: the probe set, verified against PQA-L
+        try:
+            return paraphrase.probe_cases(load_pqa_l(), paraphrase.DATASETS[task.dataset])
+        except paraphrase.ProbeError as exc:
+            raise RunError(str(exc)) from None
     if task.dataset.endswith((".jsonl", ".csv")):
         path = Path(task.dataset)
         if not path.is_absolute():

@@ -77,6 +77,10 @@ NOT_RUN_HERE = {
     "calibrate score": "needs human labels: tests/golden test_golden_calibration_end_to_end",
     "report --publish": "needs a calibrated run: tests/report/test_readme.py",
     "--version": "tests/test_cli.py",
+    "pubmedqa-paraphrase": "needs the real PQA-L probe pubids: tests/test_paraphrase_probe.py "
+    "test_dry_run_of_both_probe_tasks_plans_the_same_pubids",  # B5.8
+    "report --paraphrase": "needs two probe runs: tests/test_paraphrase_probe.py "
+    "test_cli_report_paraphrase_writes_contamination_json",  # B5.8
 }
 
 
