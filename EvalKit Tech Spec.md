@@ -510,7 +510,7 @@ scripts/status.py            # live one-table build status (D-13)
 
 Status vocabulary: `not-started | spec | building | green`.
 
-### 11.2 Build graph: 37 nodes in six waves
+### 11.2 Build graph: 38 nodes in six waves
 
 **First public release, v0.1.0 (all Must stories): 16 nodes.** W0.1, N1.1–N1.4, A2.1–A2.6, B2.1–B2.5.
 **Full scope: 26 nodes.**
@@ -553,7 +553,8 @@ Status vocabulary: `not-started | spec | building | green`.
 | **B5.7** | Monitoring and improvement ledger (D-62) | B5.4 | Run history, trend and alarm bands, experiment ledger with a freeze guard | US6 |
 | **B5.8** | Paraphrase contamination probe (D-62) | B5.4 | Paraphrase set by the PRD method, original-vs-paraphrase report | US6, US10 |
 | **B5.9** | Calibration integrity sheet (D-62) | B5.4 | Blind repeats and planted items; certificate bound to run and rubric hashes | US3 |
-| **B5.10** | v0.4.0 (D-62) | B5.7, B5.8, B5.9 | Ledger, probe and integrity sheet released | US6 |
+| **B5.10** | v0.4.0 (D-62, D-64) | B5.7, B5.8, B5.9, B5.11 | Ledger, probe, integrity sheet and security kit released | US6 |
+| **B5.11** | Agent security eval kit (D-64) | B5.4, C3.4 | Attack-case schema, pass^k, stopping layers, scripted attacker, held-out never reported | US11 |
 
 Waves: **W0** harness → **N1** core → **A2/S2/B2** benchmark, scorer library, reporting and public release → **C3/D3** agent track and demo → **B4** v0.2 for downstream needs → **B5** one eval loop across the seven downstream projects (D-61, D-62). The first public release, v0.1.0 on PyPI, ships at B2.5.
 
@@ -928,6 +929,10 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | GAT-02 | `evalkit gate` with exit codes, `--json` and the GitHub Action | D-61 |
 | GAT-03 | Metrics-summary format a project emits without an EvalKit run | D-62 |
 | GAT-04 | Held-out splits only as aggregates; assay-pipeline's failing case as a test | D-62 |
+| GAT-05 | Multi-field labels, units, project-supplied intervals, `simulated` flag | D-63 |
+| GAT-06 | Group disparity gap with a CI and a max-gap gate | D-63 |
+| GAT-07 | Exact Clopper-Pearson bounds in public stats, usable by gates | D-64 |
+| GAT-08 | Gate severity: fail or warn | D-64 |
 | V03-01 | v0.3.0 version, changelog, canary green on the release candidate | D-61 |
 | V03-02 | `docs/downstream.md` migration guide per project | D-61 |
 | V03-03 | Owner-tagged v0.3.0 on PyPI, recorded and checked | D-61 |
@@ -938,12 +943,18 @@ Each row becomes one line in `docs/graph/catalog.tsv` with status `not-started`.
 | LED-01 | Run history and `evalkit history` | D-62 |
 | LED-02 | Trend and alarm bands (drift check) | D-62 |
 | LED-03 | Experiment ledger with a held-out freeze guard | D-62 |
+| LED-04 | Drift and calibration monitor (PSI, Brier, ECE, reliability) | D-63 |
 | PAR-01 | Paraphrase set by the PRD's documented method | D-62, P4 |
 | PAR-02 | Original-vs-paraphrase accuracy with a paired CI | D-62 |
 | CIS-01 | Integrity sheet with blind repeats and planted items | D-62 |
 | CIS-02 | Labeller agreement reported; certificate bound to run and rubric hashes | D-62 |
 | V04-01 | v0.4.0 version, changelog, canary green | D-62 |
 | V04-02 | Owner-tagged v0.4.0 on PyPI | D-62 |
+| SEC-01 | Attack-case schema with held-out manifest | D-64 |
+| SEC-02 | k trials and pass^k; tool-argument canary leaks count | D-64 |
+| SEC-03 | Stopping-layer attribution | D-64 |
+| SEC-04 | Model-free scripted-attacker mode | D-64 |
+| SEC-05 | Held-out attack cases never reported | D-64 |
 
 ### 11.5 Node lifecycle
 
