@@ -1,0 +1,15 @@
+{
+  "release": "v0.2.0",
+  "node": "B4.1",
+  "tag": "v0.2.0",
+  "commit": "43df77edb8efb07d6f168fc0f8b8544ec86e3aca",
+  "package": "evalkit-harness",
+  "version": "0.2.0",
+  "published_by": "trusted publishing from .github/workflows/release.yml on the tag (built in a parallel session; record added 2026-11-17 from PyPI's JSON API)",
+  "files": [
+    {"type": "bdist_wheel", "filename": "evalkit_harness-0.2.0-py3-none-any.whl", "sha256": "c31ab531dab69c07b5e24c94833c7f1e3b8f1f5b67aadbcd4e270fa02c3cfa92", "uploaded": "2026-11-16T17:02:30.234989Z"},
+    {"type": "sdist", "filename": "evalkit_harness-0.2.0.tar.gz", "sha256": "ab9dee7427493c2a5d8001eb3997a640060788484b8f6be0008d7b6aacd96971", "uploaded": "2026-11-16T17:02:34.863730Z"}
+  ],
+  "source": "https://pypi.org/pypi/evalkit-harness/0.2.0/json, read 2026-11-17",
+  "spend_usd": 0
+}

@@ -3,6 +3,8 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [RELEASE] [B4.1] — v0.2.0 release record added (it was published on 2026-11-16 by trusted publishing from tag v0.2.0, commit 43df77e; files and sha256 from PyPI): docs/measurements/release-v0.2.0-2026-11-16.json. Spend: $0.
+- [DOCS] — Portfolio case study (docs/case-study.md): every number cited to a committed file; for the portfolio session's fact-check and the owner's approval before it is published. Spend: $0.
 - [FEAT] [B5.9] — Green after three verifier passes: calibration sheets for any criterion, blind repeats and planted items, certification that EvalKit's APIs cannot forge, bar floors. Spend: $0.
 - [HARNESS] [B5.13, B5.11] — D-72: value_check gains an "unverifiable" outcome; B5.11 held-out category rows opt-in with a minimum of 5, partial counts as not blocked, PRIVACY.md line on running the user's system. Spend: $0.
 - [FEAT] [B5.6] — Run-vs-run compare (lane build, merged): `evalkit compare OLD NEW` and `evalkit.compare` — paired two-level bootstrap on shared cases, case-only resampling, unpaired fallback labelled, Holm-adjusted flags, settings differences listed, baseline rules, held-out aggregates only; tested on assay-pipeline and respectful-offers fixtures. Spend: $0.
