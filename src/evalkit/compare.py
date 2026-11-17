@@ -51,8 +51,17 @@ from evalkit.metrics import (
     unit_kind,
     validate_metrics,
 )
+from evalkit.runfolder import file_problem, is_evalkit_file, marker_problem
 from evalkit.schemas import Interval
-from evalkit.stats import ALPHA, Resamples, clopper_pearson, holm, interval, interval_from, paired
+from evalkit.stats import (
+    ALPHA,
+    Resamples,
+    clopper_pearson,
+    holm,
+    interval_from,
+    paired,
+    two_level_interval,
+)
 
 __all__ = [
     "COMPARE_SCHEMA",
@@ -186,10 +195,17 @@ def load_input(path: str | Path) -> RunInput:
     metrics-1 file, with its optional per-case sidecar `cases.jsonl` and `settings.json`."""
     p = Path(path)
     if p.is_dir():
-        if (p / "summary.json").is_file():
-            return _load_run(p / "summary.json")
-        if (p / "metrics.json").is_file():
+        summary = p / "summary.json"
+        why = file_problem(summary) if summary.is_file() else None
+        if summary.is_file() and why is None:
+            return _load_run(summary)
+        if (p / "metrics.json").is_file():  # a project's own summary.json beside it is ignored
             p = p / "metrics.json"
+        elif why is not None:
+            raise CompareError(
+                [f"{p} is not an EvalKit run folder: its summary.json {why}; and it holds no "
+                 "metrics.json"]
+            )  # fmt: skip
         else:
             raise CompareError(
                 [f"{p} holds neither an EvalKit run (summary.json) nor a metrics.json"]
@@ -201,6 +217,9 @@ def load_input(path: str | Path) -> RunInput:
     if version == SCHEMA:
         return _load_metrics(p, data)
     if isinstance(version, str) and _EVALKIT_VERSION.match(version):
+        why = marker_problem(data, "summary.json")
+        if why is not None:
+            raise CompareError([f"{p} is not an EvalKit run summary: it {why}"])
         return _load_run(p)
     raise CompareError(
         [f"{p}: not a metrics-1 file or an EvalKit summary.json (schema_version must be "
@@ -212,8 +231,9 @@ def _load_metrics(path: Path, data: Any) -> RunInput:
     metrics = validate_metrics(data)
     folder = path.parent
     cases = None
-    # an EvalKit run folder's cases.jsonl holds case definitions, never per-case values
-    if not (folder / "run.json").is_file() and (folder / "cases.jsonl").is_file():
+    # an EvalKit run folder's cases.jsonl holds case definitions, never per-case values; a
+    # project's own run.json does not make its folder an EvalKit run
+    if not is_evalkit_file(folder / "run.json") and (folder / "cases.jsonl").is_file():
         cases = _read_sidecar(folder / "cases.jsonl", metrics, path.name)
     settings = _metrics_settings(metrics)
     _merge_settings(settings, _read_settings(folder / "settings.json"))
@@ -596,21 +616,8 @@ def paired_bootstrap(
 def _one_side(groups: Sequence[Sequence[float]], key: str, cache: _Cache) -> Interval:
     """One run's mean over its cases with a bootstrap interval (two-level with trials)."""
     _check_values(groups)
-    n = len(groups)
-    rs = cache.rs(n)
-    if all(len(g) == 1 for g in groups):
-        return interval([g[0] for g in groups], rs)
-    point = math.fsum(_mean(g) for g in groups) / n
-    draw = random.Random(f"evalkit-compare-side:{cache.seed}:{key}").random
-    boot = []
-    for row in rs.rows:
-        total = 0.0
-        for i in row:
-            g = groups[i]
-            k = len(g)
-            total += g[0] if k == 1 else math.fsum([g[int(draw() * k)] for _ in range(k)]) / k
-        boot.append(total / n)
-    return interval_from(point, boot)
+    rs = cache.rs(len(groups))
+    return two_level_interval(groups, rs, f"evalkit-compare-side:{cache.seed}:{key}")
 
 
 def _mover(old: Interval, new: Interval) -> Interval:

@@ -19,6 +19,29 @@ Each of OLD and NEW can be any of these:
 
 Either kind may also have a flat `settings.json` beside it (see [Settings](#settings)).
 
+### What counts as an EvalKit run folder (0.4.0)
+
+`run.json` and `summary.json` are common names: other projects write their own (agentic-analytics'
+results folders hold both, with `schema_version: "1.0"` as EvalKit's do). A folder is an EvalKit
+run only when its `summary.json` carries EvalKit's marker: a JSON object whose `schema_version`
+is EvalKit's results format (`<major>.<minor>`, 1.x today) and which has every key EvalKit
+always writes there (`run_id`, `task`, `config_hash`, `judge_mode`, `calibration_status`,
+`judging_status`, `models`). For `run.json` the keys are `run_id`, `task`, `task_ref`,
+`config_hash`, `judge_mode`, `judges` and `live_judges`. Otherwise:
+
+- a folder whose `summary.json` is not EvalKit's is read through its `metrics.json` when it has
+  one (the project's own summary is ignored); without one, compare exits 2 and says why
+  (`... is not an EvalKit run folder: its summary.json has schema_version '1.0' but not
+  EvalKit's summary.json keys (...)`). A `summary.json` named directly is refused the same way;
+- a project's own `run.json` beside `metrics.json` does not make the folder an EvalKit run, so
+  its `cases.jsonl` sidecar is read as per-case values;
+- `evalkit gate` refuses a foreign `summary.json` with the same reason (exit 2), and `evalkit
+  report` and a resumed `evalkit run` refuse a folder whose `run.json` is not EvalKit's.
+
+A file that carries the marker but fails EvalKit's schema is reported as a broken EvalKit file,
+never read as something else. Security run folders (`python -m evalkit.security`) have their own
+`summary.json` and are compared through their `metrics.json`.
+
 Options: `--gates FILE` (gated metrics, see [Exit codes](#exit-codes); its `heldout_splits` also
 apply here), `--manifest FILE` (a [B5.14 held-out manifest](heldout.md)), `--heldout-split NAME`
 (repeatable; `heldout` is always held out), `--seed` (default 7), `--resamples` (default

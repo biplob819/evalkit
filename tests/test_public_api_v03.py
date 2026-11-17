@@ -54,6 +54,9 @@ COMPANIONS = {
     "evalkit.cost.claims_from_texts",
     "evalkit.cost.measured_claims",
     "evalkit.scorers.faithfulness.estimate_faithfulness_cost",
+    # Clustered intervals (agentic-analytics OWNER D-100): the two-level bootstrap compare
+    # already used, made public so clustered rates share it; a new capability, not a promotion
+    "evalkit.stats.two_level_interval",
 }
 
 

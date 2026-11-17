@@ -848,6 +848,16 @@ def _load_summary(path: Path) -> tuple[MetricsSummary, RunStatus]:
     if version == SCHEMA:
         return validate_metrics(data), RunStatus()
     if isinstance(version, str) and _EVALKIT_VERSION.match(version):
+        from evalkit.runfolder import marker_problem
+
+        problem = marker_problem(data, "summary.json")
+        if problem is not None:  # a project's own summary.json is never read as a run
+            raise MetricsError(
+                [
+                    f"{path.name} is not an EvalKit run summary: it {problem}; "
+                    "write a metrics-1 file for evalkit gate instead"
+                ]
+            )
         return _load_evalkit(path, text)
     raise MetricsError(
         [

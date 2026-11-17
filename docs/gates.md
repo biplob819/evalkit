@@ -84,6 +84,12 @@ per-case cost gate like any other metric.
 
 ### EvalKit's `summary.json` in this shape
 
+A `summary.json` is read as EvalKit's only when it carries EvalKit's marker: `schema_version`
+`<major>.<minor>` and every key EvalKit always writes there (0.4.0; see
+[compare.md](compare.md#what-counts-as-an-evalkit-run-folder-040)). Another project's
+`summary.json`, even with `schema_version: "1.0"`, exits 2 with the reason; write a metrics-1
+file for it instead.
+
 `evalkit gate` converts an EvalKit summary (`evalkit.metrics.from_run_summary`): per model,
 `accuracy`, `citation_validity`, `coverage`, `headline` and `groundedness` (label `judge`),
 `citation_precision` and `aim_citation_rate` (per judge), `task_scores.<scorer>`,

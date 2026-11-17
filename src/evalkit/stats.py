@@ -22,6 +22,7 @@ __all__ = [  # public since 0.3.0
     "paired",
     "percentile_ms",
     "rate_wording",  # 0.3.0 (B5.3, GAT-07)
+    "two_level_interval",  # 0.4.0 (agentic-analytics D-100)
 ]
 
 ALPHA = 0.05
@@ -267,3 +268,38 @@ def rate_wording(k: int, n: int, alpha: float = ALPHA) -> str:
         return f"{n} of {n}, above {_pct(clopper_pearson(k, n, alpha, 'lower').lo)} at {level}"
     iv = clopper_pearson(k, n, alpha)
     return f"{k} of {n} ({_pct(iv.point)}, {level} CI {_pct(iv.lo)}–{_pct(iv.hi)})"
+
+
+def two_level_interval(
+    groups: Sequence[Sequence[float]],
+    resamples: Resamples,
+    stream: str,
+    alpha: float = ALPHA,
+) -> Interval:
+    """Mean of per-case means with a two-level percentile bootstrap (D-41, D-51; 0.4.0): each
+    row of `resamples` draws cases, then each drawn case's values (its trials or answers) are
+    drawn with replacement from one `random.Random(stream)`. A case with one value is never
+    redrawn, so when every case has one value this is exactly `interval` (cases only). The same
+    `groups`, `resamples` and `stream` give the same interval. This is the bootstrap
+    `evalkit compare` uses for one run's side; it is public so clustered rates share it."""
+    if len(groups) != resamples.n:
+        raise ValueError(f"expected {resamples.n} cases, got {len(groups)}")
+    for g in groups:
+        if not g:
+            raise ValueError("every case needs at least one value")
+        if not all(math.isfinite(x) for x in g):
+            raise ValueError("values must be finite")
+    if all(len(g) == 1 for g in groups):
+        return interval([g[0] for g in groups], resamples, alpha)
+    n = len(groups)
+    point = math.fsum(math.fsum(g) / len(g) for g in groups) / n
+    draw = random.Random(stream).random
+    boot = []
+    for row in resamples.rows:
+        total = 0.0
+        for i in row:
+            g = groups[i]
+            k = len(g)
+            total += g[0] if k == 1 else math.fsum([g[int(draw() * k)] for _ in range(k)]) / k
+        boot.append(total / n)
+    return _interval_from(point, boot, alpha)

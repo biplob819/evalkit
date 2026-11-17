@@ -404,6 +404,11 @@ def read_manifest(run_dir: Path) -> RunManifest:
     path = run_dir / "run.json"
     if not path.is_file():
         raise RunError(f"{run_dir} is not a run folder (no run.json)")
+    from evalkit.runfolder import file_problem
+
+    problem = file_problem(path)
+    if problem is not None:  # a project's own run.json is never read as an EvalKit run
+        raise RunError(f"{run_dir} is not an EvalKit run folder: its run.json {problem}")
     return RunManifest.model_validate_json(path.read_text(encoding="utf-8"))
 
 
