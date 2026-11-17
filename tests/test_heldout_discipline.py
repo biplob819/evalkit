@@ -1086,3 +1086,24 @@ def test_malformed_cases_raise_heldout_error_and_ids_are_nfc(tmp_path, capsys):
         H.record_scoring(log, [nfd], "rubric-a", at=AT)
     with pytest.raises(H.HeldoutError):
         H.exposure_scan(["not a mapping"], tmp_path)  # type: ignore[list-item]
+
+
+# =============================== verifier pass 2 (B5.14) ===============================
+
+
+def test_scan_with_a_field_no_case_has_is_an_error_not_a_pass(tmp_path):
+    """A misspelt or renamed --field used to scan nothing and report "no held-out text"."""
+    cases = [{"id": "c1", "goal": "find the quarterly revenue of the northern region stores"}]
+    with pytest.raises(H.HeldoutError, match="gaol"):
+        H.exposure_scan(cases, tmp_path, fields=["gaol"])
+
+
+def test_deeply_nested_or_unreadable_case_files_are_heldout_errors(tmp_path):
+    deep = tmp_path / "deep.json"
+    deep.write_text("[" * 200_000 + "]" * 200_000, encoding="utf-8")
+    with pytest.raises(H.HeldoutError):
+        H.load_cases(deep)
+    deep_l = tmp_path / "deep.jsonl"
+    deep_l.write_text("[" * 200_000 + "]" * 200_000 + "\n", encoding="utf-8")
+    with pytest.raises(H.HeldoutError):
+        H.load_cases(deep_l)

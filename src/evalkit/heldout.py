@@ -147,18 +147,20 @@ def _load_file(path: Path, id_field: str) -> list[dict[str, Any]]:
                 continue
             try:
                 rows.append(json.loads(line))
-            except ValueError:
+            except (ValueError, RecursionError):
                 raise HeldoutError(f"{path.name} line {n} is not JSON") from None
             where.append(f"line {n}")
     else:
         try:
             data = json.loads(raw) if path.suffix == ".json" else yaml.safe_load(raw)
-        except (ValueError, yaml.YAMLError):  # the parser's message may quote the text
+        except (ValueError, yaml.YAMLError, RecursionError):  # messages may quote the text
             raise HeldoutError(f"{path.name} is not valid {path.suffix[1:].upper()}") from None
         if data is None:
             return []
         try:
             rows = _rows_of(data, id_field)
+        except RecursionError:
+            raise HeldoutError(f"{path.name} is nested too deeply") from None
         except HeldoutError as exc:
             raise HeldoutError(f"{path.name} {exc}") from None
         where = [f"case {n}" for n in range(1, len(rows) + 1)]
@@ -171,7 +173,7 @@ def _load_file(path: Path, id_field: str) -> list[dict[str, Any]]:
             raise HeldoutError(f"{path.name} {at} has no {id_field!r}")
         try:
             content_hash(row, id_field=id_field)
-        except HeldoutError:
+        except (HeldoutError, RecursionError):
             raise HeldoutError(
                 f"{path.name} {at} has keys of mixed types or a self-referencing value"
             ) from None
@@ -184,7 +186,10 @@ def load_cases(path: str | Path, *, id_field: str = "id") -> list[dict[str, Any]
     inside a folder (sorted by name). Raises `HeldoutError` naming the file and position."""
     p = Path(path)
     if p.is_dir():
-        files = sorted(f for f in p.iterdir() if f.is_file() and f.suffix in _SUFFIXES)
+        try:
+            files = sorted(f for f in p.iterdir() if f.is_file() and f.suffix in _SUFFIXES)
+        except OSError:
+            raise HeldoutError(f"{p.name}: unreadable folder") from None
         return [c for f in files for c in _load_file(f, id_field)]
     if not p.is_file():
         raise HeldoutError(f"{p.name}: no such case file or folder")
@@ -1072,6 +1077,11 @@ def exposure_scan(
     }
     wholes: list[tuple[str, str]] = []
     shingles: dict[str, set[str]] = {}
+    if fields is not None:
+        present = {k for c in cases if isinstance(c, Mapping) for k in c}
+        missing = sorted(set(fields) - present)
+        if missing:  # a misspelt or renamed field would otherwise turn the scan off silently
+            raise HeldoutError(f"no case has the field(s) {', '.join(missing)}")
     for n, case in enumerate(cases, start=1):
         if not isinstance(case, Mapping):
             raise HeldoutError(f"case {n} is not a mapping")

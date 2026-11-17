@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.14] — Green after two verifier passes: score-once enforced on the log itself, exact tracked path, shallow clones and every error fail closed, a write lock (0 double scorings in 30 races), scan views for HTML entities, hyphenation, NFKC, binary and staged files, and a misspelt `--field` is an error rather than a silent pass. Spend: $0.
 - [FEAT] [B5.8] — Paraphrase contamination probe (lane build, merged): gemma's DAT-06 set vendored with provenance (kept sha256 8300d30a…, rejects 0279ecca…), built-in tasks `pubmedqa-paraphrase` and `pubmedqa-paraphrase-original`, rebuild tooling (estimate first, cost cap), and `evalkit report --paraphrase ORIG PARA` with a paired bootstrap per model; provisional until the owner's spot-check. Spend: $0.
 - [FEAT] [B5.2] — Green after verification (all 86 recorded downstream imports still work; moved calibration paths warn once until 0.4.0); verifier fixes: iterator inputs, `dir()`, star-import note. Spend: $0.
 - [HARNESS] [B5.8] — D-68: the paraphrase probe adopts gemma-grounded-health's set built by EvalKit's DAT-06 method; lane opened. Spend: $0.
