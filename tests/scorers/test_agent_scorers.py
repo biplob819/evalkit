@@ -24,7 +24,6 @@ from evalkit.scorers import (
     RuleError,
     RuleSet,
     ScoreResult,
-    ValuePhrase,
     answer_from_rows,
     clarification_rates,
     get_scorer,
@@ -32,11 +31,16 @@ from evalkit.scorers import (
     rule_compliance,
     rule_compliance_scorer,
     unsupported_numbers,
+)
+from evalkit.scorers import base as scorer_base
+
+# D-74: value_check is not public in 0.3.0; it is tested from its internal module until B5.16.
+from evalkit.scorers.evidence import (
+    ValuePhrase,
     value_check,
     value_check_scorer,
     value_check_shares,
 )
-from evalkit.scorers import base as scorer_base
 from evalkit.scorers.rules import decision_fields
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "agent_scorers"
@@ -1013,14 +1017,14 @@ def test_sev_conditional_text_may_hold_colons():
 )
 def test_sev_percent_comparisons_against_a_fraction_field(reason, ok):
     """A percent compared with a fraction-valued field reads as a fraction (risk 0.83)."""
-    from evalkit.scorers import value_check
+    from evalkit.scorers.evidence import value_check
 
     got = value_check(reason, {"risk_score": 0.83})
     assert (got.value == 1.0) is ok, got
 
 
 def test_sev_wrong_typed_field_fails_the_claim_and_never_raises():
-    from evalkit.scorers import ValuePhrase, value_check
+    from evalkit.scorers.evidence import ValuePhrase, value_check
 
     phrase = ValuePhrase(pattern=r"\$\s*[\d,.]+", field="amount")
     got = value_check("charged $812", {"amount": "812"}, phrases=[phrase])
@@ -1058,7 +1062,7 @@ _REC = {"amount": 812.4, "card_history_n": 40}
     ],
 )
 def test_sev_negated_and_postfix_comparisons(reason, ok):
-    from evalkit.scorers import value_check
+    from evalkit.scorers.evidence import value_check
 
     got = value_check(reason, _REC)
     assert (got.value == 1.0) is ok, (reason, got.details)
@@ -1068,7 +1072,7 @@ def test_sev_negated_and_postfix_comparisons(reason, ok):
     "record", [{"hour": "3"}, {"hour": True}, {"hour": [3]}, {"hour": {"h": 3}}, {"hour": 10**400}]
 )
 def test_sev_value_check_never_raises_on_record_contents(record):
-    from evalkit.scorers import ValuePhrase, value_check
+    from evalkit.scorers.evidence import ValuePhrase, value_check
 
     phrase = ValuePhrase(pattern="at night", holds="hour < 5")
     got = value_check("at night", record, phrases=[phrase])

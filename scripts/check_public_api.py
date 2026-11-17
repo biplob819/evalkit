@@ -30,17 +30,14 @@ PUBLIC: dict[str, list[str]] = {
         "Rule",  # v0.3 (B5.13)
         "RuleError",  # v0.3 (B5.13)
         "RuleSet",  # v0.3 (B5.13)
-        "ValueCheckShares",  # v0.3 (B5.13, D-72)
-        "ValuePhrase",  # v0.3 (B5.13)
         "answer_from_rows",  # v0.3 (B5.13)
         "clarification_rates",  # v0.3 (B5.13)
         "render_evidence",  # v0.3 (B5.13)
         "rule_compliance",  # v0.3 (B5.13)
         "rule_compliance_scorer",  # v0.3 (B5.13)
         "unsupported_numbers",  # v0.3 (B5.13)
-        "value_check",  # v0.3 (B5.13)
-        "value_check_scorer",  # v0.3 (B5.13)
-        "value_check_shares",  # v0.3 (B5.13, D-72)
+        # D-74: value_check, value_check_scorer, value_check_shares, ValuePhrase and
+        # ValueCheckShares are NOT public in 0.3.0 (see WITHHELD); B5.16, 0.4.0.
     ],
     "evalkit.adapters": [
         "ALLOWED_PARAMS",
@@ -249,6 +246,19 @@ PUBLIC: dict[str, list[str]] = {
     ],
 }
 
+# D-74: names built for 0.3.0 but withheld from its public API. They stay importable from
+# their internal module (evalkit.scorers.evidence) and must NOT be exported from the public
+# one, so a release cannot ship them by accident. B5.16 redesigns value_check for 0.4.0.
+WITHHELD: dict[str, list[str]] = {
+    "evalkit.scorers": [
+        "ValueCheckShares",
+        "ValuePhrase",
+        "value_check",
+        "value_check_scorer",
+        "value_check_shares",
+    ],
+}
+
 # v0.3 (B5.2, PUB-02/03): internal paths downstream projects import whose names now have a
 # public home (old path -> public path). Paths in MOVED raise a DeprecationWarning naming the
 # new path until 0.4.0; the others are where EvalKit defines the name and stay silent. The
@@ -438,6 +448,10 @@ def missing() -> list[str]:
         module, name = new.rsplit(".", 1)
         if name not in PUBLIC.get(module, ()):
             out.append(f"{new} (promoted, not public)")
+    for module, names in WITHHELD.items():
+        mod = importlib.import_module(module)
+        exported = set(getattr(mod, "__all__", ())) | set(vars(mod))
+        out += [f"{module}.{n} (withheld, D-74)" for n in names if n in exported]
     return out
 
 

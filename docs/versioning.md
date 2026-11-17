@@ -59,7 +59,7 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 ## 0.3.0 additions
 
-- `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer`, `render_evidence`, `ValuePhrase`, `value_check`, `value_check_scorer` (B5.13, D-65), and `value_check_shares` with `ValueCheckShares` (D-72).
+- `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer` and `render_evidence` (B5.13, D-65). `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and `ValueCheckShares` are **not** public in 0.3.0 (OWNER D-74): they stay in the internal module `evalkit.scorers.evidence` and may change in any release until their strict redesign (B5.16) ships in 0.4.0 ([plugins.md](plugins.md#value_check-coming-in-040-d-74)); `scripts/check_public_api.py` fails if `evalkit.scorers` exports them.
 - `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 
 - The `evalkit gate` command (B5.3, D-62..D-65), with a summary file and the options `--config`, `--json` and `--out`: gates on any named metric from a `metrics-1` file or an EvalKit `summary.json`; exit codes 0/1/2/3/4 with precedence 2 > 3 > 4 > 1 > 0; no model or network call. See [gates.md](gates.md).
