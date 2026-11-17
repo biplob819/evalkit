@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FIX] [B5.13] — value_check never verifies what it is unsure of: unchecked times, windows and constants, clauses naming several fields, single shared words, comparison words away from their number and trailing negations are now unverifiable (an independent verifier's generator had 2,616 of 10,080 false claims verified; now 0). On fraud-review-bedrock's 10,225 reasons: 71.4% verified, 5.1% contradicted, 23.5% unverifiable. Spend: $0.
 - [FEAT] [B5.15] — Green after two verifier passes: opt-in sql_match equivalences that never turn a wrong answer into a match on any probe; stricter than agentic-analytics' reference. Spend: $0.
 - [FIX] [B5.15] — sql_match equivalences made stricter after verification (aligned with agentic-analytics' reference fixes, stricter wherever they differ): whole-word percent names (never percentile), negated-percent questions, month/quarter columns by name and the question's year, count-only empty checks, label-like pivot extras, per-column percent tolerance. Spend: $0.
 - [FEAT] [B5.6] — Green after two verifier passes: `evalkit compare` claims a change only with ≥ 10 shared cases, pairs only when most cases are shared, flags every-case-moved-alike regressions, refuses contradictory sidecars, and shows held-out splits only as aggregates. Spend: $0.
