@@ -1,6 +1,6 @@
 # B5.11 run state
 
-**Now:** round 4 done on `lane/b5.11-r3`, rebased onto main 7f7a6c6; `lane/b5.11` and `lane/b5.11-r2` are left as they were. Converge passed twice. SEC-01..05 are green in the branch only; waiting for the lead's verifier and merge.
+**Now:** round 5 done on `lane/b5.11-r4`, rebased onto main 73daa8f; the r1–r3 branches are left as they were. Converge passed twice. SEC-01..05 are green in the branch only; waiting for the lead's verifier and merge.
 
 ## History
 - 2026-11-17 — dependencies rewired to C3.4 and B5.14 (D-70); spec written by the lead.
@@ -40,6 +40,12 @@
   - (4) `verify()` compares the in-memory held-out cases with the manifest-pinned file by `case_hash`.
   - (5) `min_cell` below 5 is refused.
   - (6) SEC-03's layer set (with `executed`) is spelled out in the spec's Layers section and in B5.11's catalog note.
+
+- 2026-11-17 — round 5 (re-verifier at 51c27d6: SEC-01..04 confirmed, SEC-05 had two must-fixes). New branch `lane/b5.11-r4` from r3, rebased onto main 73daa8f (B5.6 green, B5.4 spec). Append conflicts in `changelog.md` resolved by keeping both sides, and duplicate B5.11 lines dropped. `.base` is now 73daa8f. Tests first, then:
+  - (1) A reported layer outside the layer set is withheld on held-out cases ("an unknown layer"), on both the run path (`Observation.layer`) and the scripted path (`ToolReply.layer`). The test covers the error chain, CLI output and written files.
+  - (2) In held-out category rows each statistic needs its own 5 cases: the scripted block is suppressed below 5 scripted cases per cell, and the trial figures stand on the 5 complete cases.
+  - (3) `summarise` keeps the last line per (case, trial), as `read_trials` does.
+  - (4) An id that a held-out case shares with a public one is reported as "an id repeats across splits".
 
 ## Decisions taken in the lane (for the lead to confirm)
 - **Layer vocabulary:** the default is the spec's `quality` (not `quality_rule`). Layer names, precedence and error prefixes are configurable through `LayerSet`, and assay passes `quality_rule`.

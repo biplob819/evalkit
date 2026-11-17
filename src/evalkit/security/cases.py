@@ -126,11 +126,16 @@ def check_cases(cases: Sequence[AttackCase], layers: LayerSet | None = None) -> 
     problems: list[str] = []
     counts = Counter(c.id for c in cases)
     named: set[str] = set()
+    held_ids = {c.id for c in cases if c.split == "heldout"}
     for c in cases:
         name = case_key(c)
-        if counts[c.id] > 1 and name not in named:
-            named.add(name)
-            problems.append(f"{name}: the id repeats ({counts[c.id]} cases)")
+        if counts[c.id] > 1 and c.id not in named:
+            named.add(c.id)
+            if c.id in held_ids and any(x.id == c.id and x.split == "public" for x in cases):
+                # a public name would print the held-out id: say only that it happens
+                problems.append(f"an id repeats across splits ({counts[c.id]} cases)")
+            else:
+                problems.append(f"{name}: the id repeats ({counts[c.id]} cases)")
         bad = [x for x in c.expected_stop if x not in ls.blocking]
         if bad:
             why = "a success layer" if set(bad) <= set(SUCCESS_LAYERS) else "not a blocking layer"

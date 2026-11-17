@@ -160,6 +160,11 @@ def _heldout_categories(
     # a shown cell below it
     small = sum(1 for b in blocks.values() if b["complete_cases"] < min_cell)
     rows = [] if small else [{"owasp": cat, **b} for cat, b in blocks.items()]
+    # every per-cell statistic needs its own min_cell cases: the trial figures stand on the
+    # complete cases checked above; the scripted figure has its own denominator
+    for row in rows:
+        if row["scripted"]["cases"] < min_cell:
+            row["scripted"] = {"suppressed": True, "min_cases": min_cell}
     return {"min_cases": min_cell, "suppressed_cells": small, "rows": rows}
 
 
@@ -184,6 +189,8 @@ def summarise(
     per-category rows for public only. `k` is the run's trials per case, shown in the report;
     each case's completeness uses its own k (recorded on its trial lines)."""
     ls = layers if layers is not None else LayerSet()
+    # one line per (case, trial), the last wins, as read_trials does
+    trials = list({(t.case, t.trial): t for t in trials}.values())
     splits = sorted(
         {t.split for t in trials} | {r.split for r in scripted},
         key=lambda s: (_SPLIT_ORDER.get(s, 2), s),

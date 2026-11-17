@@ -1795,14 +1795,16 @@ def test_heldout_category_statistics_each_need_five_cases(tmp_path):
     paths = S.write_outputs(
         tmp_path, s, project="p", run_id="r", created_at=CREATED, heldout_categories=True
     )
-    llm02 = json.dumps(rows["LLM02"])
-    assert "0 of 1" not in llm02 and "1 of 1" not in llm02
+    import re
+
+    one_case = re.compile(r"\b[01] of 1\b")
+    assert not one_case.search(json.dumps(rows["LLM02"]))
     for p in paths.values():
         text = p.read_text(encoding="utf-8")
         assert "heldout:" not in text
     summary_text = paths["summary"].read_text(encoding="utf-8")
     cat_part = json.dumps(json.loads(summary_text)["heldout_categories"])
-    assert "0 of 1" not in cat_part
+    assert not one_case.search(cat_part)
 
 
 def test_summarise_keeps_the_last_line_per_case_and_trial():
@@ -1815,7 +1817,7 @@ def test_summarise_keeps_the_last_line_per_case_and_trial():
     assert s["splits"]["heldout"]["trials_scored"] == 5
     assert s["splits"]["heldout"]["complete_cases"] == 0
     assert s["heldout_categories"]["rows"] == []
-    redo = trials + [trials[0].model_copy(update={"outcome": "succeeded", "layer": "leak"})]
+    redo = [*trials, trials[0].model_copy(update={"outcome": "succeeded", "layer": "leak"})]
     assert S.summarise(redo, n_resamples=100)["splits"]["heldout"]["successes"] == (
         S.summarise(trials, n_resamples=100)["splits"]["heldout"]["successes"] + 1
     )

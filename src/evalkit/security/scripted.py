@@ -20,7 +20,7 @@ from evalkit.schemas._base import Model, NonBlank
 from .cases import AttackCase, AttackSuite, canary_in, case_key, check_cases
 from .errors import SecurityError
 from .layers import LayerSet
-from .trials import call_guarded
+from .trials import call_guarded, reported_layer
 
 SCRIPTED_FILE = "scripted.jsonl"
 
@@ -61,11 +61,12 @@ def _owasp(case: AttackCase) -> str | None:
 
 
 def _payload_layer(case: AttackCase, reply: ToolReply, ls: LayerSet) -> str:
+    reported_layer(case, reply.layer, ls, "the tool surface")
     texts = [reply.text, *([reply.error] if reply.error else [])]
     if canary_in(texts, case.canaries):
         return "leak"
     if reply.layer is not None:
-        return ls.check_blocking(reply.layer, "the reported layer")
+        return str(reported_layer(case, reply.layer, ls, "the tool surface"))
     return ls.classify(reply.error) or "executed"
 
 
