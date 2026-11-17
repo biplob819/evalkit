@@ -3,6 +3,7 @@
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 2026-11-17
+- [FEAT] [B5.15] — `sql_match` shape equivalences (lane build, merged): opt-in `percent_scale`, `pivot`, `empty_check`, `period_number` under the reference's narrower rules, strict first, `correct_strict` recorded; default output byte-identical. Fix: sql_match failure details no longer depend on PYTHONHASHSEED, and a predicted row is no longer labelled `example_gold_row`. Spend: $0.
 - [RELEASE] [B4.1] — v0.2.0 release record added (it was published on 2026-11-16 by trusted publishing from tag v0.2.0, commit 43df77e; files and sha256 from PyPI): docs/measurements/release-v0.2.0-2026-11-16.json. Spend: $0.
 - [DOCS] — Portfolio case study (docs/case-study.md): every number cited to a committed file; for the portfolio session's fact-check and the owner's approval before it is published. Spend: $0.
 - [FEAT] [B5.9] — Green after three verifier passes: calibration sheets for any criterion, blind repeats and planted items, certification that EvalKit's APIs cannot forge, bar floors. Spend: $0.

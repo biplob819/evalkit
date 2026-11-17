@@ -362,9 +362,8 @@ def test_a_strict_match_records_no_equivalence_and_equal_scores():
 def test_default_call_reproduces_pre_b515_outputs_byte_for_byte():
     """SQE-02 golden: every sql_match_cases.json case and every baseline case, with and without
     allow_extra_columns, gives the JSON sql_match gave before B5.15 (snapshot made on ca50e38).
-    Its failure details iterate a set of string tuples, so the bytes depend on the hash seed:
-    the comparison runs at the seed the snapshot was made with; values and reasons are also
-    compared here, in this process's seed."""
+    Failure details were regenerated once after B5.15 made them independent of the hash seed;
+    values and reasons are those of ca50e38, and the bytes now match under several seeds."""
     snap = json.loads((FIXTURES / "strict_snapshot.json").read_text(encoding="utf-8"))["cases"]
     assert len(snap) == 58
     for c in snap:
@@ -381,8 +380,9 @@ def test_default_call_reproduces_pre_b515_outputs_byte_for_byte():
         "ResultSet(**c['gold']),**c['kwargs']).model_dump_json()!=c['result']]\n"
         "print(json.dumps(bad))\n"
     )
-    out = _python(script, str(FIXTURES / "strict_snapshot.json"), seed="0")
-    assert json.loads(out) == []
+    for seed in ("0", "1", "12345"):  # details no longer depend on the hash seed
+        out = _python(script, str(FIXTURES / "strict_snapshot.json"), seed=seed)
+        assert json.loads(out) == [], seed
 
 
 @pytest.mark.contract

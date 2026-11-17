@@ -2008,7 +2008,7 @@
     ],
     "ordered": false
    },
-   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"positional\",\"unmatched_predicted\":1,\"unmatched_gold\":0,\"example_gold_row\":[\"2022-07-01\",287727]}}"
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"positional\",\"unmatched_predicted\":0,\"unmatched_gold\":4,\"example_gold_row\":[1,248421]}}"
   },
   {
    "name": "cortex_analyst-q-025+tol+extra",
@@ -2069,7 +2069,7 @@
     ],
     "ordered": false
    },
-   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"positional\",\"unmatched_predicted\":1,\"unmatched_gold\":0,\"example_gold_row\":[\"2022-07-01\",287727]}}"
+   "result": "{\"value\":0.0,\"details\":{\"reason\":\"rows_differ\",\"columns\":\"positional\",\"unmatched_predicted\":0,\"unmatched_gold\":4,\"example_gold_row\":[1,248421]}}"
   },
   {
    "name": "gpt_mcp-q-005",
@@ -2235,5 +2235,6 @@
    },
    "result": "{\"value\":0.0,\"details\":{\"reason\":\"no_matching_columns\",\"predicted\":3,\"gold\":2,\"assignments_tried\":0}}"
   }
- ]
+ ],
+ "note": "Values and reasons are those sql_match gave on ca50e38; failure details regenerated after B5.15 made them independent of PYTHONHASHSEED (gold groups first; example_predicted_row when no gold row exists)."
 }

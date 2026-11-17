@@ -334,7 +334,9 @@ def _compare(
         groups_p[signature(r)].append(r)
     for r in left_g:
         groups_g[signature(r)].append(r)
-    for sig in set(groups_p) | set(groups_g):
+    # gold's groups first, in row order, then predicted-only ones: the first difference reported
+    # is the same on every run (a set's order changes with PYTHONHASHSEED; B5.15 finding)
+    for sig in [*groups_g, *(g for g in groups_p if g not in groups_g)]:
         num_idx = [i for i, part in enumerate(sig) if part == "num"]
         if not _group_matches(
             groups_p.get(sig, []), groups_g.get(sig, []), num_idx, rel_tol, abs_tol
@@ -346,7 +348,11 @@ def _compare(
                     "columns": mode,
                     "unmatched_predicted": len(groups_p.get(sig, [])),
                     "unmatched_gold": len(groups_g.get(sig, [])),
-                    "example_gold_row": [v for _, v in (groups_g.get(sig) or groups_p[sig])[0]],
+                    **(
+                        {"example_gold_row": [v for _, v in groups_g[sig][0]]}
+                        if groups_g.get(sig)
+                        else {"example_predicted_row": [v for _, v in groups_p[sig][0]]}
+                    ),
                 },
             )
     return ScoreResult(value=1.0, details={"columns": mode, "ordered": False})
