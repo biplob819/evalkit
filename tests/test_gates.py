@@ -1321,16 +1321,17 @@ def test_gates_file_problems_get_clear_messages(gates, message):
         parse_gates(gates)
 
 
-def test_out_naming_a_folder_exits_2_and_leaves_no_temporary_file(tmp_path, capsys):
+def test_out_naming_a_folder_writes_gate_json_inside_it_and_no_temporary_file(tmp_path, capsys):
+    """Assay: a folder for --out writes gate.json in it (it used to exit 2)."""
     path = write(tmp_path, "m.json", doc(PASSING))
     cfg = write(tmp_path, "g.yaml", 'gates: [{metric: x, op: "<=", value: 1}]')
     folder = tmp_path / "outdir"
     folder.mkdir()
     before = sorted(p.name for p in tmp_path.iterdir())
     code = cli.main(["gate", str(path), "--config", str(cfg), "--out", str(folder)])
-    assert code == EXIT_INPUT and "it is a folder" in capsys.readouterr().out
+    assert code == 0
     assert sorted(p.name for p in tmp_path.iterdir()) == before
-    assert list(folder.iterdir()) == []
+    assert [p.name for p in folder.iterdir()] == ["gate.json"]
 
 
 def test_a_bad_command_line_still_writes_gate_json(tmp_path, capsys):
@@ -1442,3 +1443,12 @@ def test_a_six_decimal_rate_with_n_a_multiple_of_128_is_accepted():
         "metrics": [{"name": "r", "unit": "rate", "value": 0.023438, "k": 3, "n": 128}],
     }
     assert parse_metrics(json.dumps(doc)).metrics[0].value == 0.023438
+
+
+def test_gate_out_may_name_a_folder(tmp_path, monkeypatch):
+    """Assay: `--out <folder>` writes gate.json inside it instead of refusing."""
+    from evalkit.cli import _out_file
+
+    assert _out_file(str(tmp_path), "gate.json") == tmp_path / "gate.json"
+    assert _out_file(str(tmp_path / "new") + "/", "gate.json") == tmp_path / "new" / "gate.json"
+    assert _out_file(str(tmp_path / "x.json"), "gate.json") == tmp_path / "x.json"

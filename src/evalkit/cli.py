@@ -646,6 +646,17 @@ def cmd_demo_cache(args: argparse.Namespace) -> int:
     return 3 if stopped else 0
 
 
+def _out_file(arg: str, name: str) -> Path:
+    """`--out` as given, or `name` inside it when it names an existing folder or ends with a
+    path separator (Assay: the help said "default ./", which reads as a folder)."""
+    import os
+
+    p = Path(arg)
+    if p.is_dir() or arg.endswith(("/", os.sep)):
+        return p / name
+    return p
+
+
 def _write_gate_json(out: Path, text: str) -> str | None:
     """Write gate.json atomically (a temporary file beside it, then a rename); on failure
     leave nothing behind and return the problem. `--out` naming a folder is refused."""
@@ -708,7 +719,7 @@ def cmd_gate(args: argparse.Namespace) -> int:
             errors=[f"unexpected {type(exc).__name__}"],
             source={"path": str(args.summary)},
         )
-    out = Path(args.out)
+    out = _out_file(args.out, "gate.json")
     problem = _write_gate_json(out, report_json(report))
     if problem:
         report.errors.append(problem)
@@ -739,6 +750,9 @@ def cmd_compare(args: argparse.Namespace) -> int:
         c = Comparison.error(
             [f"unexpected {type(exc).__name__}"], {"path": args.old}, {"path": args.new}
         )
+    args.out = str(_out_file(args.out, "compare.json"))
+    if args.md:
+        args.md = str(_out_file(args.md, "compare.md"))
     problems = [p for p in (_write_gate_json(Path(args.out), report_json(c)),) if p]
     if args.md and not problems:
         md_problem = _write_gate_json(Path(args.md), render_markdown(c))
@@ -933,7 +947,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="gates YAML (default for an EvalKit summary: every model passes its thresholds)",
     )
-    g.add_argument("--out", default="gate.json", help="where to write gate.json (default ./)")
+    g.add_argument(
+        "--out",
+        default="gate.json",
+        help="file to write, or a folder to write gate.json in (default ./gate.json)",
+    )
     g.add_argument("--json", action="store_true", help="print the gate.json object")
     g.set_defaults(func=cmd_gate)
 
@@ -958,7 +976,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--resamples", type=int, default=10_000, help="bootstrap resamples (default 10000)"
     )
     cmp_.add_argument("--json", action="store_true", help="print the compare.json object")
-    cmp_.add_argument("--out", default="compare.json", help="where to write compare.json")
+    cmp_.add_argument(
+        "--out",
+        default="compare.json",
+        help="file to write, or a folder to write compare.json in (default ./compare.json)",
+    )
     cmp_.add_argument("--md", default=None, help="also write the markdown report here")
     cmp_.set_defaults(func=cmd_compare)
     return p
