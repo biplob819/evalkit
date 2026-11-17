@@ -141,3 +141,15 @@ def test_integrity_module_is_public_with_its_calibrate_options():
     assert sorted(integrity.__all__) == sorted(PUBLIC["evalkit.integrity"])
     assert {"--criterion", "--manifest", "--log", "--rubric-hash"} <= CLI["calibrate score"]
     assert {"--criterion", "--context"} <= CLI["calibrate label"]
+
+
+def test_compare_module_is_public_with_its_command_line():
+    """B5.6: `evalkit.compare` is public, its `__all__` is exactly the contract, and
+    `evalkit compare` with its options and exit codes 0/1/2 is part of the CLI contract."""
+    import evalkit.compare as compare
+    from evalkit.cli import COMPARE_EXIT_CODES
+
+    assert sorted(compare.__all__) == sorted(PUBLIC["evalkit.compare"])
+    assert {"old", "new", "--gates", "--json", "--out", "--md"} <= CLI["compare"]
+    for code in ("0", "1", "2"):
+        assert f"  {code}  " in COMPARE_EXIT_CODES

@@ -40,6 +40,8 @@ listing exactly these in its `__all__` (its other names stay internal):
   structured output.
 - **`evalkit.identity`** (since 0.3.0): `JUDGE_PROMPT_HASH` and `EXTRACTOR_VERSION`, the
   values a current `Record` carries as `judge_prompt_hash` and `extractor_version`.
+- **`evalkit.compare`** (since 0.3.0, B5.6): every name in its `__all__` (run-vs-run compare
+  and `evalkit compare`; see [compare.md](compare.md)).
 
 Everything else, including `evalkit.pipeline`, `evalkit.runtime` and `evalkit.demo`, is
 internal and may change in any release.
@@ -65,6 +67,7 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 - `evalkit.gates` (B5.3): `Gate`, `GatesFile`, `parse_gates`, `load_gates`, `evaluate`, `run_gate`, `GateReport`, `GateRow`, `RunStatus`, `disparity_gap`, `render_text`, the input-classes table `INPUTS` and the exit-code constants.
 - `evalkit.stats.clopper_pearson` and `evalkit.stats.rate_wording` (B5.3, GAT-07): exact binomial intervals, two-sided by default and one-sided with `sided="upper"` or `sided="lower"` (the bounds gates check, D-70), and the "0 of n, below X% at 95%" wording.
 - `summary.json` gains an optional per-model `efficiency` object (EFF-02, OWNER D-70): token means per case, cache-hit share, cost per case and per correct answer and latency p50/p95/p99 with seeded 95% bootstrap intervals, error rate with its count, system cost and eval overhead (extractor and judges), mode and price date; `retry_rate` is null (not recorded). It is omitted when absent, so a summary without it reads as before. The run report gains an Efficiency section with the same figures, and shares that are exactly 0 or 1 read "0 of n, below X% at 95%" instead of a zero-width interval. See [gates.md](gates.md#efficiency-in-summaryjson-03-eff-02-d-70). `run.json` gains `stopped_at_cost_cap`, written only when a run stops at its cap (omitted otherwise, so run folders keep their bytes).
+- The `evalkit compare` command and `evalkit.compare` (B5.6, D-62, D-65): per metric and label, the change new − old with a 95% interval (paired two-level bootstrap on shared case ids, case-only without a trial level, otherwise unpaired from each run's interval and labelled so), Holm-adjusted flags, the settings that differ, missing metrics listed, held-out rows as split-level aggregates only, an optional per-case `cases.jsonl` sidecar beside a metrics-1 file and an optional `settings.json`; options `--gates`, `--manifest`, `--heldout-split`, `--seed`, `--resamples`, `--json`, `--out` and `--md`; exit codes 0/1/2; no model or network call. See [compare.md](compare.md).
 
 ## 0.4.0 additions (on main ahead of the release)
 

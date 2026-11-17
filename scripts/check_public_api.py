@@ -311,6 +311,39 @@ CLI["calibrate label"] |= {"--criterion", "--context"}  # B5.9
 CLI["calibrate import"] |= {"--criterion", "--relabel"}  # B5.9
 CLI["calibrate score"] |= {"--criterion", "--manifest", "--log", "--rubric-hash"}  # B5.9
 
+# B5.6 (v0.3): run-vs-run compare, `evalkit compare`.
+PUBLIC["evalkit.compare"] = [
+    "COMPARE_SCHEMA",
+    "EXIT_INPUT",
+    "EXIT_PASS",
+    "EXIT_REGRESSION",
+    "CaseValue",
+    "Change",
+    "CompareError",
+    "Comparison",
+    "Missing",
+    "RunInput",
+    "SettingDifference",
+    "compare",
+    "compare_runs",
+    "load_input",
+    "paired_bootstrap",
+    "render_markdown",
+    "report_json",
+]
+CLI["compare"] = {
+    "old",
+    "new",
+    "--gates",
+    "--manifest",
+    "--heldout-split",
+    "--seed",
+    "--resamples",
+    "--json",
+    "--out",
+    "--md",
+}
+
 
 def _subparsers(parser):
     import argparse

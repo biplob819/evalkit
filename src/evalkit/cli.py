@@ -45,6 +45,15 @@ GATE_EXIT_CODES = """exit codes (precedence 2 > 3 > 4 > 1 > 0):
   3  an EvalKit summary from a run stopped at its cost cap
   4  an EvalKit summary with judging pending"""
 
+COMPARE_EXIT_CODES = """exit codes (precedence 2 > 1 > 0):
+  0  no flagged regression in a fail-gated metric (always 0 or 2 without --gates)
+  1  a regression: a metric matched by a severity-fail gate whose change is flagged (Holm-
+     adjusted across the comparison and its 95% interval excludes 0) and moves toward failing
+     that gate (op >=: down; op <=: up; op ==: either way)
+  2  bad input: an unreadable or invalid file or sidecar, a unit that differs between the runs,
+     or (with --gates) a baseline that does not name every gated metric with at least 2
+     shared cases"""
+
 _JSON_MODE = False
 
 
@@ -711,6 +720,41 @@ def cmd_gate(args: argparse.Namespace) -> int:
     return report.exit_code
 
 
+def cmd_compare(args: argparse.Namespace) -> int:
+    """B5.6: compare two runs (run folders or metrics-1 files). No model call, no network.
+    compare.json is written on every exit path, including exit 2."""
+    from evalkit.compare import EXIT_INPUT, Comparison, compare_runs, render_markdown, report_json
+
+    try:
+        c = compare_runs(
+            args.old,
+            args.new,
+            gates=args.gates,
+            manifest=args.manifest,
+            heldout_splits=tuple(args.heldout_split or ()),
+            seed=args.seed,
+            resamples=args.resamples,
+        )
+    except Exception as exc:  # still a compare.json, with the error (never an echo of the input)
+        c = Comparison.error(
+            [f"unexpected {type(exc).__name__}"], {"path": args.old}, {"path": args.new}
+        )
+    problems = [p for p in (_write_gate_json(Path(args.out), report_json(c)),) if p]
+    if args.md and not problems:
+        problems += [p for p in (_write_gate_json(Path(args.md), render_markdown(c)),) if p]
+    if problems:
+        c.errors += problems
+        c.exit_code, c.verdict = EXIT_INPUT, "error"
+    if args.json:
+        print(report_json(c), end="")
+    else:
+        written = "" if problems else f"compare.json: {args.out}"
+        if args.md and not problems:
+            written += f"\nmarkdown: {args.md}"
+        print(render_markdown(c) + written)
+    return c.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="evalkit",
@@ -881,6 +925,31 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--out", default="gate.json", help="where to write gate.json (default ./)")
     g.add_argument("--json", action="store_true", help="print the gate.json object")
     g.set_defaults(func=cmd_gate)
+
+    cmp_ = sub.add_parser(
+        "compare",
+        help="compare two runs per metric and label, with 95%% intervals (no model calls)",
+        epilog=COMPARE_EXIT_CODES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    cmp_.add_argument("old", help="the old (baseline) run: a run folder or a metrics-1 file")
+    cmp_.add_argument("new", help="the new run: a run folder or a metrics-1 file")
+    cmp_.add_argument("--gates", default=None, help="gates YAML: gated metrics, held-out splits")
+    cmp_.add_argument("--manifest", default=None, help="B5.14 held-out manifest (never paired)")
+    cmp_.add_argument(
+        "--heldout-split",
+        action="append",
+        default=None,
+        help="a held-out split label value (repeatable; `heldout` always is)",
+    )
+    cmp_.add_argument("--seed", type=int, default=7, help="bootstrap seed (default 7)")
+    cmp_.add_argument(
+        "--resamples", type=int, default=10_000, help="bootstrap resamples (default 10000)"
+    )
+    cmp_.add_argument("--json", action="store_true", help="print the compare.json object")
+    cmp_.add_argument("--out", default="compare.json", help="where to write compare.json")
+    cmp_.add_argument("--md", default=None, help="also write the markdown report here")
+    cmp_.set_defaults(func=cmd_compare)
     return p
 
 

@@ -84,6 +84,7 @@ NOT_RUN_HERE = {
     "gate ": "needs a metrics-1 file or a finished run: tests/test_gates.py",
     "--criterion": "needs a judged criterion and a held-out manifest: "
     "tests/test_integrity_sheet.py test_cli_criterion_export_label_import_score_on_a_run_folder",
+    "compare ": "needs two runs or metrics files: tests/test_compare.py",  # B5.6
 }
 
 
