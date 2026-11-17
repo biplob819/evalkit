@@ -85,3 +85,8 @@ Append-only. Each entry: ID, date, decision, alternatives, reason. `OWNER D-n` m
 3. Respectful Offers is asked to export equal-width reliability bins. Until it does, EvalKit compares only its Brier and ECE and reports per-bin drift as not available. Nothing is compared on misaligned quantile bins.
 **Why:** each default is tight enough to catch a real slip without firing on noise at typical sample sizes, every cited number stays traceable to the bytes it came from, and no comparison is drawn from bins whose edges move.
 
+## D-74 — value_check leaves v0.3.0 for a strict redesign (OWNER, 2026-11-17)
+**Context:** `value_check` failed seven independent verification passes. Each fix closed the reported cases, and a fresh generator then found new ones: about 6,000 of 56,000 generated false claims came back `verified`. The cause was by design: when the checker could not tell which field a number was about, it matched the number against any field close in value.
+**Decision (owner, via the question widget):** v0.3.0 ships now without `value_check`, which is removed from v0.3.0's public API. A new node, B5.16, redesigns it for v0.4.0 under one rule: `verified` only when a whole field name or alias is bound to its number by a recognised pattern; every other reading is `unverifiable`. Fraud-review-bedrock keeps its own checker until then.
+**Why:** a false claim scored `verified` breaks the safety rule every other scorer follows. A release should not wait on a scorer that keeps failing it, and a lower verified share that can be trusted beats a higher one that cannot.
+
