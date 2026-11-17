@@ -260,8 +260,8 @@ Capabilities it asked for (OWNER D-53, D-66, D-68; EvalKit D-65, D-69):
 
 ## fraud-review-bedrock
 
-- **Current pin**: `evalkit-harness @ git+https://github.com/biplob819/evalkit@118b661f570b412c952df48736e59d16b6455a6d`
-  (the 0.3.0 release candidate, pinned at its e41ddc9; it was add5af9, a 0.3.0 development commit, before)
+- **Current pin**: `evalkit-harness @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573` (with extras `anthropic` and `openai`)
+  (the v0.3.0 tag commit; its suite passes on it, 1321 tests. It was the release candidate 118b661, and add5af9 before that)
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (move from the release-candidate commit to the tag).
 - **Release-candidate canary**: pass (1264 passed) on its e41ddc9, which moved its bridge test and
   doctor check to its own strict `valuecheck` module (its D-42) and pins the release candidate.
