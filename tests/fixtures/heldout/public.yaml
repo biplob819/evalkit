@@ -1,0 +1,7 @@
+# Synthetic public cases for tests/test_heldout_discipline.py (not real held-out data).
+- id: fx-p1
+  input: How many lock gates does the canal have between the two harbours?
+  reference: seven
+- id: fx-p2
+  input: Name the reservoir that supplies the old town during a dry summer.
+  reference: the north basin

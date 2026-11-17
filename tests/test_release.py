@@ -280,6 +280,8 @@ ALLOWED = {
     "evalkit/agents/db.py": "builds the local agent database with fixed SQL",
     "evalkit/agents/tasks.py": "checks gold answers with fixed SQL on the local database",
     "evalkit/agents/sandbox.py": "runs agent SQL with enable_external_access off",
+    # B5.14: local git reads only (ls-files, show, rev-list, rev-parse, merge-base); no fetch
+    "evalkit/heldout.py": "reads the local git repository for the held-out checks",
 }
 DYNAMIC_IMPORT_OK = {"evalkit/runtime/versions.py"}  # walks evalkit's own modules to hash them
 

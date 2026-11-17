@@ -1,0 +1,35 @@
+{
+  "counts": {
+    "heldout": 3,
+    "public": 2
+  },
+  "id_field": "id",
+  "manifest_sha256": "ed83a626d1ec2f1dcbe3712a2c803d7a916bf6418021d1eeab90b481963f000e",
+  "schema": "evalkit.heldout.manifest/1",
+  "splits": {
+    "heldout": [
+      {
+        "content_sha256": "034732e5dd55f06f5f5794ee142e7714ef7557cd875189a401c1c65b0beec66f",
+        "id_sha256": "6fa5661c59fa85ac29ac6c07aec7853ef6d132f17639c3abcb9b394fd62b2423"
+      },
+      {
+        "content_sha256": "6da7c47c29bb7c29896a5b1fc414b3926bf6a442175deaeff08bb488bbb53e93",
+        "id_sha256": "747f7d0a1f77016809bd25f4620fb270e2b5ee7cdb38d636cc913cae05ae6716"
+      },
+      {
+        "content_sha256": "20604540ca3e102c65b8c1d0218cc76cbf3f2e4dbce8964c3193fb5b1c52f375",
+        "id_sha256": "91bea422c501eb8b08ae80a9d1b8c1198e79375851aeb82f922a2e9b5fdfeb5d"
+      }
+    ],
+    "public": [
+      {
+        "content_sha256": "356fdfa5462c3b5b9e888bc45abdf6ab5f3f8aa54fcd94c42256db89431e1cd2",
+        "id_sha256": "6f0c53e4f0a5c4fc279a84517773b800684e52cad96322585679005e0b25cd1d"
+      },
+      {
+        "content_sha256": "59b6e965422200511d44a7113cb3b46c8af1feba2d9d7e08c702d98e35eae705",
+        "id_sha256": "a80fbc4f106fcdd327f140ccc5c7415d1352b5a9767dda3e526a2a093621ec7a"
+      }
+    ]
+  }
+}

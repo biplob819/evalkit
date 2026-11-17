@@ -40,3 +40,7 @@ platform (Streamlit Community Cloud) keeps its own server logs under its own ter
 
 `tests/test_release.py` checks this statement against the code: only the modules named
 above may import networking libraries.
+
+The held-out checks (`python -m evalkit.heldout`) run local `git` commands that read your
+repository (`ls-files`, `show`, `rev-list`, `rev-parse`, `merge-base`); they never fetch or
+push.

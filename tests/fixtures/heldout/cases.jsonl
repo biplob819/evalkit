@@ -1,0 +1,3 @@
+{"id": "fx-h1", "input": "Which river carries the most sediment into the northern delta each spring season?", "reference": "the amber river at the eastern gauge", "meta": {"split": "heldout"}}
+{"id": "fx-h2", "input": "Summarise the maintenance schedule for the pumping station after the winter floods.", "reference": "quarterly checks with a full inspection in march", "meta": {"split": "heldout"}}
+{"id": "fx-h3", "input": "List every bridge that closed during the storm and the day each one reopened.", "reference": "none", "meta": {"split": "heldout"}}

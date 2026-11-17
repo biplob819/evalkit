@@ -94,3 +94,17 @@ def test_ctrl_c_exits_130(monkeypatch, capsys):
 
 def test_the_check_script_passes_on_the_source_tree():
     assert _api.missing() == [] and _api.cli_missing() == []
+
+
+def test_heldout_module_is_public_with_its_command_line():
+    """B5.14: `evalkit.heldout` is public and `python -m evalkit.heldout` is its entry."""
+    import subprocess
+    import sys
+
+    assert "evalkit.heldout" in PUBLIC
+    done = subprocess.run(
+        [sys.executable, "-m", "evalkit.heldout", "--help"], capture_output=True, text=True
+    )
+    assert done.returncode == 0
+    for command in ("manifest", "verify", "scan", "verify-log"):
+        assert command in done.stdout
