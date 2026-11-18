@@ -210,10 +210,15 @@ reason holding it is unverifiable (never verified, never contradicted).
   `Facts:`, `Facts -`, `Facts –`, `Facts —`, `Key facts:`, `Key facts -`, `Key facts –` or
   `Key facts —` (this closed list, any case, also in bold as `**Facts:**`; the statements may
   follow on the same line or the next; a header starts a new run, whatever the prose before
-  it says); or (3) right after the terminator of the statement before it, when that statement
+  it says, so prose that changes the subject, such as "For the previous card:" followed by
+  "Facts: Amount is 812.40.", is not read and the facts are checked against the record as
+  given; keep facts about the record only, and never put a facts header under prose that
+  qualifies it); or (3) right after the terminator of the statement before it, when that statement
   itself bound (a chain). Any other text before a statement (an unknown word or abbreviation
   such as "Prev." or "Merch.", a heading such as "Merchant:" or "Refund facts:", a pronoun, a
   prose sentence) breaks the chain: that statement and every later one in its run are unbound.
+- **Code fences.** A reason wrapped whole in a code fence is read as its contents; a fence's
+  info string (```` ```refund ````) is dropped and not read, so it cannot qualify the facts.
 - **Terminators.** A statement ends at the end of the reason, a line break (each line is one
   statement; a full stop at the line's end is optional), `. `, `;`, or `,` / `and` / `, and`
   followed by another statement that binds. A value followed by anything else is unbound:
