@@ -69,6 +69,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `equivalences` (B5.15, strict by default).
 
 ## 2026-11-18
+- [FIX] [B5.16] — value_check: a statement is framed only when everything after it is more framed statements of its run, a facts header, or the end of the reason; prose after facts unbinds the run ("Amount is 812.40\nin euros"). 0 genuine false claims verified on every generator; documented facts 100%. Spend: $0.
 - [FIX] [A2.4, A2.5] — D-78 (reported by gemma-grounded-health): judging is complete only when every claim has a verdict or a recorded judge error from every judge; dropped batch items keep the run pending and are resent; final failures are recorded (`Record.judge_errors`, `ModelSummary.missing_verdicts`) and scored unsupported; a batch blocked only by another judge's open hold now waits instead of stopping the run at the cap. EvalKit's published benchmark is unaffected. Spend: $0.
 - [DOWNSTREAM] — respectful-offers cleared its pinned D-53 difference at its fc1f467; its canary row has no known failure (43 passed on a fresh clone). Spend: $0.
 - [FIX] [B5.3] — metrics-1 refuses label VALUES shaped like a case or member id (uuid, 32+ hex, email, mixed-case base64 token of 20+ characters), as it already refused id-named keys; found by respectful-offers (its D-53: a 44-character base64 KKBox member id). Model ids, category codes and years are unaffected. docs/gates.md: rows on an exit 2 are information, never a pass. Spend: $0.
