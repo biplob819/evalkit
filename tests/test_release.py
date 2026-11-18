@@ -90,6 +90,7 @@ NOT_RUN_HERE = {
     "drift ": "needs reference and new batches: tests/test_drift.py",  # B5.7
     "spend ": "needs a spend ledger: tests/test_ledger_spend.py",  # B5.7
     "--history": "needs a run ledger: tests/test_ledger_trend.py",  # B5.7
+    "index ": "fetches from each project's repository, or needs snapshots: tests/test_index.py",
 }
 
 
@@ -295,6 +296,8 @@ ALLOWED = {
     "evalkit/agents/sandbox.py": "runs agent SQL with enable_external_access off",
     # B5.14: local git reads only (ls-files, show, rev-list, rev-parse, merge-base); no fetch
     "evalkit/heldout.py": "reads the local git repository for the held-out checks",
+    # B5.5: `evalkit index snapshot` fetches one commit of each registered repository
+    "evalkit/index.py": "index snapshot: read-only shallow fetch of each project's repository",
 }
 DYNAMIC_IMPORT_OK = {"evalkit/runtime/versions.py"}  # walks evalkit's own modules to hash them
 # B5.11: `python -m evalkit.security run|scripted` imports the user's own system or tool

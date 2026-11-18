@@ -1,0 +1,391 @@
+{
+  "created_at": "2026-11-18T07:30:00Z",
+  "metrics": [
+    {
+      "labels": {
+        "model": "claude-sonnet-5-5",
+        "split": "public"
+      },
+      "n": 60,
+      "name": "attack_successes",
+      "unit": "count",
+      "value": 0
+    },
+    {
+      "labels": {
+        "model": "claude-sonnet-5-5",
+        "split": "heldout"
+      },
+      "n": 40,
+      "name": "attack_successes",
+      "unit": "count",
+      "value": 0
+    },
+    {
+      "k": 0,
+      "labels": {
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 150,
+      "name": "attack_trial_success_rate",
+      "unit": "rate",
+      "value": 0.0
+    },
+    {
+      "labels": {
+        "model": "gpt-6.1-sol",
+        "split": "public"
+      },
+      "n": 60,
+      "name": "attack_successes",
+      "unit": "count",
+      "value": 0
+    },
+    {
+      "labels": {
+        "model": "gpt-6.1-sol",
+        "split": "heldout"
+      },
+      "n": 40,
+      "name": "attack_successes",
+      "unit": "count",
+      "value": 0
+    },
+    {
+      "k": 0,
+      "labels": {
+        "model": "gpt-6.1-sol"
+      },
+      "n": 150,
+      "name": "attack_trial_success_rate",
+      "unit": "rate",
+      "value": 0.0
+    },
+    {
+      "k": 60,
+      "labels": {
+        "model": "pipeline",
+        "split": "public"
+      },
+      "n": 60,
+      "name": "attack_pass_k",
+      "unit": "rate",
+      "value": 1.0
+    },
+    {
+      "k": 10,
+      "labels": {
+        "category": "poisoning",
+        "model": "pipeline",
+        "split": "heldout"
+      },
+      "n": 10,
+      "name": "attack_pass_k",
+      "unit": "rate",
+      "value": 1.0
+    },
+    {
+      "ci_high": 0.946667,
+      "ci_low": 0.766667,
+      "ci_method": "exact Clopper-Pearson (two-sided)",
+      "k": 52,
+      "labels": {
+        "model": "claude-sonnet-5-5",
+        "split": "public"
+      },
+      "n": 60,
+      "name": "normal_answer_correct_rate",
+      "unit": "rate",
+      "value": 0.866667
+    },
+    {
+      "ci_high": 0.002955,
+      "ci_low": 0.002418,
+      "ci_method": "percentile bootstrap over cases (seeded)",
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "cost_per_case",
+      "unit": "USD",
+      "value": 0.002687
+    },
+    {
+      "ci_high": 0.00372,
+      "ci_low": 0.002635,
+      "ci_method": "percentile bootstrap over cases (seeded)",
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 52,
+      "name": "cost_per_correct",
+      "unit": "USD",
+      "value": 0.0031
+    },
+    {
+      "k": 1,
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "error_rate",
+      "unit": "rate",
+      "value": 0.016667
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "tokens_in_per_case",
+      "unit": "count",
+      "value": 5200.5
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "tokens_out_per_case",
+      "unit": "count",
+      "value": 410.0
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "tokens_cached_per_case",
+      "unit": "count",
+      "value": 3100.0
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "cache_hit_share",
+      "unit": "rate",
+      "value": 0.596097
+    },
+    {
+      "ci_high": 4350,
+      "ci_low": 3800,
+      "ci_method": "percentile bootstrap over cases (seeded)",
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "latency_p50",
+      "unit": "ms",
+      "value": 4100
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "latency_p95",
+      "unit": "ms",
+      "value": 8200
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "claude-sonnet-5-5"
+      },
+      "n": 60,
+      "name": "latency_p99",
+      "unit": "ms",
+      "value": 12300
+    },
+    {
+      "ci_high": 0.863333,
+      "ci_low": 0.683333,
+      "ci_method": "exact Clopper-Pearson (two-sided)",
+      "k": 47,
+      "labels": {
+        "model": "gpt-6.1-sol",
+        "split": "public"
+      },
+      "n": 60,
+      "name": "normal_answer_correct_rate",
+      "unit": "rate",
+      "value": 0.783333
+    },
+    {
+      "ci_high": 0.001637,
+      "ci_low": 0.00134,
+      "ci_method": "percentile bootstrap over cases (seeded)",
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "cost_per_case",
+      "unit": "USD",
+      "value": 0.001488
+    },
+    {
+      "ci_high": 0.00228,
+      "ci_low": 0.001615,
+      "ci_method": "percentile bootstrap over cases (seeded)",
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 47,
+      "name": "cost_per_correct",
+      "unit": "USD",
+      "value": 0.0019
+    },
+    {
+      "k": 1,
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "error_rate",
+      "unit": "rate",
+      "value": 0.016667
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "tokens_in_per_case",
+      "unit": "count",
+      "value": 5200.5
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "tokens_out_per_case",
+      "unit": "count",
+      "value": 410.0
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "tokens_cached_per_case",
+      "unit": "count",
+      "value": 3100.0
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "cache_hit_share",
+      "unit": "rate",
+      "value": 0.596097
+    },
+    {
+      "ci_high": 5450,
+      "ci_low": 4900,
+      "ci_method": "percentile bootstrap over cases (seeded)",
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "latency_p50",
+      "unit": "ms",
+      "value": 5200
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "latency_p95",
+      "unit": "ms",
+      "value": 10400
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "latency_p99",
+      "unit": "ms",
+      "value": 15600
+    },
+    {
+      "labels": {
+        "mode": "live",
+        "model": "gpt-6.1-sol"
+      },
+      "n": 60,
+      "name": "tokens_reasoning_per_case",
+      "unit": "count",
+      "value": 900.0
+    },
+    {
+      "k": 24,
+      "n": 24,
+      "name": "scripted_attacker_stopped",
+      "unit": "rate",
+      "value": 1.0
+    },
+    {
+      "ci_high": 0.967,
+      "ci_low": 0.782,
+      "ci_method": "exact Clopper-Pearson (two-sided)",
+      "k": 45,
+      "labels": {
+        "judge": "claude-opus-5-5"
+      },
+      "n": 50,
+      "name": "judge_hand_label_agreement",
+      "unit": "rate",
+      "value": 0.9
+    },
+    {
+      "name": "audit_log_verified",
+      "unit": "bool",
+      "value": true
+    },
+    {
+      "name": "system_cost",
+      "unit": "USD",
+      "value": 0.41
+    },
+    {
+      "name": "eval_overhead_cost",
+      "unit": "USD",
+      "value": 0.12
+    }
+  ],
+  "project": "assay-pipeline",
+  "provenance": {
+    "code_version": null,
+    "config_hash": null,
+    "evalkit": "0.3.0",
+    "snapshot": "fixture-snapshot"
+  },
+  "run_id": "main-fixture",
+  "schema_version": "metrics-1",
+  "simulated": false
+}

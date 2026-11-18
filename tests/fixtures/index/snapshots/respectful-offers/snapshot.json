@@ -1,0 +1,26 @@
+{
+  "commit": "51ea61175d8a6b187b95ecf014bcfc9d00f40251",
+  "evalkit_pin": "evalkit-harness>=0.3,<0.4",
+  "evalkit_version": null,
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {
+    "gates": {
+      "name": "gates.yaml",
+      "path": "configs/gates.yaml",
+      "sha256": "5882b24892c4369388e6c587a69a559d8b19b8e571a9e292a1286913a36ebb9c"
+    },
+    "summary": {
+      "name": "summary.json",
+      "path": "results/kkbox/metrics.json",
+      "sha256": "9958437805d37801535f01d92167e2f2147a2239d6f7a75da20e7686faada71a"
+    }
+  },
+  "lessons": null,
+  "project": "respectful-offers",
+  "reason": "",
+  "ref": "main",
+  "repo": "biplob819/respectful-offers",
+  "schema_version": "index-snapshot-1",
+  "source": "https://github.com/biplob819/respectful-offers.git",
+  "status": "ok"
+}

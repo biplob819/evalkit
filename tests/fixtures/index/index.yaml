@@ -1,0 +1,42 @@
+# Index config for the B5.5 fixtures (synthetic; shaped like configs/index.yaml)
+schema_version: index-config-1
+heldout_splits: [heldout]
+projects:
+  evalkit:
+    headline:
+      metric: headline
+      labels: {model: gpt-6.1-sol, judge: claude-opus-5-5}
+      label: Correct and fully grounded
+    quality: {metric: accuracy}
+    lessons: docs/lessons.md
+  course-assistant:
+    headline:
+      metric: task_scores.locator_correct
+      labels: {model: course-ta}
+      label: Locator correct
+    quality: {metric: accuracy}
+  gemma-grounded-health:
+    headline:
+      metric: accuracy
+      labels: {model: gemma-e2b-grounded-q4}
+      label: Accuracy (grounded Gemma)
+    quality: {metric: accuracy}
+  assay-pipeline:
+    summary: docs/results/main-fixture/metrics.json
+    headline:
+      metric: attack_pass_k
+      labels: {model: pipeline, split: public}
+      label: Attacks stopped on every trial
+    quality: {metric: normal_answer_correct_rate, labels: {split: public}}
+    calibration: {metric: judge_hand_label_agreement, labels: {judge: claude-opus-5-5}}
+    efficiency_labels: {mode: live}
+    gates: gates.yaml
+    experiments: ledger/experiments.jsonl
+    lessons: docs/lessons.md
+    kinds: {attack_successes: guardrail}
+  respectful-offers:
+    headline:
+      metric: incremental_retained_per_1000
+      labels: {policy: bandit, variant: central}
+      label: Incremental members kept per 1,000
+    gates: configs/gates.yaml

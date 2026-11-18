@@ -1,0 +1,21 @@
+{
+  "commit": "15babf98ba9ac2cb3ba31bbf69c9a03e7014aaca",
+  "evalkit_pin": null,
+  "evalkit_version": null,
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {
+    "summary": {
+      "name": "summary.json",
+      "path": "docs/results/summary.json",
+      "sha256": "184b8c890ee721e03d1331e803ee2a31f09301285d7f5bc10fae2fee8766e7f3"
+    }
+  },
+  "lessons": null,
+  "project": "agentic-analytics",
+  "reason": "",
+  "ref": "main",
+  "repo": "biplob819/agentic-analytics",
+  "schema_version": "index-snapshot-1",
+  "source": "https://github.com/biplob819/agentic-analytics.git",
+  "status": "ok"
+}

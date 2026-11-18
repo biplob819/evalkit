@@ -1,5 +1,5 @@
 """Command-line interface (B2.2): `evalkit run`, `evalkit calibrate`, `evalkit report`,
-`evalkit gate` (B5.3).
+`evalkit gate` (B5.3), `evalkit index` (B5.5).
 
 stdlib argparse keeps the install light. Exit codes (Tech Spec §4, OWNER D-44): 0 every
 threshold passed, 1 a threshold failed, 2 configuration or runtime error, 3 stopped at the
@@ -53,6 +53,12 @@ COMPARE_EXIT_CODES = """exit codes (precedence 2 > 1 > 0):
   2  bad input: an unreadable or invalid file or sidecar, a unit that differs between the runs,
      or (with --gates) a baseline that does not name every gated metric with at least 2
      shared cases"""
+
+INDEX_EXIT_CODES = """exit codes:
+  0  done; every project is listed (a project whose summary cannot be read is shown missing)
+  1  build --require-all: at least one project is missing
+  2  bad input: an unreadable registry or index config, a --source/--commit for an unknown
+     project, or an output folder that cannot be written"""
 
 _JSON_MODE = False
 
@@ -812,6 +818,78 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return c.exit_code
 
 
+def _pairs(items: list[str] | None, flag: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in items or ():
+        name, sep, value = item.partition("=")
+        if not sep or not name or not value:
+            raise ValueError(f"{flag} takes PROJECT=VALUE")
+        out[name] = value
+    return out
+
+
+def cmd_index(args: argparse.Namespace) -> int:
+    """B5.5: `index snapshot` fetches each project's summary at a commit (the one step that may
+    use the network); `index build` reads local files only and writes index.html/index.json."""
+    from evalkit.index import (
+        EXIT_INPUT,
+        EXIT_MISSING,
+        EXIT_OK,
+        IndexInputError,
+        build_index,
+        snapshot,
+        write_index,
+    )
+
+    try:
+        if args.action == "snapshot":
+            results = snapshot(
+                args.registry,
+                args.out,
+                config=args.config,
+                sources=_pairs(args.source, "--source"),
+                commits=_pairs(args.commit, "--commit"),
+            )
+            payload = {"snapshots": [r.as_dict() for r in results], "out": args.out}
+            lines = [
+                f"{r.project}: {r.status}"
+                + (f" at {r.commit[:7]}" if r.commit and r.status == "ok" else "")
+                + (f" ({r.reason})" if r.reason else "")
+                for r in results
+            ]
+            _emit(args, payload, "\n".join([*lines, f"snapshots: {args.out}"]))
+            return EXIT_OK
+        index = build_index(args.registry, args.snapshots, args.config)
+        written = write_index(index, args.out)
+    except (IndexInputError, ValueError) as exc:
+        problems = list(getattr(exc, "problems", None) or [str(exc)])
+        if args.json:
+            print(json.dumps({"exit_code": EXIT_INPUT, "errors": problems}, sort_keys=True))
+        else:
+            for problem in problems:
+                print(f"error: {problem}", file=sys.stderr)
+        return EXIT_INPUT
+    missing = [p.project for p in index.missing]
+    code = EXIT_MISSING if (args.require_all and missing) else EXIT_OK
+    payload = {
+        "exit_code": code,
+        "projects": len(index.projects),
+        "missing": missing,
+        "written": [str(w) for w in written],
+    }
+    text = "\n".join(
+        [
+            *(
+                f"{p.project}: {p.status}" + (f" ({p.reason})" if p.reason else "")
+                for p in index.projects
+            ),
+            *(f"wrote {w}" for w in written),
+        ]
+    )
+    _emit(args, payload, text)
+    return code
+
+
 def _positive_float(text: str) -> float:
     import math
 
@@ -1054,6 +1132,53 @@ def build_parser() -> argparse.ArgumentParser:
     )
     cmp_.add_argument("--md", default=None, help="also write the markdown report here")
     cmp_.set_defaults(func=cmd_compare)
+
+    ix = sub.add_parser(
+        "index",
+        help="cross-project eval index: snapshot summaries at a commit, build the page offline",
+        epilog=INDEX_EXIT_CODES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ixs = ix.add_subparsers(dest="action", required=True)
+    for name, helptext in (
+        ("snapshot", "fetch each project's summary at one commit into a local snapshot folder"),
+        ("build", "build index.html and index.json from the snapshots (local files only)"),
+    ):
+        a = ixs.add_parser(
+            name,
+            help=helptext,
+            epilog=INDEX_EXIT_CODES,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        a.add_argument(
+            "--registry", default="docs/downstream.tsv", help="default docs/downstream.tsv"
+        )
+        a.add_argument("--config", default=None, help="index config YAML (configs/index.yaml)")
+        a.add_argument("--json", action="store_true", help="print one JSON object")
+        a.set_defaults(func=cmd_index)
+    snap, build = ixs.choices["snapshot"], ixs.choices["build"]
+    snap.add_argument("--out", default="docs/index/snapshots", help="default docs/index/snapshots")
+    snap.add_argument(
+        "--source",
+        action="append",
+        default=None,
+        metavar="PROJECT=REPO",
+        help="a URL or local repository for a project (default: its GitHub repository)",
+    )
+    snap.add_argument(
+        "--commit",
+        action="append",
+        default=None,
+        metavar="PROJECT=SHA",
+        help="the commit to read (default: the registry branch; evalkit: HEAD)",
+    )
+    build.add_argument(
+        "--snapshots", default="docs/index/snapshots", help="default docs/index/snapshots"
+    )
+    build.add_argument("--out", default="docs/index", help="default docs/index")
+    build.add_argument(
+        "--require-all", action="store_true", help="exit 1 when any project is missing"
+    )
 
     from evalkit.ledger.cli import add_commands  # B5.7: history, experiment, drift, spend
 

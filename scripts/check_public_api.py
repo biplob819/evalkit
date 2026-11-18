@@ -605,6 +605,40 @@ PROMOTED.update(
 )
 
 
+# B5.5 (after 0.4.0): the cross-project eval index, `evalkit index snapshot|build`.
+PUBLIC["evalkit.index"] = [
+    "CONFIG_SCHEMA",
+    "EXIT_INPUT",
+    "EXIT_MISSING",
+    "EXIT_OK",
+    "INDEX_SCHEMA",
+    "SELF",
+    "SNAPSHOT_SCHEMA",
+    "Figure",
+    "GateStatus",
+    "Index",
+    "IndexConfig",
+    "IndexInputError",
+    "ModelRow",
+    "ProjectConfig",
+    "ProjectEntry",
+    "RegistryRow",
+    "Selector",
+    "SnapshotResult",
+    "build_index",
+    "index_json",
+    "load_config",
+    "parse_config",
+    "read_project",
+    "read_registry",
+    "render_html",
+    "snapshot",
+    "write_index",
+]
+CLI["index snapshot"] = {"--registry", "--config", "--out", "--source", "--commit", "--json"}
+CLI["index build"] = {"--registry", "--config", "--snapshots", "--out", "--require-all", "--json"}
+
+
 def _subparsers(parser):
     import argparse
 

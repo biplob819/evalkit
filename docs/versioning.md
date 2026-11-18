@@ -263,3 +263,16 @@ canary record and the owner's local checkouts):
 
 Each registered project's exact list for 0.4, with its 0.4.0 requirement line, is in the
 "0.3 → 0.4" part of its section in [downstream.md](downstream.md).
+
+## Additions after 0.4.0 (unreleased)
+
+- `evalkit.index`, `evalkit index snapshot` and `evalkit index build` (B5.5, D-61, D-62,
+  D-67): the
+  cross-project eval index. `snapshot` (the one step that may reach a remote) fetches each
+  registered project's summary at one commit into a local snapshot folder; `build` reads only
+  local files and writes `index.html` and `index.json` (`index-1`, byte-reproducible): per
+  project the headline row with its interval, the calibration stamp, the gate status, the EvalKit
+  version and the run date; a project whose summary cannot be read shown as missing with the
+  reason; per model the efficiency block beside quality, ordered by cost per correct; the
+  portfolio's `story` keys. Exit codes 0/1/2. Every name in the module's `__all__` is public.
+  See [index.md](index.md).

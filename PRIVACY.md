@@ -12,6 +12,7 @@ EvalKit makes network requests only for these purposes:
 | Model calls (answers, claim extraction, judging) | The providers you configure: Anthropic, OpenAI, or the OpenAI-compatible endpoints you list | `evalkit run`, `evalkit agent-run`, `evalkit demo-cache` |
 | Calibration labelling page | Nothing outbound: a local server on `127.0.0.1` that only your browser reaches | `evalkit calibrate label RUN_DIR` (also with `--criterion`; `--context` files are read locally and shown only on that page) |
 | Public benchmark data | Hugging Face datasets server (PubMedQA), the SciFact release on Amazon S3 | First use of `--task pubmedqa` or `--task scifact`, then cached |
+| Eval index snapshot | Each registered project's GitHub repository (a read-only shallow fetch of one commit; nothing is sent) | `evalkit index snapshot` only; `evalkit index build` reads local files |
 | Reachability check | `api.anthropic.com`, `api.openai.com` (a TCP connection, no data sent) | `evalkit doctor` without `--offline` |
 | Demo only: model calls | Anthropic and OpenAI, behind the owner's passcode, on the owner's keys or the visitor's own keys | Each live request |
 | Demo only: abstract lookup | NCBI PubMed E-utilities | When a demo visitor enters a PubMed ID |

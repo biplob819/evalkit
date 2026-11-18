@@ -1,0 +1,26 @@
+{
+  "commit": "2c1668ebec72ad532acf9e139bc29f8e1e9c052b",
+  "evalkit_pin": "evalkit-harness>=0.2,<0.3",
+  "evalkit_version": null,
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {
+    "run": {
+      "name": "run.json",
+      "path": "tests/eval/evalreg/run.json",
+      "sha256": "98a3fbfa1d523a16d4904584c04270765e7c8b2b2636bbe6787b41bec4807bb0"
+    },
+    "summary": {
+      "name": "summary.json",
+      "path": "tests/eval/evalreg/summary.json",
+      "sha256": "e668bbb5fb1ce5ab30e6e1a78c75e32cabca71efb0596489b9212f0f823bb82c"
+    }
+  },
+  "lessons": null,
+  "project": "course-assistant",
+  "reason": "",
+  "ref": "main",
+  "repo": "biplob819/course-assistant",
+  "schema_version": "index-snapshot-1",
+  "source": "https://github.com/biplob819/course-assistant.git",
+  "status": "ok"
+}

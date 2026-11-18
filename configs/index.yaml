@@ -1,0 +1,54 @@
+# The cross-project eval index (B5.5, docs/index.md): what each project's row shows.
+# The index never picks a headline: a project without `headline` shows "not designated".
+# Selectors name a metric row exactly (every label; "*" matches any value). Paths are in each
+# project's own repository and are fetched by `evalkit index snapshot` at one commit.
+schema_version: index-config-1
+heldout_splits: [heldout]
+projects:
+  evalkit:
+    # the README headline: the most grounded model, by the cross-family judge
+    headline:
+      metric: headline
+      labels: {model: gpt-6.1-sol, judge: claude-opus-5-5}
+      label: Correct and fully grounded (PubMedQA)
+    quality: {metric: accuracy}
+    lessons: docs/lessons.md
+  course-assistant:
+    headline:
+      metric: headline
+      labels: {model: course-ta, judge: claude-opus-5-5}
+      label: Correct and fully grounded
+    quality: {metric: accuracy}
+    lessons: docs/lessons.md
+  gemma-grounded-health:
+    headline:
+      metric: headline
+      labels: {model: gemma-e2b-grounded-q4, judge: claude-opus-5-5}
+      label: Correct and fully grounded (grounded Gemma)
+    quality: {metric: accuracy}
+    lessons: docs/lessons.md
+  assay-pipeline:
+    # not in the registry's summary column (its canary reads no summary); the published run
+    summary: docs/results/main-2026-11-18/metrics.json
+    headline:
+      metric: scripted_attacker_stopped
+      label: Attacks stopped with no model in the loop
+    quality: {metric: normal_answer_correct_rate, labels: {split: public}}
+    calibration: {metric: judge_hand_label_agreement, labels: {judge: claude-opus-5-5}}
+    efficiency_labels: {mode: live}
+    gates: gates.yaml
+    lessons: docs/lessons.md
+    kinds: {attack_successes: guardrail, attack_trial_success_rate: guardrail}
+  respectful-offers:
+    headline:
+      metric: incremental_retained_per_1000
+      labels: {policy: bandit, variant: central}
+      label: Incremental members kept per 1,000 (bandit, central)
+    gates: configs/gates.yaml
+    lessons: docs/lessons.md
+  agentic-analytics:
+    lessons: docs/lessons.md
+  ai-visibility:
+    lessons: docs/lessons.md
+  fraud-review-bedrock:
+    lessons: docs/lessons.md

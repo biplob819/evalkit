@@ -1,0 +1,21 @@
+{
+  "commit": "4d503de21d099cf2c909b32548e2894a97bbcbed",
+  "evalkit_pin": "evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@0000000000000000000000000000000000000000",
+  "evalkit_version": null,
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {
+    "summary": {
+      "name": "summary.json",
+      "path": "docs/results/main/summary.json",
+      "sha256": "7fad70035f91a51df279151bed195664f6ea798953f7957757cc38e9c0c0d561"
+    }
+  },
+  "lessons": null,
+  "project": "gemma-grounded-health",
+  "reason": "",
+  "ref": "main",
+  "repo": "biplob819/gemma-grounded-health",
+  "schema_version": "index-snapshot-1",
+  "source": "https://github.com/biplob819/gemma-grounded-health.git",
+  "status": "ok"
+}

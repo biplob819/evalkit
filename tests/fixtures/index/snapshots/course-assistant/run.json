@@ -1,0 +1,32 @@
+{
+  "config_hash": "fixture-course",
+  "families": {
+    "course-ta": "other"
+  },
+  "finished_at": "2026-11-14T13:00:00Z",
+  "judge_mode": "dual",
+  "judges": [
+    "claude-opus-5-5",
+    "gpt-6.1-sol"
+  ],
+  "live_judges": false,
+  "models": [
+    "course-ta"
+  ],
+  "n": 12,
+  "run_id": "r-fixture0course",
+  "schema_version": "1.0",
+  "seed": 7,
+  "spent_usd": 0.0,
+  "started_at": "2026-11-14T12:00:00Z",
+  "stopped_at_cost_cap": false,
+  "task": "course-ta",
+  "task_ref": "course-ta",
+  "thresholds": [
+    {
+      "metric": "headline",
+      "op": ">=",
+      "value": 0.6
+    }
+  ]
+}
