@@ -147,6 +147,8 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `equivalences` (B5.15, strict by default).
 
 ## 2026-11-18
+- [RELEASE] [B5.10] — v0.4.0 release candidate: RC canary on fresh clones (docs/measurements/downstream-canary-2026-11-18-rc4.json): three pass, four known drift, every one explained (agentic-analytics and fraud-review-bedrock fail only version-pin checks, which embed or compare 0.3.0). Spend: $0.
+- [DOCS] — Walkthrough GIF for the portfolio: docs/assets/walkthrough.gif (10 screens of committed outputs, 825 KB), shot list in docs/walkthrough.md, docs/portfolio.yaml, scripts/capture_walkthrough.py. No keys, no spend. Spend: $0.
 - [FEAT] [B5.7] — Green after three verifier passes: run, experiment, drift and spend ledger (`evalkit history|experiment|drift|spend`), tamper-evident and held-out-safe; no-drift false alarms ≤ 5% across 252 cells. Spend: $0.
 - [FIX] [B5.7, B5.14] — Verifier pass 3: `experiment look --log` refuses a run, experiment or spend ledger (the look's case hashes belong only in the B5.14 held-out log); held-out matching drops combining accents. EvalKit's own held-out scan still finds nothing (617 files). Spend: $0.
 - [FEAT] [B5.16] — Green after five verifier passes: strict structured-facts value_check (D-74, D-77), 0 genuine false claims verified across seven generators and fraud-review-bedrock's mutation test, documented facts 100%. Docs note that prose before a facts header and a code fence's info string are not read. Spend: $0.
