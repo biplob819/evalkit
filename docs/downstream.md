@@ -346,10 +346,13 @@ Capabilities it asked for (OWNER D-42, D-44):
 
 ## respectful-offers
 
-- **Current pin**: none (`-`); it copies the harness design and imports nothing, so the canary
-  does not run it (`tests=none`).
-- **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` when it adopts `evalkit gate` and
-  `evalkit compare` (OWNER D-63, D-67).
+- **Current pin**: `evalkit-harness>=0.3,<0.4` (its `evalkit` extra and dev group), adopted at its
+  commit 7d595ef (its E4.2); the canary runs `tests/evalkit/test_evalkit_contract.py` (43 offline
+  contract tests).
+- **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (met). It imports only `evalkit.metrics` (`load_metrics`, `parse_metrics`,
+  `MetricsError`) and `evalkit.gates` (`run_gate`, `EXIT_PASS`, `EXIT_INPUT`), enforced by its ast
+  test. Its stricter validator refused id-shaped label values; EvalKit refuses them too since
+  0.4.0. Equal-width reliability bins (D-73) come with its E4.3.
 
 | Import today | Class in 0.3.0 | Replace with |
 |---|---|---|

@@ -15,3 +15,6 @@ Ship v0.4.0, which formally adds the ledger and drift monitor, the paraphrase pr
 - The guide's 0.4 sections name every changed import, and each replacement resolves.
 - The RC canary record covers every registered project.
 - The release record matches the tag, the tree and the PyPI files.
+
+## Inputs noted while waiting
+- The 2026-11-18 canary (docs/measurements/downstream-canary-2026-11-18.json) records fraud-review-bedrock importing 18 internal EvalKit names for its local strict valuecheck and runner, including `evalkit.run.make_adapters`, `evalkit.runtime.Executor`, `evalkit.adapters.base.CompletionRequest`, `evalkit.env.KEYS` and `evalkit.cost.estimate_run_cost`. The 0.3 → 0.4 guide must classify each one under D-61 rule 2 (public if two or more projects use it, otherwise internal with a replacement).

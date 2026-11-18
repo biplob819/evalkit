@@ -1452,3 +1452,45 @@ def test_gate_out_may_name_a_folder(tmp_path, monkeypatch):
     assert _out_file(str(tmp_path), "gate.json") == tmp_path / "gate.json"
     assert _out_file(str(tmp_path / "new") + "/", "gate.json") == tmp_path / "new" / "gate.json"
     assert _out_file(str(tmp_path / "x.json"), "gate.json") == tmp_path / "x.json"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXU=",  # respectful-offers D-53: member id
+        "123e4567-e89b-12d3-a456-426614174000",
+        "0123456789abcdef0123456789abcdef",
+        "someone@example.com",
+    ],
+)
+def test_a_label_value_shaped_like_an_id_is_refused(value):
+    from evalkit.metrics import MetricsError, parse_metrics
+
+    doc = {
+        "schema_version": "metrics-1",
+        "project": "p",
+        "run_id": "r",
+        "created_at": "2026-11-18T00:00:00Z",
+        "metrics": [
+            {
+                "name": "r",
+                "unit": "rate",
+                "value": 0.5,
+                "k": 1,
+                "n": 2,
+                "labels": {"segment": value},
+            }
+        ],
+    }
+    with pytest.raises(MetricsError):
+        parse_metrics(json.dumps(doc))
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["claude-opus-5-5", "gemma-e2b-grounded-bf16", "gpt-6.1-sol", "LLM01", "2024", "heldout"],
+)
+def test_ordinary_label_values_are_not_id_shaped(value):
+    from evalkit.metrics import _id_shaped
+
+    assert not _id_shaped(value)

@@ -131,7 +131,21 @@ def _rc() -> dict:
 
 def test_rc_canary_covers_every_registered_project_with_tests():
     rec = _rc()
-    tested = {r.project for r in REGISTRY if r.tests in {"auto", "all"}}
+    # the projects registered with tests when the release candidate ran (a project that
+    # adopted EvalKit later, such as respectful-offers at its 7d595ef, is not in this record)
+    import csv
+    import io
+    import subprocess
+
+    tsv = subprocess.run(
+        ["git", "show", f"{rec['evalkit_commit']}:docs/downstream.tsv"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    then = list(csv.DictReader(io.StringIO(tsv), delimiter="\t"))
+    tested = {r["project"] for r in then if r["tests"] in {"auto", "all"}}
     assert set(rec["projects"]) == tested
     assert rec["spend_usd"] == 0 and re.fullmatch(r"[0-9a-f]{40}", rec["evalkit_commit"])
     assert rec["evalkit_src_matches_commit"] is True
@@ -224,9 +238,12 @@ def _replacements() -> list[tuple[str, str, str]]:
 
 
 def _recorded_imports() -> dict[str, set[str]]:
-    """Every non-public import any committed canary record holds, per project."""
+    """Every non-public import the canary records up to and including the 0.3.0 release
+    candidate hold, per project (later records belong to the 0.3 -> 0.4 guide, B5.10)."""
     out: dict[str, set[str]] = {}
     for path in sorted(MEASURE.glob("downstream-canary-*.json")):
+        if path.name > "downstream-canary-2026-11-17-rc.json":
+            continue
         rec = json.loads(path.read_text(encoding="utf-8"))
         for name, p in rec["projects"].items():
             for entry in p.get("imports_not_public", []):

@@ -123,6 +123,30 @@ class Provenance(_Strict):
     evalkit: StrictStr | None = None
 
 
+_UUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}"
+)
+_HEX_RE = re.compile(r"[0-9a-fA-F]{32,}")
+_B64_RE = re.compile(r"[A-Za-z0-9+/_-]{20,}={0,2}")
+_EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[A-Za-z]{2,}")
+
+
+def _id_shaped(value: str) -> bool:
+    """A label value that looks like a case or member id (respectful-offers' D-53 case: a
+    44-character base64 member id). Model ids, category codes and years are not id-shaped:
+    a base64-looking token counts only when it mixes upper and lower case and digits."""
+    t = value.strip()
+    if _UUID_RE.fullmatch(t) or _HEX_RE.fullmatch(t) or _EMAIL_RE.fullmatch(t):
+        return True
+    if _B64_RE.fullmatch(t):
+        return (
+            any(c.isupper() for c in t)
+            and any(c.islower() for c in t)
+            and any(c.isdigit() for c in t)
+        )
+    return False
+
+
 class Metric(_Strict):
     """One named figure. `value` keeps its JSON type: an int stays an int."""
 
@@ -168,6 +192,13 @@ class Metric(_Strict):
                 )
             if not key.strip():
                 raise ValueError("label keys must not be blank")
+            val = v[key]
+            if isinstance(val, str) and _id_shaped(val):
+                raise ValueError(
+                    f"label {safe_text(key)!r} has a value shaped like an id (a uuid, a long hex "
+                    "or base64 token, or an email); case and member ids are not allowed in "
+                    "metrics-1 (aggregates only)"
+                )
         return v
 
     @model_validator(mode="after")

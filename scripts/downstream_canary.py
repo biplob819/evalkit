@@ -87,7 +87,7 @@ _COUNT_RE = re.compile(r"(\d+) (passed|failed|errors?|skipped)")
 _SUMMARY_RE = re.compile(r"^=*\s*(?:\d+ [a-z][\w ]*?(?:, )?)+ in [\d.]+s(?: \([\d:]+\))?\s*=*$")
 _SHORT_RE = re.compile(r"^(FAILED|ERROR|PASSED) (.+?)(?: - .*)?$")
 STDERR_MARK = "----- stderr -----"
-_NODE_RE = re.compile(r"tests/[\w/.-]+\.py(?:::\w+)+")
+_NODE_RE = re.compile(r"tests/[\w/.-]+\.py(?:::\w+)+(?:\[[\w.-]+\])?")  # parametrised ids allowed
 TIMEOUT_S = 1800
 
 

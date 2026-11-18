@@ -45,12 +45,16 @@ def test_every_row_is_well_formed():
         assert (r.tests == "none") == (r.pin == "-"), "a project with no pin has nothing to test"
         assert r.summary == "-" or r.summary.endswith(".json"), r
         for node in r.deselected() + r.known_failures():
-            assert re.fullmatch(r"tests/[\w/.-]+\.py(::\w+)+", node), (r.project, node)
+            assert re.fullmatch(r"tests/[\w/.-]+\.py(::\w+)+(\[[\w.-]+\])?", node), (
+                r.project,
+                node,
+            )
 
 
-def test_respectful_offers_imports_nothing_so_is_not_run():
+def test_respectful_offers_runs_its_offline_contract_tests():
+    """It imported nothing until its E4.2 (7d595ef); it now pins 0.3 and the canary runs it."""
     (row,) = [r for r in dc.load_registry() if r.project == "respectful-offers"]
-    assert row.tests == "none" and row.pin == "-"
+    assert row.tests == "auto" and row.pin.startswith("evalkit-harness>=0.3")
 
 
 def test_a_malformed_registry_is_refused(tmp_path):
