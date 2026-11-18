@@ -1324,7 +1324,7 @@ def test_reasons_never_echo_a_key_or_value_from_the_source(tmp_path):
     snaps = copy_snaps(tmp_path)
     folder = snaps / "gemma-grounded-health"
     (folder / "summary.json").write_text(
-        '{"a-67936e7b30b370c9": 1, "a-67936e7b30b370c9": 2}', encoding="utf-8"
+        '{"a-0123456789abcdef": 1, "a-0123456789abcdef": 2}', encoding="utf-8"
     )
     reseal(folder)
     offers = snaps / "respectful-offers"
@@ -1337,13 +1337,13 @@ def test_reasons_never_echo_a_key_or_value_from_the_source(tmp_path):
     assert gemma.reason == "summary is not valid JSON: a duplicate key in a JSON object"
     assert ro.status == "missing" and "names an id" in ro.reason
     blob = ix.index_json(index) + ix.render_html(index)
-    assert "a-67936e7b30b370c9" not in blob and "alert_id" not in blob
+    assert "a-0123456789abcdef" not in blob and "alert_id" not in blob
 
 
 @pytest.mark.parametrize(
     ("value", "shown"),
     [
-        ("a-67936e7b30b370c9", False),
+        ("a-0123456789abcdef", False),
         ("case-0042", False),
         ("member_00123", False),
         ("run-1a2b3c4d", False),

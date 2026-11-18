@@ -144,7 +144,7 @@ def _show(value: object, limit: int = 64) -> str:
 
 # A label value shaped like a case, alert or member id in the index (stricter than metrics-1's
 # own check): a prefix, a hyphen or underscore, then 8 or more hex characters or 3 or more
-# digits (`a-67936e7b30b370c9`, `case-0042`, `member_00123`).
+# digits (`a-0123456789abcdef`, `case-0042`, `member_00123`).
 _ID_LABEL_RE = re.compile(
     r"[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z][A-Za-z0-9]*)*[-_](?:[0-9A-Fa-f]{8,}|[0-9]{3,})"
 )

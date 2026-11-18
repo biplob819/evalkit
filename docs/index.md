@@ -152,7 +152,7 @@ model's interval lies below every other model's; otherwise it says `intervals ov
 - Every value from a project's file is escaped and limited to 64 characters (an interval method
   to 128). Anthropic, OpenAI, AWS, GitHub and PyPI key shapes are shown as `<hidden>`.
 - A label value shaped like an id in the index (a prefix, a hyphen or underscore, then 8 or
-  more hex characters or 3 or more digits: `a-67936e7b30b370c9`, `case-0042`) is refused: a
+  more hex characters or 3 or more digits: `a-0123456789abcdef`, `case-0042`) is refused: a
   figure labelled with one shows `a label value is shaped like an id: not shown`, and a gate
   row shows the value as `<hidden>`.
 - A reason never quotes the source: a duplicate key reads `a duplicate key in a JSON object`,
