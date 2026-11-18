@@ -148,6 +148,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `equivalences` (B5.15, strict by default).
 
 ## 2026-11-18
+- [DOCS] — README finished for the OSS release: who it's for, a 60-second quickstart, six screenshots (docs/assets/screens/), the v0.4.0 capability map, the seven projects that use EvalKit, an honest status section and every link (including the cross-project index); a 12-step user guide (docs/guide.md) whose commands the docs tests run or parse; the PRD no longer links the git-ignored portfolio notes. Spend: $0.
 - [RELEASE] [B5.10] — v0.4.0 released (owner-approved): tag v0.4.0 at f9cbc8e, evalkit-harness 0.4.0 on PyPI by trusted publishing, install check green on Linux, macOS and Windows; record docs/measurements/release-v0.4.0-2026-11-18.json. Spend: $0.
 - [RELEASE] [B5.10] — v0.4.0 release candidate: RC canary on fresh clones (docs/measurements/downstream-canary-2026-11-18-rc4.json): three pass, four known drift, every one explained (agentic-analytics and fraud-review-bedrock fail only version-pin checks, which embed or compare 0.3.0). Spend: $0.
 - [DOCS] — Walkthrough GIF for the portfolio: docs/assets/walkthrough.gif (10 screens of committed outputs, 825 KB), shot list in docs/walkthrough.md, docs/portfolio.yaml, scripts/capture_walkthrough.py. No keys, no spend. Spend: $0.

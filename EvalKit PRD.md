@@ -4,7 +4,7 @@ Nov 14, 2026 · @Biplob Chakraborty
 
 EvalKit runs your task across Claude and OpenAI models. It reports quality, groundedness, cost and latency side by side, with confidence intervals. Two judges from different model families do the grading, and each judge's error rate is measured against held-out hand labels. EvalKit also scores agents on full multi-step runs. Its scorers ship as a versioned library that downstream projects import.
 
-Companion documents: [EvalKit Tech Spec](EvalKit%20Tech%20Spec.md) covers how it is built. [Portfolio notes](Portfolio%20notes.md) covers how it is presented.
+Companion documents: [EvalKit Tech Spec](EvalKit%20Tech%20Spec.md) covers how it is built.
 
 ## Overview
 
