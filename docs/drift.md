@@ -105,6 +105,8 @@ gap up); `alarm` when, in addition, its whole interval lies beyond the tolerance
 are Brier 0.01, ECE 0.02 and bin 0.10 (OWNER D-73), each overridable. A change without an
 interval is `no_interval` and never flagged.
 
+**Measured error rates (B5.7 verifier, 252 no-drift cells × 300 trials).** With aligned bins, ECE and bin flags stayed at or below 4.3% and alarms at or below 3.3%. With unaligned bins, ECE *flags* (warns) reached 7.3% when a stable miscalibration met predictions moving within bins, and 6.7% with empty reference bins; alarms stayed within 5%. Detection power is good from a reference of 1,000 rows; with 200, a +0.08 bias is caught only 1–2% of the time, so freeze a reference of at least 1,000 rows.
+
 **Bins must align to be compared.** Aggregated reliability bins are compared only when the
 drift config declares `binning: equal-width`. Quantile bins (as respectful-offers exports
 today) move with each period, so per-bin drift is reported as `not available`

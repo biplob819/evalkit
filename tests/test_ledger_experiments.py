@@ -714,3 +714,17 @@ def test_set_like_fields_are_canonical_and_systems_and_code_version_identify(tmp
     with pytest.raises(L.LedgerError) as exc:
         L.reserve_look(ledger, exp, candidate=swapped, manifest=MANIFEST, log=log)
     assert exc.value.code == 1 and (ledger.read_bytes(), log.read_bytes()) == snapshot
+
+
+@pytest.mark.parametrize("name", ["runs.jsonl", "spend-ledger.jsonl", "experiments-2.jsonl"])
+def test_a_look_is_never_written_into_a_ledger(tmp_path, name):
+    """B5.7 verifier pass 3: `experiment look --log runs.jsonl` wrote every held-out case's id
+    hash into a run ledger."""
+    from evalkit.ledger import LedgerError
+    from evalkit.ledger.experiments import _refuse_ledger_as_look_log
+
+    with pytest.raises(LedgerError, match="ledger"):
+        _refuse_ledger_as_look_log(tmp_path / name, tmp_path / "experiments.jsonl")
+    with pytest.raises(LedgerError, match="experiment ledger itself"):
+        _refuse_ledger_as_look_log(tmp_path / "experiments.jsonl", tmp_path / "experiments.jsonl")
+    _refuse_ledger_as_look_log(tmp_path / "heldout-log.jsonl", tmp_path / "experiments.jsonl")

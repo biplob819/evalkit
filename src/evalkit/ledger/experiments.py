@@ -253,6 +253,34 @@ def open_experiment(
 # ---- look (the freeze guard) --------------------------------------------------------------------
 
 
+def _refuse_ledger_as_look_log(log: str | Path, ledger: str | Path) -> None:
+    """The held-out look goes in a B5.14 held-out log, never in a run, experiment or spend
+    ledger (it holds every case's id hash, which no ledger may; B5.7 verifier pass 3)."""
+    import json as _json
+
+    from evalkit.ledger._io import ledger_kind
+
+    lp = Path(log)
+    if lp.resolve() == Path(ledger).resolve():
+        raise LedgerError("--log names the experiment ledger itself: give the B5.14 held-out log")
+    first: Any = None
+    if lp.is_file():
+        with lp.open(encoding="utf-8") as fh:
+            for raw in fh:
+                if raw.strip():
+                    try:
+                        first = _json.loads(raw)
+                    except ValueError:
+                        first = "unreadable"
+                    break
+    kind = ledger_kind(lp, first)
+    if kind in {"run", "experiment", "spend"}:
+        raise LedgerError(
+            f"{lp.name} is a {kind} ledger, not a held-out log: the look's case hashes belong in "
+            "the B5.14 held-out log (--log)"
+        )
+
+
 def reserve_look(
     ledger: str | Path,
     exp_id: str,
@@ -289,6 +317,7 @@ def reserve_look(
                 "a second look is refused",
                 EXIT_ALARM,
             )
+    _refuse_ledger_as_look_log(log, ledger)
     stamp = utc_stamp(at)
     try:
         line = H.append_entry(

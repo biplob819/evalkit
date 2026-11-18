@@ -1033,9 +1033,12 @@ HOMOGLYPHS = str.maketrans(
 
 
 def _fold(text: str, *, invisible: str = "") -> str:
-    """NFKC, invisible characters removed (or replaced by `invisible`), casefolded and
-    homoglyphs folded to the ASCII letters they resemble."""
+    """NFKC, invisible characters removed (or replaced by `invisible`), combining accents
+    dropped, casefolded and homoglyphs folded to the ASCII letters they resemble."""
     text = INVISIBLE.sub(invisible, unicodedata.normalize("NFKC", text))
+    # combining accents are dropped (B5.7 verifier pass 3: "re\u0301sume\u0301" copied a
+    # held-out "resume" past every writer); letters of other scripts are kept
+    text = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
     return unicodedata.normalize("NFKC", text).casefold().translate(HOMOGLYPHS)
 
 

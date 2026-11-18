@@ -1116,3 +1116,9 @@ def test_exposure_scan_reads_held_out_text_in_keys_too(tmp_path):
     root = _secret_repo(tmp_path, {"leak.txt": f"note: {secret_key}\n"})
     found = {e.path for e in H.exposure_scan(cases, root)}
     assert found == {"leak.txt"}
+
+
+def test_an_accented_copy_of_heldout_text_is_still_found():
+    """B5.7 verifier pass 3: combining accents after letters hid held-out text."""
+    assert H._normalise("Cafe\u0301 de\u0301ja\u0300 vu") == H._normalise("Cafe deja vu")
+    assert H._normalise("na\u00efve") == H._normalise("naive")
