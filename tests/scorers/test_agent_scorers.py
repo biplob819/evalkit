@@ -553,9 +553,16 @@ PHRASES = [ValuePhrase(**p) for p in SEV["phrases"]]
 # in one clause ("$812.40 purchase in a rarely used category"), a phrase's number with another
 # field named in its clause ("Amount is 15x ... usual", "5 times the usual amount": verify516),
 # nothing checkable or a missing field is unverifiable; a phrase with words after it ("A $2,000
-# purchase": the closed world, verify516b) is unframed; the other vendored false reasons are
-# still contradicted, and none is ever verified.
+# purchase": the closed world, verify516b) is unframed; under the strict facts grammar
+# (verify516c) a condition phrase with words before it ("Purchase at night", "The card has a
+# thin history") and "Risk score of 0.3" ("of" connects nothing) are unframed too; the other
+# vendored false reasons are still contradicted, and none is ever verified.
 _SEV_UNVERIFIABLE = {
+    ("Purchase at night", ()),
+    ("Purchase at night", (("hour", 14),)),
+    ("The card has a thin history", ()),
+    ("Purchase at a known merchant", ()),
+    ("Risk score of 0.3", ()),
     ("A $2,000 purchase", ()),
     ("Spend is more than 5 times the usual amount", ()),
     ("Amount is 15x this card's usual spend", ()),
@@ -733,7 +740,8 @@ def test_agent_scorers_run_as_task_scorers_in_the_pipeline(registry):
     names = [s.name for s in scorers]
     assert names == ["answer_from_rows", "asked_back", "policy_check", "reason_values"]
     meta = {"result": AFR["rows"], "expected": "answer", "record": {**BASE, **SEV["record"]}}
-    text = json.dumps({"policy_clauses": ["P3.1"], "reasons": ["Purchase at night"]})
+    # a condition phrase is a facts statement (B5.16, verify516c): it starts the reason
+    text = json.dumps({"policy_clauses": ["P3.1"], "reasons": ["At night."]})
     scores = Scores(
         label_correct=True,
         citation_valid=1.0,
