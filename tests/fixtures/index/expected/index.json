@@ -1,0 +1,3499 @@
+{
+  "n_missing": 3,
+  "n_projects": 8,
+  "projects": [
+    {
+      "calibration": null,
+      "commit": null,
+      "cost_per_correct_comparison": "",
+      "efficiency_note": "",
+      "evalkit_pin": null,
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
+      "fetched_at": null,
+      "gate": null,
+      "headline": null,
+      "headline_label": null,
+      "improvements": [],
+      "kind": null,
+      "lessons_url": null,
+      "models": [],
+      "problems": [],
+      "project": "agentic-analytics",
+      "reason": "not metrics-1 or an EvalKit summary.json: it has schema_version '1.0' but not EvalKit's summary.json keys (task, judge_mode, calibration_status, judging_status, models): another project's summary.json, not an EvalKit run",
+      "repo": "biplob819/agentic-analytics",
+      "run_at": null,
+      "run_date": null,
+      "run_id": null,
+      "simulated": null,
+      "stamps": [],
+      "status": "missing",
+      "story": {
+        "evals": [],
+        "headline": {
+          "label": "agentic-analytics",
+          "note": "not metrics-1 or an EvalKit summary.json: it has schema_version '1.0' but not EvalKit's summary.json keys (task, judge_mode, calibration_status, judging_status, models): another project's summary.json, not an EvalKit run",
+          "value": "missing"
+        },
+        "improvements": [],
+        "learnings": [],
+        "monitoring": []
+      },
+      "summary_path": "docs/results/summary.json",
+      "url": null
+    },
+    {
+      "calibration": null,
+      "commit": null,
+      "cost_per_correct_comparison": "",
+      "efficiency_note": "",
+      "evalkit_pin": null,
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
+      "fetched_at": null,
+      "gate": null,
+      "headline": null,
+      "headline_label": null,
+      "improvements": [],
+      "kind": null,
+      "lessons_url": null,
+      "models": [],
+      "problems": [],
+      "project": "ai-visibility",
+      "reason": "no summary registered in the registry",
+      "repo": "biplob819/ai-visibility",
+      "run_at": null,
+      "run_date": null,
+      "run_id": null,
+      "simulated": null,
+      "stamps": [],
+      "status": "missing",
+      "story": {
+        "evals": [],
+        "headline": {
+          "label": "ai-visibility",
+          "note": "no summary registered in the registry",
+          "value": "missing"
+        },
+        "improvements": [],
+        "learnings": [],
+        "monitoring": []
+      },
+      "summary_path": null,
+      "url": null
+    },
+    {
+      "calibration": {
+        "figure": {
+          "ci_high": 0.967,
+          "ci_low": 0.782,
+          "ci_method": "exact Clopper-Pearson (two-sided)",
+          "heldout": false,
+          "k": 45,
+          "labels": {
+            "judge": "claude-opus-5-5"
+          },
+          "metric": "judge_hand_label_agreement",
+          "n": 50,
+          "note": "",
+          "problem": null,
+          "text": "90.0% [78.2%, 96.7%]",
+          "unit": "rate",
+          "value": 0.9
+        },
+        "judges": [],
+        "status": "stated",
+        "text": "stated: judge_hand_label_agreement 90.0% [78.2%, 96.7%]"
+      },
+      "commit": "b9137c5f3670e1eac0a2cf674c34f52175fa092b",
+      "cost_per_correct_comparison": "lowest cost per correct: gpt-6.1-sol (clear: its interval is below every other model's)",
+      "efficiency_note": "",
+      "evalkit_pin": "evalkit-harness==0.1.0",
+      "evalkit_version": "0.3.0",
+      "evalkit_version_source": "recorded in the run",
+      "fetched_at": "2026-11-18T09:00:00Z",
+      "gate": {
+        "errors": [],
+        "exit_code": 0,
+        "failed": 0,
+        "rows": [
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "claude-sonnet-5-5",
+              "split": "public"
+            },
+            "metric": "attack_successes",
+            "note": "",
+            "observed": 0,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 1,
+            "labels": {
+              "model": "claude-sonnet-5-5",
+              "split": "heldout"
+            },
+            "metric": "attack_successes",
+            "note": "held-out split: 1 row(s), worst shown",
+            "observed": 0,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gpt-6.1-sol",
+              "split": "public"
+            },
+            "metric": "attack_successes",
+            "note": "",
+            "observed": 0,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 1,
+            "labels": {
+              "model": "gpt-6.1-sol",
+              "split": "heldout"
+            },
+            "metric": "attack_successes",
+            "note": "held-out split: 1 row(s), worst shown",
+            "observed": 0,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "upper",
+            "ci_high": 0.024292597166108543,
+            "ci_low": 0.0,
+            "gate": 2,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "claude-sonnet-5-5"
+            },
+            "metric": "attack_trial_success_rate",
+            "note": "0 of 150, below 1.98% at 95%; gated on the one-sided 95% upper bound 0.01977",
+            "observed": 0.019773438164508494,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0.03,
+            "unit": "rate"
+          },
+          {
+            "bound": "point",
+            "ci_high": 1.0,
+            "ci_low": 0.8575264022774743,
+            "gate": 3,
+            "heldout_rows": 0,
+            "labels": {},
+            "metric": "scripted_attacker_stopped",
+            "note": "24 of 24, above 88.3% at 95%",
+            "observed": 1.0,
+            "op": ">=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 1,
+            "unit": "rate"
+          },
+          {
+            "bound": "point",
+            "ci_high": 0.946667,
+            "ci_low": 0.766667,
+            "gate": 4,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "claude-sonnet-5-5",
+              "split": "public"
+            },
+            "metric": "normal_answer_correct_rate",
+            "note": "52 of 60 (86.7%, 95% CI 75.4%–94.1%)",
+            "observed": 0.866667,
+            "op": ">=",
+            "result": "pass",
+            "severity": "warn",
+            "threshold": 0.8,
+            "unit": "rate"
+          },
+          {
+            "bound": "point",
+            "ci_high": 0.863333,
+            "ci_low": 0.683333,
+            "gate": 4,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gpt-6.1-sol",
+              "split": "public"
+            },
+            "metric": "normal_answer_correct_rate",
+            "note": "47 of 60 (78.3%, 95% CI 65.8%–87.9%)",
+            "observed": 0.783333,
+            "op": ">=",
+            "result": "warn",
+            "severity": "warn",
+            "threshold": 0.8,
+            "unit": "rate"
+          },
+          {
+            "bound": "point",
+            "ci_high": 0.00372,
+            "ci_low": 0.002635,
+            "gate": 5,
+            "heldout_rows": 0,
+            "labels": {
+              "mode": "live",
+              "model": "claude-sonnet-5-5"
+            },
+            "metric": "cost_per_correct",
+            "note": "",
+            "observed": 0.0031,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0.01,
+            "unit": "USD"
+          },
+          {
+            "bound": "point",
+            "ci_high": 0.00228,
+            "ci_low": 0.001615,
+            "gate": 5,
+            "heldout_rows": 0,
+            "labels": {
+              "mode": "live",
+              "model": "gpt-6.1-sol"
+            },
+            "metric": "cost_per_correct",
+            "note": "",
+            "observed": 0.0019,
+            "op": "<=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0.01,
+            "unit": "USD"
+          }
+        ],
+        "source": "gates file gates.yaml at b9137c5",
+        "status": "pass",
+        "warned": 1
+      },
+      "headline": {
+        "ci_high": null,
+        "ci_low": null,
+        "ci_method": null,
+        "heldout": false,
+        "k": 60,
+        "labels": {
+          "model": "pipeline",
+          "split": "public"
+        },
+        "metric": "attack_pass_k",
+        "n": 60,
+        "note": "",
+        "problem": null,
+        "text": "60 of 60, above 95.1% at 95%",
+        "unit": "rate",
+        "value": 1.0
+      },
+      "headline_label": "Attacks stopped on every trial",
+      "improvements": [
+        {
+          "after": "78.3%",
+          "before": "70.0%",
+          "change": "8.3% [1.7%, 15.0%], supported",
+          "metric": "normal_answer_correct_rate (model=gpt-6.1-sol, split=public)",
+          "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/ledger/experiments.jsonl"
+        }
+      ],
+      "kind": "metrics-1",
+      "lessons_url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/lessons.md",
+      "models": [
+        {
+          "cost_per_correct_rank": 1,
+          "efficiency": {
+            "cache_hit_share": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "cache_hit_share",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "59.6%",
+              "unit": "rate",
+              "value": 0.596097
+            },
+            "cost_per_case": {
+              "ci_high": 0.001637,
+              "ci_low": 0.00134,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "cost_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "$0.0015 [$0.0013, $0.0016]",
+              "unit": "USD",
+              "value": 0.001488
+            },
+            "cost_per_correct": {
+              "ci_high": 0.00228,
+              "ci_low": 0.001615,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "cost_per_correct",
+              "n": 47,
+              "note": "",
+              "problem": null,
+              "text": "$0.0019 [$0.0016, $0.0023]",
+              "unit": "USD",
+              "value": 0.0019
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "error_rate",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "1.7%",
+              "unit": "rate",
+              "value": 0.016667
+            },
+            "latency_p50": {
+              "ci_high": 5450,
+              "ci_low": 4900,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "latency_p50",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "5,200 ms [4,900 ms, 5,450 ms]",
+              "unit": "ms",
+              "value": 5200
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "latency_p95",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "10,400 ms",
+              "unit": "ms",
+              "value": 10400
+            },
+            "latency_p99": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "latency_p99",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "15,600 ms",
+              "unit": "ms",
+              "value": 15600
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "3,100.0",
+              "unit": "count",
+              "value": 3100.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "5,200.5",
+              "unit": "count",
+              "value": 5200.5
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "410.0",
+              "unit": "count",
+              "value": 410.0
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "900.0",
+              "unit": "count",
+              "value": 900.0
+            }
+          },
+          "lowest_cost_per_correct": true,
+          "mode": "live",
+          "model": "gpt-6.1-sol",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.863333,
+            "ci_low": 0.683333,
+            "ci_method": "exact Clopper-Pearson (two-sided)",
+            "heldout": false,
+            "k": 47,
+            "labels": {
+              "model": "gpt-6.1-sol",
+              "split": "public"
+            },
+            "metric": "normal_answer_correct_rate",
+            "n": 60,
+            "note": "",
+            "problem": null,
+            "text": "78.3% [68.3%, 86.3%]",
+            "unit": "rate",
+            "value": 0.783333
+          },
+          "source": "efficiency block"
+        },
+        {
+          "cost_per_correct_rank": 2,
+          "efficiency": {
+            "cache_hit_share": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "cache_hit_share",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "59.6%",
+              "unit": "rate",
+              "value": 0.596097
+            },
+            "cost_per_case": {
+              "ci_high": 0.002955,
+              "ci_low": 0.002418,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "cost_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "$0.0027 [$0.0024, $0.003]",
+              "unit": "USD",
+              "value": 0.002687
+            },
+            "cost_per_correct": {
+              "ci_high": 0.00372,
+              "ci_low": 0.002635,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "cost_per_correct",
+              "n": 52,
+              "note": "",
+              "problem": null,
+              "text": "$0.0031 [$0.0026, $0.0037]",
+              "unit": "USD",
+              "value": 0.0031
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "error_rate",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "1.7%",
+              "unit": "rate",
+              "value": 0.016667
+            },
+            "latency_p50": {
+              "ci_high": 4350,
+              "ci_low": 3800,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "latency_p50",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "4,100 ms [3,800 ms, 4,350 ms]",
+              "unit": "ms",
+              "value": 4100
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "latency_p95",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "8,200 ms",
+              "unit": "ms",
+              "value": 8200
+            },
+            "latency_p99": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "latency_p99",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "12,300 ms",
+              "unit": "ms",
+              "value": 12300
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "3,100.0",
+              "unit": "count",
+              "value": 3100.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "5,200.5",
+              "unit": "count",
+              "value": 5200.5
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 60,
+              "note": "",
+              "problem": null,
+              "text": "410.0",
+              "unit": "count",
+              "value": 410.0
+            }
+          },
+          "lowest_cost_per_correct": false,
+          "mode": "live",
+          "model": "claude-sonnet-5-5",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.946667,
+            "ci_low": 0.766667,
+            "ci_method": "exact Clopper-Pearson (two-sided)",
+            "heldout": false,
+            "k": 52,
+            "labels": {
+              "model": "claude-sonnet-5-5",
+              "split": "public"
+            },
+            "metric": "normal_answer_correct_rate",
+            "n": 60,
+            "note": "",
+            "problem": null,
+            "text": "86.7% [76.7%, 94.7%]",
+            "unit": "rate",
+            "value": 0.866667
+          },
+          "source": "efficiency block"
+        }
+      ],
+      "problems": [],
+      "project": "assay-pipeline",
+      "reason": "",
+      "repo": "biplob819/assay-pipeline",
+      "run_at": "2026-11-18T07:30:00Z",
+      "run_date": "2026-11-18",
+      "run_id": "main-fixture",
+      "simulated": false,
+      "stamps": [],
+      "status": "ok",
+      "story": {
+        "evals": [
+          {
+            "data": "n=60",
+            "method": "exact count",
+            "name": "Attacks stopped on every trial",
+            "result": "60 of 60, above 95.1% at 95%",
+            "status": "final",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate <= 0",
+            "name": "attack_successes (model=claude-sonnet-5-5, split=public)",
+            "result": "0",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "1 held-out row(s), split level",
+            "method": "evalkit gate <= 0",
+            "name": "attack_successes (model=claude-sonnet-5-5, split=heldout)",
+            "result": "0",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate <= 0",
+            "name": "attack_successes (model=gpt-6.1-sol, split=public)",
+            "result": "0",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "1 held-out row(s), split level",
+            "method": "evalkit gate <= 0",
+            "name": "attack_successes (model=gpt-6.1-sol, split=heldout)",
+            "result": "0",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate <= 0.03 (upper bound)",
+            "name": "attack_trial_success_rate (model=claude-sonnet-5-5)",
+            "result": "2.0%",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate >= 1",
+            "name": "scripted_attacker_stopped",
+            "result": "100.0%",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate >= 0.8",
+            "name": "normal_answer_correct_rate (model=claude-sonnet-5-5, split=public)",
+            "result": "86.7%",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate >= 0.8",
+            "name": "normal_answer_correct_rate (model=gpt-6.1-sol, split=public)",
+            "result": "78.3%",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate <= 0.01",
+            "name": "cost_per_correct (mode=live, model=claude-sonnet-5-5)",
+            "result": "$0.0031",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate <= 0.01",
+            "name": "cost_per_correct (mode=live, model=gpt-6.1-sol)",
+            "result": "$0.0019",
+            "status": "pass",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+          }
+        ],
+        "headline": {
+          "label": "Attacks stopped on every trial",
+          "note": "run main-fixture; commit b9137c5; EvalKit 0.3.0",
+          "value": "60 of 60, above 95.1% at 95%"
+        },
+        "improvements": [
+          {
+            "after": "78.3%",
+            "before": "70.0%",
+            "change": "8.3% [1.7%, 15.0%], supported",
+            "metric": "normal_answer_correct_rate (model=gpt-6.1-sol, split=public)",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/ledger/experiments.jsonl"
+          }
+        ],
+        "learnings": [
+          {
+            "lesson": "assay-pipeline lessons log",
+            "now": "read the log at commit b9137c5",
+            "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/lessons.md"
+          }
+        ],
+        "monitoring": [
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "guardrail",
+            "metric": "attack_successes (model=claude-sonnet-5-5, split=public)",
+            "target": "<= 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "guardrail",
+            "metric": "attack_successes (model=claude-sonnet-5-5, split=heldout)",
+            "target": "<= 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "guardrail",
+            "metric": "attack_successes (model=gpt-6.1-sol, split=public)",
+            "target": "<= 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "guardrail",
+            "metric": "attack_successes (model=gpt-6.1-sol, split=heldout)",
+            "target": "<= 0"
+          },
+          {
+            "current": "2.0%",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "quality",
+            "metric": "attack_trial_success_rate (model=claude-sonnet-5-5)",
+            "target": "<= 0.03 (upper bound)"
+          },
+          {
+            "current": "100.0%",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "quality",
+            "metric": "scripted_attacker_stopped",
+            "target": ">= 1"
+          },
+          {
+            "current": "86.7%",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "quality",
+            "metric": "normal_answer_correct_rate (model=claude-sonnet-5-5, split=public)",
+            "target": ">= 0.8"
+          },
+          {
+            "current": "78.3%",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "quality",
+            "metric": "normal_answer_correct_rate (model=gpt-6.1-sol, split=public)",
+            "target": ">= 0.8"
+          },
+          {
+            "current": "$0.0031",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "cost",
+            "metric": "cost_per_correct (mode=live, model=claude-sonnet-5-5)",
+            "target": "<= 0.01"
+          },
+          {
+            "current": "$0.0019",
+            "how": "evalkit gate (gates file gates.yaml at b9137c5)",
+            "kind": "cost",
+            "metric": "cost_per_correct (mode=live, model=gpt-6.1-sol)",
+            "target": "<= 0.01"
+          }
+        ]
+      },
+      "summary_path": "docs/results/main-fixture/metrics.json",
+      "url": "https://github.com/biplob819/assay-pipeline/blob/b9137c5f3670e1eac0a2cf674c34f52175fa092b/docs/results/main-fixture/metrics.json"
+    },
+    {
+      "calibration": {
+        "judges": [],
+        "status": "uncalibrated",
+        "text": "uncalibrated: judge not calibrated for this task"
+      },
+      "commit": "2c1668ebec72ad532acf9e139bc29f8e1e9c052b",
+      "cost_per_correct_comparison": "lowest cost per correct: course-ta (the only model with one)",
+      "efficiency_note": "",
+      "evalkit_pin": "evalkit-harness>=0.2,<0.3",
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
+      "fetched_at": "2026-11-18T09:00:00Z",
+      "gate": {
+        "errors": [],
+        "exit_code": 0,
+        "failed": 0,
+        "rows": [
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "course-ta"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": true,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          }
+        ],
+        "source": "EvalKit default gates: every model passes its thresholds",
+        "status": "pass",
+        "warned": 0
+      },
+      "headline": {
+        "ci_high": 0.75,
+        "ci_low": 0.45,
+        "ci_method": "percentile bootstrap over cases (seeded)",
+        "heldout": false,
+        "k": null,
+        "labels": {
+          "model": "course-ta"
+        },
+        "metric": "task_scores.locator_correct",
+        "n": 12,
+        "note": "",
+        "problem": null,
+        "text": "0.6 [0.45, 0.75]",
+        "unit": "ratio",
+        "value": 0.6
+      },
+      "headline_label": "Locator correct",
+      "improvements": [],
+      "kind": "evalkit-summary",
+      "lessons_url": null,
+      "models": [
+        {
+          "cost_per_correct_rank": 1,
+          "efficiency": {
+            "cost_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "course-ta"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0.004",
+              "unit": "USD",
+              "value": 0.004
+            },
+            "cost_per_correct": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "course-ta"
+              },
+              "metric": "cost_per_correct",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0.013",
+              "unit": "USD",
+              "value": 0.0125
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "course-ta"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "latency_p50": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "course-ta"
+              },
+              "metric": "latency_p50",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "course-ta"
+              },
+              "metric": "latency_p95",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            }
+          },
+          "lowest_cost_per_correct": true,
+          "mode": "live",
+          "model": "course-ta",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.5,
+            "ci_low": 0.0,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 3,
+            "labels": {
+              "model": "course-ta"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "25.0% [0.0%, 50.0%]",
+            "unit": "rate",
+            "value": 0.25
+          },
+          "source": "from summary (no interval)"
+        }
+      ],
+      "problems": [],
+      "project": "course-assistant",
+      "reason": "",
+      "repo": "biplob819/course-assistant",
+      "run_at": "2026-11-14T13:00:00+00:00",
+      "run_date": "2026-11-14",
+      "run_id": "r-fixture0course",
+      "simulated": false,
+      "stamps": [
+        "judge not calibrated for this task (see docs/calibrate-your-task.md)"
+      ],
+      "status": "ok",
+      "story": {
+        "evals": [
+          {
+            "data": "n=12",
+            "method": "percentile bootstrap over cases (seeded)",
+            "name": "Locator correct",
+            "result": "0.6 [0.45, 0.75]",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/course-assistant/blob/2c1668ebec72ad532acf9e139bc29f8e1e9c052b/tests/eval/evalreg/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=course-ta)",
+            "result": "true",
+            "status": "pass",
+            "url": "https://github.com/biplob819/course-assistant/blob/2c1668ebec72ad532acf9e139bc29f8e1e9c052b/tests/eval/evalreg/summary.json"
+          }
+        ],
+        "headline": {
+          "label": "Locator correct",
+          "note": "interval 0.45 to 0.75 (percentile bootstrap over cases (seeded)); run r-fixture0course; commit 2c1668e; EvalKit not recorded",
+          "value": "0.6 [0.45, 0.75]"
+        },
+        "improvements": [],
+        "learnings": [],
+        "monitoring": [
+          {
+            "current": "true",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=course-ta)",
+            "target": "== true"
+          }
+        ]
+      },
+      "summary_path": "tests/eval/evalreg/summary.json",
+      "url": "https://github.com/biplob819/course-assistant/blob/2c1668ebec72ad532acf9e139bc29f8e1e9c052b/tests/eval/evalreg/summary.json"
+    },
+    {
+      "calibration": null,
+      "commit": null,
+      "cost_per_correct_comparison": "",
+      "efficiency_note": "",
+      "evalkit_pin": null,
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
+      "fetched_at": null,
+      "gate": null,
+      "headline": null,
+      "headline_label": null,
+      "improvements": [],
+      "kind": null,
+      "lessons_url": null,
+      "models": [],
+      "problems": [],
+      "project": "fraud-review-bedrock",
+      "reason": "git fetch failed (exit 128)",
+      "repo": "biplob819/fraud-review-bedrock",
+      "run_at": null,
+      "run_date": null,
+      "run_id": null,
+      "simulated": null,
+      "stamps": [],
+      "status": "missing",
+      "story": {
+        "evals": [],
+        "headline": {
+          "label": "fraud-review-bedrock",
+          "note": "git fetch failed (exit 128)",
+          "value": "missing"
+        },
+        "improvements": [],
+        "learnings": [],
+        "monitoring": []
+      },
+      "summary_path": "docs/results/summary.json",
+      "url": null
+    },
+    {
+      "calibration": {
+        "judges": [],
+        "status": "uncalibrated",
+        "text": "uncalibrated: judge not calibrated for this task"
+      },
+      "commit": "4d503de21d099cf2c909b32548e2894a97bbcbed",
+      "cost_per_correct_comparison": "lowest cost per correct: tied between gemma-e2b-base-q4, gemma-e2b-grounded-q4",
+      "efficiency_note": "",
+      "evalkit_pin": "evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@0000000000000000000000000000000000000000",
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
+      "fetched_at": "2026-11-18T09:00:00Z",
+      "gate": {
+        "errors": [],
+        "exit_code": 1,
+        "failed": 4,
+        "rows": [
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gemma-e2b-base-q4"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gemma-e2b-grounded-q4"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "claude-haiku-5-5"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gpt-6-luna"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          }
+        ],
+        "source": "EvalKit default gates: every model passes its thresholds",
+        "status": "fail",
+        "warned": 0
+      },
+      "headline": {
+        "ci_high": 0.75,
+        "ci_low": 0.25,
+        "ci_method": "percentile bootstrap over cases (seeded)",
+        "heldout": false,
+        "k": 6,
+        "labels": {
+          "model": "gemma-e2b-grounded-q4"
+        },
+        "metric": "accuracy",
+        "n": 12,
+        "note": "",
+        "problem": null,
+        "text": "50.0% [25.0%, 75.0%]",
+        "unit": "rate",
+        "value": 0.5
+      },
+      "headline_label": "Accuracy (grounded Gemma)",
+      "improvements": [],
+      "kind": "evalkit-summary",
+      "lessons_url": null,
+      "models": [
+        {
+          "cost_per_correct_rank": 1,
+          "efficiency": {
+            "cost_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-base-q4"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0",
+              "unit": "USD",
+              "value": 0.0
+            },
+            "cost_per_correct": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-base-q4"
+              },
+              "metric": "cost_per_correct",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0",
+              "unit": "USD",
+              "value": 0.0
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "gemma-e2b-base-q4"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "latency_p50": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-base-q4"
+              },
+              "metric": "latency_p50",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-base-q4"
+              },
+              "metric": "latency_p95",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            }
+          },
+          "lowest_cost_per_correct": true,
+          "mode": "live",
+          "model": "gemma-e2b-base-q4",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.75,
+            "ci_low": 0.25,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 6,
+            "labels": {
+              "model": "gemma-e2b-base-q4"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "50.0% [25.0%, 75.0%]",
+            "unit": "rate",
+            "value": 0.5
+          },
+          "source": "from summary (no interval)"
+        },
+        {
+          "cost_per_correct_rank": 2,
+          "efficiency": {
+            "cost_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-grounded-q4"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0",
+              "unit": "USD",
+              "value": 0.0
+            },
+            "cost_per_correct": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-grounded-q4"
+              },
+              "metric": "cost_per_correct",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0",
+              "unit": "USD",
+              "value": 0.0
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "gemma-e2b-grounded-q4"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "latency_p50": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-grounded-q4"
+              },
+              "metric": "latency_p50",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gemma-e2b-grounded-q4"
+              },
+              "metric": "latency_p95",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            }
+          },
+          "lowest_cost_per_correct": true,
+          "mode": "live",
+          "model": "gemma-e2b-grounded-q4",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.75,
+            "ci_low": 0.25,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 6,
+            "labels": {
+              "model": "gemma-e2b-grounded-q4"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "50.0% [25.0%, 75.0%]",
+            "unit": "rate",
+            "value": 0.5
+          },
+          "source": "from summary (no interval)"
+        },
+        {
+          "cost_per_correct_rank": 3,
+          "efficiency": {
+            "cost_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gpt-6-luna"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0.00012",
+              "unit": "USD",
+              "value": 0.00012
+            },
+            "cost_per_correct": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gpt-6-luna"
+              },
+              "metric": "cost_per_correct",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0.0002",
+              "unit": "USD",
+              "value": 0.0002
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "latency_p50": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gpt-6-luna"
+              },
+              "metric": "latency_p50",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "gpt-6-luna"
+              },
+              "metric": "latency_p95",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            }
+          },
+          "lowest_cost_per_correct": false,
+          "mode": "live",
+          "model": "gpt-6-luna",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.75,
+            "ci_low": 0.25,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 6,
+            "labels": {
+              "model": "gpt-6-luna"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "50.0% [25.0%, 75.0%]",
+            "unit": "rate",
+            "value": 0.5
+          },
+          "source": "from summary (no interval)"
+        },
+        {
+          "cost_per_correct_rank": 4,
+          "efficiency": {
+            "cost_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "claude-haiku-5-5"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0.0005",
+              "unit": "USD",
+              "value": 0.0005
+            },
+            "cost_per_correct": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "claude-haiku-5-5"
+              },
+              "metric": "cost_per_correct",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "$0.0009",
+              "unit": "USD",
+              "value": 0.0009
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "latency_p50": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "claude-haiku-5-5"
+              },
+              "metric": "latency_p50",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "model": "claude-haiku-5-5"
+              },
+              "metric": "latency_p95",
+              "n": null,
+              "note": "from summary (no interval)",
+              "problem": null,
+              "text": "900 ms",
+              "unit": "ms",
+              "value": 900
+            }
+          },
+          "lowest_cost_per_correct": false,
+          "mode": "live",
+          "model": "claude-haiku-5-5",
+          "price_date": null,
+          "quality": {
+            "ci_high": 0.75,
+            "ci_low": 0.25,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 6,
+            "labels": {
+              "model": "claude-haiku-5-5"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "50.0% [25.0%, 75.0%]",
+            "unit": "rate",
+            "value": 0.5
+          },
+          "source": "from summary (no interval)"
+        }
+      ],
+      "problems": [],
+      "project": "gemma-grounded-health",
+      "reason": "",
+      "repo": "biplob819/gemma-grounded-health",
+      "run_at": "2026-11-14T13:00:00+00:00",
+      "run_date": "2026-11-14",
+      "run_id": "r-fixture0gemma",
+      "simulated": false,
+      "stamps": [
+        "judge not calibrated for this task (see docs/calibrate-your-task.md)"
+      ],
+      "status": "ok",
+      "story": {
+        "evals": [
+          {
+            "data": "n=12",
+            "method": "percentile bootstrap over cases (seeded)",
+            "name": "Accuracy (grounded Gemma)",
+            "result": "50.0% [25.0%, 75.0%]",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/gemma-grounded-health/blob/4d503de21d099cf2c909b32548e2894a97bbcbed/docs/results/main/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=gemma-e2b-base-q4)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/gemma-grounded-health/blob/4d503de21d099cf2c909b32548e2894a97bbcbed/docs/results/main/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=gemma-e2b-grounded-q4)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/gemma-grounded-health/blob/4d503de21d099cf2c909b32548e2894a97bbcbed/docs/results/main/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=claude-haiku-5-5)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/gemma-grounded-health/blob/4d503de21d099cf2c909b32548e2894a97bbcbed/docs/results/main/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=gpt-6-luna)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/gemma-grounded-health/blob/4d503de21d099cf2c909b32548e2894a97bbcbed/docs/results/main/summary.json"
+          }
+        ],
+        "headline": {
+          "label": "Accuracy (grounded Gemma)",
+          "note": "interval 25.0% to 75.0% (percentile bootstrap over cases (seeded)); run r-fixture0gemma; commit 4d503de; EvalKit not recorded",
+          "value": "50.0% [25.0%, 75.0%]"
+        },
+        "improvements": [],
+        "learnings": [],
+        "monitoring": [
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=gemma-e2b-base-q4)",
+            "target": "== true"
+          },
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=gemma-e2b-grounded-q4)",
+            "target": "== true"
+          },
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=claude-haiku-5-5)",
+            "target": "== true"
+          },
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=gpt-6-luna)",
+            "target": "== true"
+          }
+        ]
+      },
+      "summary_path": "docs/results/main/summary.json",
+      "url": "https://github.com/biplob819/gemma-grounded-health/blob/4d503de21d099cf2c909b32548e2894a97bbcbed/docs/results/main/summary.json"
+    },
+    {
+      "calibration": {
+        "judges": [],
+        "status": "not stated",
+        "text": "not stated in the metrics-1 file"
+      },
+      "commit": "51ea61175d8a6b187b95ecf014bcfc9d00f40251",
+      "cost_per_correct_comparison": "",
+      "efficiency_note": "no per-model efficiency in this summary (no model label)",
+      "evalkit_pin": "evalkit-harness>=0.3,<0.4",
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
+      "fetched_at": "2026-11-18T09:00:00Z",
+      "gate": {
+        "errors": [],
+        "exit_code": 0,
+        "failed": 0,
+        "rows": [
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "bandit",
+              "respectful": "true",
+              "rule": "max_one_offer_a_month",
+              "variant": "central"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "bandit",
+              "respectful": "true",
+              "rule": "no_offer_after_opt_out",
+              "variant": "central"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "bandit",
+              "respectful": "true",
+              "rule": "max_one_offer_a_month",
+              "variant": "conservative"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "bandit",
+              "respectful": "true",
+              "rule": "no_offer_after_opt_out",
+              "variant": "conservative"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "rule_following_baseline",
+              "respectful": "true",
+              "rule": "max_one_offer_a_month",
+              "variant": "central"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "rule_following_baseline",
+              "respectful": "true",
+              "rule": "no_offer_after_opt_out",
+              "variant": "central"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "rule_following_baseline",
+              "respectful": "true",
+              "rule": "max_one_offer_a_month",
+              "variant": "conservative"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "rule_following_baseline",
+              "respectful": "true",
+              "rule": "no_offer_after_opt_out",
+              "variant": "conservative"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "status_quo",
+              "respectful": "true",
+              "rule": "max_one_offer_a_month",
+              "variant": "central"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "status_quo",
+              "respectful": "true",
+              "rule": "no_offer_after_opt_out",
+              "variant": "central"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "status_quo",
+              "respectful": "true",
+              "rule": "max_one_offer_a_month",
+              "variant": "conservative"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "policy": "status_quo",
+              "respectful": "true",
+              "rule": "no_offer_after_opt_out",
+              "variant": "conservative"
+            },
+            "metric": "violations",
+            "note": "",
+            "observed": 0,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "count"
+          },
+          {
+            "bound": "lower",
+            "ci_high": 0.018,
+            "ci_low": 0.004,
+            "gate": 2,
+            "heldout_rows": 0,
+            "labels": {
+              "a": "bandit",
+              "b": "rule_following_baseline",
+              "variant": "central"
+            },
+            "metric": "diff.incremental_retained_per_1000_ntd",
+            "note": "",
+            "observed": 0.004,
+            "op": ">=",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": 0,
+            "unit": "ratio"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 3,
+            "heldout_rows": 0,
+            "labels": {
+              "a": "bandit",
+              "b": "rule_following_baseline",
+              "variant": "conservative"
+            },
+            "metric": "separated.incremental_retained_per_1000_ntd",
+            "note": "",
+            "observed": true,
+            "op": "==",
+            "result": "pass",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          }
+        ],
+        "source": "gates file configs/gates.yaml at 51ea611",
+        "status": "pass",
+        "warned": 0
+      },
+      "headline": {
+        "ci_high": 44.4,
+        "ci_low": 38.4,
+        "ci_method": "percentile bootstrap over cases (seeded)",
+        "heldout": false,
+        "k": null,
+        "labels": {
+          "policy": "bandit",
+          "variant": "central"
+        },
+        "metric": "incremental_retained_per_1000",
+        "n": null,
+        "note": "",
+        "problem": null,
+        "text": "41.5 [38.4, 44.4]",
+        "unit": "ratio",
+        "value": 41.5
+      },
+      "headline_label": "Incremental members kept per 1,000",
+      "improvements": [],
+      "kind": "metrics-1",
+      "lessons_url": null,
+      "models": [],
+      "problems": [],
+      "project": "respectful-offers",
+      "reason": "",
+      "repo": "biplob819/respectful-offers",
+      "run_at": "2026-11-17T16:45:00+05:30",
+      "run_date": "2026-11-17",
+      "run_id": "kkbox-fixture",
+      "simulated": true,
+      "stamps": [
+        "SIMULATED: results from a simulator, not production"
+      ],
+      "status": "ok",
+      "story": {
+        "evals": [
+          {
+            "data": "n not stated",
+            "method": "percentile bootstrap over cases (seeded)",
+            "name": "Incremental members kept per 1,000",
+            "result": "41.5 [38.4, 44.4]",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=bandit, respectful=true, rule=max_one_offer_a_month, variant=central)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=bandit, respectful=true, rule=no_offer_after_opt_out, variant=central)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=bandit, respectful=true, rule=max_one_offer_a_month, variant=conservative)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=bandit, respectful=true, rule=no_offer_after_opt_out, variant=conservative)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=rule_following_baseline, respectful=true, rule=max_one_offer_a_month, variant=central)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=rule_following_baseline, respectful=true, rule=no_offer_after_opt_out, variant=central)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=rule_following_baseline, respectful=true, rule=max_one_offer_a_month, variant=conservative)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=rule_following_baseline, respectful=true, rule=no_offer_after_opt_out, variant=conservative)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=status_quo, respectful=true, rule=max_one_offer_a_month, variant=central)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=status_quo, respectful=true, rule=no_offer_after_opt_out, variant=central)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=status_quo, respectful=true, rule=max_one_offer_a_month, variant=conservative)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == 0",
+            "name": "violations (policy=status_quo, respectful=true, rule=no_offer_after_opt_out, variant=conservative)",
+            "result": "0",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate >= 0 (lower bound)",
+            "name": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=central)",
+            "result": "0.004",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=conservative)",
+            "result": "true",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+          }
+        ],
+        "headline": {
+          "label": "Incremental members kept per 1,000",
+          "note": "interval 38.4 to 44.4 (percentile bootstrap over cases (seeded)); run kkbox-fixture; commit 51ea611; EvalKit not recorded",
+          "value": "41.5 [38.4, 44.4]"
+        },
+        "improvements": [],
+        "learnings": [],
+        "monitoring": [
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=bandit, respectful=true, rule=max_one_offer_a_month, variant=central)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=bandit, respectful=true, rule=no_offer_after_opt_out, variant=central)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=bandit, respectful=true, rule=max_one_offer_a_month, variant=conservative)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=bandit, respectful=true, rule=no_offer_after_opt_out, variant=conservative)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=rule_following_baseline, respectful=true, rule=max_one_offer_a_month, variant=central)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=rule_following_baseline, respectful=true, rule=no_offer_after_opt_out, variant=central)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=rule_following_baseline, respectful=true, rule=max_one_offer_a_month, variant=conservative)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=rule_following_baseline, respectful=true, rule=no_offer_after_opt_out, variant=conservative)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=status_quo, respectful=true, rule=max_one_offer_a_month, variant=central)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=status_quo, respectful=true, rule=no_offer_after_opt_out, variant=central)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=status_quo, respectful=true, rule=max_one_offer_a_month, variant=conservative)",
+            "target": "== 0"
+          },
+          {
+            "current": "0",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "guardrail",
+            "metric": "violations (policy=status_quo, respectful=true, rule=no_offer_after_opt_out, variant=conservative)",
+            "target": "== 0"
+          },
+          {
+            "current": "0.004",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "quality",
+            "metric": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=central)",
+            "target": ">= 0 (lower bound)"
+          },
+          {
+            "current": "true",
+            "how": "evalkit gate (gates file configs/gates.yaml at 51ea611)",
+            "kind": "quality",
+            "metric": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=conservative)",
+            "target": "== true"
+          }
+        ]
+      },
+      "summary_path": "results/kkbox/metrics.json",
+      "url": "https://github.com/biplob819/respectful-offers/blob/51ea61175d8a6b187b95ecf014bcfc9d00f40251/results/kkbox/metrics.json"
+    },
+    {
+      "calibration": {
+        "judges": [
+          {
+            "judge": "claude-opus-5-5",
+            "kappa": 0.78,
+            "kappa_high": 0.8500000000000001,
+            "kappa_low": 0.7000000000000001,
+            "n_claims": 120
+          },
+          {
+            "judge": "gpt-6.1-sol",
+            "kappa": 0.71,
+            "kappa_high": 0.78,
+            "kappa_low": 0.63,
+            "n_claims": 120
+          }
+        ],
+        "status": "calibrated",
+        "text": "calibrated: claude-opus-5-5 kappa 0.78 [0.70, 0.85] on 120 held-out claims; gpt-6.1-sol kappa 0.71 [0.63, 0.78] on 120 held-out claims"
+      },
+      "commit": "92b26fe4c43e985d59a250e18ea6876de0d5b602",
+      "cost_per_correct_comparison": "lowest cost per correct: gpt-6.1-sol (intervals overlap)",
+      "efficiency_note": "",
+      "evalkit_pin": null,
+      "evalkit_version": "0.4.0",
+      "evalkit_version_source": "pyproject.toml at the commit",
+      "fetched_at": "2026-11-18T09:00:00Z",
+      "gate": {
+        "errors": [],
+        "exit_code": 1,
+        "failed": 3,
+        "rows": [
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "claude-sonnet-5-5"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gpt-6.1-sol"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          },
+          {
+            "bound": "point",
+            "ci_high": null,
+            "ci_low": null,
+            "gate": 1,
+            "heldout_rows": 0,
+            "labels": {
+              "model": "gpt-6-luna"
+            },
+            "metric": "passes_threshold",
+            "note": "",
+            "observed": false,
+            "op": "==",
+            "result": "fail",
+            "severity": "fail",
+            "threshold": true,
+            "unit": "bool"
+          }
+        ],
+        "source": "EvalKit default gates: every model passes its thresholds",
+        "status": "fail",
+        "warned": 0
+      },
+      "headline": {
+        "ci_high": 0.75,
+        "ci_low": 0.25,
+        "ci_method": "percentile bootstrap over cases (seeded)",
+        "heldout": false,
+        "k": 6,
+        "labels": {
+          "judge": "claude-opus-5-5",
+          "model": "gpt-6.1-sol"
+        },
+        "metric": "headline",
+        "n": 12,
+        "note": "",
+        "problem": null,
+        "text": "50.0% [25.0%, 75.0%]",
+        "unit": "rate",
+        "value": 0.5
+      },
+      "headline_label": "Correct and fully grounded",
+      "improvements": [],
+      "kind": "evalkit-summary",
+      "lessons_url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/lessons.md",
+      "models": [
+        {
+          "cost_per_correct_rank": 1,
+          "efficiency": {
+            "cache_hit_share": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.001,
+              "ci_low": 0.001,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.001 [$0.001, $0.001]",
+              "unit": "USD",
+              "value": 0.001
+            },
+            "cost_per_correct": {
+              "ci_high": 0.004,
+              "ci_low": 0.0013333333333333333,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cost_per_correct",
+              "n": 6,
+              "note": "",
+              "problem": null,
+              "text": "$0.002 [$0.0013, $0.004]",
+              "unit": "USD",
+              "value": 0.002
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "eval_overhead_cost": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "eval_overhead_cost",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.033",
+              "unit": "USD",
+              "value": 0.033
+            },
+            "latency_p50": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p50",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p99": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "system_cost": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "system_cost",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.012",
+              "unit": "USD",
+              "value": 0.012
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "600.0",
+              "unit": "count",
+              "value": 600.0
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "60.0",
+              "unit": "count",
+              "value": 60.0
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "200.0",
+              "unit": "count",
+              "value": 200.0
+            }
+          },
+          "lowest_cost_per_correct": true,
+          "mode": "live",
+          "model": "gpt-6.1-sol",
+          "price_date": "2026-11-14",
+          "quality": {
+            "ci_high": 0.75,
+            "ci_low": 0.25,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 6,
+            "labels": {
+              "model": "gpt-6.1-sol"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "50.0% [25.0%, 75.0%]",
+            "unit": "rate",
+            "value": 0.5
+          },
+          "source": "efficiency block"
+        },
+        {
+          "cost_per_correct_rank": 2,
+          "efficiency": {
+            "cache_hit_share": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.001,
+              "ci_low": 0.001,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.001 [$0.001, $0.001]",
+              "unit": "USD",
+              "value": 0.001
+            },
+            "cost_per_correct": {
+              "ci_high": 0.012,
+              "ci_low": 0.002,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cost_per_correct",
+              "n": 3,
+              "note": "",
+              "problem": null,
+              "text": "$0.004 [$0.002, $0.012]",
+              "unit": "USD",
+              "value": 0.004
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 1,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "8.3%",
+              "unit": "rate",
+              "value": 0.08333333333333333
+            },
+            "eval_overhead_cost": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "eval_overhead_cost",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.033",
+              "unit": "USD",
+              "value": 0.033
+            },
+            "latency_p50": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p50",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p99": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "system_cost": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "system_cost",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.012",
+              "unit": "USD",
+              "value": 0.012
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "600.0",
+              "unit": "count",
+              "value": 600.0
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "60.0",
+              "unit": "count",
+              "value": 60.0
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "200.0",
+              "unit": "count",
+              "value": 200.0
+            }
+          },
+          "lowest_cost_per_correct": false,
+          "mode": "live",
+          "model": "claude-sonnet-5-5",
+          "price_date": "2026-11-14",
+          "quality": {
+            "ci_high": 0.5,
+            "ci_low": 0.0,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 3,
+            "labels": {
+              "model": "claude-sonnet-5-5"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "25.0% [0.0%, 50.0%]",
+            "unit": "rate",
+            "value": 0.25
+          },
+          "source": "efficiency block"
+        },
+        {
+          "cost_per_correct_rank": null,
+          "efficiency": {
+            "cache_hit_share": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.001,
+              "ci_low": 0.001,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cost_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.001 [$0.001, $0.001]",
+              "unit": "USD",
+              "value": 0.001
+            },
+            "error_rate": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": 2,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "error_rate",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "16.7%",
+              "unit": "rate",
+              "value": 0.16666666666666666
+            },
+            "eval_overhead_cost": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "eval_overhead_cost",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.03",
+              "unit": "USD",
+              "value": 0.03
+            },
+            "latency_p50": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p50",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p95": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "latency_p99": {
+              "ci_high": 900.0,
+              "ci_low": 900.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "900 ms [900 ms, 900 ms]",
+              "unit": "ms",
+              "value": 900
+            },
+            "system_cost": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "system_cost",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "$0.012",
+              "unit": "USD",
+              "value": 0.012
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "600.0",
+              "unit": "count",
+              "value": 600.0
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "60.0",
+              "unit": "count",
+              "value": 60.0
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 12,
+              "note": "",
+              "problem": null,
+              "text": "200.0",
+              "unit": "count",
+              "value": 200.0
+            }
+          },
+          "lowest_cost_per_correct": false,
+          "mode": "live",
+          "model": "gpt-6-luna",
+          "price_date": "2026-11-14",
+          "quality": {
+            "ci_high": 0.0,
+            "ci_low": 0.0,
+            "ci_method": "percentile bootstrap over cases (seeded)",
+            "heldout": false,
+            "k": 0,
+            "labels": {
+              "model": "gpt-6-luna"
+            },
+            "metric": "accuracy",
+            "n": 12,
+            "note": "",
+            "problem": null,
+            "text": "0 of 12, below 22.1% at 95%",
+            "unit": "rate",
+            "value": 0.0
+          },
+          "source": "efficiency block"
+        }
+      ],
+      "problems": [],
+      "project": "evalkit",
+      "reason": "",
+      "repo": "biplob819/evalkit",
+      "run_at": "2026-11-14T13:00:00+00:00",
+      "run_date": "2026-11-14",
+      "run_id": "r-fixture0self",
+      "simulated": false,
+      "stamps": [],
+      "status": "ok",
+      "story": {
+        "evals": [
+          {
+            "data": "n=12",
+            "method": "percentile bootstrap over cases (seeded)",
+            "name": "Correct and fully grounded",
+            "result": "50.0% [25.0%, 75.0%]",
+            "status": "final",
+            "url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/results/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=claude-sonnet-5-5)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/results/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=gpt-6.1-sol)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/results/summary.json"
+          },
+          {
+            "data": "gated row",
+            "method": "evalkit gate == true",
+            "name": "passes_threshold (model=gpt-6-luna)",
+            "result": "false",
+            "status": "fail",
+            "url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/results/summary.json"
+          }
+        ],
+        "headline": {
+          "label": "Correct and fully grounded",
+          "note": "interval 25.0% to 75.0% (percentile bootstrap over cases (seeded)); run r-fixture0self; commit 92b26fe; EvalKit 0.4.0",
+          "value": "50.0% [25.0%, 75.0%]"
+        },
+        "improvements": [],
+        "learnings": [
+          {
+            "lesson": "evalkit lessons log",
+            "now": "read the log at commit 92b26fe",
+            "url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/lessons.md"
+          }
+        ],
+        "monitoring": [
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=claude-sonnet-5-5)",
+            "target": "== true"
+          },
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=gpt-6.1-sol)",
+            "target": "== true"
+          },
+          {
+            "current": "false",
+            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
+            "kind": "quality",
+            "metric": "passes_threshold (model=gpt-6-luna)",
+            "target": "== true"
+          }
+        ]
+      },
+      "summary_path": "docs/results/summary.json",
+      "url": "https://github.com/biplob819/evalkit/blob/92b26fe4c43e985d59a250e18ea6876de0d5b602/docs/results/summary.json"
+    }
+  ],
+  "schema_version": "index-1"
+}

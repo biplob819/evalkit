@@ -1,0 +1,14 @@
+gates:
+  - metric: violations
+    labels: {respectful: true}
+    op: "=="
+    value: 0
+  - metric: diff.incremental_retained_per_1000_ntd
+    labels: {a: bandit, b: rule_following_baseline, variant: central}
+    bound: lower
+    op: ">="
+    value: 0
+  - metric: separated.incremental_retained_per_1000_ntd
+    labels: {a: bandit, b: rule_following_baseline, variant: conservative}
+    op: "=="
+    value: true

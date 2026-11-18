@@ -1,0 +1,501 @@
+{
+  "calibration_status": "calibrated",
+  "comparisons": [
+    {
+      "diff": {
+        "hi": 0.08333333333333333,
+        "lo": -0.5833333333333334,
+        "point": -0.25
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.22757724227577242,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": 0.5,
+        "lo": 0.0,
+        "point": 0.25
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.06179382061793821,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "judge": null,
+      "metric": "accuracy",
+      "model_a": "gpt-6.1-sol",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.0007999200079992001,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": -0.08333333333333333,
+        "lo": -0.5833333333333334,
+        "point": -0.3333333333333333
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.013998600139986002,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.4166666666666667,
+        "lo": 0.0,
+        "point": 0.16666666666666666
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.22497750224977503,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "judge": "claude-opus-5-5",
+      "metric": "headline",
+      "model_a": "gpt-6.1-sol",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.0007999200079992001,
+      "separated": true
+    },
+    {
+      "diff": {
+        "hi": 0.08333333333333333,
+        "lo": -0.5833333333333334,
+        "point": -0.25
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6.1-sol",
+      "p_value": 0.22757724227577242,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": 0.5,
+        "lo": 0.0,
+        "point": 0.25
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "claude-sonnet-5-5",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.06179382061793821,
+      "separated": false
+    },
+    {
+      "diff": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "judge": "gpt-6.1-sol",
+      "metric": "headline",
+      "model_a": "gpt-6.1-sol",
+      "model_b": "gpt-6-luna",
+      "p_value": 0.0007999200079992001,
+      "separated": true
+    }
+  ],
+  "config_hash": "fixture-self",
+  "extraction_error_rate": null,
+  "finished_at": "2026-11-14T13:00:00Z",
+  "judge_mode": "dual",
+  "judges": [
+    {
+      "agreement": 0.9,
+      "by_family": {},
+      "confusion": [
+        [
+          80,
+          6
+        ],
+        [
+          6,
+          28
+        ]
+      ],
+      "coverage": 1.0,
+      "judge": "claude-opus-5-5",
+      "judge_prompt_hash": "jp-fixture",
+      "kappa": {
+        "hi": 0.8500000000000001,
+        "lo": 0.7000000000000001,
+        "point": 0.78
+      },
+      "n_claims": 120,
+      "split": "heldout",
+      "task": "pubmedqa"
+    },
+    {
+      "agreement": 0.9,
+      "by_family": {},
+      "confusion": [
+        [
+          80,
+          6
+        ],
+        [
+          6,
+          28
+        ]
+      ],
+      "coverage": 1.0,
+      "judge": "gpt-6.1-sol",
+      "judge_prompt_hash": "jp-fixture",
+      "kappa": {
+        "hi": 0.78,
+        "lo": 0.63,
+        "point": 0.71
+      },
+      "n_claims": 120,
+      "split": "heldout",
+      "task": "pubmedqa"
+    }
+  ],
+  "judging_status": "complete",
+  "models": [
+    {
+      "accuracy": {
+        "hi": 0.5,
+        "lo": 0.0,
+        "point": 0.25
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 0.75,
+        "point": 0.9166666666666666
+      },
+      "cost_per_100_usd": 0.1,
+      "cost_per_correct_usd": 0.004,
+      "coverage": {
+        "hi": 0.8333333333333334,
+        "lo": 0.3333333333333333,
+        "point": 0.5833333333333334
+      },
+      "efficiency": {
+        "cache_hit_share": 0.0,
+        "cost_per_case_usd": {
+          "hi": 0.001,
+          "lo": 0.001,
+          "point": 0.001
+        },
+        "cost_per_correct_usd": {
+          "hi": 0.012,
+          "lo": 0.002,
+          "point": 0.004
+        },
+        "error_rate": 0.08333333333333333,
+        "eval_overhead_cost_usd": 0.033,
+        "latency_p50_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p95_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p99_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "mode": "live",
+        "n": 12,
+        "n_correct": 3,
+        "n_errored": 1,
+        "n_latency": 12,
+        "n_retried": null,
+        "price_date": "2026-11-14",
+        "retry_rate": null,
+        "system_cost_usd": 0.012,
+        "tokens_cached_per_case": 0.0,
+        "tokens_in_per_case": 600.0,
+        "tokens_out_per_case": 60.0,
+        "tokens_reasoning_per_case": 200.0
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0.1667)"
+      ],
+      "family": "anthropic",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.75,
+          "lo": 0.25,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 1.0,
+          "lo": 0.5833333333333334,
+          "point": 0.8333333333333334
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.4166666666666667,
+          "lo": 0.0,
+          "point": 0.16666666666666666
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.5,
+          "lo": 0.0,
+          "point": 0.25
+        }
+      },
+      "latency_p50_ms": 900,
+      "latency_p95_ms": 900,
+      "model": "claude-sonnet-5-5",
+      "n": 12,
+      "n_errors": {
+        "schema": 1
+      },
+      "passes_threshold": false
+    },
+    {
+      "accuracy": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 0.75,
+        "point": 0.9166666666666666
+      },
+      "cost_per_100_usd": 0.1,
+      "cost_per_correct_usd": 0.002,
+      "coverage": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "efficiency": {
+        "cache_hit_share": 0.0,
+        "cost_per_case_usd": {
+          "hi": 0.001,
+          "lo": 0.001,
+          "point": 0.001
+        },
+        "cost_per_correct_usd": {
+          "hi": 0.004,
+          "lo": 0.0013333333333333333,
+          "point": 0.002
+        },
+        "error_rate": 0.08333333333333333,
+        "eval_overhead_cost_usd": 0.033,
+        "latency_p50_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p95_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p99_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "mode": "live",
+        "n": 12,
+        "n_correct": 6,
+        "n_errored": 1,
+        "n_latency": 12,
+        "n_retried": null,
+        "price_date": "2026-11-14",
+        "retry_rate": null,
+        "system_cost_usd": 0.012,
+        "tokens_cached_per_case": 0.0,
+        "tokens_in_per_case": 600.0,
+        "tokens_out_per_case": 60.0,
+        "tokens_reasoning_per_case": 200.0
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0.5)"
+      ],
+      "family": "openai",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 1.0,
+          "lo": 0.5833333333333334,
+          "point": 0.8333333333333334
+        },
+        "gpt-6.1-sol": {
+          "hi": 1.0,
+          "lo": 0.75,
+          "point": 0.9166666666666666
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.75,
+          "lo": 0.25,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.75,
+          "lo": 0.25,
+          "point": 0.5
+        }
+      },
+      "latency_p50_ms": 900,
+      "latency_p95_ms": 900,
+      "model": "gpt-6.1-sol",
+      "n": 12,
+      "n_errors": {
+        "schema": 1
+      },
+      "passes_threshold": false
+    },
+    {
+      "accuracy": {
+        "hi": 0.0,
+        "lo": 0.0,
+        "point": 0.0
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 0.5833333333333334,
+        "point": 0.8333333333333334
+      },
+      "cost_per_100_usd": 0.1,
+      "cost_per_correct_usd": null,
+      "coverage": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "efficiency": {
+        "cache_hit_share": 0.0,
+        "cost_per_case_usd": {
+          "hi": 0.001,
+          "lo": 0.001,
+          "point": 0.001
+        },
+        "cost_per_correct_usd": null,
+        "error_rate": 0.16666666666666666,
+        "eval_overhead_cost_usd": 0.03,
+        "latency_p50_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p95_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "latency_p99_ms": {
+          "hi": 900.0,
+          "lo": 900.0,
+          "point": 900.0
+        },
+        "mode": "live",
+        "n": 12,
+        "n_correct": 0,
+        "n_errored": 2,
+        "n_latency": 12,
+        "n_retried": null,
+        "price_date": "2026-11-14",
+        "retry_rate": null,
+        "system_cost_usd": 0.012,
+        "tokens_cached_per_case": 0.0,
+        "tokens_in_per_case": 600.0,
+        "tokens_out_per_case": 60.0,
+        "tokens_reasoning_per_case": 200.0
+      },
+      "failed_thresholds": [
+        "headline >= 0.6 (observed 0)"
+      ],
+      "family": "openai",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.8333333333333334,
+          "lo": 0.3333333333333333,
+          "point": 0.5833333333333334
+        },
+        "gpt-6.1-sol": {
+          "hi": 1.0,
+          "lo": 0.5,
+          "point": 0.75
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.0,
+          "lo": 0.0,
+          "point": 0.0
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.0,
+          "lo": 0.0,
+          "point": 0.0
+        }
+      },
+      "latency_p50_ms": 900,
+      "latency_p95_ms": 900,
+      "model": "gpt-6-luna",
+      "n": 12,
+      "n_errors": {
+        "schema": 2
+      },
+      "passes_threshold": false
+    }
+  ],
+  "run_id": "r-fixture0self",
+  "schema_version": "1.0",
+  "self_preference": {
+    "claude-opus-5-5": {
+      "anthropic": {
+        "hi": 0.75,
+        "lo": 0.25,
+        "point": 0.5
+      },
+      "openai": {
+        "hi": 0.875,
+        "lo": 0.5416666666666666,
+        "point": 0.7083333333333334
+      }
+    },
+    "gpt-6.1-sol": {
+      "anthropic": {
+        "hi": 1.0,
+        "lo": 0.5833333333333334,
+        "point": 0.8333333333333334
+      },
+      "openai": {
+        "hi": 0.9583333333333334,
+        "lo": 0.7083333333333334,
+        "point": 0.8333333333333334
+      }
+    }
+  },
+  "started_at": "2026-11-14T12:00:00Z",
+  "task": "pubmedqa"
+}

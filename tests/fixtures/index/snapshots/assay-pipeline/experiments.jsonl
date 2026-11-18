@@ -1,0 +1,2 @@
+{"id": "exp-fixture-1", "kind": "experiment_opened", "project": "assay-pipeline"}
+{"at": "2026-11-18T08:00:00Z", "id": "exp-fixture-1", "kind": "experiment_closed", "primary_row": {"ci_high": 0.15, "ci_low": 0.016667, "diff": 0.083333, "direction": "up", "flagged": true, "labels": {"model": "gpt-6.1-sol", "split": "public"}, "metric": "normal_answer_correct_rate", "new": 0.783333, "old": 0.7, "unit": "rate"}, "project": "assay-pipeline", "schema": "ledger-1", "verdict": "supported"}

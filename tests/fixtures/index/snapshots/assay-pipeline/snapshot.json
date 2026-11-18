@@ -1,0 +1,31 @@
+{
+  "commit": "b9137c5f3670e1eac0a2cf674c34f52175fa092b",
+  "evalkit_pin": "evalkit-harness==0.1.0",
+  "evalkit_version": null,
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {
+    "experiments": {
+      "name": "experiments.jsonl",
+      "path": "ledger/experiments.jsonl",
+      "sha256": "6a39a8f78df67d3b28264e26d5488f841118b699a4fa315630f2de70d3062ffd"
+    },
+    "gates": {
+      "name": "gates.yaml",
+      "path": "gates.yaml",
+      "sha256": "d86ffc5bd5c4dba02b3d2f3c985947d2d2996f236921ca77d78d4ef2d1c24ecc"
+    },
+    "summary": {
+      "name": "summary.json",
+      "path": "docs/results/main-fixture/metrics.json",
+      "sha256": "188d541d74757d84ede3e847d0f3526a2f37ebf681177e950ddf436ec2c01436"
+    }
+  },
+  "lessons": "docs/lessons.md",
+  "project": "assay-pipeline",
+  "reason": "",
+  "ref": "main",
+  "repo": "biplob819/assay-pipeline",
+  "schema_version": "index-snapshot-1",
+  "source": "https://github.com/biplob819/assay-pipeline.git",
+  "status": "ok"
+}

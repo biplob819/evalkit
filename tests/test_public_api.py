@@ -189,3 +189,16 @@ def test_ledger_and_drift_modules_are_public_with_their_command_lines():
         assert all("--json" in CLI[p] for p in CLI if p.split()[0] == group)
     for code in ("0", "1", "2", "3", "4"):
         assert f"  {code}  " in LEDGER_EXIT_CODES
+
+
+def test_index_module_is_public_with_its_command_line():
+    """B5.5: `evalkit.index` is public, its `__all__` is exactly the contract, and
+    `evalkit index snapshot|build` with exit codes 0/1/2 is part of the CLI contract."""
+    import evalkit.index as index
+    from evalkit import cli
+
+    assert sorted(index.__all__) == sorted(PUBLIC["evalkit.index"])
+    assert {"--registry", "--snapshots", "--out", "--require-all"} <= CLI["index build"]
+    assert {"--source", "--commit", "--out"} <= CLI["index snapshot"]
+    for code in ("0", "1", "2"):
+        assert f"  {code}  " in cli.INDEX_EXIT_CODES

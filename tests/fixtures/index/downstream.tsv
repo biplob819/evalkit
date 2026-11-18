@@ -1,0 +1,8 @@
+project	repo	branch	pin	install	tests	summary	deselect	known	note
+agentic-analytics	biplob819/agentic-analytics	main	-		auto	docs/results/summary.json	-	-	own summary format
+ai-visibility	biplob819/ai-visibility	main	-		auto	-	-	-	no summary registered
+assay-pipeline	biplob819/assay-pipeline	main	evalkit-harness==0.1.0		auto	-	-	-	metrics-1 (path in the index config)
+course-assistant	biplob819/course-assistant	main	evalkit-harness>=0.2,<0.3		auto	tests/eval/evalreg/summary.json	-	-	EvalKit summary
+fraud-review-bedrock	biplob819/fraud-review-bedrock	main	-		all	docs/results/summary.json	-	-	fetch fails
+gemma-grounded-health	biplob819/gemma-grounded-health	main	-		auto	docs/results/main/summary.json	-	-	EvalKit summary before 0.3
+respectful-offers	biplob819/respectful-offers	main	evalkit-harness>=0.3,<0.4		auto	results/kkbox/metrics.json	-	-	metrics-1, simulated

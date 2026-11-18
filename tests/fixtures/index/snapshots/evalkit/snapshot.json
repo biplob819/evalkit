@@ -1,0 +1,26 @@
+{
+  "commit": "92b26fe4c43e985d59a250e18ea6876de0d5b602",
+  "evalkit_pin": null,
+  "evalkit_version": "0.4.0",
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {
+    "run": {
+      "name": "run.json",
+      "path": "docs/results/run.json",
+      "sha256": "b462da3e32c55f3a5c9c0f59769db8c87b7ec460e619f6bc79a64faa89d6c46a"
+    },
+    "summary": {
+      "name": "summary.json",
+      "path": "docs/results/summary.json",
+      "sha256": "39666c4438b62a7b06c0aae2e594b2d79995346a52cd3a6d6363d89e8aaaabe2"
+    }
+  },
+  "lessons": "docs/lessons.md",
+  "project": "evalkit",
+  "reason": "",
+  "ref": "HEAD",
+  "repo": "biplob819/evalkit",
+  "schema_version": "index-snapshot-1",
+  "source": "local",
+  "status": "ok"
+}

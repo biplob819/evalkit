@@ -1,0 +1,197 @@
+{
+  "calibration_status": "uncalibrated",
+  "comparisons": [],
+  "config_hash": "fixture-course",
+  "extraction_error_rate": null,
+  "finished_at": "2026-11-14T13:00:00Z",
+  "judge_mode": "dual",
+  "judges": [],
+  "judging_status": "complete",
+  "models": [
+    {
+      "accuracy": {
+        "hi": 0.5,
+        "lo": 0.0,
+        "point": 0.25
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 0.75,
+        "point": 0.9166666666666666
+      },
+      "cost_per_100_usd": 0.4,
+      "cost_per_correct_usd": 0.0125,
+      "coverage": {
+        "hi": 0.8333333333333334,
+        "lo": 0.3333333333333333,
+        "point": 0.5833333333333334
+      },
+      "failed_thresholds": [],
+      "family": "other",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.75,
+          "lo": 0.25,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 1.0,
+          "lo": 0.5833333333333334,
+          "point": 0.8333333333333334
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.4166666666666667,
+          "lo": 0.0,
+          "point": 0.16666666666666666
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.5,
+          "lo": 0.0,
+          "point": 0.25
+        }
+      },
+      "latency_p50_ms": 900,
+      "latency_p95_ms": 900,
+      "model": "course-ta",
+      "n": 12,
+      "n_errors": {
+        "schema": 1
+      },
+      "passes_threshold": true,
+      "task_scores": {
+        "attack_outcome": {
+          "hi": 1.0,
+          "lo": 0.85,
+          "point": 0.95
+        },
+        "locator_correct": {
+          "hi": 0.75,
+          "lo": 0.45,
+          "point": 0.6
+        }
+      }
+    }
+  ],
+  "run_id": "r-fixture0course",
+  "schema_version": "1.0",
+  "self_preference": {
+    "claude-opus-5-5": {
+      "other": {
+        "hi": 0.85,
+        "lo": 0.5,
+        "point": 0.7
+      }
+    },
+    "gpt-6.1-sol": {
+      "other": {
+        "hi": 0.85,
+        "lo": 0.5,
+        "point": 0.7
+      }
+    }
+  },
+  "slices": [
+    {
+      "accuracy": {
+        "hi": 0.83,
+        "lo": 0.17,
+        "point": 0.5
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 1.0,
+        "point": 1.0
+      },
+      "cost_per_100_usd": 0.4,
+      "coverage": {
+        "hi": 0.9,
+        "lo": 0.3,
+        "point": 0.6
+      },
+      "field": "rule",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.75,
+          "lo": 0.25,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 1.0,
+          "lo": 0.5833333333333334,
+          "point": 0.8333333333333334
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.83,
+          "lo": 0.17,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.83,
+          "lo": 0.17,
+          "point": 0.5
+        }
+      },
+      "latency_p50_ms": 800,
+      "latency_p95_ms": 950,
+      "model": "course-ta",
+      "n": 6,
+      "n_errors": {},
+      "value": "cite-the-week"
+    },
+    {
+      "accuracy": {
+        "hi": 0.83,
+        "lo": 0.17,
+        "point": 0.5
+      },
+      "citation_validity": {
+        "hi": 1.0,
+        "lo": 1.0,
+        "point": 1.0
+      },
+      "cost_per_100_usd": 0.4,
+      "coverage": {
+        "hi": 0.9,
+        "lo": 0.3,
+        "point": 0.6
+      },
+      "field": "rule",
+      "groundedness_mean": {
+        "claude-opus-5-5": {
+          "hi": 0.75,
+          "lo": 0.25,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 1.0,
+          "lo": 0.5833333333333334,
+          "point": 0.8333333333333334
+        }
+      },
+      "headline": {
+        "claude-opus-5-5": {
+          "hi": 0.83,
+          "lo": 0.17,
+          "point": 0.5
+        },
+        "gpt-6.1-sol": {
+          "hi": 0.83,
+          "lo": 0.17,
+          "point": 0.5
+        }
+      },
+      "latency_p50_ms": 800,
+      "latency_p95_ms": 950,
+      "model": "course-ta",
+      "n": 6,
+      "n_errors": {},
+      "value": "no-answers-to-graded-work"
+    }
+  ],
+  "started_at": "2026-11-14T12:00:00Z",
+  "task": "course-ta"
+}

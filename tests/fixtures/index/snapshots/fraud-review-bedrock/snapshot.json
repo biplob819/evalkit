@@ -1,0 +1,15 @@
+{
+  "commit": null,
+  "evalkit_pin": null,
+  "evalkit_version": null,
+  "fetched_at": "2026-11-18T09:00:00Z",
+  "files": {},
+  "lessons": null,
+  "project": "fraud-review-bedrock",
+  "reason": "git fetch failed (exit 128)",
+  "ref": "main",
+  "repo": "biplob819/fraud-review-bedrock",
+  "schema_version": "index-snapshot-1",
+  "source": "https://github.com/biplob819/fraud-review-bedrock.git",
+  "status": "missing"
+}

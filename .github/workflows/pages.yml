@@ -1,10 +1,11 @@
 name: pages
 
-# Deploy the published headline run (docs/results/) to GitHub Pages (OWNER D-47).
+# Deploy the published headline run (docs/results/) to GitHub Pages (OWNER D-47), and the
+# cross-project eval index (docs/index/, B5.5) at /index/ when it has been built.
 on:
   push:
     branches: [main]
-    paths: ["docs/results/**", ".github/workflows/pages.yml"]
+    paths: ["docs/results/**", "docs/index/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,11 @@ jobs:
           mkdir -p _site
           cp docs/results/report.html _site/index.html
           cp docs/results/summary.json docs/results/charts.vl.json _site/
+          # the cross-project eval index (B5.5), once `evalkit index build` has written it
+          if [ -f docs/index/index.html ]; then
+            mkdir -p _site/index
+            cp docs/index/index.html docs/index/index.json _site/index/
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

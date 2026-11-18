@@ -1,0 +1,35 @@
+{
+  "config_hash": "fixture-self",
+  "families": {
+    "claude-sonnet-5-5": "anthropic",
+    "gpt-6-luna": "openai",
+    "gpt-6.1-sol": "openai"
+  },
+  "finished_at": "2026-11-14T13:00:00Z",
+  "judge_mode": "dual",
+  "judges": [
+    "claude-opus-5-5",
+    "gpt-6.1-sol"
+  ],
+  "live_judges": false,
+  "models": [
+    "claude-sonnet-5-5",
+    "gpt-6.1-sol",
+    "gpt-6-luna"
+  ],
+  "n": 12,
+  "run_id": "r-fixture0self",
+  "schema_version": "1.0",
+  "seed": 7,
+  "spent_usd": 0.0,
+  "started_at": "2026-11-14T12:00:00Z",
+  "task": "pubmedqa",
+  "task_ref": "pubmedqa",
+  "thresholds": [
+    {
+      "metric": "headline",
+      "op": ">=",
+      "value": 0.6
+    }
+  ]
+}
