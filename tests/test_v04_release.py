@@ -512,7 +512,15 @@ def test_rc_canary_covers_every_registered_project():
             assert p.get("finding"), f"{name}: {p['status']} needs a finding"
         if p["status"] == "known-drift":
             row = next(r for r in REGISTRY if r.project == name)
-            assert set(p["failures"]) <= set(row.known_failures()), name
+            # a project may rename a known test after the record (fraud-review-bedrock renamed
+            # its pin test when it moved to the v0.4.0 release); map old names to new
+            renamed = {
+                "tests/test_doctor.py::test_evalkit_is_pinned_to_an_exact_commit_and_imports": (
+                    "tests/test_doctor.py::test_evalkit_is_pinned_to_an_exact_release_and_imports"
+                ),
+            }
+            failures = {renamed.get(f, f) for f in p["failures"]}
+            assert failures <= set(row.known_failures()), name
 
 
 # ---- V04-02 release record (after the owner approves the tag and the publish) -----------------

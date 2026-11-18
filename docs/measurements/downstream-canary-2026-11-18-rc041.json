@@ -1,0 +1,334 @@
+{
+ "command": "python scripts/downstream_canary.py --all --workdir /private/tmp/claude-502/-Users-biplob-chakraborty-EvalKit/6315ab10-a49c-4ec4-bd96-b7660af43450/scratchpad/canary-041 --evalkit . --out /private/tmp/claude-502/-Users-biplob-chakraborty-EvalKit/6315ab10-a49c-4ec4-bd96-b7660af43450/scratchpad/canary-041.json",
+ "date": "2026-11-18",
+ "evalkit_commit": "a0d433c474b2c1ddf9655a7885bf38a3fb1bd46b",
+ "evalkit_src_matches_commit": true,
+ "evalkit_version": "0.4.1",
+ "projects": {
+  "agentic-analytics": {
+   "audit": {
+    "internal": 9,
+    "private": 0,
+    "public": 37,
+    "public-elsewhere": 0
+   },
+   "commit": "cba4dce9b7d3fb62f7d969b11a1d29fcc7950e2e",
+   "counts": {
+    "errors": 0,
+    "failed": 3,
+    "passed": 368,
+    "skipped": 0
+   },
+   "detail": "PASSED tests/monitoring/test_probes.py::test_evalkit_verdict_equals_s21_on_every_pinned_probe_case[injection over budget]\nPASSED tests/monitoring/test_probes.py::test_evalkit_verdict_equals_s21_on_every_pinned_probe_case[injection with a write attempt]\nPASSED tests/monitoring/test_probes.py::test_evalkit_verdict_equals_s21_on_every_pinned_probe_case[injection with a guarded read]\nPASSED tests/monitoring/test_probes.py::test_evalkit_verdict_equals_s21_on_every_pinned_probe_case[injection with a budget-refused call]\nPASSED tests/monitoring/test_probes.py::test_the_parity_cases_include_passes_and_failures_of_both_kinds\nPASSED tests/monitoring/test_probes.py::test_partial_passes_a_write_probe_and_fails_an_injection_probe\nPASSED tests/monitoring/test_probes.py::test_parity_on_every_golden_probe_answer\nPASSED tests/monitoring/test_probes.py::test_parity_check_catches_a_planted_disagreement\nPASSED tests/monitoring/test_probes.py::test_parity_refuses_a_probe_record_without_its_probe\nPASSED tests/monitoring/test_probes.py::test_parity_skips_benchmark_questions\nPASSED tests/monitoring/test_probes.py::test_record_parity_reads_s21_from_the_stored_scores\nPASSED tests/monitoring/test_probes.py::test_difference_1_numeric_marker_written_another_way[The answer is 1000000.]\nPASSED tests/monitoring/test_probes.py::test_difference_1_numeric_marker_written_another_way[The answer is \\xa31m.]\nPASSED tests/monitoring/test_probes.py::test_difference_1_numeric_marker_written_another_way[one million]\nPASSED tests/monitoring/test_probes.py::test_difference_2_marker_with_other_spacing\nPASSED tests/monitoring/test_probes.py::test_difference_3_disguised_marker[IQ-ALPHA\\u200b-7]\nPASSED tests/monitoring/test_probes.py::test_difference_3_disguised_marker[\\uff29\\uff31-ALPHA-7]\nPASSED tests/monitoring/test_probes.py::test_difference_4_marker_only_in_sql_or_suggestions\nPASSED tests/monitoring/test_probes.py::test_difference_5_refused_tool_outside_the_allow_list_on_an_injection_probe\nPASSED tests/monitoring/test_probes.py::test_difference_6_non_allowed_tool_that_ran_on_a_write_probe\nPASSED tests/monitoring/test_probes.py::test_known_differences_are_listed_in_the_module_docstring\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.agents.score]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.compare]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.cost]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.demo.guard]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.gates]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.metrics]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.retry]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.schemas]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.scorers]\nPASSED tests/test_evalkit_contract.py::test_every_used_evalkit_symbol_imports[evalkit.stats]\nPASSED tests/test_evalkit_contract.py::test_sql_match_keyword_contract\nPASSED tests/test_evalkit_contract.py::test_sql_match_extra_columns_and_tolerance\nPASSED tests/test_evalkit_contract.py::test_attack_outcome_contract\nPASSED tests/test_evalkit_contract.py::test_upstreamed_scorer_contract\nPASSED tests/test_evalkit_contract.py::test_evalkit_pin_is_exact\n3 failed, 368 passed, 4 deselected in 31.14s\n\n----- stderr -----",
+   "failures": [
+    "tests/monitoring/test_metrics.py::test_golden_run_writes_metrics_and_cases_byte_for_byte",
+    "tests/monitoring/test_parity.py::test_the_recorded_parity_covers_every_stored_answer",
+    "tests/test_evalkit_contract.py::test_evalkit_is_the_v0_3_0_release"
+   ],
+   "files": [
+    "tests/aggregate/test_accuracy.py",
+    "tests/aggregate/test_consistency.py",
+    "tests/aggregate/test_uplift.py",
+    "tests/demo/test_ask.py",
+    "tests/demo/test_guard.py",
+    "tests/demo/test_keys.py",
+    "tests/demo/test_live.py",
+    "tests/demo/test_owner.py",
+    "tests/harness/test_metric_relevance.py",
+    "tests/models/test_anthropic.py",
+    "tests/models/test_openai.py",
+    "tests/models/test_round2.py",
+    "tests/monitoring/test_compare.py",
+    "tests/monitoring/test_efficiency.py",
+    "tests/monitoring/test_gates.py",
+    "tests/monitoring/test_metrics.py",
+    "tests/monitoring/test_monitor_workflow.py",
+    "tests/monitoring/test_parity.py",
+    "tests/monitoring/test_probes.py",
+    "tests/test_evalkit_contract.py"
+   ],
+   "imports_not_public": [
+    "evalkit.agents.score.MIN_STEPS [internal]",
+    "evalkit.cost.UnknownPrice [internal]",
+    "evalkit.cost.price_for [internal]",
+    "evalkit.demo.guard.Guard [internal]",
+    "evalkit.demo.guard.GuardRefused [internal]",
+    "evalkit.demo.guard.PostgresSpend [internal]",
+    "evalkit.demo.guard.SqliteSpend [internal]",
+    "evalkit.demo.guard.Ticket [internal]",
+    "evalkit.retry.is_retryable [internal]"
+   ],
+   "known_fixed": [],
+   "pin": "evalkit-harness==0.3.0",
+   "repo": "biplob819/agentic-analytics",
+   "status": "known-drift",
+   "tests": "auto",
+   "finding": "Version pin only: test_evalkit_is_the_v0_3_0_release asserts the installed version, and its golden metrics.json and parity record embed EvalKit's version; it re-records them when it moves its pin."
+  },
+  "ai-visibility": {
+   "audit": {
+    "internal": 3,
+    "private": 0,
+    "public": 20,
+    "public-elsewhere": 5
+   },
+   "commit": "bddff4aa944c885cf751b99d5b8bab500d270514",
+   "counts": {
+    "errors": 0,
+    "failed": 0,
+    "passed": 23,
+    "skipped": 0
+   },
+   "detail": "",
+   "failures": [],
+   "files": [
+    "tests/support/test_calibrate.py",
+    "tests/support/test_judge.py"
+   ],
+   "imports_not_public": [
+    "evalkit.pipeline.calibrate._Pair -> evalkit.calibration.CalibrationPair [public-elsewhere]",
+    "evalkit.pipeline.calibrate.cluster_kappa -> evalkit.calibration [public-elsewhere]",
+    "evalkit.pipeline.calibrate.kappa_from -> evalkit.calibration [public-elsewhere]",
+    "evalkit.pipeline.extract.EXTRACTOR_PROMPT [internal]",
+    "evalkit.pipeline.generate.adapter_key [internal]",
+    "evalkit.pipeline.generate.provider_for -> evalkit.providers [public-elsewhere]",
+    "evalkit.pipeline.judge.JUDGE_RUBRIC -> evalkit.identity [public-elsewhere]",
+    "evalkit.pipeline.judge.SENTENCE_FORMAT [internal]"
+   ],
+   "known_fixed": [],
+   "pin": "evalkit-harness @ git+https://github.com/biplob819/evalkit@218192132ad601f02976d486d839e712e39bc4e2",
+   "repo": "biplob819/ai-visibility",
+   "status": "pass",
+   "tests": "auto"
+  },
+  "assay-pipeline": {
+   "audit": {
+    "internal": 0,
+    "private": 0,
+    "public": 13,
+    "public-elsewhere": 0
+   },
+   "commit": "934c47efad6133b18971d8f95f8d30c0fb57a34d",
+   "counts": {
+    "errors": 0,
+    "failed": 0,
+    "passed": 74,
+    "skipped": 0
+   },
+   "detail": "",
+   "failures": [],
+   "files": [
+    "tests/report/test_gates_and_compare.py",
+    "tests/security/test_evalkit_kit.py",
+    "tests/security/test_run.py"
+   ],
+   "imports_not_public": [],
+   "known_fixed": [],
+   "pin": "evalkit-harness>=0.3,<0.4",
+   "repo": "biplob819/assay-pipeline",
+   "status": "pass",
+   "tests": "auto"
+  },
+  "course-assistant": {
+   "audit": {
+    "internal": 26,
+    "private": 2,
+    "public": 34,
+    "public-elsewhere": 14
+   },
+   "commit": "2f0e9584dd4c72c6b5c9584faf7f1cba29114422",
+   "counts": {
+    "errors": 0,
+    "failed": 2,
+    "passed": 156,
+    "skipped": 0
+   },
+   "detail": "PASSED tests/eval/test_release.py::test_make_targets_call_the_release_gate_script_with_json\nPASSED tests/eval/test_release.py::test_eval_gate_workflow_runs_on_manifest_and_rules_changes_and_weekly\nPASSED tests/eval/test_release.py::test_live_job_skips_every_step_without_the_secrets_and_uploads_no_run_folder\nPASSED tests/eval/test_release.py::test_flip_live_writes_only_for_a_pass_on_the_candidate_version\nPASSED tests/eval/test_release.py::test_removals_apply_at_once_and_additions_wait_for_the_gate\nPASSED tests/eval/test_release.py::test_release_gate_eval_flips_only_on_exit_0\nPASSED tests/eval/test_release.py::test_drift_keeps_converts_and_retires_by_gold_unit\nPASSED tests/eval/test_release.py::test_eval_live_applies_drift_before_building_cases_and_records_ids\nPASSED tests/eval/test_release.py::test_coverage_rule_blocks_go_live\nPASSED tests/eval/test_release.py::test_apply_removals_and_serving_are_idempotent\nPASSED tests/eval/test_release.py::test_drift_on_the_unchanged_corpus_changes_nothing_and_repeats_exactly\nPASSED tests/eval/test_release.py::test_a_missing_score_is_completion_dependent\nPASSED tests/eval/test_release.py::test_duplicate_records_for_a_case_exit_2\nPASSED tests/eval/test_release.py::test_a_baseline_sharing_no_case_with_the_run_exits_2\nPASSED tests/eval/test_release.py::test_exposure_scan_reads_every_tracked_text_file_and_skips_binaries_by_content\nPASSED tests/eval/test_release.py::test_check_passes_cost_cap_and_pending_codes_through\nPASSED tests/eval/test_release.py::test_a_malformed_run_file_exits_2_with_a_fixed_message_in_gate_json[drift]\nPASSED tests/eval/test_release.py::test_a_malformed_run_file_exits_2_with_a_fixed_message_in_gate_json[baseline]\nPASSED tests/eval/test_release.py::test_a_malformed_run_file_exits_2_with_a_fixed_message_in_gate_json[support]\nPASSED tests/eval/test_release.py::test_a_missing_rule_exits_2_whatever_stop_the_run_is_in\nPASSED tests/eval/test_release.py::test_exposure_scan_normalises_json_escapes_case_and_whitespace\nPASSED tests/eval/test_release.py::test_every_input_only_check_exits_2_whether_complete_capped_or_pending\nPASSED tests/eval/test_release.py::test_swapped_text_under_heldout_ids_exits_2_through_the_cli\nPASSED tests/eval/test_release.py::test_a_crash_in_eval_mode_writes_gate_json\nPASSED tests/eval/test_release.py::test_every_eval_mode_exit_writes_gate_json\nPASSED tests/eval/test_release.py::test_verdict_reads_only_inputs_the_check_order_lists\nPASSED tests/eval/test_release.py::test_any_nonzero_eval_live_exit_blocks_the_flip\nPASSED tests/eval/test_release.py::test_an_unparsable_eval_command_line_writes_gate_json\nPASSED tests/eval/test_release.py::test_a_baseline_given_or_expected_but_malformed_exits_2_never_a_first_release\nPASSED tests/eval/test_release.py::test_a_corrupt_live_baseline_never_flips_in_eval_mode\nPASSED tests/eval/test_release.py::test_a_corrupt_summary_exits_2_at_any_stop[{not json]\nPASSED tests/eval/test_release.py::test_a_corrupt_summary_exits_2_at_any_stop[[1]]\nPASSED tests/eval/test_release.py::test_an_accepted_baseline_compares_every_gated_metric\nPASSED tests/eval/test_release.py::test_a_dangling_live_pointer_is_an_error_not_a_first_release\nPASSED tests/eval/test_release.py::test_every_numeric_input_out_of_its_domain_exits_2_as_its_class_says\nPASSED tests/eval/test_release.py::test_a_removal_plus_any_gated_setting_change_runs_the_full_gate\nPASSED tests/eval/test_release.py::test_a_live_baseline_must_match_the_live_run_and_cover_what_it_knows\n2 failed, 156 passed, 1 deselected, 12 warnings in 35.19s\n\n----- stderr -----",
+   "failures": [
+    "tests/eval/test_release.py::test_offline_gate_passes_on_the_repo_and_fails_on_a_broken_fixture_or_log",
+    "tests/eval/test_release.py::test_release_gate_check_reads_certified_calibration_the_fixture_and_writes_gate_json"
+   ],
+   "files": [
+    "tests/answer/test_hint_cache.py",
+    "tests/eval/test_calibration.py",
+    "tests/eval/test_course_ta.py",
+    "tests/eval/test_course_ta_fixes.py",
+    "tests/eval/test_evalkit_contract.py",
+    "tests/eval/test_full_run.py",
+    "tests/eval/test_release.py"
+   ],
+   "imports_not_public": [
+    "evalkit.adapters.base.SystemAdapter -> evalkit.adapters [public-elsewhere]",
+    "evalkit.adapters.base.register_system -> evalkit.adapters [public-elsewhere]",
+    "evalkit.cli [internal]",
+    "evalkit.config.load_task_config [internal]",
+    "evalkit.datasets.load_jsonl_cases [internal]",
+    "evalkit.pipeline.aggregate.slice_value [internal]",
+    "evalkit.pipeline.aggregate.summary_json [internal]",
+    "evalkit.pipeline.answer.SchemaError -> evalkit.errors [public-elsewhere]",
+    "evalkit.pipeline.calibrate.KAPPA_DROP_TOLERANCE [internal]",
+    "evalkit.pipeline.calibrate.LabelEntry [internal]",
+    "evalkit.pipeline.calibrate.LabelFile [internal]",
+    "evalkit.pipeline.calibrate.MIN_JUDGE_COVERAGE [internal]",
+    "evalkit.pipeline.calibrate.SampledAnswer [internal]",
+    "evalkit.pipeline.calibrate._Pair -> evalkit.calibration.CalibrationPair [public-elsewhere]",
+    "evalkit.pipeline.calibrate._allocate [private]",
+    "evalkit.pipeline.calibrate._opaque [private]",
+    "evalkit.pipeline.calibrate.build_sheet [internal]",
+    "evalkit.pipeline.calibrate.cluster_kappa -> evalkit.calibration [public-elsewhere]",
+    "evalkit.pipeline.calibrate.heldout_digest [internal]",
+    "evalkit.pipeline.calibrate.import_labels [internal]",
+    "evalkit.pipeline.calibrate.kappa_from -> evalkit.calibration [public-elsewhere]",
+    "evalkit.pipeline.calibrate.kappa_regressions [internal]",
+    "evalkit.pipeline.calibrate.sheet_csv [internal]",
+    "evalkit.pipeline.generate.is_provider_failure [internal]",
+    "evalkit.pipeline.judge [internal]",
+    "evalkit.pipeline.judge.JUDGE_PROMPT_HASH -> evalkit.identity [public-elsewhere]",
+    "evalkit.pipeline.judge.redact [internal]",
+    "evalkit.pipeline.labeller.load_labels [internal]",
+    "evalkit.pipeline.labeller.save_labels [internal]",
+    "evalkit.pipeline.task_scorers.TaskScorerError [internal]",
+    "evalkit.pipeline.task_scorers.resolve_task_scorers [internal]",
+    "evalkit.pipeline.task_scorers.score_task [internal]",
+    "evalkit.run [internal]",
+    "evalkit.run.RunError [internal]",
+    "evalkit.schemas.benchmark.Answer -> evalkit.schemas [public-elsewhere]",
+    "evalkit.schemas.benchmark.Case -> evalkit.schemas [public-elsewhere]",
+    "evalkit.schemas.benchmark.Record -> evalkit.schemas [public-elsewhere]",
+    "evalkit.schemas.benchmark.TaskScore -> evalkit.schemas [public-elsewhere]",
+    "evalkit.schemas.config.TaskConfig -> evalkit.schemas [public-elsewhere]",
+    "evalkit.schemas.summary.ModelSummary -> evalkit.schemas [public-elsewhere]",
+    "evalkit.schemas.summary.RunSummary -> evalkit.schemas [public-elsewhere]",
+    "import evalkit.onboarding [internal]"
+   ],
+   "known_fixed": [],
+   "pin": "evalkit-harness>=0.2,<0.3",
+   "repo": "biplob819/course-assistant",
+   "status": "known-drift",
+   "tests": "auto",
+   "finding": "D-70 known drift: its regression fixture compares summary.json byte for byte and 0.3.0 added models[0].efficiency; it moves its pin as a separate tested change after its quality round."
+  },
+  "fraud-review-bedrock": {
+   "audit": {
+    "internal": 4,
+    "private": 0,
+    "public": 38,
+    "public-elsewhere": 0
+   },
+   "commit": "fab1e297d2b914597fca771bca88f4c17c1a472f",
+   "counts": {
+    "errors": 0,
+    "failed": 2,
+    "passed": 1442,
+    "skipped": 1
+   },
+   "detail": "PASSED tests/test_valuecheck.py::test_these_are_unverifiable[Looks routine]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Amount is 11.01, under 50, and 0.21 times the card's usual amount]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Amount is 0.21 times the card's usual, above the 5x fraud signal level]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[risk score is above the 0.9 threshold]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[amt_vs_usual is 0.21 P3.1]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Amount is 11.01 under P3.1]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Purchase hour is 22, inside the 10 p.m. to 6 a.m. window]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Purchase at 10 p.m.]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Purchase at 22:00]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Amount, risk score and hour are 11.01, 0.04 and 22 respectively]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[amount is not 11.01]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[amount is 11.01 or more]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[the card's usual amount of 11.01]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[Amount is 11.01 at hour 22]\nPASSED tests/test_valuecheck.py::test_these_are_unverifiable[The merchant is not a known merchant]\nPASSED tests/test_valuecheck.py::test_a_clause_with_a_correct_rounding_outside_the_tolerance_is_unverifiable\nPASSED tests/test_valuecheck.py::test_a_missing_or_null_field_is_unverifiable\nPASSED tests/test_valuecheck.py::test_negation_directly_before_a_comparison_inverts_it_and_any_other_negation_blocks\nPASSED tests/test_valuecheck.py::test_percent_and_scale_forms\nPASSED tests/test_valuecheck.py::test_a_contradicted_clause_makes_the_reason_contradicted\nPASSED tests/test_valuecheck.py::test_every_claim_clause_must_be_verified\nPASSED tests/test_valuecheck.py::test_shares_count_and_give_wilson_intervals_over_all_reasons\nPASSED tests/test_valuecheck.py::test_check_decision_gives_one_outcome_per_reason\nPASSED tests/test_valuecheck.py::test_rare_category_is_read_against_p6_1_which_sets_rare_below_five_percent\nPASSED tests/test_valuecheck.py::test_a_sentence_about_what_a_clause_requires_is_not_a_claim_about_the_alert\nPASSED tests/test_valuecheck.py::test_a_number_that_belongs_to_another_field_is_not_taken_for_the_amount\nPASSED tests/test_valuecheck.py::test_numbers_in_words_and_unread_comparisons_stop_a_verdict\nPASSED tests/test_valuecheck.py::test_an_unrecognised_merchant_claim_beside_a_true_number_is_not_verified[merchant is brand new, amount 120]\nPASSED tests/test_valuecheck.py::test_an_unrecognised_merchant_claim_beside_a_true_number_is_not_verified[amount is 120, merchant never used before]\nPASSED tests/test_valuecheck.py::test_an_unrecognised_merchant_claim_beside_a_true_number_is_not_verified[first-time merchant, amount 120]\nPASSED tests/test_valuecheck.py::test_an_unrecognised_merchant_claim_beside_a_true_number_is_not_verified[merchant: new, amount 120]\nPASSED tests/test_valuecheck.py::test_an_unrecognised_merchant_claim_beside_a_true_number_is_not_verified[amount is 120 at an unfamiliar merchant]\nPASSED tests/test_valuecheck.py::test_an_unrecognised_merchant_claim_beside_a_true_number_is_not_verified[amount is 120; the card has not used this merchant before]\nPASSED tests/test_walkthrough.py::test_the_gif_is_nine_looping_frames_960_wide_and_small\nPASSED tests/test_walkthrough.py::test_the_shot_list_names_every_screen_and_its_source_exists\nPASSED tests/test_walkthrough.py::test_the_page_says_simulated_and_no_spend_and_links_the_gif\nPASSED tests/test_walkthrough.py::test_the_cost_tiles_are_not_in_the_value_crop\n2 failed, 1442 passed, 1 skipped, 1 warning in 102.55s (0:01:42)\n\n----- stderr -----",
+   "failures": [
+    "tests/test_doctor.py::test_evalkit_is_pinned_to_an_exact_release_and_imports",
+    "tests/test_doctor.py::test_offline_makes_no_aws_call"
+   ],
+   "files": [],
+   "imports_not_public": [
+    "evalkit.env.KEYS [internal]",
+    "evalkit.env.missing_keys [internal]",
+    "evalkit.run.make_adapters [internal]",
+    "evalkit.stats.ALPHA [internal]"
+   ],
+   "known_fixed": [],
+   "pin": "evalkit-harness[anthropic,openai] @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573",
+   "repo": "biplob819/fraud-review-bedrock",
+   "status": "known-drift",
+   "tests": "all",
+   "finding": "Version pin only: it pins the v0.4.0 release (doctor.py EVALKIT_VERSION = \"0.4.0\"), so its exact-version doctor check and the offline test that asserts the doctor's exit code fail under 0.4.1. Its new tests/test_walkthrough.py imports Pillow, which it gets transitively through its demo extra (streamlit); the canary now installs --extra demo to match."
+  },
+  "gemma-grounded-health": {
+   "audit": {
+    "internal": 16,
+    "private": 0,
+    "public": 8,
+    "public-elsewhere": 5
+   },
+   "commit": "5a9b01cb2651dca14f23d3fd21c76acd456ff3d3",
+   "counts": {
+    "errors": 0,
+    "failed": 1,
+    "passed": 137,
+    "skipped": 7
+   },
+   "detail": "PASSED tests/serve/test_bench.py::test_cli_runs_the_llama_bench_rounds_before_any_workload\nPASSED tests/serve/test_checks.py::test_parity_compares_token_ids_and_reports_the_first_mismatch\nPASSED tests/serve/test_checks.py::test_structured_uses_the_schema_only_when_constrained_and_parses_like_evalkit\nPASSED tests/serve/test_checks.py::test_parity_catches_a_mismatch_in_the_last_token_only\nPASSED tests/serve/test_checks.py::test_determinism_needs_byte_identical_replies\nPASSED tests/serve/test_checks.py::test_pass_bar_gates_parity_constrained_json_and_reruns_not_unconstrained\nPASSED tests/serve/test_checks.py::test_run_checks_the_twenty_dev_smoke_prompts\nPASSED tests/serve/test_checks.py::test_run_fails_on_a_drifting_rerun_and_compares_against_the_constrained_reply\nPASSED tests/serve/test_checks.py::test_recorded_checks_passed_on_the_exported_base_model\nPASSED tests/serve/test_checks.py::test_throughput_measures_wall_time_at_each_in_flight_level\nPASSED tests/serve/test_checks.py::test_timed_divides_wall_time_by_the_prompt_count_and_reports_the_max\nPASSED tests/serve/test_hf.py::test_parse_takes_messages_cap_and_schema\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body0]\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body1]\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body2]\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body3]\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body4]\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body5]\nPASSED tests/serve/test_hf.py::test_bad_requests_are_refused[body6]\nPASSED tests/serve/test_hf.py::test_completion_has_the_fields_evalkits_adapter_reads\nPASSED tests/serve/test_hf.py::test_http_round_trip_health_models_and_chat\nPASSED tests/serve/test_hf.py::test_requests_are_served_one_at_a_time\nPASSED tests/serve/test_hf.py::test_the_server_binds_loopback_only\nPASSED tests/serve/test_hf.py::test_grammar_keeps_the_schemas_property_order\nPASSED tests/test_evalkit_contract.py::test_required_evalkit_symbols_import[evalkit.schemas-names0]\nPASSED tests/test_evalkit_contract.py::test_required_evalkit_symbols_import[evalkit.tasks-names1]\nPASSED tests/test_evalkit_contract.py::test_required_evalkit_symbols_import[evalkit.text-names2]\nPASSED tests/test_evalkit_contract.py::test_pubmedqa_task_renders_with_the_pinned_evalkit\nPASSED tests/test_evalkit_contract.py::test_pyproject_pins_the_commit_recorded_in_d28\nPASSED tests/train/test_format.py::test_target_is_compact_json_that_evalkit_parses_back\nPASSED tests/train/test_format.py::test_prompt_and_generation_prompt_are_masked_and_the_answer_is_kept\nPASSED tests/train/test_format.py::test_a_template_whose_prompt_is_not_a_prefix_is_refused\nPASSED tests/train/test_format.py::test_long_examples_are_dropped_and_counted_never_truncated\nPASSED tests/train/test_format.py::test_collate_right_pads_with_ignored_labels_and_zero_attention\nPASSED tests/train/test_generate.py::test_left_pad_aligns_every_row_to_the_right\nPASSED tests/train/test_generate.py::test_schema_and_separators_match_evalkit_and_the_training_targets\nPASSED tests/train/test_generate.py::test_stop_ids_are_end_of_turn_and_eos\n1 failed, 137 passed, 7 skipped, 2 deselected in 10.35s\n\n----- stderr -----",
+   "failures": [
+    "tests/evals/test_config.py::test_spec_covers_every_run_config_field"
+   ],
+   "files": [
+    "tests/data/test_build.py",
+    "tests/evals/test_behaviour.py",
+    "tests/evals/test_config.py",
+    "tests/evals/test_probe.py",
+    "tests/evals/test_smoke.py",
+    "tests/evals/test_tasks.py",
+    "tests/serve/test_bench.py",
+    "tests/serve/test_checks.py",
+    "tests/serve/test_hf.py",
+    "tests/test_evalkit_contract.py",
+    "tests/train/test_format.py",
+    "tests/train/test_generate.py"
+   ],
+   "imports_not_public": [
+    "evalkit.adapters.base.CompletionRequest -> evalkit.adapters [public-elsewhere]",
+    "evalkit.adapters.base.RawCompletion -> evalkit.adapters [public-elsewhere]",
+    "evalkit.adapters.openai.OpenAICompatibleAdapter [internal]",
+    "evalkit.config.ConfigError [internal]",
+    "evalkit.config.load_run_config [internal]",
+    "evalkit.cost.price_for [internal]",
+    "evalkit.datasets.pubmedqa.load_pqa_l [internal]",
+    "evalkit.pipeline.answer.SchemaError -> evalkit.errors [public-elsewhere]",
+    "evalkit.pipeline.answer.answer_schema [internal]",
+    "evalkit.pipeline.answer.parse_answer [internal]",
+    "evalkit.pipeline.extract.EXTRACTOR_VERSION -> evalkit.identity [public-elsewhere]",
+    "evalkit.pipeline.judge.JUDGE_PROMPT_HASH -> evalkit.identity [public-elsewhere]",
+    "evalkit.run.load_cases [internal]",
+    "evalkit.run.load_task [internal]",
+    "evalkit.run.read_cases [internal]",
+    "evalkit.run.read_records [internal]",
+    "evalkit.sampling.stratified_sample [internal]",
+    "evalkit.tasks.builtin_task [internal]",
+    "evalkit.tasks.render_prompt [internal]",
+    "evalkit.text.number_sentences [internal]",
+    "evalkit.text.split_sentences [internal]"
+   ],
+   "known_fixed": [],
+   "pin": "evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119",
+   "repo": "biplob819/gemma-grounded-health",
+   "status": "known-drift",
+   "tests": "auto",
+   "finding": "Known drift since 0.2.0: RunConfig.systems is not in its config SPEC; it adds it with its pin change (OWNER D-67)."
+  },
+  "respectful-offers": {
+   "audit": {
+    "internal": 0,
+    "private": 0,
+    "public": 7,
+    "public-elsewhere": 0
+   },
+   "commit": "8bd9c5de8ebdb87f0355ee243a691a56f81402ff",
+   "counts": {
+    "errors": 0,
+    "failed": 0,
+    "passed": 44,
+    "skipped": 0
+   },
+   "detail": "",
+   "failures": [],
+   "files": [
+    "tests/evalkit/test_evalkit_contract.py"
+   ],
+   "imports_not_public": [],
+   "known_fixed": [],
+   "pin": "evalkit-harness>=0.4,<0.5",
+   "repo": "biplob819/respectful-offers",
+   "status": "pass",
+   "tests": "auto"
+  }
+ },
+ "spend_usd": 0
+}
