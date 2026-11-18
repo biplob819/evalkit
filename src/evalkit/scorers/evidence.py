@@ -11,11 +11,12 @@ Copyright (c) 2026 Biplob Chakraborty, the same author) and general to any decis
   (B5.16, D-74, D-77): it reads a strict facts grammar ("Facts: Amount is 812.40. Hour is
   3."). A statement ("<field> is <value>", "<field>: <value>", or a declared `ValuePhrase`)
   binds only when it starts the reason, follows a facts header on its own, or follows the
-  terminator of a statement that itself bound; every numeric token (digits anywhere, number
-  words) no such statement consumes makes its reason unverifiable (a closed world), and no
-  number is ever matched to a field because its value is close. Each reason is `verified`,
-  `contradicted` or `unverifiable` (D-72), and `value_check_shares` gives each share across
-  a run with its count and an exact interval.
+  terminator of a statement that itself bound, and only when nothing but more such
+  statements, a new facts header or the end of the reason follows it; every numeric token
+  (digits anywhere, number words) no such statement consumes makes its reason unverifiable
+  (a closed world), and no number is ever matched to a field because its value is close.
+  Each reason is `verified`, `contradicted` or `unverifiable` (D-72), and
+  `value_check_shares` gives each share across a run with its count and an exact interval.
 
 Templates read plain field names only; conditions use the RUL-01 predicate grammar. Nothing
 from a record, template, phrase or reason is ever executed.
@@ -472,10 +473,11 @@ class _Reader:
         "the" right before it (never "its", "their", "a", "this" or a possessive)."""
         return m - 1 if self.word(m - 1) in _DETERMINERS else m
 
-    def headers(self) -> set[int]:
-        """The tokens right after a facts header on its own at a line start ("Facts:",
-        "Facts -", "Key facts:"; the closed list `_HEADERS`, optionally in bold: "**Facts:**")."""
-        out: set[int] = set()
+    def headers(self) -> dict[int, int]:
+        """Each facts header on its own at a line start ("Facts:", "Facts -", "Key facts:"; the
+        closed list `_HEADERS`, optionally in bold: "**Facts:**"): its first token -> the token
+        right after it."""
+        out: dict[int, int] = {}
         for i in range(len(self.toks)):
             if i and not self.newline_before(i):
                 continue
@@ -485,16 +487,14 @@ class _Reader:
                 n = len(words)
                 if all(self.word(h + k) == w for k, w in enumerate(words)):
                     if not bold:
-                        out.add(h + n)
+                        out[i] = h + n
                     elif self.word(h + n) == self.word(h + n + 1) == "*":
-                        out.add(h + n + 2)
+                        out[i] = h + n + 2
         return out
 
-    def tail(self, e: int) -> bool:
-        """Token e (the first after a statement) ends it: the end, a line break or a full
-        stop or semicolon, never a decimal point."""
-        if e >= len(self.toks) or self.newline_before(e):
-            return True
+    def stop(self, e: int) -> bool:
+        """Token e (the first after a statement) is a full stop or semicolon that ends it,
+        never a decimal point."""
         w = self.word(e)
         if w == "." and e + 1 < len(self.toks) and self.adjacent(e, e + 1):
             return self.toks[e + 1].kind != "num"
@@ -923,14 +923,20 @@ def _unwrap(text: str) -> str:
     return "".join(chars)
 
 
-def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]], headers: set[int]) -> list[bool]:
-    """(B, verify516c) Which statements ([first, after) tokens, and whether a time took the
-    full stop) are framed. A statement's left boundary is the start of the reason, a facts
-    header on its own at a line start, or the terminator of the statement right before it,
-    which must itself be framed (a chain): a full stop, a semicolon, "," / "and" / ", and", or
-    a line break (with or without a full stop at the line's end). Any other text before it
-    breaks the chain. Its right boundary is the end, a line break, a full stop or semicolon,
-    or "," / "and" / ", and" followed by a framed statement."""
+def _frame(
+    rd: _Reader, stmts: Sequence[tuple[int, int, bool]], headers: Mapping[int, int]
+) -> list[bool]:
+    """(B, verify516c, verify516d) Which statements ([first, after) tokens, and whether a time
+    took the full stop) are framed. A statement's left boundary is the start of the reason, a
+    facts header on its own at a line start, or the terminator of the statement right before
+    it, which must itself be framed (a chain): a full stop, a semicolon, "," / "and" / ", and",
+    or a line break (with or without a full stop at the line's end). Any other text before it
+    breaks the chain. Its right boundary is its terminator, and everything after that must be
+    more framed statements of its run, a new facts header (whose own run is framed to the end
+    in turn), or the end of the reason: any other text after a statement ("Amount is 812.40
+    in euros", "... These are the refund figures.") unbinds every statement of its run."""
+    n_toks = len(rd.toks)
+    after_header = set(headers.values())
     by_start: dict[int, list[int]] = {}
     by_end: dict[int, list[int]] = {}
     for k, (s, e, _) in enumerate(stmts):
@@ -939,7 +945,7 @@ def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]], headers: set[int
     pre = [False] * len(stmts)
     for k in sorted(range(len(stmts)), key=lambda k: stmts[k][0]):
         s = stmts[k][0]
-        if s == 0 or s in headers:
+        if s == 0 or s in after_header:
             pre[k] = True
             continue
         ends: list[int] = []  # where the statement before must end (its `after` index)
@@ -959,17 +965,35 @@ def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]], headers: set[int
             pre[q] for e in dot_ends for q in by_end.get(e, ()) if stmts[q][2]
         )
     post = [False] * len(stmts)
+
+    def rest(j: int, *, header: bool) -> bool:
+        """The tokens from j to the end are the end of the reason, a framed statement (its own
+        `post` then covers what follows it) or, when `header`, facts headers at line starts
+        followed by either. Indices only grow, so every `post` read is settled; a loop, not
+        recursion, so a run of many headers never exhausts the stack."""
+        while True:
+            if j >= n_toks:
+                return True
+            if any(pre[q] and post[q] for q in by_start.get(j, ())):
+                return True
+            if not header or j not in headers or (j and not rd.newline_before(j)):
+                return False
+            j = headers[j]
+
     for k in sorted(range(len(stmts)), key=lambda k: -stmts[k][1]):
         _, e, dot = stmts[k]
-        if rd.tail(e):
+        if e >= n_toks:
             post[k] = True
-            continue
-        nxt: list[int] = [e] if dot else []
-        if rd.word(e) == "," and rd.word(e + 1) == "and":
-            nxt.append(e + 2)
+        elif rd.newline_before(e):  # a line break: the next line is a statement or a header
+            post[k] = rest(e, header=True)
+        elif rd.stop(e):  # ". " / ";": a statement on, a header on a new line, or the end
+            post[k] = rest(e + 1, header=rd.newline_before(e + 1) or e + 1 >= n_toks)
+        elif rd.word(e) == "," and rd.word(e + 1) == "and":
+            post[k] = e + 2 < n_toks and rest(e + 2, header=False)
         elif rd.word(e) in _JOINERS:
-            nxt.append(e + 1)
-        post[k] = any(pre[q] and post[q] for j in nxt for q in by_start.get(j, ()))
+            post[k] = e + 1 < n_toks and rest(e + 1, header=False)
+        elif dot:  # "3 a.m." took the full stop: a statement follows directly
+            post[k] = rest(e, header=False)
     return [a and b for a, b in zip(pre, post, strict=True)]
 
 
@@ -1508,7 +1532,11 @@ def value_check(
     "Key facts:", the closed list `_HEADERS`), or follows the terminator (". ", ";", "," /
     "and" / ", and", a line break) of a statement that itself bound; any other text before it
     breaks the chain, so it and every later statement of its run are `unframed`. It ends at
-    the end, a line break, ". " or ";", or a joiner followed by a statement that binds.
+    the end, a line break, ". " or ";", or a joiner followed by a statement that binds, and
+    everything after it must be more framed statements of its run, a new facts header on its
+    own line, or the end of the reason (verify516d): any other text after it ("Amount is
+    812.40\nin euros", "... Hour is 3. These are the refund figures.") leaves every statement
+    of its run `unframed`. Put facts last, or in their own reason string.
     Wrappers around the whole reason or a whole line (quotes, backticks, bold, a code fence;
     a leading "> ", "- ", "* ", "1. ", "1) ") are removed first; a partial wrapper stays.
 

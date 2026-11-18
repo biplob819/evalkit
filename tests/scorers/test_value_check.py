@@ -393,14 +393,18 @@ def test_booleans_bind_like_numbers():
 
 
 def test_ignore_spans_are_ids_and_constants_only_label():
-    got = value_check("Amount is 812.40. Ref 950.", REC, ignore=[r"ref \d+"])
+    got = value_check("Ref 950.\nFacts: Amount is 812.40.", REC, ignore=[r"ref \d+"])
     assert got.details["outcome"] == "verified"
     assert got.details["unchecked"] == ({"text": "950", "kind": "ignored"},)
+    # text after the facts unbinds them (verify516d), ignored or not
+    assert outcome("Amount is 812.40. Ref 950.", ignore=[r"ref \d+"]) == "unverifiable"
     # an ignored span never hides a negation
-    assert outcome("Amount is 812.40. Ref not 950.", ignore=[r"ref not \d+"]) == "unverifiable"
-    got = value_check("Amount is 812.40. The 200 limit applies.", REC, constants=[200])
+    assert outcome("Ref not 950.\nFacts: Amount is 812.40.", ignore=[r"ref not \d+"]) == (
+        "unverifiable"
+    )
+    got = value_check("The 200 limit applies.\nFacts: Amount is 812.40.", REC, constants=[200])
     assert got.details["outcome"] == "unverifiable"
-    assert [c["reason"] for c in got.details["checks"]] == [None, "constant"]
+    assert [c["reason"] for c in got.details["checks"]] == ["constant", None]
 
 
 # ================================ fraud-review-bedrock reasons ===========================
@@ -524,11 +528,11 @@ def test_fraud_review_reasons_golden(reason, record, expected):
 
 def test_d72_output_shape_and_shares(registry):
     rec = {"amount": 812.4, "risk_score": 0.83}
-    both = value_check("Amount above 900; the risk score is high at 0.5", rec)
+    both = value_check("The risk score is high at 0.5.\nFacts: Amount above 900", rec)
     assert both.details["outcome"] == "contradicted" and both.value == 0.0
-    assert [c["status"] for c in both.details["checks"]] == ["failed", "unbound"]
+    assert [c["status"] for c in both.details["checks"]] == ["unbound", "failed"]
     assert both.details["failed"] == ("900",) and both.details["unverified"] == ("0.5",)
-    check = both.details["checks"][0]
+    check = both.details["checks"][1]
     assert (check["field"], check["op"], check["claimed"], check["found"]) == (
         "amount",
         ">",
@@ -881,8 +885,10 @@ def test_fraud_review_d42_true_claims_still_verify():
 def test_unreadable_claims_void_the_reason_unless_a_phrase_reads_them():
     rare = [r"\brare\w*\b"]
     phrase = ValuePhrase(pattern=r"rare category", holds="category_freq < 0.05")
-    assert outcome("category freq is 0.05. A rare pick") == "verified"
-    assert outcome("category freq is 0.05. A rare pick", unreadable=rare) == "unverifiable"
+    assert outcome("A rare pick.\nFacts: category freq is 0.05") == "verified"
+    assert outcome("A rare pick.\nFacts: category freq is 0.05", unreadable=rare) == (
+        "unverifiable"
+    )
     got = outcome("category freq is 0.05. Rare category.", unreadable=rare, phrases=[phrase])
     assert got == "contradicted"  # read by the phrase: 0.05 is not below 0.05
 
@@ -1212,10 +1218,12 @@ def test_closed_world_every_unread_number_is_listed():
 def test_closed_world_ignore_is_the_only_exemption():
     """A rule id declared via `ignore` is not a claim; a declared constant still is (D-74)."""
     rule = [r"\bP\d+(?:\.\d+)?\b"]
-    assert g4("Amount is $812.40. Rule P3.1 applies.").details["outcome"] == "unverifiable"
-    got = g4("Amount is $812.40. Rule P3.1 applies.", ignore=rule)
+    assert g4("Rule P3.1 applies.\nFacts: Amount is $812.40.").details["outcome"] == (
+        "unverifiable"
+    )
+    got = g4("Rule P3.1 applies.\nFacts: Amount is $812.40.", ignore=rule)
     assert got.details["outcome"] == "verified"
-    got = g4("Amount is $812.40. The 200 limit applies.", constants=[200])
+    got = g4("The 200 limit applies.\nFacts: Amount is $812.40.", constants=[200])
     assert got.details["outcome"] == "unverifiable"
 
 
@@ -1436,5 +1444,102 @@ def test_plugins_doc_grammar_examples_hold():
 def test_strict_facts_unbound_statements_name_the_reason():
     got = g5("The merchant is new. Its risk score is 0.83.")
     assert [c["reason"] for c in got.details["checks"]] == ["unframed"]
-    got = g5("Amount is $812.40. Merch. risk score is 0.83.")
-    assert [c["status"] for c in got.details["checks"]] == ["ok", "unbound"]
+    got = g5("Amount is $812.40. Merch. risk score is 0.83.")  # text after: both unbound
+    assert [c["status"] for c in got.details["checks"]] == ["unbound", "unbound"]
+
+
+# verify516d (gen6): a fragment after a statement's terminator can change its subject, unit or
+# zone ("Amount is 812.40\nin euros"); a statement is framed only when everything after it is
+# more framed statements of its run, a new facts header, or the end of the reason.
+_G6_CONT = (
+    "for the refund",
+    "of the merchant",
+    "at the other merchant",
+    "(refund)",
+    "— the merchant's",
+    "in euros",
+    "in cents",
+    "UTC",
+    "on the previous card",
+    "for the merchant's other card",
+    "at a different merchant",
+)
+_G6_JOIN = ("\n", ". ", "; ", ".\n", "\n\n", "\n- ", "\r\n")
+_G6_STMTS = ("Amount is 812.40", "Hour is 3", "Risk score is 0.83", "Flag is true")
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "reason",
+    [
+        *(f"{s}{j}{c}" for s in _G6_STMTS for j in _G6_JOIN for c in _G6_CONT),
+        "Amount is 812.40\nin euros",
+        "Hour is 3\nUTC",
+        "Risk score is 0.83; of the merchant",
+        "Amount is 812.40. In cents.",
+        "Facts: Amount is 812.40. Hour is 3.\nThese are the refund figures.",
+        "Facts: Amount is 812.40. Hour is 3. These are the refund figures.",
+        "Amount is 812.40. A large purchase.",
+        "Amount is 812.40.\n\nFor the refund.",
+        "Amount is 812.40, hour is 3.\n(merchant)",
+        "Facts:\n- Amount is 812.40\n- Hour is 3\n- refund",
+        "Amount is 812.40. -",
+        "Amount is 812.40. )",
+        "Amount is 812.40..",
+        "Hour is 3 a.m. UTC",
+        "Hour is 3 a.m.\nUTC",
+        "Flag is true.\nFor the merchant.",
+        # a later run with trailing prose unbinds the earlier runs too
+        "Facts: Amount is 812.40.\nFacts: Hour is 3.\nThese are the refund figures.",
+        # an unbound statement after a bound one unbinds both
+        "Amount is $812.40. Merch. risk score is 0.83.",
+    ],
+)
+def test_strict_facts_text_after_a_statement_unbinds_its_run(reason):
+    res = g5(reason)
+    assert res.details["outcome"] == "unverifiable", res.details
+    assert all(c["status"] != "ok" for c in res.details["checks"]), res.details
+
+
+def test_strict_facts_prose_between_runs_unbinds_the_run_before_it():
+    """A header starts a new run, so the run after it binds; the prose unbinds the run before."""
+    got = g5("Facts: Amount is $900.00.\nThe refund was issued.\nFacts: Hour is 3.")
+    assert got.details["outcome"] == "unverifiable"
+    assert [c["status"] for c in got.details["checks"]] == ["unbound", "ok"]
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Amount is 812.40",
+        "Amount is 812.40.",
+        "Amount is 812.40.  \n\n",
+        "Amount is 812.40\n",
+        "Amount is 812.40;",
+        "Facts: Amount is 812.40.\nFacts: Hour is 3.",
+        "Amount is 812.40.\n\nKey facts —\nHour is 3.",
+        "Facts: Amount is 812.40\nKey facts:\nHour is 3\n",
+        "Facts: Amount is 812.40.\nFacts:",
+        "Merchant facts:\nFacts: Risk score is 0.83.",
+        "Hour is 3 a.m.",
+        "Hour is 3 a.m.\nFacts: Amount is 812.40.",
+    ],
+)
+def test_strict_facts_ending_in_facts_or_a_header_verify(reason):
+    res = g5(reason)
+    assert res.details["outcome"] == "verified", res.details
+
+
+def test_strict_facts_trailing_text_names_the_reason():
+    got = g5("Amount is $812.40. Hour is 3.\nin euros")
+    assert [(c["status"], c["reason"]) for c in got.details["checks"]] == [
+        ("unbound", "unframed"),
+        ("unbound", "unframed"),
+    ]
+
+
+@pytest.mark.safety
+def test_strict_facts_many_headers_after_a_statement_never_raise():
+    many = "Facts:\n" * 5000
+    assert g5(f"Amount is $812.40.\n{many}Hour is 3.").details["outcome"] == "verified"
+    assert g5(f"Amount is $812.40.\n{many}in euros").details["outcome"] == "unverifiable"

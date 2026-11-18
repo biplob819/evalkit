@@ -186,7 +186,7 @@ policy_check = rule_compliance_scorer(
 
 #### value_check: a structured-facts check (0.4.0, D-74, D-77)
 
-`value_check` verifies plain "field is value" statements only, and every other number in a reason makes it unverifiable. To get coverage, ask your model to end each reason with a short facts line built from field names, for example: "Facts: Amount is 812.40. Hour is 3. Risk score is 0.83." The check verifies such a line reliably. Prose is not read and does not need to be, but a statement after prose is not read either: put the facts line in its own reason string, or after the prose on a new line that starts with a facts header ("A large late-night purchase.\nFacts: Amount is 812.40. Hour is 3."). The grammar it reads is stated exactly in [The facts grammar](#value_check-the-facts-grammar-verify516c).
+`value_check` verifies plain "field is value" statements only, and every other number in a reason makes it unverifiable. To get coverage, ask your model to end each reason with a short facts line built from field names, for example: "Facts: Amount is 812.40. Hour is 3. Risk score is 0.83." The check verifies such a line reliably. Prose is not read and does not need to be, but a statement with prose before it or after it is not read either: put the facts line last, after the prose on a new line that starts with a facts header ("A large late-night purchase.\nFacts: Amount is 812.40. Hour is 3."), or in its own reason string. The grammar it reads is stated exactly in [The facts grammar](#value_check-the-facts-grammar-verify516c).
 
 #### value_check: the facts grammar (verify516c)
 
@@ -218,6 +218,13 @@ reason holding it is unverifiable (never verified, never contradicted).
   statement; a full stop at the line's end is optional), `. `, `;`, or `,` / `and` / `, and`
   followed by another statement that binds. A value followed by anything else is unbound:
   "Amount is 812.40, which is high", "Risk score is 0.83 (high)", "Hour is 3 a.m. UTC".
+- **Right boundary (verify516d).** Everything after a statement's terminator must be more
+  statements of its run (each one bound), a new facts header on its own line (starting a new
+  run), or the end of the reason (whitespace only). Any other text after it, on the same line
+  or a later one, unbinds every statement of its run, because a trailing fragment can change
+  the subject, unit or zone: "Amount is 812.40\nin euros", "Hour is 3\nUTC", "Risk score is
+  0.83; of the merchant", "Amount is 812.40. In cents.", "Facts: Amount is 812.40. Hour is
+  3.\nThese are the refund figures."
 - **Wrappers.** When the whole reason, or a whole line, is wrapped in quotes (`"..."`,
   `“...”`), backticks, bold (`**...**`, `__...__`) or a code fence, or a line starts with a
   marker (`> `, `- `, `* `, `• `, `1. `, `1) `), the wrapper is removed first; the marker's
@@ -230,9 +237,11 @@ reason holding it is unverifiable (never verified, never contradicted).
   or naming another currency ("€812.40" on a dollar field), the value is unbound. A time zone
   or any other qualifier after the value ("3 a.m. UTC", "15:00 local") leaves it unbound.
 
-Facts and prose: a reason may hold prose after its facts ("Amount is 812.40. A large
-purchase.") but prose before them breaks the chain, so put the facts line in its own reason
-string or after a facts header on a new line. A number or quantity word in the prose is
+Facts and prose: put facts last, or in their own reason string. Prose before the facts is
+allowed only when the facts start on a new line with a facts header ("A large purchase.\nFacts:
+Amount is 812.40."); prose before a statement without a header breaks the chain. Prose after
+the facts is not allowed: "Amount is 812.40. A large purchase." is unverifiable, since the
+trailing text could re-attribute the statement. A number or quantity word in the prose is
 still unbound (closed world, below), and a negation or hedge anywhere still voids the reason.
 
 <!-- value_check grammar examples: tests/scorers/test_value_check.py runs this block -->
@@ -250,6 +259,7 @@ verified = [
     "Facts:\nAmount is $812.40\nHour is 3",
     "Key facts: Amount is $812.40, hour is 3 and the risk score is 83%.",
     "A large late-night purchase at a new merchant.\nFacts: Amount is 812.40. Hour is 3.",
+    "Facts: Amount is 812.40.\nKey facts: Hour is 3.",  # a header starts a new run
     "amount: 812.40\nhour: 3\nrisk_score: 0.83\nflag: true",
     "Amount is 812.40 USD; hour was 3 a.m.; risk score is above 0.8.",
     "Amount usd is $1,300.00.",
@@ -260,6 +270,10 @@ verified = [
 ]
 unverifiable = [
     "A large purchase. Amount is 812.40.",       # prose before the facts, no header
+    "Amount is 812.40. A large purchase.",       # prose after the facts: put facts last
+    "Facts: Amount is 812.40. Hour is 3.\nThese are the refund figures.",
+    "Amount is 812.40\nin euros",                # a fragment after the terminator
+    "Hour is 3\nUTC",
     "Prev. hour is 3.",                          # unknown abbreviation before the field
     "The merchant is new. Its risk score is 0.83.",
     "Merchant:\nRisk score is 0.83.",            # not a facts header
