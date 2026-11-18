@@ -29,6 +29,8 @@ evalkit run evalkit.yaml --task tasks/my_task.yaml --n 3   # needs keys in .env
 Questions from [PubMedQA](https://pubmedqa.github.io/) (Jin et al., 2019, MIT licence); see [DATA_CARD.md](https://github.com/biplob819/evalkit/blob/main/DATA_CARD.md). Research benchmark, not medical advice.
 <!-- evalkit:headline:end -->
 
+[![Walkthrough: the headline, the report and its failure explorer, a dry-run cost quote, release gates, a run comparison, the ledger trend, the security kit, the downstream canary and the decision log](https://raw.githubusercontent.com/biplob819/evalkit/main/docs/assets/walkthrough.gif)](https://github.com/biplob819/evalkit/blob/main/docs/walkthrough.md)
+
 ## Why EvalKit
 
 Public leaderboards rank models on someone else's task. The model that tops them is not always the one that answers *your* questions correctly, and a fluent answer can still say things its source never said. EvalKit measures both on your own data:

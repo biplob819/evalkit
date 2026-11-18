@@ -4,6 +4,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
 ## 0.4.0
 
+- [DOCS] [—] — README shows the looping walkthrough GIF (`docs/assets/walkthrough.gif`) near the top, linked to its shot list; owner request
 - [RELEASE] [B5.10] — v0.4.0 release candidate: version 0.4.0 in `pyproject.toml`,
   `evalkit.__version__` and `uv.lock`; `value_check` and its companions public again (the D-74
   `WITHHELD` guard emptied, its check kept for the next withheld name); D-61 rule 2 applied to
