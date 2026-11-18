@@ -37,6 +37,12 @@ LEDGER_EXIT_CODES = """exit codes (precedence 2 > 3 > 4 > 1 > 0):
   4  judging pending (history add, not recorded; history check)"""
 
 
+CASES_HELP = (
+    "with --manifest: the held-out case files (checked against it), so free text quoting a "
+    "held-out case is refused too"
+)
+
+
 def _print(args: argparse.Namespace, payload: dict[str, Any], text: str) -> None:
     if getattr(args, "json", False):
         print(json.dumps(payload, sort_keys=True, default=str))
@@ -59,6 +65,11 @@ def _kv(values: Sequence[str] | None, flag: str) -> dict[str, str]:
             raise LedgerError(f"{flag} takes KEY=VALUE, got {v!r}")
         out[key] = value
     return out
+
+
+def _cases(args: argparse.Namespace) -> dict[str, Path] | None:
+    """`--cases SPLIT=PATH ...`: held-out case files, so free text quoting them is refused."""
+    return {k: Path(v) for k, v in _kv(getattr(args, "cases", None), "--cases").items()} or None
 
 
 def _write(path: str | Path, text: str) -> None:
@@ -115,6 +126,17 @@ def cmd_history(args: argparse.Namespace) -> int:
     from evalkit.ledger import runs
 
     try:
+        if args.action == "init":
+            from evalkit.ledger._io import init_ledger
+
+            made = init_ledger(args.ledger)
+            word = "created empty ledger" if made else "ledger already exists, unchanged:"
+            _print(
+                args,
+                {"exit_code": 0, "ledger": args.ledger, "created": made},
+                word + " " + args.ledger,
+            )
+            return 0
         if args.action == "add":
             res = runs.record_run(
                 args.ledger,
@@ -122,6 +144,7 @@ def cmd_history(args: argparse.Namespace) -> int:
                 gates=args.gates,
                 heldout_splits=tuple(args.heldout_split or ()),
                 manifest=args.manifest,
+                cases=_cases(args),
                 note=args.note,
             )
             _print(args, res.as_dict(), _check_text(res, f"recorded in {args.ledger}:"))
@@ -200,6 +223,7 @@ def _verify(args: argparse.Namespace) -> int:
     if not files:
         raise LedgerError("no ledger to verify: name one, or run from the project folder")
     report: dict[str, list[str]] = {}
+    append_only: dict[str, str] = {}
     for f in files:
         revs: list[str] | None = None if args.chain_only else list(args.rev)
         tip = None
@@ -213,13 +237,21 @@ def _verify(args: argparse.Namespace) -> int:
                 raise LedgerError(str(exc)) from None
             revs = [*(revs or []), *found]
         report[str(f)] = verify_ledger(f, revs, default_tip=tip)
+        append_only[str(f)] = (
+            f"checked against {len(revs)} revision(s)"
+            if revs
+            else "not checked: a chain cannot show lines cut from its end; only the git "
+            "append-only check (--base, --rev or --default-branch) catches that"
+        )
     bad = sum(len(v) for v in report.values())
     lines = []
     for f, problems in report.items():
         lines += [f"{f}: {p}" for p in problems]
         lines.append(f"{f}: OK" if not problems else f"{f}: {len(problems)} problem(s)")
+        lines.append(f"{f}: append-only: {append_only[f]}")
     code = 1 if bad else 0
-    _print(args, {"exit_code": code, "ledgers": report}, "\n".join(lines))
+    payload = {"exit_code": code, "ledgers": report, "append_only": append_only}
+    _print(args, payload, "\n".join(lines))
     return code
 
 
@@ -240,6 +272,7 @@ def cmd_experiment(args: argparse.Namespace) -> int:
                 direction=args.direction,
                 baseline=args.baseline,
                 manifest=args.manifest,
+                cases=_cases(args),
             )
             _print(
                 args,
@@ -256,6 +289,7 @@ def cmd_experiment(args: argparse.Namespace) -> int:
                 after=args.after,
                 gates=args.gates,
                 manifest=args.manifest,
+                cases=_cases(args),
                 heldout_splits=tuple(args.heldout_split or ()),
                 heldout=args.heldout,
                 seed=args.seed,
@@ -492,8 +526,14 @@ def add_commands(sub: Any) -> None:
         a.add_argument("--heldout-split", action="append", default=None, metavar="SPLIT")
         if name == "add":
             a.add_argument("--manifest", default=None, help="B5.14 manifest: refuse held-out ids")
+            a.add_argument(
+                "--cases", nargs="+", default=None, metavar="SPLIT=PATH", help=CASES_HELP
+            )
             a.add_argument("--note", default=None, help="free text, at most 500 characters")
         _common(a)
+    i = hs.add_parser("init", help="create an empty run ledger (reading commands need one)")
+    i.add_argument("--ledger", default=str(RUNS_PATH), help=f"default {RUNS_PATH}")
+    _common(i)
     s = hs.add_parser("show", help="every metric's history, bands and the efficiency spread")
     s.add_argument("--ledger", default=str(RUNS_PATH))
     s.add_argument("--metric", default=None, help="only this metric")
@@ -534,6 +574,7 @@ def add_commands(sub: Any) -> None:
     o.add_argument("--baseline", required=True, help="the baseline run")
     o.add_argument("--experiments", default=str(EXPERIMENTS_PATH))
     o.add_argument("--manifest", default=None)
+    o.add_argument("--cases", nargs="+", default=None, metavar="SPLIT=PATH", help=CASES_HELP)
     _common(o)
     c = es.add_parser("close", help="compare before and after and record the verdict")
     c.add_argument("id")
@@ -541,6 +582,7 @@ def add_commands(sub: Any) -> None:
     c.add_argument("--after", required=True)
     c.add_argument("--gates", default=None)
     c.add_argument("--manifest", default=None)
+    c.add_argument("--cases", nargs="+", default=None, metavar="SPLIT=PATH", help=CASES_HELP)
     c.add_argument("--heldout-split", action="append", default=None, metavar="SPLIT")
     c.add_argument("--heldout", default=None, help="the candidate's held-out result (a run)")
     c.add_argument("--seed", type=int, default=7)

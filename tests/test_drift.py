@@ -271,6 +271,66 @@ def test_deltas_mover_holm_and_the_warn_and_alarm_tolerances():
     assert loose["level"] == "warn"  # changed for the worse, inside the tolerance
 
 
+def test_no_drift_seldom_flags_when_the_new_batch_is_smaller():
+    """logical (verifier finding): a perfectly calibrated model with no drift. ECE is biased
+    upward in small samples, so a smaller new batch has a larger ECE with nothing changed; the
+    ECE delta is judged against what no drift gives at the two batch sizes, so across seeds and
+    size ratios (reference >= new) the alarm rate stays at most 5% and the warn rate low."""
+    checks = alarms = warns = ece_flags = 0
+    for ref_n, ref_seed in ((2000, 11), (500, 12)):
+        ref = D.calibration(*_rows(ref_n, ref_seed), seed=7, resamples=100)
+        for n in (10, 30, 100, 300, ref_n):
+            for s in range(12):
+                new = D.calibration(*_rows(n, 1000 * ref_seed + 37 * n + s), resamples=100)
+                out = D.calibration_drift(ref, new, resamples=400)
+                by = {d["name"]: d for d in out["deltas"]}
+                checks += 1
+                alarms += out["level"] == "alarm"
+                warns += out["level"] == "warn"
+                ece_flags += by["ece"]["status"] in ("warn", "alarm")
+    assert checks == 120
+    assert alarms / checks <= 0.05, (alarms, checks)
+    assert ece_flags / checks <= 0.05, (ece_flags, checks)
+    assert warns / checks <= 0.10, (warns, checks)
+
+
+def test_true_calibration_drift_still_alarms_in_a_smaller_batch():
+    """logical: the debiased ECE delta still alarms on real miscalibration in a batch smaller
+    than the reference, and reports the delta net of the no-drift expectation."""
+    ref = D.calibration(*_rows(2000, 21), seed=7, resamples=100)
+    for n, bias in ((300, 0.2), (100, 0.3)):
+        new = D.calibration(*_rows(n, 22 + n, bias=bias), resamples=100)
+        out = D.calibration_drift(ref, new, resamples=1000)
+        ece = {d["name"]: d for d in out["deltas"]}["ece"]
+        assert out["level"] == "alarm" and ece["status"] == "alarm", (n, ece)
+        raw = new["ece"]["value"] - ref["ece"]["value"]
+        assert ece["delta_raw"] == pytest.approx(raw)
+        assert ece["delta"] == pytest.approx(raw - ece["no_drift_expected"])
+        assert ece["ci_low"] <= ece["delta"] <= ece["ci_high"]
+
+
+def test_a_categorical_feature_is_profiled_even_when_not_listed_in_features(tmp_path, capsys):
+    """contract (verifier finding): `drift reference --categorical X` profiles X by category
+    whether or not --features names it; nothing named is dropped silently. A --categorical
+    name that is not a column exits 2."""
+    rows = _jsonl(
+        tmp_path / "ref.jsonl",
+        [{"amount": float(i), "channel": ["web", "app", "phone"][i % 3]} for i in range(60)],
+    )
+    out = tmp_path / "ref.json"
+    argv = ["drift", "reference", "--data", str(rows), "--out", str(out)]
+    assert cli.main([*argv, "--features", "amount", "--categorical", "channel"]) == 0
+    feats = json.loads(out.read_text(encoding="utf-8"))["features"]
+    assert sorted(feats) == ["amount", "channel"]
+    assert feats["channel"]["kind"] == "categorical" and feats["amount"]["kind"] == "numeric"
+    assert cli.main([*argv, "--categorical", "amount"]) == 0
+    feats = json.loads(out.read_text(encoding="utf-8"))["features"]
+    assert list(feats) == ["amount"] and feats["amount"]["kind"] == "categorical"
+    capsys.readouterr()
+    assert cli.main([*argv, "--features", "amount", "--categorical", "chanel"]) == 2
+    assert "chanel" in capsys.readouterr().err
+
+
 def test_quantile_bins_are_reported_not_aligned_and_never_compared(tmp_path):
     """logical: respectful-offers' quantile reliability bins: Brier and ECE are compared, per-bin
     drift is "not available" (D-73); declared equal-width bins are compared."""

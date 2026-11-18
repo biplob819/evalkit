@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import shutil
 import statistics
 from pathlib import Path
 
@@ -19,9 +20,11 @@ from evalkit import heldout as H
 from evalkit import ledger as L
 from evalkit.gates import parse_gates
 from tests.ledger_helpers import (
+    EXAMPLE_RUN,
     FRAUD,
     FRAUD_HISTORY,
     HELD_IDS,
+    HELDOUT_FIX,
     LEDGER_FIX,
     MANIFEST,
     at,
@@ -86,6 +89,7 @@ def test_pending_run_exits_4_and_is_not_recorded(tmp_path, capsys):
     assert not ledger.exists()
     assert cli.main(["history", "add", str(folder), "--ledger", str(ledger), "--json"]) == 4
     assert json.loads(capsys.readouterr().out)["exit_code"] == 4
+    assert cli.main(["history", "init", "--ledger", str(ledger)]) == 0
     assert cli.main(["history", "check", str(folder), "--ledger", str(ledger)]) == 4
 
 
@@ -150,7 +154,8 @@ def test_run_line_has_the_ledger_1_shape(tmp_path):
     assert entry["config_hash"] == "cfg-1" and entry["code_version"] == "c00"
     import hashlib
 
-    assert entry["summary_sha256"] == hashlib.sha256(run.read_bytes()).hexdigest()
+    canon = json.dumps(json.loads(run.read_bytes()), sort_keys=True, separators=(",", ":"))
+    assert entry["summary_sha256"] == hashlib.sha256(canon.encode("ascii")).hexdigest()
     assert [m["name"] for m in entry["metrics"]] == [m["name"] for m in fraud_rows(1, 212, 4.1)]
     # one project per ledger
     other = write_run(tmp_path / "other", [rate("x", 1, 2)], project="someone-else")
@@ -215,7 +220,7 @@ def test_history_cli_flags_and_exit_codes(tmp_path, capsys):
     capsys.readouterr()
     assert cli.main(["history", "verify", str(ledger), "--chain-only", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["ledgers"][str(ledger)] == []
-    assert cli.main(["history", "show", "--ledger", str(tmp_path / "nope" / "x.jsonl")]) == 0
+    assert cli.main(["history", "show", "--ledger", str(tmp_path / "nope" / "x.jsonl")]) == 2
     assert (
         cli.main(["history", "add", str(tmp_path / "missing.json"), "--ledger", str(ledger)]) == 2
     )
@@ -591,3 +596,129 @@ def test_heldout_band_rows_only_at_split_level(tmp_path):
     assert shown.series[0].latest.heldout
     text = ledger.read_text(encoding="utf-8") + json.dumps(shown.as_dict())
     assert "case_group" not in text and "g7" not in text
+
+
+# ==================================== verifier findings ====================================
+
+
+@pytest.mark.safety
+def test_heldout_id_hashes_and_case_text_in_free_text_are_refused(tmp_path, capsys):
+    """safety: with --manifest, a note naming a held-out case's id hash (whole, its 12-character
+    manifest id, any case) is refused; with the held-out case file too (--cases), a note
+    quoting a held-out case's text (normalised as B5.14's exposure scan: case, punctuation,
+    spacing; a whole string or any 10 consecutive words) is refused. Nothing is written."""
+    ledger = tmp_path / "runs.jsonl"
+    run = write_run(tmp_path / "r", [rate("acc", 5, 10)], run_id="r1")
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    h = manifest["splits"]["heldout"][0]["id_sha256"]
+    for note in (f"see {h}", f"see {h[:12]}", f"see {h.upper()}."):
+        with pytest.raises(L.LedgerError, match="held-out") as exc:
+            L.record_run(ledger, run, manifest=MANIFEST, note=note)
+        assert exc.value.code == 2 and not ledger.exists()
+    cases = {"heldout": HELDOUT_FIX / "cases.jsonl"}
+    quoted = (
+        "which RIVER carries the most sediment into the northern delta, each spring season?",
+        "rerun: maintenance schedule for the pumping station after the winter floods, again",
+    )
+    for note in quoted:
+        with pytest.raises(L.LedgerError, match="held-out case text") as exc:
+            L.record_run(ledger, run, manifest=MANIFEST, cases=cases, note=note)
+        assert exc.value.code == 2 and not ledger.exists()
+        code = cli.main(
+            [
+                "history",
+                "add",
+                str(run),
+                "--ledger",
+                str(ledger),
+                "--manifest",
+                str(MANIFEST),
+                "--cases",
+                f"heldout={cases['heldout']}",
+                "--note",
+                note,
+            ]
+        )
+        assert code == 2 and not ledger.exists()
+        assert "sediment" not in capsys.readouterr().err
+    other = tmp_path / "other.jsonl"
+    other.write_text(
+        '{"id": "zz-1", "input": "not a case of this manifest at all"}\n', encoding="utf-8"
+    )
+    with pytest.raises(L.LedgerError, match="manifest") as exc:
+        L.record_run(ledger, run, manifest=MANIFEST, cases={"heldout": other}, note="x")
+    assert exc.value.code == 2 and not ledger.exists()
+    with pytest.raises(L.LedgerError, match="held-out case text"):
+        L.open_experiment(
+            tmp_path / "experiments.jsonl",
+            hypothesis=quoted[0],
+            change="c",
+            metric="acc",
+            direction="up",
+            baseline=run,
+            manifest=MANIFEST,
+            cases=cases,
+        )
+    res = L.record_run(
+        ledger, run, manifest=MANIFEST, cases=cases, note="the river gauge was recalibrated"
+    )
+    assert res.entry is not None
+
+
+def test_a_missing_ledger_exits_2_and_init_or_add_creates_it(tmp_path, capsys):
+    """contract: a missing or mistyped ledger path is an error (exit 2, the path named) for
+    `history check`, `history show` and `report --history`, never an empty history; `history
+    init` creates an empty ledger and the first `history add` creates one too."""
+    missing = tmp_path / "nope" / "runs.jsonl"
+    run = fraud_run(tmp_path, 0, 1, 212, 4.1)
+    for argv in (
+        ["history", "show", "--ledger", str(missing)],
+        ["history", "check", str(run), "--ledger", str(missing)],
+    ):
+        assert cli.main(argv) == 2
+        assert "no such ledger" in capsys.readouterr().err
+    with pytest.raises(L.LedgerError, match="no such ledger") as exc:
+        L.history(missing)
+    assert exc.value.code == 2
+    folder = tmp_path / "example"
+    shutil.copytree(EXAMPLE_RUN, folder)
+    assert cli.main(["report", str(folder), "--history", str(missing)]) == 2
+    assert "no such ledger" in capsys.readouterr().err
+    assert not (folder / "report.html").exists() and not missing.exists()
+    fresh = tmp_path / "made" / "runs.jsonl"
+    assert cli.main(["history", "init", "--ledger", str(fresh)]) == 0
+    assert fresh.is_file() and fresh.read_bytes() == b""
+    capsys.readouterr()
+    assert cli.main(["history", "show", "--ledger", str(fresh), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["runs"] == 0
+    assert cli.main(["history", "init", "--ledger", str(fresh)]) == 0  # already there: kept
+    assert cli.main(["history", "check", str(run), "--ledger", str(fresh)]) == 0
+    first = tmp_path / "first" / "runs.jsonl"
+    assert cli.main(["history", "add", str(run), "--ledger", str(first)]) == 0
+    assert first.is_file()
+
+
+def test_a_reserialised_run_is_not_recorded_twice(tmp_path):
+    """logical: a run is recorded once by its content, not its bytes: the same metrics file or
+    EvalKit summary.json pretty-printed (or with keys reordered) is refused (exit 2)."""
+    ledger = tmp_path / "runs.jsonl"
+    run = fraud_run(tmp_path, 0, 1, 212, 4.1)
+    L.record_run(ledger, run, at=at(1))
+    pretty = tmp_path / "pretty" / "metrics.json"
+    pretty.parent.mkdir()
+    data = json.loads(run.read_text(encoding="utf-8"))
+    pretty.write_text(json.dumps(dict(reversed(data.items())), indent=4), encoding="utf-8")
+    before = ledger.read_bytes()
+    with pytest.raises(L.LedgerError, match="already recorded") as exc:
+        L.record_run(ledger, pretty, at=at(2))
+    assert exc.value.code == 2 and ledger.read_bytes() == before
+    ek_ledger = tmp_path / "ek.jsonl"
+    a, b = tmp_path / "ek-a", tmp_path / "ek-b"
+    shutil.copytree(EXAMPLE_RUN, a)
+    shutil.copytree(EXAMPLE_RUN, b)
+    summary = json.loads((b / "summary.json").read_text(encoding="utf-8"))
+    (b / "summary.json").write_text(json.dumps(summary, separators=(",", ":")), encoding="utf-8")
+    L.record_run(ek_ledger, a, at=at(1))
+    with pytest.raises(L.LedgerError, match="already recorded"):
+        L.record_run(ek_ledger, b, at=at(2))
+    assert L.check_run(ek_ledger, b).exit_code in (0, 1)  # checking is still allowed

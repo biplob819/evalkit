@@ -277,6 +277,14 @@ def cmd_report(args: argparse.Namespace) -> int:
         run_dir = Path(args.run_dir)
     else:
         return _err("give a run folder, or --example for the bundled example run")
+    if args.history:  # before rendering: a mistyped ledger path writes nothing
+        from evalkit.ledger import LedgerError
+        from evalkit.ledger._io import require_ledger
+
+        try:
+            require_ledger(args.history)
+        except LedgerError as exc:
+            return _err(str(exc))
     try:
         path = R.render(run_dir)
     except (R.RunError, FileNotFoundError) as exc:

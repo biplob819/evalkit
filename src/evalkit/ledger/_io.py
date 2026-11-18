@@ -12,6 +12,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -126,22 +127,126 @@ def load_manifest(path: str | Path | Mapping[str, Any] | None) -> Mapping[str, A
     return data
 
 
-def guard_ids(entry: Mapping[str, Any], manifest: Mapping[str, Any] | None, held: Iterable[str]):
-    """Refuse (exit 2) a line that names a held-out case id of the manifest (spec §8)."""
+_HEX_RUN = re.compile(r"[0-9a-f]{12,}")
+
+
+def _case_text(
+    manifest: Mapping[str, Any], splits: Sequence[str], cases: Mapping[str, str | Path]
+) -> tuple[list[tuple[str, str]], dict[str, set[str]]]:
+    """The held-out case strings as B5.14's exposure scan reads them (NFKC, casefolded, runs of
+    non-word characters one space): whole strings of at least 25 characters, and every window
+    of 10 words. Each case file is checked against the manifest first."""
+    id_field = str(manifest.get("id_field", "id"))
+    wholes: list[tuple[str, str]] = []
+    shingles: dict[str, set[str]] = {}
+    for split, path in sorted(cases.items()):
+        if split not in splits:
+            raise LedgerError(f"--cases {split}: not a held-out split of the manifest")
+        try:
+            loaded = H.load_cases(path, id_field=id_field)
+            problems = H._split_problems(
+                split,
+                manifest["splits"][split],
+                H._entries(loaded, id_field),
+                (manifest.get("counts") or {}).get(split),
+            )
+        except H.HeldoutError as exc:
+            raise LedgerError(f"--cases {split}: {exc}") from None
+        if problems:
+            raise LedgerError(
+                f"--cases {split} does not match the manifest ({len(problems)} problem(s), "
+                f"first: {problems[0]})"
+            )
+        for case in loaded:
+            mid = H.manifest_id(str(case[id_field]))
+            for s in H._strings({k: v for k, v in case.items() if k != id_field}):
+                norm = H._normalise(s)
+                if len(norm) >= H.EXPOSURE_MIN_CHARS:
+                    wholes.append((f" {norm} ", mid))
+                for gram in H._grams(norm.split(" "), H.EXPOSURE_WINDOW):
+                    if len(gram) >= H.EXPOSURE_MIN_CHARS:
+                        shingles.setdefault(gram, set()).add(mid)
+    return wholes, shingles
+
+
+def guard_ids(
+    entry: Mapping[str, Any],
+    manifest: Mapping[str, Any] | None,
+    held: Iterable[str],
+    cases: Mapping[str, str | Path] | None = None,
+) -> None:
+    """Refuse (exit 2) a line that names a held-out case of the manifest (spec §8): its id; its
+    id or content sha256, whole or as a prefix of at least 12 hex characters (the manifest id),
+    in any letter case; and, when the held-out case files are given (`cases`, {split: path},
+    checked against the manifest), any of its text, read with B5.14's exposure-scan
+    normalisation (a whole case string of 25+ characters, or 10 consecutive words of one)."""
     if manifest is None:
+        if cases:
+            raise LedgerError("--cases needs --manifest (the case files are checked against it)")
         return
-    splits = [s for s in sorted(set(held)) if s in manifest["splits"]]
+    held = sorted(set(held))
+    splits = [s for s in held if s in manifest["splits"]]
     if not splits:
         raise LedgerError("the manifest has none of the held-out splits (" + ", ".join(held) + ")")
     text = canonical_json(entry)
     found: set[str] = set()
     for split in splits:
         found |= set(H.ids_in_text(text, manifest, split=split))
+    hashes = {
+        str(e[key]).lower()
+        for split in splits
+        for e in manifest["splits"][split]
+        for key in ("id_sha256", "content_sha256")
+        if isinstance(e, Mapping) and isinstance(e.get(key), str)
+    }
+    runs = _HEX_RUN.findall(text.lower())
+    found |= {h[:12] for h in hashes if any(h[:12] in run for run in runs)}
     if found:
         raise LedgerError(
-            f"refused: the entry names {len(found)} held-out case id(s): "
+            f"refused: the entry names {len(found)} held-out case id(s) or id hash(es): "
             + ", ".join(sorted(found))
         )
+    if not cases:
+        return
+    wholes, shingles = _case_text(manifest, splits, cases)
+    quoted: set[str] = set()
+    for s in H._strings(dict(entry)):
+        view = H._normalise(s)
+        padded = f" {view} "
+        quoted |= {mid for needle, mid in wholes if needle in padded}
+        for gram in H._grams(view.split(" "), H.EXPOSURE_WINDOW):
+            quoted |= shingles.get(gram, set())
+    if quoted:
+        raise LedgerError(
+            f"refused: the entry quotes held-out case text (case(s) {', '.join(sorted(quoted))})"
+        )
+
+
+def require_ledger(path: str | Path) -> Path:
+    """A ledger that must already exist (reading commands): a missing or mistyped path is an
+    error (exit 2), never an empty history. `history init` or the first `history add` makes
+    one."""
+    p = Path(path)
+    if not p.is_file():
+        raise LedgerError(
+            f"{p}: no such ledger (check the path; `evalkit history init --ledger {p}` or the "
+            "first `evalkit history add` creates it)"
+        )
+    return p
+
+
+def init_ledger(path: str | Path) -> bool:
+    """Create an empty ledger (and its folder). False, and nothing changed, when it exists."""
+    p = Path(path)
+    if p.exists():
+        if not p.is_file():
+            raise LedgerError(f"{p} exists and is not a file")
+        read_entries(p)  # an existing file must at least be a readable ledger
+        return False
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("x", encoding="utf-8"):
+        pass
+    return True
 
 
 def read_entries(path: str | Path) -> list[dict[str, Any]]:
@@ -228,6 +333,15 @@ def _parsed(lines: Sequence[str]) -> list[Any]:
     return out
 
 
+# Legacy prefixes EvalKit has sealed, recorded in code where cutting a ledger cannot remove them:
+# a file holding one of these prefixes with no chained line after it had its whole chained part
+# cut away (the seal included), so it is a broken chain, never a legacy file awaiting its seal.
+# EvalKit's own docs/measurements/spend-ledger.jsonl: 22 legacy lines, sealed 2026-11-17.
+KNOWN_SEALS: tuple[dict[str, Any], ...] = (
+    {"lines": 22, "sha256": "77b7976283a07efc6beb24592ab1485cc9dfef0d6e23dc45fbe501f883333e21"},
+)
+
+
 def legacy_seal(prefix: Sequence[str]) -> dict[str, Any]:
     """What the first chained line records about the unchained lines before it: their count and
     the sha256 of their exact text (each line and its newline), so editing any of them, not only
@@ -257,6 +371,13 @@ def chain_state(path: str | Path) -> tuple[list[str], str, int]:
         for n, r in enumerate(rows, start=1):
             if isinstance(r, dict) and r.get("schema") == LEDGER_SCHEMA:
                 problems.append(f"line {n} is a {LEDGER_SCHEMA} entry without prev")
+        for seal in KNOWN_SEALS:
+            k = int(seal["lines"])
+            if k <= len(lines) and legacy_seal(lines[:k]) == seal:
+                problems.append(
+                    f"lines 1-{k} are a legacy prefix EvalKit has already sealed, but no chained "
+                    "line follows: the chained part (its seal included) was cut away"
+                )
         return problems, "unchained", len(lines)
     prefix = lines[:first]
     for n, r in enumerate(rows[:first], start=1):

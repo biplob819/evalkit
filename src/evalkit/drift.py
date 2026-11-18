@@ -386,6 +386,13 @@ def _ci(point: float, boot: Sequence[float]) -> tuple[float, float]:
     return min(lo, point), max(hi, point)
 
 
+def _se(sum_sq: float, mean: float, n: int) -> float:
+    """Standard error of a mean from the sum of squares (sample variance, n - 1)."""
+    if n < 2:
+        return 0.0
+    return math.sqrt(max(0.0, (sum_sq - n * mean * mean) / (n - 1)) / n)
+
+
 def calibration(
     p: Sequence[float],
     y: Sequence[int],
@@ -393,8 +400,9 @@ def calibration(
     seed: int = DEFAULT_SEED,
     resamples: int = DEFAULT_RESAMPLES,
 ) -> dict[str, Any]:
-    """Brier and ECE with seeded percentile bootstrap intervals over rows, and the 10
-    equal-width reliability bins with each observed rate's Clopper-Pearson interval."""
+    """Brier with a seeded studentized (bootstrap-t) interval and ECE with a seeded percentile
+    bootstrap interval, both over rows, and the 10 equal-width reliability bins with each
+    observed rate's Clopper-Pearson interval."""
     from evalkit.stats import clopper_pearson
 
     if len(p) != len(y) or not p:
@@ -417,20 +425,30 @@ def calibration(
     ece = math.fsum(abs(sy[b] - sp[b]) for b in range(CAL_BINS) if cnt[b]) / n
     rng = random.Random(f"evalkit-drift-calibration:{seed}:{n}")
     population = range(n)
-    boot_b, boot_e = [], []
+    se = _se(math.fsum(x * x for x in sq), brier, n)
+    t_b, boot_e = [], []
     for _ in range(resamples):
         c2, p2, y2 = [0] * CAL_BINS, [0.0] * CAL_BINS, [0] * CAL_BINS
-        s = 0.0
+        s = s2 = 0.0
         for i in rng.choices(population, k=n):
             b = bins_[i]
             c2[b] += 1
             p2[b] += ps[i]
             y2[b] += ys[i]
             s += sq[i]
-        boot_b.append(s / n)
+            s2 += sq[i] * sq[i]
+        se_b = _se(s2, s / n, n)
+        if se_b > 0:
+            t_b.append((s / n - brier) / se_b)
         boot_e.append(sum(abs(y2[b] - p2[b]) for b in range(CAL_BINS) if c2[b]) / n)
-    b_lo, b_hi = _ci(brier, boot_b)
+    if se > 0 and t_b:  # bootstrap-t: a small batch's skewed squared errors keep coverage
+        b_lo = max(0.0, brier - _percentile(t_b, 1 - ALPHA / 2) * se)
+        b_hi = min(1.0, brier - _percentile(t_b, ALPHA / 2) * se)
+        b_lo, b_hi = min(b_lo, brier), max(b_hi, brier)
+    else:
+        b_lo = b_hi = brier
     e_lo, e_hi = _ci(ece, boot_e)
+    b_method = f"studentized bootstrap over rows (seed {seed}, {resamples} resamples)"
     method = f"percentile bootstrap over rows (seed {seed}, {resamples} resamples)"
     bins = []
     for b in range(CAL_BINS):
@@ -451,7 +469,7 @@ def calibration(
         "source": "rows",
         "n": n,
         "binning": "equal-width",
-        "brier": {"value": brier, "ci_low": b_lo, "ci_high": b_hi, "ci_method": method},
+        "brier": {"value": brier, "ci_low": b_lo, "ci_high": b_hi, "ci_method": b_method},
         "ece": {"value": ece, "ci_low": e_lo, "ci_high": e_hi, "ci_method": method},
         "bins": bins,
     }
@@ -561,25 +579,91 @@ def _binomial(rng: random.Random, n: int, p: float) -> int:
     return n - k if flip else k
 
 
-def _ece_from_bins(bins: Sequence[Mapping[str, Any]], obs: Sequence[float]) -> float:
-    total = sum(int(b["n"]) for b in bins)
-    return math.fsum(
-        int(b["n"]) / total * abs(o - float(b["mean_pred"])) for b, o in zip(bins, obs, strict=True)
-    )
+def _bin_rows(bins: Sequence[Mapping[str, Any]]) -> list[tuple[str, int, float, float]]:
+    """(key, n, mean predicted, observed rate) of each non-empty bin."""
+    return [
+        (str(b["bin"]), int(b["n"]), float(b["mean_pred"]), float(b["obs_rate"]))
+        for b in bins
+        if int(b["n"]) > 0 and b.get("obs_rate") is not None and b.get("mean_pred") is not None
+    ]
 
 
-def _ece_deviations(
-    bins: Sequence[Mapping[str, Any]], rng: random.Random, resamples: int
+def _ece_of(rows: Sequence[tuple[int, float, int]]) -> float:
+    """ECE of simulated bins: (n, mean predicted, positives) each."""
+    total = sum(n for n, _, _ in rows)
+    return math.fsum(abs(k - n * mp) for n, mp, k in rows) / total if total else 0.0
+
+
+def _ece_null(
+    ref: Sequence[tuple[str, int, float, float]],
+    new: Sequence[tuple[str, int, float, float]],
+    *,
+    aligned: bool,
+    rng: random.Random,
+    resamples: int,
 ) -> list[float]:
-    """Parametric bootstrap of one side's ECE from its bins (observed ~ Binomial(n_b, obs_b) /
-    n_b, predicted fixed), as deviations from the ECE of the bins themselves."""
-    used = [b for b in bins if int(b["n"]) > 0 and b.get("obs_rate") is not None]
-    base = _ece_from_bins(used, [float(b["obs_rate"]) for b in used])
-    out = []
+    """ECE(new) − ECE(reference) under no calibration drift, at the two batches' sizes. ECE is
+    biased upward in a small batch (|observed − predicted| of a perfectly calibrated bin is
+    still positive), so the difference expected with nothing changed is not 0 when the sizes
+    differ; the delta is judged against this distribution.
+
+    Aligned bins (equal-width on both sides): each bin keeps its two counts and mean
+    predictions and both sides' outcomes are drawn from the pooled observed rate of that bin
+    (a parametric bootstrap under the null that the calibration curve is unchanged). Bins that
+    do not align: a new batch of the new size is drawn from the reference (bin by its share,
+    outcome by its observed rate) and the reference is redrawn at its own size."""
+    out: list[float] = []
+    if aligned:
+        by_new = {k: (n, mp, o) for k, n, mp, o in new}
+        by_ref = {k: (n, mp, o) for k, n, mp, o in ref}
+        cells = []
+        for key in sorted(by_ref.keys() | by_new.keys()):
+            rn, rmp, ro = by_ref.get(key, (0, 0.0, 0.0))
+            nn, nmp, no = by_new.get(key, (0, 0.0, 0.0))
+            pooled = (rn * ro + nn * no) / (rn + nn)
+            cells.append((rn, rmp, nn, nmp, pooled))
+        for _ in range(resamples):
+            r_rows, n_rows = [], []
+            for rn, rmp, nn, nmp, pooled in cells:
+                if rn:
+                    r_rows.append((rn, rmp, _binomial(rng, rn, pooled)))
+                if nn:
+                    n_rows.append((nn, nmp, _binomial(rng, nn, pooled)))
+            out.append(_ece_of(n_rows) - _ece_of(r_rows))
+        return out
+    n_new = sum(n for _, n, _, _ in new)
+    n_ref = sum(n for _, n, _, _ in ref)
     for _ in range(resamples):
-        obs = [_binomial(rng, int(b["n"]), float(b["obs_rate"])) / int(b["n"]) for b in used]
-        out.append(_ece_from_bins(used, obs) - base)
+        left, share_left = n_new, 1.0
+        n_rows = []
+        for _key, n, mp, o in ref:  # a multinomial draw of the bin counts, bin by bin
+            share = n / n_ref
+            c = left if share >= share_left else _binomial(rng, left, share / share_left)
+            left -= c
+            share_left -= share
+            if c:
+                n_rows.append((c, mp, _binomial(rng, c, o)))
+        r_rows = [(n, mp, _binomial(rng, n, o)) for _key, n, mp, o in ref]
+        out.append(_ece_of(n_rows) - _ece_of(r_rows))
     return out
+
+
+def _null_row(
+    name: str, d: float, null: Sequence[float], *, method: str, tol: float
+) -> dict[str, Any]:
+    """A delta judged against its no-drift distribution: the delta reported is the observed
+    one less the no-drift expectation (the null mean); the 95% interval is the basic interval
+    from the null's spread; the p-value is two-sided from the null."""
+    expected = math.fsum(null) / len(null)
+    debiased = d - expected
+    lo = d - _percentile(null, 1 - ALPHA / 2)
+    hi = d - _percentile(null, ALPHA / 2)
+    above = sum(1 for x in null if x >= d)
+    below = sum(1 for x in null if x <= d)
+    p = min(1.0, 2 * (min(above, below) + 1) / (len(null) + 1))
+    row = _delta_row(name, debiased, min(lo, debiased), max(hi, debiased), method=method, tol=tol)
+    row.update(delta_raw=d, no_drift_expected=expected, p_value=p)
+    return row
 
 
 def _counts(b: Mapping[str, Any], where: str) -> tuple[int, int]:
@@ -644,23 +728,30 @@ def calibration_drift(
     re_, ne_ = reference.get("ece"), new.get("ece")
     r_bins = [b for b in reference.get("bins") or [] if int(b["n"]) > 0]
     n_bins = [b for b in new.get("bins") or [] if int(b["n"]) > 0]
-    if re_ and ne_:
-        d = ne_["value"] - re_["value"]
-        if r_bins and n_bins:
-            rng = random.Random(f"evalkit-drift-ece:{seed}")
-            dev_r = _ece_deviations(r_bins, rng, resamples)
-            dev_n = _ece_deviations(n_bins, rng, resamples)
-            diffs = [a - b for a, b in zip(dev_n, dev_r, strict=True)]
-            lo, hi = d + _percentile(diffs, ALPHA / 2), d + _percentile(diffs, 1 - ALPHA / 2)
-            lo, hi = min(lo, d), max(hi, d)
-            method = f"parametric bootstrap of each side's bins (seed {seed}, {resamples})"
-            rows.append(_delta_row("ece", d, lo, hi, method=method, tol=tol["ece"]))
-        else:
-            rows.append(_delta_row("ece", d, None, None, method="no bins", tol=tol["ece"]))
 
     def aligned(side: Mapping[str, Any]) -> bool:
         declared = side.get("binning") or binning
         return declared == "equal-width"
+
+    if re_ and ne_:
+        d = ne_["value"] - re_["value"]
+        r_rows, n_rows = _bin_rows(r_bins), _bin_rows(n_bins)
+        if r_rows and n_rows:
+            rng = random.Random(f"evalkit-drift-ece:{seed}")
+            pooled = aligned(reference) and aligned(new)
+            null = _ece_null(r_rows, n_rows, aligned=pooled, rng=rng, resamples=resamples)
+            how = (
+                "pooled per-bin rates"
+                if pooled
+                else "the new batch's size drawn from the reference"
+            )
+            method = (
+                f"debiased against no drift ({how}; parametric bootstrap, seed {seed}, "
+                f"{resamples} resamples)"
+            )
+            rows.append(_null_row("ece", d, null, method=method, tol=tol["ece"]))
+        else:
+            rows.append(_delta_row("ece", d, None, None, method="no bins", tol=tol["ece"]))
 
     r_keys = [str(b["bin"]) for b in r_bins]
     n_keys = [str(b["bin"]) for b in n_bins]
@@ -807,6 +898,9 @@ def freeze_reference(
     p = Path(source)
     if not p.is_file():
         raise DriftError(f"{p}: no such file")
+    # a feature named only as categorical is profiled too (by category), never dropped
+    extra = [c for c in dict.fromkeys(categorical) if c not in features]
+    named = [*features, *extra] if features else list(extra)
     body: dict[str, Any] = {
         "schema": REF_SCHEMA,
         "created_at": _stamp(created_at),
@@ -816,11 +910,11 @@ def freeze_reference(
         summary = _load_summary(p)
         body["source_kind"] = "metrics"
         feats = _shares_from_metrics(summary, p.name)
-        if features:
-            missing = [f for f in features if f not in feats]
-            if missing:
-                raise DriftError(f"{p.name}: no feature_share rows for {missing[0]!r}")
-            feats = {f: feats[f] for f in features}
+        missing = [f for f in named if f not in feats]
+        if missing:
+            raise DriftError(f"{p.name}: no feature_share rows for {missing[0]!r}")
+        if features:  # pre-binned shares are compared as given, categorical or not
+            feats = {f: feats[f] for f in named}
         body["features"] = feats
         prefix = calibration_prefix or _guess_prefix(summary)
         if prefix is not None:
@@ -834,7 +928,7 @@ def freeze_reference(
     body["source_kind"] = "rows"
     body["n_rows"] = len(rows)
     feats = {}
-    for f in features:
+    for f in named:
         feats[f] = _profile_feature(
             _column(rows, f, p.name), from_csv, categorical=f in categorical, name=f, where=p.name
         )

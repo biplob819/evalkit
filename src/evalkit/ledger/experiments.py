@@ -46,9 +46,52 @@ _EVALKIT_VERSION = re.compile(r"^\d+\.\d+$")
 # a candidate is identified by at least one of these; the rest (project, data snapshot, the
 # model list, judge mode) are hashed too but say nothing about which system it is
 NOT_IDENTIFYING = frozenset({"project", "simulated", "models", "judge_mode", "snapshot"})
+# the per-call settings an EvalKit record states that change a system's answers (a transport
+# error, also in params, is an outcome, not a setting)
+CALL_PARAMS = frozenset({"effort", "structured_output"})
 
 
 # ---- the candidate (freeze guard) ---------------------------------------------------------------
+
+
+def _run_folder_of(settings_file: Path) -> Path | None:
+    """The run a `settings.json` belongs to: its folder, when that folder holds an EvalKit
+    summary.json or a metrics.json (the run reads this settings.json as its own)."""
+    from evalkit.runfolder import is_evalkit_file
+
+    if settings_file.name != "settings.json":
+        return None
+    folder = settings_file.parent
+    if is_evalkit_file(folder / "summary.json") or (folder / "metrics.json").is_file():
+        return folder
+    return None
+
+
+def _evalkit_params(folder: Path) -> dict[str, str | None]:
+    """Each model's call settings as its records state them (`effort`, `structured_output`),
+    one setting per model: what of the run config, besides prompts and models, changes the
+    system's answers. The run config's hash is not used: it covers the seed."""
+    path = folder / "records.jsonl"
+    if not path.is_file():
+        return {}
+    seen: dict[str, set[str]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        completion = json.loads(line).get("completion") or {}
+        params = completion.get("params") or {}
+        kept = {k: params[k] for k in sorted(CALL_PARAMS) if k in params}
+        seen.setdefault(str(completion.get("model")), set()).add(canonical_json(kept))
+    return {f"params.{m}": ", ".join(sorted(v)) for m, v in sorted(seen.items())}
+
+
+def _run_settings(run: str | Path) -> dict[str, str | None]:
+    loaded = load_run(run)
+    settings = dict(loaded.settings)
+    if loaded.source == "evalkit-summary":  # its config_hash covers the seed (RunConfig.seed)
+        settings.pop("config_hash", None)
+        settings.update(_evalkit_params(loaded.path.parent))
+    return settings
 
 
 def _candidate_settings(candidate: str | Path) -> dict[str, str | None]:
@@ -65,20 +108,33 @@ def _candidate_settings(candidate: str | Path) -> dict[str, str | None]:
             isinstance(version, str) and bool(_EVALKIT_VERSION.match(version))
         )
         if not is_run:
+            folder = _run_folder_of(p)
+            if folder is not None:  # a run's own settings.json names the run: one candidate
+                return _run_settings(folder)
             try:
-                return _read_settings(p)
+                settings = _read_settings(p)
             except MetricsError as exc:
                 raise LedgerError("; ".join(exc.problems)) from None
-    return dict(load_run(candidate).settings)
+            if settings.get("candidate_sha256") is None:
+                raise LedgerError(
+                    f"{p.name} is not beside a run and records no candidate_sha256: a settings "
+                    "file on its own identifies a candidate only by its candidate_sha256 (or "
+                    "name the run folder)"
+                )
+            return settings
+    return _run_settings(candidate)
 
 
 def candidate_hash(candidate: str | Path) -> str:
     """The frozen candidate's sha256: `candidate_sha256` from its settings.json when present
     (agentic-analytics' `fix_hash`, respectful-offers' challenger hash); otherwise sha256 of
     canonical JSON of every recorded setting except `seed`, `evalkit` and `results_format`, so a
-    re-seed or an EvalKit upgrade is the same candidate. `candidate` is a run (folder, summary
-    or metrics-1 file) or a flat settings JSON file. Raises (code 2) when neither identifies
-    it."""
+    re-seed or an EvalKit upgrade is the same candidate. An EvalKit run's `config_hash` is left
+    out (it covers the seed) and each model's call settings from its records are hashed
+    instead; run ids, times and paths are never part of it. `candidate` is a run (folder,
+    summary or metrics-1 file), the settings.json inside a run folder (the same candidate as
+    the folder), or a settings JSON file on its own that records `candidate_sha256`. Raises
+    (code 2) when none of these identifies it."""
     settings = _candidate_settings(candidate)
     given = settings.get("candidate_sha256")
     if given is not None:
@@ -137,6 +193,7 @@ def open_experiment(
     baseline: str | Path,
     labels: Mapping[str, Any] | None = None,
     manifest: str | Path | Mapping[str, Any] | None = None,
+    cases: Mapping[str, str | Path] | None = None,
     heldout_splits: Sequence[Any] = (),
     at: str | None = None,
 ) -> dict[str, Any]:
@@ -171,7 +228,7 @@ def open_experiment(
     def check(rows: list[dict[str, Any]], e: dict[str, Any]) -> None:
         check_project(rows, e["project"], ledger)
         e["id"] = f"E{1 + sum(1 for r in rows if r.get('kind') == 'experiment_opened')}"
-        guard_ids(e, m, held)
+        guard_ids(e, m, held, cases)
 
     return append(ledger, entry, check=check)
 
@@ -351,6 +408,7 @@ def close_experiment(
     after: str | Path,
     gates: str | Path | GatesFile | None = None,
     manifest: str | Path | Mapping[str, Any] | None = None,
+    cases: Mapping[str, str | Path] | None = None,
     heldout_splits: Sequence[Any] = (),
     heldout: str | Path | None = None,
     seed: int = 7,
@@ -398,7 +456,7 @@ def close_experiment(
     }
     if heldout is not None:
         entry["heldout"] = _heldout_block(rows, exp_id, heldout, held)
-    guard_ids(entry, m, held)
+    guard_ids(entry, m, held, cases)
 
     def check(rows: list[dict[str, Any]], e: dict[str, Any]) -> None:
         _open(rows, exp_id)
