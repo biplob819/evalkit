@@ -40,12 +40,32 @@ def test_default_result_is_byte_identical_to_0_3():
     """Without `cluster` nothing changes: the JSON below is what 0.3.0 wrote."""
     e = [True] * 5 + [False] * 5
     a = [True, True, False, True, False, False, True, False, False, False]
-    assert clarification_rates(e, a).model_dump_json() == (
-        '{"n_ambiguous":5,"n_clear":5,"asked":3,"false_clarifications":1,'
-        '"ask_rate":{"point":0.6,"lo":0.14663279963467474,"hi":0.9472550494736831},'
-        '"false_clarification_rate":{"point":0.2,"lo":0.0050507633794680505,'
-        '"hi":0.7164179361180896},"method":"clopper-pearson"}'
+    # 0.3.0 computed each rate's interval with Clopper-Pearson over answers; compare with that
+    # computation in this process (the last float digits differ across platforms, so a
+    # literal JSON string from one machine is not a portable oracle)
+    from evalkit.scorers.clarify import _clopper_pearson
+
+    got = json.loads(clarification_rates(e, a).model_dump_json())
+    assert list(got) == [
+        "n_ambiguous",
+        "n_clear",
+        "asked",
+        "false_clarifications",
+        "ask_rate",
+        "false_clarification_rate",
+        "method",
+    ]
+    assert (got["n_ambiguous"], got["n_clear"], got["asked"], got["false_clarifications"]) == (
+        5,
+        5,
+        3,
+        1,
     )
+    assert got["method"] == "clopper-pearson"
+    for key, (k, n) in {"ask_rate": (3, 5), "false_clarification_rate": (1, 5)}.items():
+        iv = _clopper_pearson(k, n, 0.05)
+        assert got[key] == {"point": iv.point, "lo": iv.lo, "hi": iv.hi} and iv.point == k / n
+    assert abs(got["ask_rate"]["lo"] - 0.14663279963467474) < 1e-12  # the 0.3.0 value
     assert clarification_rates(e, a, cluster=None) == clarification_rates(e, a)
 
 

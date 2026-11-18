@@ -131,21 +131,10 @@ def _rc() -> dict:
 
 def test_rc_canary_covers_every_registered_project_with_tests():
     rec = _rc()
-    # the projects registered with tests when the release candidate ran (a project that
-    # adopted EvalKit later, such as respectful-offers at its 7d595ef, is not in this record)
-    import csv
-    import io
-    import subprocess
-
-    tsv = subprocess.run(
-        ["git", "show", f"{rec['evalkit_commit']}:docs/downstream.tsv"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    then = list(csv.DictReader(io.StringIO(tsv), delimiter="\t"))
-    tested = {r["project"] for r in then if r["tests"] in {"auto", "all"}}
+    # projects that adopted EvalKit after the release candidate ran are not in its record
+    # (a git lookup of the old registry is not possible in CI's shallow checkout)
+    adopted_after_rc = {"respectful-offers"}  # its E4.2, 7d595ef, 2026-11-18
+    tested = {r.project for r in REGISTRY if r.tests in {"auto", "all"}} - adopted_after_rc
     assert set(rec["projects"]) == tested
     assert rec["spend_usd"] == 0 and re.fullmatch(r"[0-9a-f]{40}", rec["evalkit_commit"])
     assert rec["evalkit_src_matches_commit"] is True
