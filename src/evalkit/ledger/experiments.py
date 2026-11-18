@@ -49,6 +49,8 @@ NOT_IDENTIFYING = frozenset({"project", "simulated", "models", "judge_mode", "sn
 # the per-call settings an EvalKit record states that change a system's answers (a transport
 # error, also in params, is an outcome, not a setting)
 CALL_PARAMS = frozenset({"effort", "structured_output"})
+# settings that are sets: the order they are listed in never makes a new candidate
+SET_LIKE = frozenset({"models", "judges", "systems"})
 
 
 # ---- the candidate (freeze guard) ---------------------------------------------------------------
@@ -125,6 +127,20 @@ def _candidate_settings(candidate: str | Path) -> dict[str, str | None]:
     return _run_settings(candidate)
 
 
+def _as_set(value: str) -> str:
+    """A set-like setting in one canonical form: its members sorted and joined by ", ", whether
+    it was recorded as a JSON list (settings.json) or as joined text (run.json, metrics)."""
+    try:
+        parsed = json.loads(value)
+    except ValueError:
+        parsed = None
+    if isinstance(parsed, list):
+        members = ["null" if x is None else str(x) for x in parsed]
+    else:
+        members = [x.strip() for x in value.split(",")]
+    return ", ".join(sorted(m for m in members if m))
+
+
 def candidate_hash(candidate: str | Path) -> str:
     """The frozen candidate's sha256: `candidate_sha256` from its settings.json when present
     (agentic-analytics' `fix_hash`, respectful-offers' challenger hash); otherwise sha256 of
@@ -143,6 +159,7 @@ def candidate_hash(candidate: str | Path) -> str:
             raise LedgerError("candidate_sha256 must be 64 hex characters")
         return norm
     keep = {k: v for k, v in settings.items() if k not in SETTINGS_IGNORED and v is not None}
+    keep = {k: _as_set(v) if k in SET_LIKE else v for k, v in keep.items()}
     if not set(keep) - NOT_IDENTIFYING:
         raise LedgerError(
             "the candidate records nothing that identifies it (no candidate_sha256, code "

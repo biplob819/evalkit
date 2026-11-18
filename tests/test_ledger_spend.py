@@ -22,8 +22,13 @@ from evalkit import ledger as L
 from evalkit.ledger._io import canonical_json, chain_state, legacy_seal, sha256_text
 from tests.ledger_helpers import (  # noqa: F401
     EVALKIT_SPEND,
+    FRAUD,
+    FRAUD_HISTORY,
+    HELDOUT_FIX,
+    MANIFEST,
     ROOT,
     commit,
+    fraud_run,
     no_network,
     repo,
 )
@@ -467,10 +472,10 @@ def test_cutting_the_whole_chained_part_fails_the_chain_check(tmp_path, capsys):
     assert path.read_bytes() == before
     capsys.readouterr()
     assert cli.main(["spend", "check", "--cap", "100", "--spend-ledger", str(path)]) == 2
-    other = tmp_path / "other.jsonl"
-    other.write_text("".join(x + "\n" for x in LEGACY[:21]), encoding="utf-8")
+    other = _course_assistant(tmp_path / "other.jsonl", [0.5, 0.25])
     assert L.verify_ledger(other) == []
-    assert L.check_spend(other, cap=100, window="total").chain == "unchained"
+    status = L.check_spend(other, cap=100, window="total", field_map={"spent_usd": "cost_usd"})
+    assert status.chain == "unchained"
 
 
 @pytest.mark.safety
@@ -497,3 +502,201 @@ def test_tail_truncation_is_caught_by_the_append_only_check_and_verify_says_so(t
     out = json.loads(capsys.readouterr().out)
     assert out["append_only"][str(path)].startswith("checked")
     assert out["ledgers"][str(path)]
+
+
+# ---- verifier pass 2 -----------------------------------------------------------------------------
+
+
+def _resealed(path: Path, legacy: list[str]) -> Path:
+    """A shorter legacy history sealed as the earlier writer would have sealed it."""
+    seal = {
+        "at": "2026-11-18T00:00:00Z",
+        "kind": "spend",
+        "project": "evalkit",
+        "schema": "ledger-1",
+        "spend_kind": "ledger_seal",
+        "spent_usd": 0.0,
+        "sealed": legacy_seal(legacy),
+        "prev": sha256_text(legacy[-1]),
+    }
+    path.write_text("".join(x + "\n" for x in [*legacy, canonical_json(seal)]), encoding="utf-8")
+    return path
+
+
+@pytest.mark.safety
+def test_a_legacy_prefix_other_than_the_recorded_seal_fails_and_is_never_sealed(tmp_path, capsys):
+    """safety (verifier pass 2): the seal requires the exact legacy prefix recorded in
+    KNOWN_SEALS (line count and sha256). EvalKit's ledger cut to 21 legacy lines, or missing
+    its first line, fails verify and spend check (exit 2) whether or not a shorter seal was
+    written after it, and spend add never seals a prefix KNOWN_SEALS does not record (another
+    project's legacy file included: it is read unchanged, never sealed)."""
+    cut = {"cut21": LEGACY[:21], "nofirst": LEGACY[1:]}
+    files = {name: tmp_path / f"{name}.jsonl" for name in cut}
+    for name, body in cut.items():
+        files[name].write_text("".join(x + "\n" for x in body), encoding="utf-8")
+        files[f"{name}-resealed"] = _resealed(tmp_path / f"{name}-resealed.jsonl", body)
+    for name, path in files.items():
+        assert L.verify_ledger(path), name
+        with pytest.raises(L.LedgerError) as exc:
+            L.check_spend(path, cap=100, window="total")
+        assert exc.value.code == 2, name
+        before = path.read_bytes()
+        with pytest.raises(L.LedgerError) as exc:
+            L.record_spend(path, spend_kind="smoke", spent_usd=0.1, project="evalkit")
+        assert exc.value.code == 2 and path.read_bytes() == before, name
+        capsys.readouterr()
+        assert cli.main(["history", "verify", str(path), "--chain-only"]) == 1, name
+        assert cli.main(["spend", "check", "--cap", "100", "--spend-ledger", str(path)]) == 2
+        code = cli.main(
+            [
+                "spend",
+                "add",
+                "--kind",
+                "smoke",
+                "--usd",
+                "0",
+                "--project",
+                "evalkit",
+                "--spend-ledger",
+                str(path),
+            ]
+        )
+        assert code == 2 and path.read_bytes() == before, name
+    other = _course_assistant(tmp_path / "course-spend.jsonl", [0.5, 0.25])
+    before = other.read_bytes()
+    with pytest.raises(L.LedgerError, match="KNOWN_SEALS") as exc:
+        L.record_spend(other, spend_kind="smoke", spent_usd=0.1, project="course-assistant")
+    assert exc.value.code == 2 and other.read_bytes() == before
+    assert L.verify_ledger(other) == []
+    sealed = _sealed_copy(tmp_path)
+    L.record_spend(sealed, spend_kind="smoke", spent_usd=0.1, project="evalkit")
+    assert L.verify_ledger(sealed) == []
+
+
+@pytest.mark.safety
+def test_each_writer_refuses_a_ledger_of_another_kind(tmp_path, capsys):
+    """safety (verifier pass 2): a ledger's first line (or, while it is empty, its file name)
+    declares its kind: a run ledger takes runs and band resets, an experiment ledger
+    experiments, a spend ledger spend lines. record_spend or open_experiment into a run
+    ledger, record_run or reset_band into a spend ledger, exits 2 and writes nothing."""
+    runs = tmp_path / "runs.jsonl"
+    L.record_run(runs, fraud_run(tmp_path, 0, *FRAUD_HISTORY[0]))
+    spend = tmp_path / "spend-ledger.jsonl"
+    L.record_spend(spend, spend_kind="smoke", spent_usd=1.0, project=FRAUD)
+    exps = tmp_path / "experiments.jsonl"
+    base = fraud_run(tmp_path, 1, *FRAUD_HISTORY[1])
+    L.open_experiment(
+        exps, hypothesis="h", change="c", metric="leakage", direction="down", baseline=base
+    )
+    refusals = {
+        "spend into runs": lambda: L.record_spend(
+            runs, spend_kind="smoke", spent_usd=1.0, project=FRAUD
+        ),
+        "experiment into runs": lambda: L.open_experiment(
+            runs, hypothesis="h", change="c", metric="leakage", direction="down", baseline=base
+        ),
+        "run into spend": lambda: L.record_run(spend, fraud_run(tmp_path, 2, *FRAUD_HISTORY[2])),
+        "reset into spend": lambda: L.reset_band(spend, metric="leakage", reason="x"),
+        "run into experiments": lambda: L.record_run(
+            exps, fraud_run(tmp_path, 3, *FRAUD_HISTORY[3])
+        ),
+        "spend into experiments": lambda: L.record_spend(
+            exps, spend_kind="smoke", spent_usd=1.0, project=FRAUD
+        ),
+        "run into an empty spend ledger": lambda: L.record_run(
+            tmp_path / "new" / "spend-ledger.jsonl", fraud_run(tmp_path, 4, *FRAUD_HISTORY[4])
+        ),
+        "spend into an empty run ledger": lambda: L.record_spend(
+            tmp_path / "new" / "runs.jsonl", spend_kind="smoke", spent_usd=1.0, project=FRAUD
+        ),
+    }
+    snapshot = {p: p.read_bytes() for p in (runs, spend, exps)}
+    for label, write in refusals.items():
+        with pytest.raises(L.LedgerError, match="ledger") as exc:
+            write()
+        assert exc.value.code == 2, label
+        assert {p: p.read_bytes() for p in snapshot} == snapshot, label
+    assert not (tmp_path / "new" / "spend-ledger.jsonl").exists()
+    assert not (tmp_path / "new" / "runs.jsonl").exists()
+    capsys.readouterr()
+    run5 = fraud_run(tmp_path, 5, *FRAUD_HISTORY[5])
+    commands = (
+        ["spend", "add", "--kind", "smoke", "--usd", "1", "--spend-ledger", str(runs)],
+        ["history", "add", str(run5), "--ledger", str(spend)],
+        ["history", "reset", "--metric", "leakage", "--reason", "x", "--ledger", str(spend)],
+        [
+            "experiment",
+            "open",
+            "--hypothesis",
+            "h",
+            "--change",
+            "c",
+            "--metric",
+            "leakage",
+            "--direction",
+            "down",
+            "--baseline",
+            str(base),
+            "--experiments",
+            str(runs),
+        ],
+    )
+    for argv in commands:
+        assert cli.main(argv) == 2, argv
+    assert {p: p.read_bytes() for p in snapshot} == snapshot
+    L.record_run(runs, run5)  # the right kind still appends
+    L.record_spend(spend, spend_kind="smoke", spent_usd=0.5, project=FRAUD)
+
+
+@pytest.mark.safety
+def test_spend_add_note_is_guarded_by_the_manifest_and_case_files(tmp_path, capsys):
+    """safety (verifier pass 2): `spend add --note` honours --manifest and --cases like every
+    other writer: a note naming a held-out id, or quoting held-out case text, exits 2 and
+    nothing is written."""
+    path = tmp_path / "spend-ledger.jsonl"
+    cases = HELDOUT_FIX / "cases.jsonl"
+    quoted = "which RIVER carries the most sediment into the northern delta, each spring season?"
+    for note in ("rerun of fx-h1", quoted):
+        with pytest.raises(L.LedgerError, match="held-out") as exc:
+            L.record_spend(
+                path,
+                spend_kind="smoke",
+                spent_usd=0.1,
+                project="p",
+                note=note,
+                manifest=MANIFEST,
+                cases={"heldout": cases},
+            )
+        assert exc.value.code == 2 and not path.exists()
+        code = cli.main(
+            [
+                "spend",
+                "add",
+                "--kind",
+                "smoke",
+                "--usd",
+                "0.1",
+                "--project",
+                "p",
+                "--note",
+                note,
+                "--spend-ledger",
+                str(path),
+                "--manifest",
+                str(MANIFEST),
+                "--cases",
+                f"heldout={cases}",
+            ]
+        )
+        assert code == 2 and not path.exists()
+        assert "sediment" not in capsys.readouterr().err
+    L.record_spend(
+        path,
+        spend_kind="smoke",
+        spent_usd=0.1,
+        project="p",
+        note="the river gauge was recalibrated",
+        manifest=MANIFEST,
+        cases={"heldout": cases},
+    )
+    assert path.is_file()

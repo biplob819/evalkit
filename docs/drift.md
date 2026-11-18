@@ -41,8 +41,11 @@ The rule is fraud-review-bedrock's (its MON-03), so its numbers reproduce bit fo
   repeated edges merged), bins `[e_i, e_{i+1})` with open outer bins, so a new value beyond the
   reference range lands in an end bin. A constant reference gets 3 bins: below, equal, above.
 - **Categorical:** one bin per reference category plus `other` for categories it never saw.
-- **Pre-binned:** the project's own bins; the reference and the new batch must name the same
-  bins (else exit 2).
+- **Pre-binned:** the project's own bins. An export may leave an empty bin out instead of
+  writing it with n = 0 (respectful-offers does), so a bin named on one side only is read as a
+  share of 0 on the other, floored like any empty bin, and listed in the row's `bins_one_side`
+  (`reference_only`, `new_only`). Its absence is never an error and never drift by itself; the
+  PSI counts only the share the other side gives it. Two sides that share no bin at all exit 2.
 - Each share is floored at 1e-4 (not renormalised), then PSI = Σ (q − p) · ln(q / p). The floor
   leaves PSI unchanged when no bin is empty and makes a bin that appears from nothing count: a
   5% share against an empty reference bin adds about 0.31, an alarm by itself.
@@ -66,23 +69,39 @@ The changes new − reference each carry a 95% interval:
 |---|---|
 | Brier | MOVER from the two intervals (different periods: unpaired) |
 | ECE | debiased against no drift: the delta is new − reference less the difference expected with nothing changed at the two batch sizes (`no_drift_expected`; the raw difference is `delta_raw`), with the basic interval and a two-sided p-value from that no-drift distribution |
-| each bin's observed rate | MOVER of the two Clopper-Pearson intervals |
+| each bin's calibration gap (observed − mean predicted; `delta` = `gap_new` − `gap_ref`, the observed-rate change is `obs_delta`) | MOVER of the two observed rates' Clopper-Pearson intervals, shifted by the change in mean prediction (the mean predictions are held fixed) |
 
 **Why ECE is debiased.** ECE is biased upward in a small batch: a perfectly calibrated bin
 still shows |observed − predicted| > 0 from sampling alone, more so with fewer rows. Comparing
 a 50-row batch with a 2,000-row reference raw would read that sampling bias as drift (a
 perfectly calibrated model alarmed on every check). So the ECE change is judged against its
 distribution under no drift, drawn by a seeded parametric bootstrap: with aligned bins, each
-bin keeps both sides' counts and mean predictions and both sides' outcomes are drawn from the
-bin's pooled observed rate; with bins that do not align, a batch of the new size is drawn from
-the reference (bin by share, outcome by observed rate) and the reference is redrawn at its own
-size. Measured on a perfectly calibrated model (reference 500 or 2,000 rows, new batch 10 to
-2,000 rows, 100 checks per cell): the alarm rate is at most 4% in every cell and the warn rate
-at most 3%; a model 0.2 to 0.3 off still alarms in a 100- or 300-row batch.
+bin keeps both sides' counts and each side's own mean prediction, and each side's outcomes are
+drawn at its own mean prediction plus the bin's pooled calibration gap (the null is "the gap
+is unchanged", not "the observed rate is unchanged"); with bins that do not align, a batch of
+the new size is drawn from the reference (bin by share, outcome by observed rate) and the
+reference is redrawn at its own size.
+
+**Why bins test the gap.** Predictions can move within their tenth with calibration unchanged
+(a model that now says 0.29 where it said 0.21, and is right 29% of the time). The bin's
+observed rate moves with them, so testing the observed rate read that as drift (98.7% of
+such checks flagged, reference and new batch 5,000 rows each). The bin delta is the change in
+the gap, observed − mean predicted, which does not move.
+
+Measured with no drift (a seeded grid of 300 checks per cell: reference 200, 1,000 or 5,000
+rows; new batch 10, 50, 200, 1,000 or 5,000 rows; aligned and unaligned bins; uniform and
+skewed predictions, a stable miscalibration, a covariate shift, and predictions moving within
+their bins with calibration unchanged): the alarm rate is at most 4.0% and the flag rate (warn
+or alarm) at most 4.7% in every one of the 120 cells. With true drift (100 checks per cell)
+an overconfident model (predictions 0.6 times as far from 0.5 as the truth) alarms in 63% to
+100% of checks once the new batch has 200 rows (85% to 100% with a reference of 1,000 rows or
+more); a +0.10 bias alarms in 37% of checks at 1,000 rows each, 72% to 83% when one side has
+5,000 and 100% at 5,000 each, but seldom against a 200-row reference (at most 4%); a model 0.2
+to 0.3 off still alarms in a 100- or 300-row batch. The power is as before the gap change.
 
 A change is `changed` when its Holm-adjusted p-value (across the calibration block) is below
-0.05; `warn` when it changed for the worse (Brier or ECE up, a bin's |observed − predicted| gap
-up); `alarm` when, in addition, its whole interval lies beyond the tolerance. The tolerances
+0.05; `warn` when it changed for the worse (Brier or ECE up, a bin's |observed − mean predicted|
+gap up); `alarm` when, in addition, its whole interval lies beyond the tolerance. The tolerances
 are Brier 0.01, ECE 0.02 and bin 0.10 (OWNER D-73), each overridable. A change without an
 interval is `no_interval` and never flagged.
 
@@ -90,6 +109,12 @@ interval is `no_interval` and never flagged.
 drift config declares `binning: equal-width`. Quantile bins (as respectful-offers exports
 today) move with each period, so per-bin drift is reported as `not available`
 (`bins_not_aligned`) and only Brier and ECE are compared.
+
+**A bin on one side only is not comparable.** An export that leaves empty bins out (an absent
+top bin `[0.9, 1.0)` is common) gives a reliability bin on one side only, or on neither. A
+bin on neither side plays no part. A bin on one side only gets no bin delta and is listed in
+`bins_not_comparable` (`bin`, `present_in`: `reference` or `new batch`); its rows still count
+in Brier and ECE. It is never an error and never a flag by itself.
 
 ## The drift config
 
@@ -103,16 +128,26 @@ calibration:
   ece_tolerance: 0.02
   bin_tolerance: 0.10
   binning: equal-width   # equal-width, quantile or unknown (aggregates only)
+severity:                # each warn or fail; default fail
+  psi: fail
+  calibration: warn      # Brier and ECE
+  bins: warn             # the reliability bins
 ```
 
-Unknown keys are refused.
+Unknown keys are refused. **Severity** works as in [gates](gates.md): an alarm in a check set
+to `warn` is still reported (the verdict, the `alarms` count, the row's level or status, each
+row's `severity`) but never sets exit 1; `blocking_alarms` counts the alarms that do. A
+project whose owner rules that drift only warns (respectful-offers, its OWNER D-56) sets all
+three to `warn`.
 
 ## Outputs and exit codes
 
 `drift check` prints a summary and, with `--out`, writes `drift-1` JSON: the reference and new
 batch hashes, the settings, one row per feature (`psi`, `psi_shown`, `level`, its levels,
 `bins`, `n_ref`, `n_new`, `expected_psi`, `small_batch`, `missing_share_ref`,
-`missing_share_new`) and the calibration block (`deltas`, `bins`, `tolerances`, `level`). There
+`missing_share_new`, `severity`, and for pre-binned features `bins_one_side`) and the
+calibration block (`deltas`, each with its `severity`; `bins`, `bins_not_comparable`,
+`tolerances`, `level`), with the `alarms`, `blocking_alarms` and `warns` counts. There
 is no timestamp: the same inputs give the same bytes.
 
 `--emit-metrics FILE --project NAME [--run-id ID] [--prefix drift]` also writes a metrics-1 file
@@ -121,8 +156,10 @@ is no timestamp: the same inputs give the same bytes.
 with `evalkit gate` and added to the run history, where they get alarm bands once five periods
 are in and appear in the trend page's PSI panel.
 
-Exit codes: 0 no alarm (warns printed), 1 any alarm (PSI or calibration), 2 bad input (an
-edited reference, an empty batch, a missing feature or column, bins that differ).
+Exit codes: 0 no alarm, or alarms only in checks at `warn` severity (printed), 1 an alarm in a
+check at `fail` severity (the default: PSI, calibration or bins), 2 bad input (an edited
+reference, an empty batch, a missing feature or column, pre-binned sides with no bin in
+common, a bad severity).
 
 With `--manifest heldout/MANIFEST.json`, a reference or report that would name a held-out case
 id (for example a categorical feature of case ids) is refused (exit 2) and nothing is written.

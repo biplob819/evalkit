@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -27,6 +27,9 @@ from evalkit.ledger._io import (
     append_spend_line,
     chain_state,
     check_project,
+    guard_ids,
+    held_splits,
+    load_manifest,
     text_field,
     utc_stamp,
 )
@@ -54,9 +57,15 @@ def record_spend(
     note: str | None = None,
     detail: Mapping[str, Any] | None = None,
     at: str | None = None,
+    heldout_splits: Sequence[Any] = (),
+    manifest: str | Path | Mapping[str, Any] | None = None,
+    cases: Mapping[str, str | Path] | None = None,
 ) -> dict[str, Any]:
     """Append one chained `spend` line (amount >= 0, rounded to 6 decimals) under the ledger's
-    lock. Extra scalar facts (judges, item counts) go in `detail`. Returns the line written."""
+    lock. Extra scalar facts (judges, item counts) go in `detail`. Returns the line written.
+    With a manifest (and the held-out case files), a line naming a held-out case id or hash,
+    or quoting held-out case text, is refused (code 2) as by every writer."""
+    m = load_manifest(manifest)
     if not isinstance(spend_kind, str) or not spend_kind.strip():
         raise LedgerError("spend_kind must be non-blank text")
     if isinstance(spent_usd, bool) or not isinstance(spent_usd, int | float):
@@ -92,6 +101,7 @@ def record_spend(
         if bad:
             raise LedgerError("detail values must be scalars or lists of scalars")
         entry["detail"] = {str(k): v for k, v in sorted(detail.items())}
+    guard_ids(entry, m, held_splits(None, heldout_splits), cases)
 
     def check(rows: list[dict[str, Any]], e: dict[str, Any]) -> None:
         check_project(rows, e["project"], ledger)

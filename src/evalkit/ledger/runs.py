@@ -596,13 +596,21 @@ def reset_band(
     labels: Mapping[str, Any] | None = None,
     project: str | None = None,
     at: str | None = None,
+    gates: str | Path | GatesFile | None = None,
+    heldout_splits: Sequence[Any] = (),
+    manifest: str | Path | Mapping[str, Any] | None = None,
+    cases: Mapping[str, str | Path] | None = None,
 ) -> dict[str, Any]:
     """Append a `band_reset`: history before it is not used for this metric's band (every label
-    set of it when `labels` is empty), after a deliberate change such as a new model."""
+    set of it when `labels` is empty), after a deliberate change such as a new model. With a
+    manifest (and the held-out case files), a reason naming a held-out case id or hash, or
+    quoting held-out case text, is refused (code 2) as by every writer."""
     from evalkit.metrics import NAME_RE
 
     if not isinstance(metric, str) or not NAME_RE.match(metric):
         raise LedgerError("metric must match [a-z][a-z0-9_.]*")
+    held = held_splits(_gates(gates), heldout_splits)
+    m = load_manifest(manifest)
     entry: dict[str, Any] = {
         "kind": "band_reset",
         "schema": LEDGER_SCHEMA,
@@ -612,6 +620,7 @@ def reset_band(
     }
     if labels:
         entry["labels"] = {str(k): canonical(v) for k, v in sorted(labels.items())}
+    guard_ids(entry, m, held, cases)
 
     def check(rows: list[dict[str, Any]], e: dict[str, Any]) -> None:
         p = project or project_of(rows)

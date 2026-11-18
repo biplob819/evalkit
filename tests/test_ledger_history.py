@@ -665,6 +665,97 @@ def test_heldout_id_hashes_and_case_text_in_free_text_are_refused(tmp_path, caps
     assert res.entry is not None
 
 
+@pytest.mark.safety
+def test_reset_reason_is_guarded_by_the_manifest_and_case_files(tmp_path, capsys):
+    """safety (verifier pass 2): `history reset --reason` honours --manifest and --cases like
+    every other writer: a reason naming a held-out id, or quoting held-out case text, exits 2
+    and nothing is written."""
+    ledger = tmp_path / "runs.jsonl"
+    L.record_run(ledger, write_run(tmp_path / "r", [rate("acc", 5, 10)], run_id="r1"))
+    before = ledger.read_bytes()
+    cases = HELDOUT_FIX / "cases.jsonl"
+    quoted = "which RIVER carries the most sediment into the northern delta, each spring season?"
+    for reason in ("new model after fx-h1", quoted):
+        with pytest.raises(L.LedgerError, match="held-out") as exc:
+            L.reset_band(
+                ledger, metric="acc", reason=reason, manifest=MANIFEST, cases={"heldout": cases}
+            )
+        assert exc.value.code == 2 and ledger.read_bytes() == before
+        code = cli.main(
+            [
+                "history",
+                "reset",
+                "--metric",
+                "acc",
+                "--reason",
+                reason,
+                "--ledger",
+                str(ledger),
+                "--manifest",
+                str(MANIFEST),
+                "--cases",
+                f"heldout={cases}",
+            ]
+        )
+        assert code == 2 and ledger.read_bytes() == before
+        assert "sediment" not in capsys.readouterr().err
+    L.reset_band(
+        ledger,
+        metric="acc",
+        reason="a new model",
+        manifest=MANIFEST,
+        cases={"heldout": cases},
+    )
+    assert ledger.read_bytes() != before
+
+
+@pytest.mark.safety
+def test_zero_width_homoglyph_and_fullwidth_variants_of_heldout_text_and_ids_are_refused(
+    tmp_path,
+):
+    """safety (verifier pass 2): held-out case text with zero-width characters inside its words
+    or between them, common Cyrillic or Greek homoglyphs, soft hyphens or fullwidth forms is
+    still refused with --cases, and a held-out id written fullwidth, with a zero-width
+    character inside, or in upper case is refused with --manifest alone. B5.14's exposure-scan
+    normalisation reads the variants the same way (one normalisation for both)."""
+    from evalkit import heldout as H
+
+    ledger = tmp_path / "runs.jsonl"
+    run = write_run(tmp_path / "r", [rate("acc", 5, 10)], run_id="r1")
+    cases = {"heldout": HELDOUT_FIX / "cases.jsonl"}
+    q = "Which river carries the most sediment into the northern delta each spring season?"
+    zw_inside = " ".join(w[:2] + "​" + w[2:] if len(w) > 3 else w for w in q.split())
+    texts = {
+        "zero-width inside words": zw_inside,
+        "word joiner and BOM inside words": q.replace("ri", "r⁠i").replace("se", "s﻿e"),
+        "soft hyphens": q.replace("ment", "­ment").replace("ver", "v­er"),
+        "zero-width between words": q.replace(" ", "​"),
+        "cyrillic a, e, o, p, c": q.translate(str.maketrans("aeopc", "аеорс")),
+        "greek o and a cyrillic capital W": q.replace("o", "ο").replace("W", "Ԝ"),
+        "fullwidth": "".join(chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c for c in q),
+    }
+    plain = H._normalise(q)
+    for label, note in texts.items():
+        if label != "zero-width between words":
+            assert H._normalise(note) == plain, label
+        with pytest.raises(L.LedgerError, match="held-out case text") as exc:
+            L.record_run(ledger, run, manifest=MANIFEST, cases=cases, note=note)
+        assert exc.value.code == 2 and not ledger.exists(), label
+    ids = {
+        "fullwidth": "see ｆｘ-ｈ１",
+        "zero-width inside": "see fx​-h1",
+        "zero-width in the letters": "see f​x-h‌1",
+        "upper case": "see FX-H1",
+        "cyrillic x": "see fх-h1",
+    }
+    for label, note in ids.items():
+        with pytest.raises(L.LedgerError, match="held-out") as exc:
+            L.record_run(ledger, run, manifest=MANIFEST, note=note)
+        assert exc.value.code == 2 and not ledger.exists(), label
+    res = L.record_run(ledger, run, manifest=MANIFEST, cases=cases, note="fx-h1x is not an id")
+    assert res.entry is not None
+
+
 def test_a_missing_ledger_exits_2_and_init_or_add_creates_it(tmp_path, capsys):
     """contract: a missing or mistyped ledger path is an error (exit 2, the path named) for
     `history check`, `history show` and `report --history`, never an empty history; `history

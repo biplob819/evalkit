@@ -384,14 +384,18 @@ _TOKEN = re.compile(r"[\w\-.:]+")
 def ids_in_text(text: str, manifest: Mapping[str, Any], *, split: str = "heldout") -> list[str]:
     """Manifest ids of `split` cases whose id appears as a token in `text` (a held-out report
     must give `[]`). Tokens are runs of letters, digits and `_-.:`, also with trailing `.:`
-    removed; ids holding other characters are not detected."""
+    removed; ids holding other characters are not detected. The text is read as written and
+    as the exposure scan folds it (NFKC, so fullwidth forms; invisible characters removed;
+    casefolded; homoglyphs folded), so `ｆｘ-ｈ１`, `fx\\u200b-h1` and `FX-H1` name `fx-h1`."""
     want = _split_ids(manifest, split)
     found = set()
-    for token in _TOKEN.findall(text):
-        for t in {token, token.rstrip(".:")}:
-            h = case_id_hash(t)
-            if h in want:
-                found.add(h[:12])
+    views = {text, INVISIBLE.sub("", unicodedata.normalize("NFKC", text)), _fold(text)}
+    for view in views:
+        for token in _TOKEN.findall(view):
+            for t in {token, token.rstrip(".:")}:
+                h = case_id_hash(t)
+                if h in want:
+                    found.add(h[:12])
     return sorted(found)
 
 
@@ -1001,10 +1005,53 @@ _SIMPLE = {'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f", "n": "\n", "r":
 _HYPHEN_BREAK = re.compile(r"(\w)-[ \t]*\r?\n[\s>#*/;-]*?(\w)")
 
 
-def _normalise(text: str) -> str:
-    folded = unicodedata.normalize("NFKC", text).casefold()
-    # \w keeps letters of every script; drop only the characters that are not word characters
-    return " ".join(re.sub(r"[\W_]+", " ", folded).split())
+# characters that render as nothing (Unicode format characters: zero-width space and joiners,
+# word joiner, BOM, soft hyphen, bidirectional marks, tags; with the combining grapheme joiner
+# and the variation selectors): removed, so a word broken by one still reads as the word
+INVISIBLE = re.compile(
+    "[­͏؀-؅؜۝܏࣢᠋-᠏​-‏"
+    "‪-‮⁠-⁤⁦-⁯︀-️﻿￹-￻"
+    "\U000110bd\U000110cd\U0001bca0-\U0001bca3\U0001d173-\U0001d17a\U000e0001-\U000e007f"
+    "\U000e0100-\U000e01ef]"
+)
+# common Cyrillic, Greek, Armenian and Latin letters that look like ASCII letters, folded to
+# them after casefolding (applied on both sides, so text in those scripts still matches
+# itself); a capital that casefolds to one of these maps to the letter the capital resembles
+HOMOGLYPHS = str.maketrans(
+    {
+        # Cyrillic
+        "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p",
+        "с": "c", "т": "t", "у": "y", "х": "x", "ѕ": "s", "і": "i", "ј": "j", "һ": "h",
+        "ԁ": "d", "ԛ": "q", "ԝ": "w", "ӏ": "l", "ө": "o", "ү": "y",
+        # Greek
+        "α": "a", "β": "b", "ε": "e", "ζ": "z", "η": "h", "ι": "i", "κ": "k", "μ": "m",
+        "ν": "n", "ο": "o", "ρ": "p", "τ": "t", "υ": "y", "χ": "x",
+        # Armenian and Latin variants
+        "օ": "o", "ս": "u", "ı": "i", "ȷ": "j", "ɑ": "a", "ɡ": "g", "ʟ": "l",
+    }
+)  # fmt: skip
+
+
+def _fold(text: str, *, invisible: str = "") -> str:
+    """NFKC, invisible characters removed (or replaced by `invisible`), casefolded and
+    homoglyphs folded to the ASCII letters they resemble."""
+    text = INVISIBLE.sub(invisible, unicodedata.normalize("NFKC", text))
+    return unicodedata.normalize("NFKC", text).casefold().translate(HOMOGLYPHS)
+
+
+def _normalise(text: str, *, invisible: str = "") -> str:
+    """The exposure scan's reading of text: `_fold`, then every run of non-word characters one
+    space (\\w keeps letters of every script)."""
+    return " ".join(re.sub(r"[\W_]+", " ", _fold(text, invisible=invisible)).split())
+
+
+def normalised_views(text: str) -> set[str]:
+    """`_normalise(text)`, and when the text holds invisible characters also the reading that
+    takes each as a space: a zero-width character can join two words or split one."""
+    views = {_normalise(text)}
+    if INVISIBLE.search(text):
+        views.add(_normalise(text, invisible=" "))
+    return views
 
 
 def _unescape_json(text: str) -> str:
@@ -1027,7 +1074,7 @@ def _views(data: bytes) -> set[str]:
         for t in {text, unescaped, html.unescape(text), html.unescape(unescaped)}:
             texts.add(t)
             texts.add(_HYPHEN_BREAK.sub(r"\1\2", t))
-    return {_normalise(t) for t in texts}
+    return {view for t in texts for view in normalised_views(t)}
 
 
 def _grams(words: Sequence[str], window: int) -> Iterator[str]:

@@ -14,8 +14,11 @@ category names, shares and aggregates only.
   alarm above 0.25, overridable per feature.
 - Calibration (binary outcomes): Brier, ECE over 10 equal-width bins (`floor(p·10 + 1e-12)`,
   p = 1 in the last bin) and reliability bins, with 95% intervals; deltas new − reference
-  (Brier by MOVER, ECE by independent parametric bootstraps of each side's bins, each bin's
-  observed rate by MOVER of Clopper-Pearson intervals), Holm-adjusted across the block: a delta
+  (Brier by MOVER; ECE against its no-drift distribution, a parametric bootstrap that keeps
+  each side's own mean prediction per bin; each bin's calibration gap, observed − mean
+  predicted, by MOVER of the observed rates' Clopper-Pearson intervals with the mean
+  predictions held fixed, so predictions moving within a bin are not drift), Holm-adjusted
+  across the block: a delta
   is `changed` when its adjusted interval excludes 0, `warn` when changed in the worsening
   direction, `alarm` when also its whole interval lies beyond the tolerance (Brier 0.01, ECE
   0.02, bin 0.10; OWNER D-73). Bins that do not align (quantile bins) are not compared.
@@ -65,6 +68,8 @@ PSI_BINS = 10
 CAL_BINS = 10
 SMALL_BATCH = 0.05  # half the warn level: the no-drift PSI expectation that marks a small batch
 TOLERANCES: dict[str, float] = {"brier": 0.01, "ece": 0.02, "bin": 0.10}  # OWNER D-73
+# per check: `fail` (an alarm exits 1) or `warn` (reported, never exits 1; gates' warn severity)
+SEVERITY: dict[str, str] = {"bins": "fail", "calibration": "fail", "psi": "fail"}
 REF_SCHEMA = "drift-ref-1"
 DRIFT_SCHEMA = "drift-1"
 DEFAULT_SEED = 7
@@ -607,9 +612,11 @@ def _ece_null(
     still positive), so the difference expected with nothing changed is not 0 when the sizes
     differ; the delta is judged against this distribution.
 
-    Aligned bins (equal-width on both sides): each bin keeps its two counts and mean
-    predictions and both sides' outcomes are drawn from the pooled observed rate of that bin
-    (a parametric bootstrap under the null that the calibration curve is unchanged). Bins that
+    Aligned bins (equal-width on both sides): each bin keeps its two counts and each side's own
+    mean prediction, and both sides' outcomes are drawn with the bin's pooled calibration gap
+    (observed − mean predicted, weighted by count) added to that side's own mean prediction:
+    a parametric bootstrap under the null that the calibration gap is unchanged, so
+    predictions that move within their bins (calibration unchanged) are not drift. Bins that
     do not align: a new batch of the new size is drawn from the reference (bin by its share,
     outcome by its observed rate) and the reference is redrawn at its own size."""
     out: list[float] = []
@@ -620,15 +627,17 @@ def _ece_null(
         for key in sorted(by_ref.keys() | by_new.keys()):
             rn, rmp, ro = by_ref.get(key, (0, 0.0, 0.0))
             nn, nmp, no = by_new.get(key, (0, 0.0, 0.0))
-            pooled = (rn * ro + nn * no) / (rn + nn)
-            cells.append((rn, rmp, nn, nmp, pooled))
+            gap = (rn * (ro - rmp) + nn * (no - nmp)) / (rn + nn)
+            r_rate = min(1.0, max(0.0, rmp + gap))
+            n_rate = min(1.0, max(0.0, nmp + gap))
+            cells.append((rn, rmp, r_rate, nn, nmp, n_rate))
         for _ in range(resamples):
             r_rows, n_rows = [], []
-            for rn, rmp, nn, nmp, pooled in cells:
+            for rn, rmp, r_rate, nn, nmp, n_rate in cells:
                 if rn:
-                    r_rows.append((rn, rmp, _binomial(rng, rn, pooled)))
+                    r_rows.append((rn, rmp, _binomial(rng, rn, r_rate)))
                 if nn:
-                    n_rows.append((nn, nmp, _binomial(rng, nn, pooled)))
+                    n_rows.append((nn, nmp, _binomial(rng, nn, n_rate)))
             out.append(_ece_of(n_rows) - _ece_of(r_rows))
         return out
     n_new = sum(n for _, n, _, _ in new)
@@ -756,6 +765,7 @@ def calibration_drift(
     r_keys = [str(b["bin"]) for b in r_bins]
     n_keys = [str(b["bin"]) for b in n_bins]
     bins_status = "compared"
+    not_comparable: list[dict[str, str]] = []
     if not (r_bins and n_bins):
         bins_status = "no_bins"
     elif not (aligned(reference) and aligned(new)):
@@ -767,17 +777,38 @@ def calibration_drift(
             rk, rn = _counts(by_r[key], "reference")
             nk, nn = _counts(by_n[key], "new batch")
             ro, no = rk / rn, nk / nn
+            rmp, nmp = float(by_r[key]["mean_pred"]), float(by_n[key]["mean_pred"])
             ri, ni = clopper_pearson(rk, rn), clopper_pearson(nk, nn)
-            d = no - ro
-            lo, hi = _mover(d, ni.lo, ni.hi, no, ri.lo, ri.hi, ro)
+            # the calibration gap's delta: (observed − mean predicted) new − reference, each
+            # side's mean prediction held fixed, so the observed rates' MOVER interval shifts
+            # by the change in mean prediction (predictions moving within a bin are not drift)
+            shift = nmp - rmp
+            lo_o, hi_o = _mover(no - ro, ni.lo, ni.hi, no, ri.lo, ri.hi, ro)
+            gap_r, gap_n = ro - rmp, no - nmp
+            d = gap_n - gap_r
             row = _delta_row(
-                f"bin {key}", d, lo, hi, method="MOVER of Clopper-Pearson", tol=tol["bin"]
+                f"bin {key}",
+                d,
+                min(lo_o - shift, d),
+                max(hi_o - shift, d),
+                method="calibration gap; MOVER of Clopper-Pearson",
+                tol=tol["bin"],
             )
-            gap_r = ro - float(by_r[key]["mean_pred"])
-            gap_n = no - float(by_n[key]["mean_pred"])
-            row.update(bin=key, gap_ref=gap_r, gap_new=gap_n, n_ref=rn, n_new=nn)
+            row.update(
+                bin=key,
+                gap_ref=gap_r,
+                gap_new=gap_n,
+                obs_delta=no - ro,
+                n_ref=rn,
+                n_new=nn,
+            )
             rows.append(row)
-        missing = sorted(set(r_keys) ^ set(n_keys))
+        # a bin on one side only (an export leaves empty bins out): not comparable, so no bin
+        # delta; never an error or a flag by itself (its rows still count in ECE)
+        missing = sorted(set(r_keys) ^ set(n_keys), key=lambda k: (not k.isdigit(), _k(k)))
+        not_comparable = [
+            {"bin": k, "present_in": "reference" if k in by_r else "new batch"} for k in missing
+        ]
         if missing:
             bins_status = "compared (bins on one side only: " + ", ".join(missing) + ")"
     ps = {r["name"]: r["p_value"] for r in rows if r["p_value"] is not None}
@@ -811,6 +842,7 @@ def calibration_drift(
         "deltas": rows,
         "bins": bins_status if bins_status != "bins_not_aligned" else "not available",
         "bins_status": bins_status,
+        "bins_not_comparable": not_comparable,
         "tolerances": {k: tol[k] for k in sorted(tol)},
         "holm_family": len(ps),
         "level": worst,
@@ -997,6 +1029,7 @@ class DriftConfig:
     features: Mapping[str, tuple[float, float]] = field(default_factory=dict)
     tolerances: Mapping[str, float] = field(default_factory=lambda: dict(TOLERANCES))
     binning: str | None = None
+    severity: Mapping[str, str] = field(default_factory=lambda: dict(SEVERITY))
 
     def levels(self, feature: str) -> tuple[float, float]:
         return self.features.get(feature, (self.psi_warn, self.psi_alarm))
@@ -1011,7 +1044,9 @@ def _pos(v: Any, name: str) -> float:
 def load_config(path: str | Path | Mapping[str, Any] | None) -> DriftConfig:
     """A drift config (YAML or JSON): `psi_warn`, `psi_alarm`, per-feature overrides under
     `features: {name: {psi_warn, psi_alarm}}`, and `calibration: {brier_tolerance,
-    ece_tolerance, bin_tolerance, binning}`. Unknown keys are refused."""
+    ece_tolerance, bin_tolerance, binning}`, and `severity: {psi, calibration, bins}`, each
+    `warn` or `fail` (default fail): an alarm in a check set to warn is reported but never
+    exits 1. Unknown keys are refused."""
     if path is None:
         return DriftConfig()
     if isinstance(path, Mapping):
@@ -1025,7 +1060,7 @@ def load_config(path: str | Path | Mapping[str, Any] | None) -> DriftConfig:
             raise DriftError(f"drift config {Path(path).name} is unreadable") from None
     if not isinstance(data, Mapping):
         raise DriftError("drift config: a mapping")
-    extra = set(data) - {"psi_warn", "psi_alarm", "features", "calibration"}
+    extra = set(data) - {"psi_warn", "psi_alarm", "features", "calibration", "severity"}
     if extra:
         raise DriftError(f"drift config: unknown key {sorted(extra)[0]!r}")
     warn = _pos(data.get("psi_warn", PSI_WARN), "psi_warn")
@@ -1058,7 +1093,18 @@ def load_config(path: str | Path | Mapping[str, Any] | None) -> DriftConfig:
     binning = cal.get("binning")
     if binning not in (None, "equal-width", "quantile", "unknown"):
         raise DriftError("drift config: calibration.binning is equal-width, quantile or unknown")
-    return DriftConfig(warn, alarm, feats, tol, binning)
+    sev = data.get("severity") or {}
+    if not isinstance(sev, Mapping):
+        raise DriftError("drift config: severity is a mapping of psi, calibration, bins")
+    if set(sev) - set(SEVERITY):
+        bad = sorted(set(sev) - set(SEVERITY))[0]
+        raise DriftError(f"drift config: unknown severity key {bad!r} (psi, calibration, bins)")
+    severity = dict(SEVERITY)
+    for key, value in sev.items():
+        if value not in ("warn", "fail"):
+            raise DriftError(f"drift config: severity.{key} is warn or fail")
+        severity[str(key)] = str(value)
+    return DriftConfig(warn, alarm, feats, tol, binning, severity)
 
 
 # ---- the check ----------------------------------------------------------------------------------
@@ -1066,7 +1112,8 @@ def load_config(path: str | Path | Mapping[str, Any] | None) -> DriftConfig:
 
 @dataclass
 class DriftReport:
-    """`drift-1`: aggregates only. Exit 1 on any alarm (PSI or calibration), else 0."""
+    """`drift-1`: aggregates only. Exit 1 on any alarm in a check whose severity is fail
+    (PSI, calibration's Brier and ECE, the reliability bins), else 0."""
 
     reference: dict[str, Any]
     new: dict[str, Any]
@@ -1080,11 +1127,18 @@ class DriftReport:
         cal = [d["status"] for d in (self.calibration or {}).get("deltas", [])]
         alarms = levels.count("alarm") + cal.count("alarm")
         warns = levels.count("warn") + cal.count("warn")
+        rows = [*self.features, *(self.calibration or {}).get("deltas", [])]
+        blocking = sum(
+            1
+            for r in rows
+            if (r.get("level") or r.get("status")) == "alarm" and r.get("severity") == "fail"
+        )
         return {
             "schema": DRIFT_SCHEMA,
             "exit_code": self.exit_code,
             "verdict": "alarm" if alarms else "warn" if warns else "ok",
             "alarms": alarms,
+            "blocking_alarms": blocking,
             "warns": warns,
             "reference": self.reference,
             "new": self.new,
@@ -1125,6 +1179,25 @@ def _feature_row(
     }
 
 
+def _align_bins(
+    prof: Mapping[str, Any], got: Mapping[str, Any]
+) -> tuple[dict[str, Any], list[float], dict[str, list[str]]]:
+    """A pre-binned feature's two sides on the union of their bins. An export may leave an
+    empty bin out instead of writing n = 0, so a bin present on one side only is a share of 0
+    on the other (PSI floors it at 1e-4): absence is never an error, and never drift by
+    itself. Returns the reference profile on the union, the new shares, and the bins found on
+    one side only."""
+    ref_sh = dict(zip(prof["bins"], prof["shares"], strict=True))
+    new_sh = dict(zip(got["bins"], got["shares"], strict=True))
+    keys = sorted(ref_sh.keys() | new_sh.keys(), key=lambda k: (not k.lstrip("-").isdigit(), _k(k)))
+    aligned = {**prof, "bins": keys, "shares": [ref_sh.get(k, 0.0) for k in keys]}
+    one_side = {
+        "reference_only": [k for k in keys if k not in new_sh],
+        "new_only": [k for k in keys if k not in ref_sh],
+    }
+    return aligned, [new_sh.get(k, 0.0) for k in keys], one_side
+
+
 def check(
     reference: str | Path | Mapping[str, Any],
     new: str | Path,
@@ -1152,11 +1225,12 @@ def check(
         for name, prof in sorted(ref["features"].items()):
             if name not in got:
                 raise DriftError(f"{p.name}: no feature_share rows for feature {name!r}")
-            if prof["kind"] != "binned" or got[name]["bins"] != prof["bins"]:
+            if prof["kind"] != "binned" or not set(got[name]["bins"]) & set(prof["bins"]):
                 raise DriftError(f"feature {name!r}: the bins differ from the reference's")
-            features.append(
-                _feature_row(name, prof, got[name]["shares"], got[name]["n"], None, cfg)
-            )
+            aligned_ref, shares, one_side = _align_bins(prof, got[name])
+            row = _feature_row(name, aligned_ref, shares, got[name]["n"], None, cfg)
+            row["bins_one_side"] = one_side
+            features.append(row)
         if ref_cal is not None:
             prefix = ref_cal.get("prefix") or _guess_prefix(summary)
             if prefix is None:
@@ -1199,8 +1273,13 @@ def check(
             "new": _cal_summary(new_cal),
             **drift,
         }
-    alarm = any(f["level"] == "alarm" for f in features) or (
-        cal_out is not None and any(d["status"] == "alarm" for d in cal_out["deltas"])
+    for f in features:
+        f["severity"] = cfg.severity["psi"]
+    for d in (cal_out or {}).get("deltas", []):
+        d["severity"] = cfg.severity["bins" if "bin" in d else "calibration"]
+    alarm = any(f["level"] == "alarm" and f["severity"] == "fail" for f in features) or any(
+        d["status"] == "alarm" and d["severity"] == "fail"
+        for d in (cal_out or {}).get("deltas", [])
     )
     return DriftReport(
         reference={
@@ -1214,6 +1293,7 @@ def check(
             "psi_alarm": cfg.psi_alarm,
             "psi_epsilon": PSI_EPSILON,
             "feature_levels": {k: list(v) for k, v in sorted(cfg.features.items())},
+            "severity": {k: cfg.severity[k] for k in sorted(cfg.severity)},
             "seed": seed,
             "resamples": resamples,
         },

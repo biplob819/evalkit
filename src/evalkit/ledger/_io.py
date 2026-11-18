@@ -188,10 +188,15 @@ def guard_ids(
     splits = [s for s in held if s in manifest["splits"]]
     if not splits:
         raise LedgerError("the manifest has none of the held-out splits (" + ", ".join(held) + ")")
-    text = canonical_json(entry)
+    # the line as written (ASCII: other characters escaped) and each of its strings as given,
+    # so fullwidth, zero-width and homoglyph spellings of an id are read as ids_in_text folds them
+    strings = list(H._strings(dict(entry)))
+    texts = [canonical_json(entry), *strings]
     found: set[str] = set()
     for split in splits:
-        found |= set(H.ids_in_text(text, manifest, split=split))
+        for t in texts:
+            found |= set(H.ids_in_text(t, manifest, split=split))
+    text = " ".join([texts[0], *(H._fold(s) for s in strings)])
     hashes = {
         str(e[key]).lower()
         for split in splits
@@ -211,11 +216,11 @@ def guard_ids(
     wholes, shingles = _case_text(manifest, splits, cases)
     quoted: set[str] = set()
     for s in H._strings(dict(entry)):
-        view = H._normalise(s)
-        padded = f" {view} "
-        quoted |= {mid for needle, mid in wholes if needle in padded}
-        for gram in H._grams(view.split(" "), H.EXPOSURE_WINDOW):
-            quoted |= shingles.get(gram, set())
+        for view in H.normalised_views(s):
+            padded = f" {view} "
+            quoted |= {mid for needle, mid in wholes if needle in padded}
+            for gram in H._grams(view.split(" "), H.EXPOSURE_WINDOW):
+                quoted |= shingles.get(gram, set())
     if quoted:
         raise LedgerError(
             f"refused: the entry quotes held-out case text (case(s) {', '.join(sorted(quoted))})"
@@ -276,6 +281,58 @@ def project_of(rows: Sequence[Mapping[str, Any]]) -> str | None:
     return None
 
 
+# which ledger each entry kind belongs in: a run ledger, an experiment ledger, a spend ledger
+LEDGER_OF_KIND = {
+    "run": "run",
+    "band_reset": "run",
+    "experiment_opened": "experiment",
+    "experiment_closed": "experiment",
+    "experiment_look": "experiment",
+    "spend": "spend",
+}
+_LEDGER_NAMES = {
+    "run": "a run ledger",
+    "experiment": "an experiment ledger",
+    "spend": "a spend ledger",
+    "heldout-log": "a B5.14 held-out log",
+}
+_NAME_WORDS = {
+    "run": {"run", "runs"},
+    "experiment": {"experiment", "experiments"},
+    "spend": {"spend"},
+}
+
+
+def ledger_kind(path: str | Path, first: Any) -> str | None:
+    """The kind a ledger declares: its first line's (a ledger-1 entry's kind; unchained legacy
+    lines, which only a spend ledger may start with; a chained line of another schema, a B5.14
+    log), or while it is empty its file name (one of the words run(s), experiment(s) or spend,
+    as the defaults runs.jsonl, experiments.jsonl and spend-ledger.jsonl). None: undeclared."""
+    if isinstance(first, Mapping):
+        if "prev" not in first:
+            return "spend"
+        if first.get("schema") == LEDGER_SCHEMA:
+            return LEDGER_OF_KIND.get(str(first.get("kind")))
+        return "heldout-log"
+    if first is not None:
+        return None
+    words = set(re.split(r"[^a-z]+", Path(path).stem.lower()))
+    named = [k for k, names in _NAME_WORDS.items() if words & names]
+    return named[0] if len(named) == 1 else None
+
+
+def refuse_kind(path: str | Path, first: Any, wanted: str | None) -> None:
+    """Refuse (exit 2) an entry for one kind of ledger written to a ledger of another kind."""
+    have = ledger_kind(path, first)
+    if wanted is None or have is None or have == wanted:
+        return
+    how = "its first line" if first is not None else "its file name"
+    raise LedgerError(
+        f"{Path(path).name} is {_LEDGER_NAMES[have]} ({how} says so); this line belongs in "
+        f"{_LEDGER_NAMES[wanted]}: name the right ledger"
+    )
+
+
 def append(
     path: str | Path,
     entry: dict[str, Any],
@@ -296,6 +353,7 @@ def append(
     try:
         with H._log_lock(p):
             rows = read_entries(p)
+            refuse_kind(p, rows[0] if rows else None, LEDGER_OF_KIND.get(str(entry.get("kind"))))
             if rows and not all("prev" in r for r in rows):
                 raise LedgerError(
                     f"{p.name} has unchained lines: only a spend ledger may start with them"
@@ -333,13 +391,28 @@ def _parsed(lines: Sequence[str]) -> list[Any]:
     return out
 
 
-# Legacy prefixes EvalKit has sealed, recorded in code where cutting a ledger cannot remove them:
-# a file holding one of these prefixes with no chained line after it had its whole chained part
-# cut away (the seal included), so it is a broken chain, never a legacy file awaiting its seal.
+# Legacy prefixes EvalKit has sealed, recorded in code where cutting a ledger cannot remove them.
+# A seal is valid only when it records exactly one of these prefixes (line count and sha256), so
+# a shorter or edited legacy history cannot be sealed again. A file holding one of these
+# prefixes with no chained line after it had its whole chained part cut away (the seal
+# included); a file holding some of its lines (`line_sha256`: the first 16 hex characters of
+# each line's sha256) but not the whole prefix had legacy lines cut or edited. Both are broken
+# chains, never legacy files awaiting a seal.
 # EvalKit's own docs/measurements/spend-ledger.jsonl: 22 legacy lines, sealed 2026-11-17.
 KNOWN_SEALS: tuple[dict[str, Any], ...] = (
-    {"lines": 22, "sha256": "77b7976283a07efc6beb24592ab1485cc9dfef0d6e23dc45fbe501f883333e21"},
-)
+    {
+        "lines": 22,
+        "sha256": "77b7976283a07efc6beb24592ab1485cc9dfef0d6e23dc45fbe501f883333e21",
+        "line_sha256": (
+            "0f743a26026bcdf1", "151845f4e52f52a7", "3ce75bb6c846265f", "24b0966a833ab4a4",
+            "bec85da101666f07", "249ca8c4d7396267", "1aba36a4adb61c0f", "32b3f0b92f3316e7",
+            "42272b185a439868", "07b15bf53f321884", "9946963ce4aea3d7", "7071fdfa7bfc21a5",
+            "b39453891a41edfa", "e4ce7080f3a497b2", "0f523b4134df2473", "c5d636103c223ebf",
+            "32260d5d5a665669", "d8d6e32c1c11fc81", "22be5339d4b2a50a", "a5f064fdadf6014a",
+            "f863d4957bf4b149", "33a6ddb4ac8d3389",
+        ),
+    },
+)  # fmt: skip
 
 
 def legacy_seal(prefix: Sequence[str]) -> dict[str, Any]:
@@ -347,6 +420,33 @@ def legacy_seal(prefix: Sequence[str]) -> dict[str, Any]:
     the sha256 of their exact text (each line and its newline), so editing any of them, not only
     the last, breaks the seal."""
     return {"lines": len(prefix), "sha256": sha256_text("".join(x + "\n" for x in prefix))}
+
+
+def known_seal(seal: Any) -> bool:
+    """Whether `seal` ({lines, sha256}) is exactly a prefix EvalKit recorded in KNOWN_SEALS."""
+    return isinstance(seal, Mapping) and any(
+        seal.get("lines") == k["lines"] and seal.get("sha256") == k["sha256"] and len(seal) == 2
+        for k in KNOWN_SEALS
+    )
+
+
+def _known_lines(lines: Sequence[str]) -> list[int]:
+    """1-based numbers of the lines that are legacy lines of a prefix in KNOWN_SEALS."""
+    known = {h for k in KNOWN_SEALS for h in k.get("line_sha256", ())}
+    return [n for n, x in enumerate(lines, start=1) if sha256_text(x)[:16] in known]
+
+
+def _partial_prefix(lines: Sequence[str], whole: bool) -> list[str]:
+    """A problem when unchained lines include legacy lines of a recorded prefix but are not
+    that whole prefix (`whole` False): legacy lines were cut, edited or reordered."""
+    hits = _known_lines(lines)
+    if not hits or whole:
+        return []
+    return [
+        f"{len(hits)} unchained line(s) (first: line {hits[0]}) are legacy lines of a prefix "
+        "EvalKit has sealed (KNOWN_SEALS) but not that whole prefix: legacy lines were cut or "
+        "edited"
+    ]
 
 
 def chain_state(path: str | Path) -> tuple[list[str], str, int]:
@@ -371,13 +471,16 @@ def chain_state(path: str | Path) -> tuple[list[str], str, int]:
         for n, r in enumerate(rows, start=1):
             if isinstance(r, dict) and r.get("schema") == LEDGER_SCHEMA:
                 problems.append(f"line {n} is a {LEDGER_SCHEMA} entry without prev")
+        whole = False
         for seal in KNOWN_SEALS:
             k = int(seal["lines"])
-            if k <= len(lines) and legacy_seal(lines[:k]) == seal:
+            if k <= len(lines) and known_seal(legacy_seal(lines[:k])):
+                whole = True
                 problems.append(
                     f"lines 1-{k} are a legacy prefix EvalKit has already sealed, but no chained "
                     "line follows: the chained part (its seal included) was cut away"
                 )
+        problems += _partial_prefix(lines, whole)
         return problems, "unchained", len(lines)
     prefix = lines[:first]
     for n, r in enumerate(rows[:first], start=1):
@@ -390,6 +493,13 @@ def chain_state(path: str | Path) -> tuple[list[str], str, int]:
             f"line {first + 1} does not seal the {len(prefix)} unchained line(s) before it "
             "(a legacy line was edited, added or dropped)"
         )
+    elif prefix and not known_seal(legacy_seal(prefix)):
+        problems.append(
+            f"line {first + 1} seals {len(prefix)} legacy line(s) that are not a prefix EvalKit "
+            "recorded (KNOWN_SEALS): a legacy history is sealed once, exactly as recorded"
+        )
+    if prefix:
+        problems += _partial_prefix(prefix, known_seal(legacy_seal(prefix)))
     for n in range(first, len(lines)):
         r = rows[n]
         if isinstance(r, dict) and "prev" not in r:
@@ -406,9 +516,10 @@ def append_spend_line(
     *,
     check: Callable[[list[dict[str, Any]], dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Append a chained line to a spend ledger, under B5.14's lock, in one write. The first
-    chained line after legacy lines names the last one's sha256 as `prev` and records their
-    seal; a broken chain or seal is refused."""
+    """Append a chained line to a spend ledger, under B5.14's lock, in one write. A broken chain
+    or seal is refused, and so is a file of unchained lines only: sealing legacy lines is done
+    once, for a prefix recorded in KNOWN_SEALS (EvalKit's 22, sealed 2026-11-17), so a cut or
+    another project's legacy file is never sealed here."""
     if "prev" in entry or "sealed" in entry:
         raise LedgerError("an entry may not set prev or sealed: the ledger sets them")
     p = Path(path)
@@ -419,12 +530,18 @@ def append_spend_line(
             if problems:
                 raise LedgerError(f"{p.name}: the chain is broken ({problems[0]}): restore it")
             lines = H._lines(p) if p.is_file() else []
-            rows = [r for r in _parsed(lines) if isinstance(r, dict)]
+            parsed = _parsed(lines)
+            refuse_kind(p, parsed[0] if parsed else None, "spend")
+            if state == "unchained" and lines:
+                raise LedgerError(
+                    f"{p.name}: its {n_legacy} unchained line(s) are not a legacy prefix EvalKit "
+                    "recorded (KNOWN_SEALS), and spend add never seals an unrecorded prefix: "
+                    "keep reading it with spend check, and write new spend to a chained ledger"
+                )
+            rows = [r for r in parsed if isinstance(r, dict)]
             if check is not None:
                 check(rows, entry)
             body = dict(entry)
-            if state == "unchained" and lines:
-                body["sealed"] = legacy_seal(lines[:n_legacy])
             prev = sha256_text(lines[-1]) if lines else H.GENESIS
             text = canonical_json({**body, "prev": prev})
             raw = p.read_bytes() if p.is_file() else b""
