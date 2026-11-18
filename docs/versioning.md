@@ -275,4 +275,13 @@ Each registered project's exact list for 0.4, with its 0.4.0 requirement line, i
   version and the run date; a project whose summary cannot be read shown as missing with the
   reason; per model the efficiency block beside quality, ordered by cost per correct; the
   portfolio's `story` keys. Exit codes 0/1/2. Every name in the module's `__all__` is public.
-  See [index.md](index.md).
+  See [index.md](index.md). Its config also takes `pointer` (a file naming the current results
+  folder), `own_format` with path selectors (`$.field`, `[?field == value && ...]`, `per`
+  fan-out) for a project's own summary format, `comparison`, and per selector `direction`,
+  `decimals` and a `companion` row.
+- `evalkit.drift.to_metrics` carries `simulated` from the new batch's metrics-1 file, else the
+  reference's source file (never stated when neither states it).
+- `evalkit.metrics.from_run_summary`: the model-level `error_rate` row of a summary written
+  before 0.3 is labelled `{model}` only. It was labelled `mode: live`, which the summary never
+  records. A gate on `error_rate {model: X, mode: live}` over such a summary names `{model: X}`
+  now; rows from an efficiency block keep the mode the block records.

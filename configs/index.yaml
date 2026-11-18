@@ -1,7 +1,10 @@
 # The cross-project eval index (B5.5, docs/index.md): what each project's row shows.
-# The index never picks a headline: a project without `headline` shows "not designated".
-# Selectors name a metric row exactly (every label; "*" matches any value). Paths are in each
-# project's own repository and are fetched by `evalkit index snapshot` at one commit.
+# The index never picks a headline: a project without `headline` shows "not designated", and so
+# does a model's quality cell without `quality`. Every headline below is the one the project's
+# own session confirmed on 2026-11-18 (file, selector and label as it sent them).
+# Selectors name a metric row exactly (every label; "*" matches any value), or, for a project's
+# own summary format (`own_format`), a path (docs/index.md, "The path selector"). Paths are in
+# each project's own repository and are fetched by `evalkit index snapshot` at one commit.
 schema_version: index-config-1
 heldout_splits: [heldout]
 projects:
@@ -14,41 +17,86 @@ projects:
     quality: {metric: accuracy}
     lessons: docs/lessons.md
   course-assistant:
-    headline:
-      metric: headline
-      labels: {model: course-ta, judge: claude-opus-5-5}
-      label: Correct and fully grounded
-    quality: {metric: accuracy}
+    # no channel to its session yet: headline and quality not designated
     lessons: docs/lessons.md
   gemma-grounded-health:
+    # confirmed: the fine-tuned v1 model by the cross-family judge (a v2 selector follows later);
+    # quality per model not confirmed: not designated
     headline:
       metric: headline
       labels: {model: gemma-e2b-grounded-q4, judge: claude-opus-5-5}
-      label: Correct and fully grounded (grounded Gemma)
-    quality: {metric: accuracy}
+      label: Correct and fully grounded (fine-tuned v1)
     lessons: docs/lessons.md
   assay-pipeline:
-    # not in the registry's summary column (its canary reads no summary); the published run
-    summary: docs/results/main-2026-11-18/metrics.json
+    # the published run changes with each release: docs/results/LATEST names the current bundle
+    # and metrics.json sits beside it. Quality: the model its owner named (confirmed later on
+    # 2026-11-18); the other model's quality cell is not designated.
+    pointer: {path: docs/results/LATEST, file: metrics.json}
     headline:
       metric: scripted_attacker_stopped
       label: Attacks stopped with no model in the loop
-    quality: {metric: normal_answer_correct_rate, labels: {split: public}}
+    quality:
+      metric: normal_answer_correct_rate
+      labels: {model: claude-sonnet-5-5, split: public}
+      caption: strict query match; the answers state the gold value 100% of the time
     calibration: {metric: judge_hand_label_agreement, labels: {judge: claude-opus-5-5}}
     efficiency_labels: {mode: live}
     gates: gates.yaml
     lessons: docs/lessons.md
     kinds: {attack_successes: guardrail, attack_trial_success_rate: guardrail}
   respectful-offers:
+    # the two-arm row its release gate tests (paired block bootstrap, Holm); simulated outcomes
     headline:
-      metric: incremental_retained_per_1000
-      labels: {policy: bandit, variant: central}
-      label: Incremental members kept per 1,000 (bandit, central)
+      metric: diff.incremental_retained_per_1000_ntd
+      labels: {a: bandit, b: rule_following_baseline, variant: central}
+      label: Extra members kept per 1,000 NTD, bandit vs rule-following baseline (central, simulated)
+      decimals: 3
     gates: configs/gates.yaml
     lessons: docs/lessons.md
   agentic-analytics:
+    # its own summary.json (not metrics-1): tolerant headline accuracy per backend (its OWNER
+    # D-81) on the rows with no fixes, the strict pre-registered score beside it
+    summary: docs/results/summary.json
+    own_format: {run_id: $.run_id, run_at: $.finished_at}
+    headline:
+      path: "$.backends[?fixes == []].accuracy"
+      per: backend
+      unit: rate
+      ci_method: two-level bootstrap
+      label: agentic-analytics — text-to-SQL accuracy (headline, strict beside)
+      companion:
+        path: "$.backends[?fixes == []].accuracy_strict"
+        per: backend
+        unit: rate
+        ci_method: two-level bootstrap
+        label: strict
     lessons: docs/lessons.md
   ai-visibility:
+    # its own study summary: the presence share of nhs.uk for GPT-6.1 Sol, run 1, all intents
+    # (its own threshold selector share:presence:nhs.uk:gpt-6.1-sol:run-1:all)
+    summary: studies/uk-health/results/summary.json
+    own_format: {run_at: $.generated_at}
+    headline:
+      path: '$.share[?kind == "presence" && publisher == "nhs.uk" && model == "gpt-6.1-sol" && run == 1 && intent == null].share'
+      unit: rate
+      label: Answers citing nhs.uk, GPT-6.1 Sol (run 1)
+    comparison:
+      path: '$.share[?kind == "presence" && publisher == "nhs.uk" && model == "claude-sonnet-5-5" && run == 1 && intent == null].share'
+      unit: rate
+      label: same selector, model claude-sonnet-5-5
     lessons: docs/lessons.md
   fraud-review-bedrock:
+    # its second, fresh eval (500 alerts); the first eval stays a failed run in its
+    # docs/measurements/eval-runs.jsonl and is not the headline. Lower is better (its D-10).
+    summary: docs/measurements/summary-eval2.json
+    own_format:
+      run_id: $.run_id
+      run_at: $.finished_at
+      simulated: {path: $.data_label, equals: simulated}
+    headline:
+      path: $.leakage
+      unit: rate
+      direction: lower
+      ci_method: exact 95% upper bound
+      label: Fraud leakage (frauds auto-cleared, lower is better)
     lessons: docs/lessons.md

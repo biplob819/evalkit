@@ -935,3 +935,34 @@ def test_per_check_severity_warn_reports_the_alarm_but_never_exits_1(tmp_path, c
     assert cli.main([*argv, "--config", str(cfg)]) == 0
     assert json.loads(capsys.readouterr().out)["verdict"] == "alarm"
     assert cli.main(argv) == 1
+
+
+def test_emitted_metrics_carry_the_simulated_flag_and_never_invent_one(tmp_path):
+    """contract (respectful-offers, simulated: true): `to_metrics` carries the new batch's
+    `simulated` flag when it is a metrics-1 file, else the reference source's; when neither
+    file states it, the emitted document does not state it."""
+
+    def files(ref_flag: bool | None, new_flag: bool | None, where: Path) -> tuple[Path, Path]:
+        ref_path, new_path = _ro_files(where)
+        for path, flag in ((ref_path, ref_flag), (new_path, new_flag)):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.pop("simulated")
+            if flag is not None:
+                data["simulated"] = flag
+            path.write_text(json.dumps(data), encoding="utf-8")
+        return ref_path, new_path
+
+    cases = [
+        (True, True, True),
+        (False, True, True),  # the new batch's own flag wins
+        (True, None, True),  # the batch states none: the reference's
+        (None, False, False),
+        (None, None, None),  # neither states it: never invented
+    ]
+    for i, (ref_flag, new_flag, want) in enumerate(cases):
+        ref_path, new_path = files(ref_flag, new_flag, tmp_path / str(i))
+        ref = D.freeze_reference(ref_path, calibration_prefix="churn")
+        report = D.check(ref, new_path, config=_ALIGNED, resamples=200)
+        doc = D.to_metrics(report, project="respectful-offers", run_id="mar")
+        assert doc.get("simulated") == want and ("simulated" in doc) == (want is not None), i
+        assert parse_metrics(json.dumps(doc)).simulated is bool(want)

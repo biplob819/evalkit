@@ -897,6 +897,17 @@ def _is_metrics_file(path: Path) -> bool:
     return isinstance(data, dict) and data.get("schema_version") == "metrics-1"
 
 
+def _simulated_flag(path: Path) -> bool | None:
+    """A metrics-1 file's own `simulated` flag, or None when the file does not state one (the
+    model's default is never read as a statement)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return None
+    flag = data.get("simulated") if isinstance(data, dict) else None
+    return flag if isinstance(flag, bool) else None
+
+
 def _load_summary(path: Path) -> Any:
     from evalkit.metrics import MetricsError, load_metrics
 
@@ -941,6 +952,8 @@ def freeze_reference(
     if _is_metrics_file(p):
         summary = _load_summary(p)
         body["source_kind"] = "metrics"
+        if (flag := _simulated_flag(p)) is not None:
+            body["simulated"] = flag  # stated by the file; carried into emitted metrics
         feats = _shares_from_metrics(summary, p.name)
         missing = [f for f in named if f not in feats]
         if missing:
@@ -1221,6 +1234,8 @@ def check(
     if _is_metrics_file(p):
         summary = _load_summary(p)
         new_meta["kind"] = "metrics"
+        if (flag := _simulated_flag(p)) is not None:
+            new_meta["simulated"] = flag
         got = _shares_from_metrics(summary, p.name)
         for name, prof in sorted(ref["features"].items()):
             if name not in got:
@@ -1281,12 +1296,15 @@ def check(
         d["status"] == "alarm" and d["severity"] == "fail"
         for d in (cal_out or {}).get("deltas", [])
     )
+    ref_meta = {
+        "profile_sha256": ref["profile_sha256"],
+        "source_sha256": ref["source_sha256"],
+        "created_at": ref["created_at"],
+    }
+    if isinstance(ref.get("simulated"), bool):
+        ref_meta["simulated"] = ref["simulated"]
     return DriftReport(
-        reference={
-            "profile_sha256": ref["profile_sha256"],
-            "source_sha256": ref["source_sha256"],
-            "created_at": ref["created_at"],
-        },
+        reference=ref_meta,
         new=new_meta,
         settings={
             "psi_warn": cfg.psi_warn,
@@ -1323,7 +1341,9 @@ def to_metrics(
     created_at: str | None = None,
 ) -> dict[str, Any]:
     """The check's figures as a metrics-1 document, so they can be gated and added to the run
-    history: `<prefix>.psi` per feature, and the new batch's Brier and ECE with their deltas."""
+    history: `<prefix>.psi` per feature, and the new batch's Brier and ECE with their deltas.
+    `simulated` is carried from the new batch's metrics-1 file, else from the reference's
+    source file; when neither states it, the document does not state it either."""
     from evalkit.metrics import MetricsError, validate_metrics
 
     rows: list[dict[str, Any]] = []
@@ -1364,6 +1384,10 @@ def to_metrics(
         "created_at": _stamp(created_at),
         "metrics": rows,
     }
+    for side in (report.new, report.reference):
+        if isinstance(side.get("simulated"), bool):
+            doc["simulated"] = side["simulated"]
+            break
     try:
         validate_metrics(doc)
     except MetricsError as exc:

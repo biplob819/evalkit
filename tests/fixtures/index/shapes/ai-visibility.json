@@ -1,0 +1,234 @@
+{
+  "citations": [],
+  "comparisons": [],
+  "config_hash": "fixture",
+  "generated_at": "2026-11-16T20:00:00Z",
+  "schema_version": "1.0",
+  "share": [
+    {
+      "intent": null,
+      "kind": "presence",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": null,
+      "kind": "consulted",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "presence",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "consulted",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": null,
+      "kind": "presence",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": null,
+      "kind": "consulted",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "presence",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "consulted",
+      "model": "claude-sonnet-5-5",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.2,
+        "k": 12,
+        "lo": 0.05,
+        "n": 100,
+        "point": 0.12
+      }
+    },
+    {
+      "intent": null,
+      "kind": "presence",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": null,
+      "kind": "consulted",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "presence",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "consulted",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 1,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": null,
+      "kind": "presence",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": null,
+      "kind": "consulted",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "presence",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    },
+    {
+      "intent": "fitness",
+      "kind": "consulted",
+      "model": "gpt-6.1-sol",
+      "publisher": "nhs.uk",
+      "run": 2,
+      "share": {
+        "hi": 0.78,
+        "k": 70,
+        "lo": 0.63,
+        "n": 100,
+        "point": 0.7
+      }
+    }
+  ],
+  "spend_usd": 1.0
+}
