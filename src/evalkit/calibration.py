@@ -27,7 +27,7 @@ class CalibrationPair:
 
 @dataclass(frozen=True)
 class _Pair:
-    """The 0.2 shape (was `evalkit.pipeline.calibrate._Pair`), kept until 0.4.0: its `answer`
+    """The 0.2 shape (was `evalkit.pipeline.calibrate._Pair`), kept until 0.5.0: its `answer`
     is its cluster. Use `CalibrationPair`."""
 
     answer: str

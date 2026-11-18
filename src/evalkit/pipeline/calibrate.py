@@ -509,11 +509,13 @@ _MOVED = {  # old name -> its public replacement (the same object, except `_Pair
 
 
 def __getattr__(name: str) -> Any:  # Any: typed callers of the old path keep type-checking
-    """The old paths work until 0.4.0, with a DeprecationWarning naming the new one."""
+    """The old paths work, with a DeprecationWarning naming the new one, until 0.5.0. They were
+    due to go in 0.4.0; two registered projects still import them (2026-11-18 canary), so 0.4.0
+    keeps them for one more minor release (B5.10)."""
     if name not in _MOVED:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     warnings.warn(
-        f"{__name__}.{name} is deprecated and will be removed in 0.4.0; use {_MOVED[name]}",
+        f"{__name__}.{name} is deprecated and will be removed in 0.5.0; use {_MOVED[name]}",
         DeprecationWarning,
         stacklevel=2,
     )

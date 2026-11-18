@@ -75,7 +75,7 @@ scorers: [label_correct, citation_valid, groundedness, coverage, cost, latency, 
 - Task scorers are local functions. A scorer that needs a model call (a judge) is not
   supported inside a run yet.
 
-### Agent and decision scorers (0.3.0)
+### Agent and decision scorers (0.3.0; value_check 0.4.0)
 
 Four checks for agents that compute answers or make policy-bound decisions. Each has a plain
 function and a task scorer; none calls a model.
@@ -251,7 +251,7 @@ still unbound (closed world, below), and a negation or hedge anywhere still void
 
 <!-- value_check grammar examples: tests/scorers/test_value_check.py runs this block -->
 ```python
-from evalkit.scorers.evidence import value_check  # internal until 0.4.0
+from evalkit.scorers import value_check  # public since 0.4.0
 
 record = {"amount": 812.4, "amount_usd": 1300.0, "hour": 3, "prev_hour": 14,
           "risk_score": 0.83, "flag": True}
@@ -300,31 +300,15 @@ for want, reasons in (("verified", verified), ("unverifiable", unverifiable),
 ```
 
 
-`value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and
-`ValueCheckShares` are **not part of the 0.3.0 public API** (OWNER D-74). They failed seven
-independent verification passes: when the checker could not tell which field a number was
-about, it could match the number against any field close in value, so some false claims came
-back `verified`. Node B5.16 redesigns it for 0.4.0 under one rule: `verified` only when a
-whole field name or alias is bound to its number by a recognised pattern; every other reading
-is `unverifiable`. `from evalkit.scorers import value_check` fails in 0.3.0. The code stays in
-the internal module `evalkit.scorers.evidence`, which may change in any release; do not gate
-on it. Until 0.4.0, judge reasons against the record with `render_evidence` and
-`faithfulness()` (above), or keep your own checker (fraud-review-bedrock does). The text below
-describes the 0.3 development behaviour that B5.16 replaces.
+**Public since 0.4.0.** `value_check`, `value_check_scorer`, `value_check_shares`,
+`ValuePhrase` and `ValueCheckShares` are exported from `evalkit.scorers` (B5.16, D-77). 0.3.0
+withheld them (OWNER D-74): its checker failed seven independent verification passes, because
+when it could not tell which field a number was about it could match the number against any
+field close in value, so some false claims came back `verified`. The 0.4.0 check is the strict
+redesign described here: `verified` only when every number is bound by a framed "field is
+value" statement; every other reading is `unverifiable`.
 
-`value_check(reason, record, *, phrases=(), tolerance=0.1, aliases=None, constants=(),
-ignore=())` checks the reason's numbers against the record's fields, and each
-`ValuePhrase(pattern, field=...)` or `ValuePhrase(pattern, holds="hour < 5")` you declare
-("9x usual spend", "at night"). A comparison word before a number ("above 900", "at least
-3") is checked as that comparison; a minus sign must match a negative value; a phrase over
-a field the record lacks is unchecked with `missing_value:<field>`.
-`value_check_scorer(phrases=..., name=..., aliases=..., constants=..., ignore=...)` checks
-each string in a JSON answer's `reasons` list; each check keeps its own `reason`
-(`missing_value:...`, `type_error:...`, `no_field`, `ambiguous_negation`) and carries
-`reason_index`, the position of its reason in the list. Each reason is verified,
-contradicted or unverifiable; see [Three outcomes](#value_check-three-outcomes-d-72-development-not-public).
-
-#### value_check: three outcomes (D-72, development, not public)
+#### value_check: three outcomes (D-72)
 
 Every reason gets one outcome, in `details["outcome"]`:
 
@@ -469,7 +453,7 @@ interval, or null with no reasons. Cite them as counts and shares, for example "
 reasons, 4 verified (0.04%), 0 contradicted, 10,221 unverifiable (99.96%)".
 
 ```python
-from evalkit.scorers.evidence import value_check, value_check_shares  # internal until 0.4.0
+from evalkit.scorers import value_check, value_check_shares  # public since 0.4.0
 
 results = [value_check(r, record, aliases=ALIASES, units=UNITS) for r in reasons]
 shares = value_check_shares(results)

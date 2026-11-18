@@ -27,7 +27,7 @@ def _checkout(tmp_path: Path) -> Path:
         from evalkit.adapters.base import SystemAdapter
         from evalkit.cost import price_for, UnknownPrice
         from evalkit.stats import _quantile
-        import evalkit.runtime
+        import evalkit.onboarding
         import os
         """,
     )
@@ -61,7 +61,7 @@ def test_every_import_is_listed_and_classed(tmp_path):
     assert uses[("evalkit.cost", "price_for")].files == 2
     assert uses[("evalkit.cost", "UnknownPrice")].files == 1
     assert uses[("evalkit.stats", "_quantile")].kind == "private"
-    assert uses[("evalkit.runtime", "*")].kind == "internal"
+    assert uses[("evalkit.onboarding", "*")].kind == "internal"  # runtime: public in 0.4
     assert ("os", "*") not in uses
     assert uses[("evalkit", "scorers")].kind == "public", "a public module imported whole"
 
@@ -103,7 +103,7 @@ def test_text_output_groups_by_class(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "internal" in out and "evalkit.cost.price_for" in out
     assert "evalkit.adapters.base.SystemAdapter -> evalkit.adapters" in out
-    assert "import evalkit.runtime" in out
+    assert "import evalkit.onboarding" in out
 
 
 def test_missing_checkout_exits_2(tmp_path, capsys):

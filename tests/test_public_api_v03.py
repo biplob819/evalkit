@@ -58,6 +58,20 @@ COMPANIONS = {
     # already used, made public so clustered rates share it; a new capability, not a promotion
     "evalkit.stats.two_level_interval",
 }
+# B5.10 (0.4.0): names this node's 2026-11-17 canary had one user for, promoted in 0.4.0 because
+# a second project imports them in the 2026-11-18 record (D-61 rule 2) or they are part of such
+# a name's contract; tests/test_v04_release.py checks them against that record. Recorded path
+# -> public home.
+PROMOTED_IN_0_4 = {
+    "evalkit.cost.TokenAssumptions": "evalkit.cost.TokenAssumptions",
+    "evalkit.cost.CostEstimate": "evalkit.cost.CostEstimate",
+    "evalkit.cost.CostLine": "evalkit.cost.CostLine",
+    "evalkit.stats.interval_from": "evalkit.stats.interval_from",
+    "evalkit.pipeline.generate.provider_for": "evalkit.providers.provider_for",
+    "evalkit.pipeline.judge.JUDGE_RUBRIC": "evalkit.identity.JUDGE_RUBRIC",
+    "evalkit.runtime.Executor": "evalkit.runtime.Executor",
+    "evalkit.runtime.Store": "evalkit.runtime.Store",
+}
 
 
 def _recorded() -> dict[str, set[str]]:
@@ -163,10 +177,13 @@ def test_no_single_project_name_entered_the_public_api():
     name that is part of a promoted name's contract (spec, "Rule applied" 2)."""
     shared = {t for t, p in _recorded().items() if len(p) >= 2}
     homes = {api.PROMOTED.get(t, t) for t in shared}
+    later = set(PROMOTED_IN_0_4.values())  # a second user since (B5.10)
     for module in V03_MODULES:
         for name in api.PUBLIC[module]:
             dotted = f"{module}.{name}"
-            assert dotted in homes or dotted in COMPANIONS, f"{dotted} has one user"
+            assert dotted in homes or dotted in COMPANIONS or dotted in later, (
+                f"{dotted} has one user"
+            )
 
 
 # ---- PUB-02: old paths keep working ----------------------------------------------------------
@@ -182,7 +199,8 @@ def test_moved_calibration_paths_warn_and_return_the_new_objects():
         mod = importlib.import_module(module)
         with pytest.warns(DeprecationWarning, match=re.escape(new)) as caught:
             obj = getattr(mod, name)
-        assert "removed in 0.4.0" in str(caught[0].message)
+        # due in 0.4.0; kept one more minor release (B5.10: two projects still import them)
+        assert "removed in 0.5.0" in str(caught[0].message)
         expected = calibration._Pair if name == "_Pair" else _resolve(new)
         assert obj is expected, old
     with pytest.warns(DeprecationWarning, match="evalkit.calibration.kappa_from"):
@@ -252,7 +270,8 @@ def test_reclassified_canary_leftovers_equal_the_spec_list():
     left = {t for t in recorded if di.classify(*_key(t))[0] in ("internal", "private")}
     spec = _spec_leftovers()
     assert len(spec) == len(set(spec)), "duplicate rows in the spec's leftover table"
-    assert left == set(spec)
+    assert set(PROMOTED_IN_0_4) <= set(spec)  # 0.3.0's leftovers that 0.4.0 promoted
+    assert left == set(spec) - set(PROMOTED_IN_0_4)
     assert all(len(recorded[t]) == 1 for t in left), "a leftover has two users: promote it"
 
 
@@ -289,9 +308,11 @@ def test_recorded_canary_counts_after_promotion():
         counts[project] = {
             k: kinds.count(k) for k in ("public", "public-elsewhere", "internal", "private")
         }
+    # classified against today's contract: 0.4.0 promoted interval_from (agentic-analytics)
+    # and seven of ai-visibility's names (PROMOTED_IN_0_4)
     assert counts == {
-        "agentic-analytics": {"public": 9, "public-elsewhere": 0, "internal": 4, "private": 0},
-        "ai-visibility": {"public": 8, "public-elsewhere": 3, "internal": 10, "private": 0},
+        "agentic-analytics": {"public": 10, "public-elsewhere": 0, "internal": 3, "private": 0},
+        "ai-visibility": {"public": 13, "public-elsewhere": 5, "internal": 3, "private": 0},
         "assay-pipeline": {"public": 0, "public-elsewhere": 0, "internal": 0, "private": 0},
         "course-assistant": {"public": 10, "public-elsewhere": 14, "internal": 26, "private": 2},
         "fraud-review-bedrock": {"public": 2, "public-elsewhere": 0, "internal": 0, "private": 0},

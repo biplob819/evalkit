@@ -2,6 +2,84 @@
 
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
+## 0.4.0
+
+- [RELEASE] [B5.10] — v0.4.0 release candidate: version 0.4.0 in `pyproject.toml`,
+  `evalkit.__version__` and `uv.lock`; `value_check` and its companions public again (the D-74
+  `WITHHELD` guard emptied, its check kept for the next withheld name); D-61 rule 2 applied to
+  the 2026-11-18 canary record and the owner's local checkouts; "0.3 → 0.4" part per project in
+  [docs/downstream.md](docs/downstream.md); [docs/versioning.md](docs/versioning.md) "0.4.0
+  additions" and "0.3 → 0.4 migration". Not yet tagged or published (V04-02 is the owner's
+  step); the release-candidate canary is recorded separately. Spend: $0.
+
+**Public additions** (each module's `__all__` is exactly its contract, `tests/test_public_api.py`)
+- [FEAT] [B5.16] — `evalkit.scorers`: `value_check`, `value_check_scorer`, `value_check_shares`,
+  `ValuePhrase`, `ValueCheckShares`, as the D-77 structured-facts check: a reason is `verified`
+  only when every number in it is bound by a framed "field is value" statement (a facts line
+  such as "Facts: Amount is 812.40. Hour is 3.", last in the reason or after a facts header);
+  any other number, prose included, makes it `unverifiable`, and a negation or hedge voids it.
+  0 genuine false claims verified across seven generators and fraud-review-bedrock's mutation
+  test; documented facts lines verify 100%; 4 of fraud-review-bedrock's 10,225 prose reasons
+  verify. Withheld from 0.3.0 (OWNER D-74).
+- [FEAT] [B5.7] — `evalkit.ledger` and `evalkit.drift`: hash-chained run, experiment and spend
+  ledgers through the B5.14 writer; alarm bands per metric from each project's own history
+  (at least 5 comparable runs), the efficiency spread table and trend page; experiments with a
+  freeze guard that reserves one held-out look per frozen candidate; a spend cap alarm
+  (EvalKit's 22 legacy spend lines sealed by the first chained line, D-73); PSI by
+  fraud-review-bedrock's rule (warn 0.1, alarm 0.25) and Brier/ECE/reliability-bin drift with
+  95% intervals at the D-73 tolerances, a `severity` per check and bins left out of an export
+  read as empty. Commands `evalkit history add|check|show|reset|verify`,
+  `evalkit experiment open|close|look|show`, `evalkit drift reference|check`,
+  `evalkit spend add|check` and `evalkit report --history`.
+- [FEAT] [B5.14, B5.8, B5.9, B5.11, B5.15] — Shipped formally, no longer provisional (they
+  were in the 0.3.0 wheel marked provisional): `evalkit.heldout`, `evalkit.paraphrase` and
+  `evalkit report --paraphrase`, `evalkit.integrity` and `evalkit calibrate --criterion`,
+  `evalkit.security`, and the opt-in `sql_match` `question=` / `equivalences=`.
+- [FEAT] [N1.2, S2.4] — Claims per item behind every judge estimate (fraud-review-bedrock,
+  D-61 rule 3, D-76): `evalkit.cost.ClaimsAssumption`, `claims_from_texts`, `measured_claims`;
+  `evalkit.scorers.faithfulness.estimate_faithfulness_cost`; `evalkit run --claims-per-answer N`.
+- [FEAT] [B5.13] — Clustered intervals (agentic-analytics OWNER D-100):
+  `evalkit.stats.two_level_interval`; `clarification_rates(..., cluster=, seed=, n_resamples=)`
+  and `ClarificationRates.ci_method`; `evalkit.security.summarise(..., cluster_trials=True)`.
+  Every default is byte-identical.
+- [FEAT] [B5.10] — Names a second project now imports (D-61 rule 2), and the names in their
+  contract: `evalkit.cost.TokenAssumptions`, `CostEstimate`, `CostLine`;
+  `evalkit.stats.interval_from`; `evalkit.identity.JUDGE_RUBRIC`; `evalkit.runtime.Executor`,
+  `Store`, `BudgetExceeded`; new module `evalkit.providers` (`provider_for`). Old paths keep
+  working silently.
+- [FIX] [A2.4, A2.5] — `evalkit.schemas.Record.judge_errors` and
+  `ModelSummary.missing_verdicts` (D-78), both omitted when empty.
+
+**Behaviour changes** (nothing that worked in 0.3 by a named import breaks; see the
+[0.3 → 0.4 migration](docs/versioning.md#03--04-migration))
+- Estimates over texts that already exist plan claims from the texts (D-76: each at the
+  largest of words ÷ 8, sentence-like units, key=value fields, distinct numbers, characters ÷ 50
+  and 4.5), and every estimate states its claims assumption; the dry run's `--json` gains a
+  top-level `claims` object. `evalkit run` keeps 4.5, so its goldens are unchanged.
+- Judging is complete only when every claim has a verdict or a recorded judge error from every
+  judge (D-78, reported by gemma-grounded-health): a missing verdict keeps the run pending
+  (exit 4) and the rerun resends only those claims; final failures are scored unsupported; a
+  batch blocked only by another judge's open hold waits within `--wait`. EvalKit's published
+  benchmark is unaffected.
+- metrics-1 refuses label values shaped like a case or member id (uuid, 32+ hex, email,
+  mixed-case base64 token of 20+ characters), found by respectful-offers (its D-53).
+- Strict run-folder detection: a `run.json` or `summary.json` is EvalKit's only with EvalKit's
+  `schema_version` and the keys EvalKit always writes; `evalkit compare`, `evalkit gate`,
+  `evalkit report` and a resumed run say why another project's file is not an EvalKit run.
+- `evalkit gate --out` and `evalkit compare --out` / `--md` accept a folder (reported by
+  assay-pipeline; 0.3 exited 2).
+- `sql_match` equivalence details (`correct_strict`, `equivalences`, `strict_reason`) are
+  covered from 0.4.0; with none named, results are exactly 0.3.0's.
+- `value_check` is the strict structured-facts check (D-77), not the checker 0.3.0 withheld.
+- The moved calibration paths (`evalkit.pipeline.calibrate._Pair`, `cluster_kappa`,
+  `kappa_from`) still warn; due to go in 0.4.0, they are kept until 0.5.0 because two
+  registered projects still import them. `from evalkit.runtime import *` now exports only
+  `Executor`, `Store` and `BudgetExceeded`.
+
+**Tooling**
+- [HARNESS] [B5.4] — The downstream canary workflow clones each project with full history.
+- [DOWNSTREAM] — respectful-offers joins the canary (43 offline contract tests).
+
 ## 0.3.0
 
 - [RELEASE] [B5.4] — v0.3.0 release candidate: version 0.3.0 in `pyproject.toml`,

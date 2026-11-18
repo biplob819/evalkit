@@ -213,8 +213,9 @@ precision) reads `none observed (no interval)`.
 matched metric (metric, labels, bound, op, threshold, observed, severity, result), notes, and
 the verdict. `--json` prints the same object that is written to `gate.json` (`--out`, default
 `./gate.json`); `gate.json` is written on every exit path, including exit 2, with the errors. On an exit 2 caused by a gate (a metric or label that matches nothing), `rows` still lists every gate evaluated, so the report shows which one failed; on an exit 2 because the input could not be read, `rows` is empty. Rows on an exit 2 are information, never a pass.
-It is written atomically (a temporary file beside it, then a rename); an `--out` that names a
-folder, or that cannot be written, exits 2 and leaves no temporary file. A command-line error
+It is written atomically (a temporary file beside it, then a rename). Since 0.4.0 an `--out`
+that names a folder (an existing one, or a path ending with a separator) writes `gate.json`
+inside it; an `--out` that cannot be written exits 2 and leaves no temporary file. A command-line error
 (an unknown option, a missing summary path) exits 2 from the argument parser before anything
 is read; when `--out` was given, gate.json is still written there with the error.
 
