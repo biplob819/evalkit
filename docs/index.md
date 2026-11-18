@@ -24,7 +24,8 @@ evalkit index build --config configs/index.yaml
    EvalKit's own row is read from the current repository at `HEAD`. A fetch that fails is
    recorded as `status: missing` with a fixed reason (`git fetch failed (exit N)`), never git's
    own output. The step reads only these paths:
-   - the summary (the registry's `summary` cell, or the config's `summary`);
+   - the summary (the registry's `summary` cell, or the config's `summary`, or the file the
+     config's `pointer` leads to; the pointer file itself is read, never copied);
    - `run.json` beside an EvalKit `summary.json`;
    - the config's `gates` and `experiments` files;
    - the config's `lessons` path, checked for existence only and never copied.
@@ -38,6 +39,11 @@ Exit codes: 0 when done (missing projects are listed on the page); 1 with `build
 when any project is missing; 2 for an unreadable registry or config, a `--source`/`--commit` for
 an unknown project, or an output folder that cannot be written. The Pages workflow publishes
 `docs/index/` at `/index/` when it exists.
+
+Only `docs/index/index.html` and `docs/index/index.json` are committed. They hold aggregates
+only. The snapshot folder holds each project's whole summary file, which may carry more than
+the index shows, so `docs/index/snapshots/` is ignored by git. `index.json` records the commit
+each project was read at, so the snapshot can be taken again with `--commit PROJECT=SHA`.
 
 ## What each row shows
 
@@ -137,7 +143,93 @@ model's interval lies below every other model's; otherwise it says `intervals ov
 ## The config
 
 [`configs/index.yaml`](../configs/index.yaml) (`schema_version: index-config-1`) names, per
-project, the optional keys `summary`, `headline`, `quality`, `calibration`,
-`efficiency_labels`, `gates`, `experiments`, `lessons` and `kinds`, plus `heldout_splits` for
-all projects (`heldout` always counts). Unknown keys, and projects that are not registered, are
-refused. The headline choices there are the owner's to confirm.
+project, the optional keys `summary`, `pointer`, `own_format`, `headline`, `comparison`,
+`quality`, `calibration`, `efficiency_labels`, `gates`, `experiments`, `lessons` and `kinds`,
+plus `heldout_splits` for all projects (`heldout` always counts). Unknown keys, and projects
+that are not registered, are refused. Every headline there is the one the project's own session
+confirmed (file, selector and label as it sent them); a project or a part with no confirmation
+has no selector, so its row says `not designated`. A model's quality cell without a `quality`
+selector says `not designated` too.
+
+A selector (`headline`, `comparison`, `quality`, `calibration`) also takes:
+
+- `label`: how the index names it (EvalKit's own text, up to 300 characters);
+- `direction: lower | higher`: shown beside the value as `lower is better` or
+  `higher is better`, and in the portfolio note;
+- `decimals: 0..6`: fixed decimals for the value and its interval (a rate as a percentage);
+- `companion`: a second selector of the same kind, shown beside each value under its own
+  `label` (for example a strict score beside the headline score);
+- `caption`: the project's own words on the figure, shown beside it.
+
+A `quality` selector whose labels name a `model` designates that model's quality only. The
+other models keep their efficiency rows, and their quality cell says `not designated`.
+
+`comparison` is an optional second row shown under the headline (and as a second `evals` entry
+in `index.json`).
+
+A metrics-1 or EvalKit selector names a row by `metric` and exactly its labels, so a two-arm row
+is named like any other: `{metric: diff.incremental_retained_per_1000_ntd, labels: {a: bandit,
+b: rule_following_baseline, variant: central}}`.
+
+### A pointer to the current results
+
+`pointer: {path: docs/results/LATEST, file: metrics.json}` (instead of `summary`) is for a
+project whose published run changes with each release. At the snapshot's commit, the pointer
+file must hold exactly one relative path, to a folder or to a file inside one, relative to the
+pointer's own folder. The summary is `file` in that folder. The snapshot records the pointer
+(path, the path it named, sha256) and the summary path it resolved to. A pointer that is
+missing, not UTF-8, holds more than one line, names `..`, an absolute path or a `.env` file, or
+names nothing at the commit makes the project `missing` with that reason.
+
+### A project's own summary format
+
+`own_format` reads a summary that is neither metrics-1 nor EvalKit's `summary.json`. The file
+must be strict JSON (duplicate keys refused). Only the config's path selectors read it:
+
+```yaml
+own_format:
+  run_id: $.run_id                 # one string, else not shown
+  run_at: $.finished_at            # one ISO 8601 time with a zone, else not shown
+  simulated: {path: $.data_label, equals: simulated}
+headline:
+  path: $.leakage                  # a number, or an object with point (lo, hi, k, n optional)
+  unit: rate                       # metrics-1 units; default ratio
+  ci_method: exact 95% upper bound # how the project made the interval, as it states it
+  direction: lower
+```
+
+`simulated` is true when the value equals `equals`, false when the file holds another value,
+and not stated when the path selects nothing: it is never invented. Such a project has no
+metrics-1 rows, so its gates are `not gated`, its calibration `not stated` and it has no
+per-model efficiency; `quality`, `calibration`, `efficiency_labels` and `gates` are refused
+for it. The selected value goes through metrics-1's checks (a rate in [0, 1], k = value × n,
+the interval around the value, no id-shaped labels), so a figure that fails them is shown as
+that problem.
+
+### The path selector
+
+```
+path    := "$" step*
+step    := "." field                    field access on an object
+         | "[?" cond ("&&" cond)* "]"   keep the list items whose fields all equal the values
+cond    := field "==" literal
+literal := "string" | number | true | false | null | []
+field   := [A-Za-z_][A-Za-z0-9_]*
+```
+
+That is the whole language, parsed by hand and evaluated over plain JSON values: no `eval`, no
+`exec`, no wildcards, indexes, recursion or other operators, and at most 200 characters.
+Equality follows JSON's types: `true` is not `1`, `"1"` is not `1`, `null` matches only a
+field that is present and null, and `[]` only an empty list. A `.field` step on a list
+selects nothing; filter first. Examples from the confirmed headlines:
+
+- `$.leakage`: one object.
+- `$.share[?kind == "presence" && publisher == "nhs.uk" && model == "gpt-6.1-sol" && run == 1 && intent == null].share`:
+  one row of a list.
+- `$.backends[?fixes == []].accuracy` with `per: backend`: per-label fan-out. One figure per
+  item the last filter kept, labelled by that item's `backend`, in file order. A companion
+  with the same `per` is matched to each row by that label.
+
+A selector must select exactly one value (with `per`: exactly one per label value). Zero
+values show `matches no value`; several show `matches N values, not one value` (or `not one
+per backend value`). The index never picks one of them.

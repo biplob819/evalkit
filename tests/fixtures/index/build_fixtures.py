@@ -498,23 +498,120 @@ def respectful_offers() -> None:
     )
 
 
-def agentic() -> None:
-    """agentic-analytics: its own summary.json (schema_version 1.0, not EvalKit's keys)."""
-    own = {
+def agentic_backend(name: str, fixes: list[str], acc: float, strict: float) -> dict[str, Any]:
+    return {
+        "backend": name,
+        "fixes": fixes,
+        "trials": 3,
+        "accuracy": iv(acc, round(acc - 0.07, 4), round(min(acc + 0.06, 1.0), 4)),
+        "accuracy_strict": iv(strict, round(strict - 0.08, 4), round(min(strict + 0.07, 1.0), 4)),
+        "by_category": [
+            {"category": "aggregation", "n": 10, "accuracy": iv(0.9, 0.7, 1.0)},
+        ],
+        "cost_per_correct_usd": 0.01,
+        "latency_p50_ms": 4000,
+    }
+
+
+def agentic_summary() -> dict[str, Any]:
+    """agentic-analytics' own summary.json shape: schema_version 1.0, a `backends` list with
+    one row per backend and fix set; the published headline reads the rows with no fixes."""
+    return {
         "schema_version": "1.0",
-        "run_id": "run-fixture",
-        "as_of": "2026-11-17",
-        "backends": ["fixture"],
+        "run_id": "rescore-fixture",
         "config_hash": "fixture",
+        "as_of": "2026-11-17",
+        "pack": "fixture@1.0",
+        "gold_mode": "cross_engine",
+        "backends": [
+            agentic_backend("claude_mcp", [], 0.7, 0.7),
+            agentic_backend("claude_mcp", ["descriptions"], 0.8, 0.75),
+            agentic_backend("gpt_mcp", [], 0.9, 0.85),
+            agentic_backend("gpt_mcp", ["descriptions", "examples"], 0.92, 0.9),
+            agentic_backend("cortex_analyst", [], 0.8, 0.6),
+        ],
+        "uplifts": [],
+        "probes": {},
+        "cost_status": "reconciled",
+        "total_cost_usd": 1.0,
         "started_at": "2026-11-17T08:00:00Z",
         "finished_at": "2026-11-17T09:00:00Z",
-        "total_cost_usd": 1.0,
     }
+
+
+def agentic() -> None:
+    """agentic-analytics: its own summary.json, read through the config's path selectors."""
     write(
         "agentic-analytics",
-        {"summary": ("docs/results/summary.json", dump(own))},
+        {"summary": ("docs/results/summary.json", dump(agentic_summary()))},
         repo="biplob819/agentic-analytics",
     )
+
+
+def fraud_summary() -> dict[str, Any]:
+    """fraud-review-bedrock's own summary-eval2.json shape (schema_version 1.0): figures as
+    {k, n, point, lo, hi} objects, `data_label` naming simulated data. No alert ids."""
+    return {
+        "schema_version": "1.0",
+        "run_id": "eval2-fixture",
+        "split": "eval",
+        "data_label": "simulated",
+        "n_alerts": 300,
+        "n_frauds": 40,
+        "leakage": {"k": 0, "n": 40, "point": 0.0, "lo": 0.0, "hi": 0.0721575245055146},
+        "recall_end_to_end": {"k": 40, "n": 40, "point": 1.0, "lo": 0.912, "hi": 1.0},
+        "auto_clear_rate": {"k": 30, "n": 300, "point": 0.1, "lo": 0.07, "hi": 0.14},
+        "minutes_saved_per_1000": {"point": 300.0, "lo": 200.0, "hi": 400.0},
+        "thresholds": [{"metric": "leakage", "op": "==", "value": 0.0, "passed": True}],
+        "started_at": "2026-11-17T08:00:00.000000Z",
+        "finished_at": "2026-11-17T08:10:00Z",
+    }
+
+
+def visibility_summary() -> dict[str, Any]:
+    """ai-visibility's own study summary shape: a `share` list of rows keyed by kind,
+    publisher, model, run and intent (null for all intents), each with a share figure."""
+    rows = []
+    for model, k in (("claude-sonnet-5-5", 12), ("gpt-6.1-sol", 70)):
+        for run in (1, 2):
+            for intent in (None, "fitness"):
+                for kind in ("presence", "consulted"):
+                    rows.append(
+                        {
+                            "intent": intent,
+                            "kind": kind,
+                            "model": model,
+                            "publisher": "nhs.uk",
+                            "run": run,
+                            "share": {
+                                "hi": round(k / 100 + 0.08, 2),
+                                "k": k,
+                                "lo": round(k / 100 - 0.07, 2),
+                                "n": 100,
+                                "point": k / 100,
+                            },
+                        }
+                    )
+    return {
+        "schema_version": "1.0",
+        "config_hash": "fixture",
+        "generated_at": "2026-11-16T20:00:00Z",
+        "share": rows,
+        "citations": [],
+        "comparisons": [],
+        "spend_usd": 1.0,
+    }
+
+
+def shapes() -> None:
+    """Own-format summaries for the path selector tests (snapshotted in tmp_path there)."""
+    folder = HERE / "shapes"
+    folder.mkdir(exist_ok=True)
+    for name, data in (
+        ("fraud-review-bedrock.json", fraud_summary()),
+        ("ai-visibility.json", visibility_summary()),
+    ):
+        (folder / name).write_bytes(dump(data))
 
 
 def fraud() -> None:
@@ -562,6 +659,7 @@ def main() -> None:
     respectful_offers()
     agentic()
     fraud()
+    shapes()
 
 
 if __name__ == "__main__":

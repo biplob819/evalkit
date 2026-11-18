@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -41,10 +41,13 @@ from pydantic import (
     StrictStr,
     ValidationError,
     field_validator,
+    model_validator,
 )
 
 from evalkit.metrics import (
+    CODE_RE,
     EFFICIENCY_NAMES,
+    FIXED_UNITS,
     NAME_RE,
     SCHEMA,
     Metric,
@@ -145,6 +148,12 @@ def _clean(text: str) -> str:
     return text if len(text) <= 300 else text[:299] + "…"
 
 
+def _named(label: str | None, metric: str | None) -> str:
+    """A selector's display name: the config's `label` (EvalKit's own config, so up to 300
+    characters like any EvalKit message), else the metric name from the project's file."""
+    return _clean(label) if label else _show(metric or "")
+
+
 # ---- registry ---------------------------------------------------------------------------------
 
 
@@ -235,24 +244,249 @@ class _Strict(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
-class Selector(_Strict):
-    """One metric row: `metric` and the row's labels exactly (`*` matches any value)."""
+# ---- the path selector (a project's own summary format; docs/index.md) ------------------------
+#
+#   path    := "$" step*
+#   step    := "." field                       field access on an object
+#            | "[?" cond ("&&" cond)* "]"      keep the list items whose fields all equal
+#   cond    := field "==" literal
+#   literal := "string" | number | true | false | null | []
+#   field   := [A-Za-z_][A-Za-z0-9_]*
+#
+# Parsed by hand into steps and evaluated over plain JSON values: no eval, no exec, no
+# attribute access, nothing read beyond the named steps.
 
-    metric: StrictStr
+PATH_MAX = 200
+MAX_PATH_NODES = 100_000
+_FIELD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_LITERAL_RE = re.compile(
+    r'"(?:[^"\\\x00-\x1f]|\\["\\/bfnrt])*"'
+    r"|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?"
+    r"|true|false|null|\[\]"
+)
+
+
+@dataclass(frozen=True)
+class _Field:
+    name: str
+
+
+@dataclass(frozen=True)
+class _Filter:
+    conds: tuple[tuple[str, str], ...]  # (field, the literal's JSON text)
+
+
+def _skip(text: str, i: int) -> int:
+    while i < len(text) and text[i] == " ":
+        i += 1
+    return i
+
+
+def parse_path(text: str) -> tuple[_Field | _Filter, ...]:
+    """The steps of a path selector; raises ValueError naming the first problem."""
+    if len(text) > PATH_MAX:
+        raise ValueError(f"a path is at most {PATH_MAX} characters")
+    if not text.startswith("$"):
+        raise ValueError("a path starts with $")
+    steps: list[_Field | _Filter] = []
+    i = 1
+    while i < len(text):
+        if text[i] == ".":
+            m = _FIELD_RE.match(text, i + 1)
+            if m is None:
+                raise ValueError(f"expected a field name after . at character {i + 1}")
+            steps.append(_Field(m.group()))
+            i = m.end()
+        elif text.startswith("[?", i):
+            i += 2
+            conds: list[tuple[str, str]] = []
+            while True:
+                i = _skip(text, i)
+                m = _FIELD_RE.match(text, i)
+                if m is None:
+                    raise ValueError(f"expected a field name in the filter at character {i + 1}")
+                name, i = m.group(), _skip(text, m.end())
+                if not text.startswith("==", i):
+                    raise ValueError("a filter compares a field with == only")
+                i = _skip(text, i + 2)
+                lit = _LITERAL_RE.match(text, i)
+                if lit is None:
+                    raise ValueError(
+                        "a filter value is a string in double quotes, a number, true, false, "
+                        "null or []"
+                    )
+                conds.append((name, lit.group()))
+                i = _skip(text, lit.end())
+                if text.startswith("&&", i):
+                    i += 2
+                    continue
+                if text.startswith("]", i):
+                    i += 1
+                    break
+                raise ValueError(f"expected && or ] at character {i + 1}")
+            steps.append(_Filter(tuple(conds)))
+        else:
+            raise ValueError(
+                f"unexpected {text[i]!r} at character {i + 1}: a path has only .field and "
+                "[?field == value] steps"
+            )
+    return tuple(steps)
+
+
+def _equal(have: Any, want: Any) -> bool:
+    """JSON equality with JSON's types: true is not 1, null is only null, [] only []."""
+    if isinstance(want, bool) or isinstance(have, bool):
+        return type(have) is type(want) and have == want
+    if want is None:
+        return have is None
+    if isinstance(want, list):
+        return isinstance(have, list) and have == want
+    if isinstance(want, int | float):
+        return isinstance(have, int | float) and have == want
+    return isinstance(have, str) and have == want
+
+
+def eval_path(path: str, data: Any) -> list[tuple[Any, Mapping[str, Any] | None]]:
+    """Every value a path selects, in document order, each with the list item its last filter
+    kept (None without a filter): the item is where a per-label fan-out reads its label."""
+    nodes: list[tuple[Any, Mapping[str, Any] | None]] = [(data, None)]
+    for step in parse_path(path):
+        out: list[tuple[Any, Mapping[str, Any] | None]] = []
+        if isinstance(step, _Field):
+            out = [(n[step.name], s) for n, s in nodes if isinstance(n, dict) and step.name in n]
+        else:
+            conds = [(name, json.loads(lit)) for name, lit in step.conds]
+            for n, _ in nodes:
+                if isinstance(n, list):
+                    out.extend(
+                        (item, item)
+                        for item in n
+                        if isinstance(item, dict)
+                        and all(k in item and _equal(item[k], v) for k, v in conds)
+                    )
+        if len(out) > MAX_PATH_NODES:
+            raise ValueError(f"the path selects more than {MAX_PATH_NODES:,} values")
+        nodes = out
+    return nodes
+
+
+def _unit_problem(unit: str) -> str | None:
+    if unit in FIXED_UNITS or CODE_RE.match(unit):
+        return None
+    return "unit must be count, rate, bool, ratio, ms, s, or an upper-case code such as USD"
+
+
+class Selector(_Strict):
+    """One metric row: `metric` and the row's labels exactly (`*` matches any value); or, for a
+    project's own summary format, a `path` (docs/index.md) that selects one figure, or one per
+    value of the `per` field of the items its last filter keeps."""
+
+    metric: StrictStr | None = None
     labels: dict[str, LabelValue] = Field(default_factory=dict)
+    path: StrictStr | None = None  # own summary format only
+    per: StrictStr | None = None  # path only: one figure per value of this field (fan-out)
+    unit: StrictStr | None = None  # path only: the figure's unit (default ratio)
+    ci_method: StrictStr | None = None  # path only: how the project made its interval
     label: StrictStr | None = None  # how the index names it (default: the metric name)
+    direction: Literal["higher", "lower"] | None = None  # which way is better, when stated
+    decimals: Annotated[int, Field(strict=True, ge=0, le=6)] | None = None  # fixed decimals
+    companion: Selector | None = None  # a second figure shown beside each value (e.g. strict)
+    caption: StrictStr | None = None  # the project's own words on the figure, shown beside it
 
     @field_validator("metric")
     @classmethod
-    def _metric(cls, v: str) -> str:
-        if not NAME_RE.match(v):
+    def _metric(cls, v: str | None) -> str | None:
+        if v is not None and not NAME_RE.match(v):
             raise ValueError("metric must match [a-z][a-z0-9_.]*")
+        return v
+
+    @field_validator("path")
+    @classmethod
+    def _path(cls, v: str | None) -> str | None:
+        if v is not None:
+            parse_path(v)
+        return v
+
+    @field_validator("unit")
+    @classmethod
+    def _unit(cls, v: str | None) -> str | None:
+        if v is not None and (problem := _unit_problem(v)):
+            raise ValueError(problem)
+        return v
+
+    @model_validator(mode="after")
+    def _one_kind(self) -> Selector:
+        if (self.metric is None) == (self.path is None):
+            raise ValueError("a selector names a metric (metrics-1, EvalKit) or a path, not both")
+        if self.metric is not None and (self.per or self.unit or self.ci_method):
+            raise ValueError("per, unit and ci_method belong to a path selector")
+        if self.path is not None and self.labels:
+            raise ValueError("a path selector has no labels: filter in the path instead")
+        if self.per is not None:
+            if not _FIELD_RE.fullmatch(self.per):
+                raise ValueError("per must be a field name")
+            if not any(isinstance(s, _Filter) for s in parse_path(self.path or "$")):
+                raise ValueError("per needs a [?...] filter in the path: it reads the kept items")
+        c = self.companion
+        if c is not None:
+            if c.companion is not None:
+                raise ValueError("a companion has no companion of its own")
+            if (c.path is None) != (self.path is None) or c.per != self.per:
+                raise ValueError("a companion is the same kind of selector, with the same per")
+        return self
+
+
+class Pointer(_Strict):
+    """A file in the project's repository that names its current results (a folder, or a file
+    inside one, relative to the pointer's own folder); the summary is `file` in that folder."""
+
+    path: StrictStr
+    file: StrictStr
+
+    @field_validator("path", "file")
+    @classmethod
+    def _paths(cls, v: str) -> str:
+        if problem := _path_problem(v):
+            raise ValueError(problem)
+        return v
+
+
+class SimulatedRule(_Strict):
+    """`simulated` is true when the value at `path` equals `equals` (`true` for a flag), false
+    when it holds another value, and not stated when the path selects nothing."""
+
+    path: StrictStr
+    equals: LabelValue = True
+
+    @field_validator("path")
+    @classmethod
+    def _path(cls, v: str) -> str:
+        parse_path(v)
+        return v
+
+
+class OwnFormat(_Strict):
+    """How to read a project's own summary format (neither metrics-1 nor EvalKit's): path
+    selectors for its run id and run time, and the rule that says it is simulated."""
+
+    run_id: StrictStr | None = None
+    run_at: StrictStr | None = None
+    simulated: SimulatedRule | None = None
+
+    @field_validator("run_id", "run_at")
+    @classmethod
+    def _paths(cls, v: str | None) -> str | None:
+        if v is not None:
+            parse_path(v)
         return v
 
 
 class ProjectConfig(_Strict):
     summary: StrictStr | None = None  # overrides the registry's summary cell
+    pointer: Pointer | None = None  # the summary sits in the folder a pointer file names
+    own_format: OwnFormat | None = None  # the project's own summary format, read with paths
     headline: Selector | None = None
+    comparison: Selector | None = None  # an optional second row shown under the headline
     quality: Selector | None = None  # per model: `model` is added to its labels
     calibration: Selector | None = None  # metrics-1 only: the row that states calibration
     efficiency_labels: dict[str, LabelValue] = Field(default_factory=dict)
@@ -269,6 +503,25 @@ class ProjectConfig(_Strict):
         if v is not None and (problem := _path_problem(v)):
             raise ValueError(problem)
         return v
+
+    @model_validator(mode="after")
+    def _consistent(self) -> ProjectConfig:
+        if self.summary is not None and self.pointer is not None:
+            raise ValueError("give summary or pointer, not both")
+        shown = [s for s in (self.headline, self.comparison) if s is not None]
+        if self.own_format is not None:
+            if any(s.path is None for s in shown):
+                raise ValueError("an own_format project's headline and comparison use path")
+            if self.quality or self.calibration or self.gates or self.efficiency_labels:
+                raise ValueError(
+                    "an own_format summary has no metrics-1 rows: no quality, calibration, "
+                    "efficiency_labels or gates"
+                )
+        elif any(s.path is not None for s in [*shown, self.quality, self.calibration] if s):
+            raise ValueError("a path selector needs own_format (metrics-1 rows use metric)")
+        if self.quality is not None and self.quality.companion is not None:
+            raise ValueError("quality has no companion")
+        return self
 
 
 class IndexConfig(_Strict):
@@ -368,6 +621,55 @@ def _write_snapshot(dest: Path, meta: dict[str, Any], blobs: Mapping[str, bytes]
     (dest / "snapshot.json").write_text(text, encoding="utf-8", newline="\n")
 
 
+class _PointerError(Exception):
+    pass
+
+
+POINTER_MAX_BYTES = 4096
+
+
+def _follow_pointer(
+    ptr: Pointer,
+    commit: str,
+    kind: Any,
+    read: Any,
+) -> tuple[str, dict[str, Any]]:
+    """The summary path a pointer file names at this commit (the pointer holds one relative
+    path, to a folder or to a file inside one; the summary is `ptr.file` in that folder), and
+    what the snapshot records about it. Raises _PointerError with a fixed reason."""
+    if kind(ptr.path) != "blob":
+        raise _PointerError(f"pointer {ptr.path} not found at commit {commit[:7]}")
+    try:
+        data = read(ptr.path)
+    except (_GitError, ValueError):
+        raise _PointerError("pointer file could not be read") from None
+    if len(data) > POINTER_MAX_BYTES:
+        raise _PointerError(f"pointer file is larger than {POINTER_MAX_BYTES:,} bytes")
+    try:
+        lines = [ln.strip() for ln in data.decode("utf-8").splitlines() if ln.strip()]
+    except UnicodeDecodeError:
+        raise _PointerError("pointer file is not UTF-8") from None
+    if len(lines) != 1:
+        raise _PointerError("pointer file must hold exactly one path")
+    target = lines[0]
+    if problem := _path_problem(target):
+        raise _PointerError(f"pointer names a refused path: it {problem}")
+    base = ptr.path.rsplit("/", 1)[0] if "/" in ptr.path else ""
+    named = f"{base}/{target}" if base else target
+    what = kind(named)
+    if what not in ("tree", "blob"):
+        raise _PointerError(f"pointer names nothing at commit {commit[:7]}")
+    folder = named if what == "tree" else (named.rsplit("/", 1)[0] if "/" in named else "")
+    summary = f"{folder}/{ptr.file}" if folder else ptr.file
+    if problem := _path_problem(summary):
+        raise _PointerError(f"pointer gives a refused summary path: it {problem}")
+    return summary, {
+        "path": ptr.path,
+        "target": _show(target),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
 def _snap_one(
     row: RegistryRow,
     cfg: ProjectConfig,
@@ -393,11 +695,12 @@ def _snap_one(
         "lessons": None,
         "files": {},
     }
-    if summary_path is None:
+    if summary_path is None and cfg.pointer is None:
         meta["reason"] = "no summary registered in the registry"
         return meta, {}
     paths = {"summary": summary_path, "gates": cfg.gates, "experiments": cfg.experiments}
-    for role, p in [*paths.items(), ("lessons", cfg.lessons)]:
+    pointer = cfg.pointer.path if cfg.pointer is not None else None
+    for role, p in [*paths.items(), ("lessons", cfg.lessons), ("pointer", pointer)]:
         if p is not None and (problem := _path_problem(p)):
             meta["reason"] = f"{role} path refused: {problem}"
             return meta, {}
@@ -417,12 +720,14 @@ def _snap_one(
             meta["reason"] = "the fetched commit is not the one asked for"
             return meta, {}
 
-        def exists(p: str) -> bool:
+        def kind(p: str) -> str | None:
             try:
-                kind = _git(["cat-file", "-t", f"{commit}:{p}"], cwd=repo).decode().strip()
+                return _git(["cat-file", "-t", f"{commit}:{p}"], cwd=repo).decode().strip()
             except _GitError:
-                return False
-            return kind == "blob"
+                return None
+
+        def exists(p: str) -> bool:
+            return kind(p) == "blob"
 
         def read(p: str) -> bytes:
             size = int(_git(["cat-file", "-s", f"{commit}:{p}"], cwd=repo).decode().strip())
@@ -430,6 +735,14 @@ def _snap_one(
                 raise _GitError(f"larger than {MAX_FILE_BYTES:,} bytes")
             return _git(["cat-file", "blob", f"{commit}:{p}"], cwd=repo)
 
+        if cfg.pointer is not None:
+            try:
+                summary_path, meta["pointer"] = _follow_pointer(cfg.pointer, commit, kind, read)
+            except _PointerError as exc:
+                meta["reason"] = str(exc)
+                return meta, {}
+            paths["summary"] = summary_path
+        assert summary_path is not None
         if summary_path.rsplit("/", 1)[-1] == "summary.json":
             beside = summary_path.rsplit("/", 1)[0] + "/run.json" if "/" in summary_path else ""
             paths["run"] = beside or "run.json"
@@ -527,10 +840,19 @@ def _num(v: float) -> str:
     return f"{v:,.2f}" if abs(v) >= 100 else f"{v:.4g}"
 
 
-def _fmt(unit: str, v: bool | int | float) -> str:
+def _fmt(unit: str, v: bool | int | float, decimals: int | None = None) -> str:
     if isinstance(v, bool):
         return "true" if v else "false"
     kind = unit_kind(unit)
+    if decimals is not None:  # the selector's fixed decimals (a rate as a percentage)
+        if kind == "rate":
+            return f"{v * 100:.{decimals}f}%"
+        text = f"{v:,.{decimals}f}"
+        if kind == "currency":
+            if unit != "USD":
+                return f"{text} {unit}"
+            return f"-${text[1:]}" if text.startswith("-") else f"${text}"
+        return {"ms": f"{text} ms", "s": f"{text} s"}.get(kind, text)
     if kind == "rate":
         return f"{v:.1%}"
     if kind == "currency":
@@ -561,6 +883,22 @@ class Figure:
     note: str = ""
     problem: str | None = None
     heldout: bool = False
+    direction: str | None = None  # "lower is better" / "higher is better", when configured
+    companion: Figure | None = None  # shown beside the value (e.g. the strict score)
+    companion_label: str | None = None
+    rows: list[Figure] = field(default_factory=list)  # a per-label fan-out: one per value
+
+    @property
+    def shown(self) -> str:
+        """The value as a sentence part: the value, its companion, or each fanned-out row."""
+        if self.problem:
+            return self.problem
+        if self.rows:
+            return "; ".join(f"{_row_name(r)}: {r.shown}" for r in self.rows)
+        if self.companion is not None:
+            label = self.companion_label or self.companion.metric
+            return f"{self.text} ({label} {self.companion.shown})"
+        return self.text
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -574,13 +912,25 @@ class Figure:
             "n": self.n,
             "k": self.k,
             "text": self.text,
+            "shown": self.shown,
             "note": self.note,
             "problem": self.problem,
             "heldout": self.heldout,
+            "direction": self.direction,
+            "companion": None if self.companion is None else self.companion.as_dict(),
+            "companion_label": self.companion_label,
+            "rows": [r.as_dict() for r in self.rows],
         }
 
 
-def _figure(m: Metric, *, heldout: bool = False, note: str = "", scale: float = 1.0) -> Figure:
+def _figure(
+    m: Metric,
+    *,
+    heldout: bool = False,
+    note: str = "",
+    scale: float = 1.0,
+    decimals: int | None = None,
+) -> Figure:
     value: bool | int | float = m.value
     lo, hi = m.ci_low, m.ci_high
     if scale != 1.0 and not isinstance(value, bool):
@@ -590,14 +940,14 @@ def _figure(m: Metric, *, heldout: bool = False, note: str = "", scale: float = 
     labels = {
         _show(k): _show(v) for k, v in sorted(m.labels.items()) if not heldout or k in HELDOUT_KEPT
     }
-    text = _fmt(m.unit, value)
+    text = _fmt(m.unit, value, decimals)
     kind = unit_kind(m.unit)
     if kind == "rate" and m.k is not None and m.n and m.k in (0, m.n):
         from evalkit.stats import rate_wording
 
         text = rate_wording(m.k, m.n)
     elif lo is not None and hi is not None:
-        text += f" [{_fmt(m.unit, lo)}, {_fmt(m.unit, hi)}]"
+        text += f" [{_fmt(m.unit, lo, decimals)}, {_fmt(m.unit, hi, decimals)}]"
     return Figure(
         metric=_show(m.name),
         labels=labels,
@@ -632,31 +982,189 @@ def _is_heldout(labels: Mapping[str, Any], heldout: frozenset[str]) -> bool:
     return "split" in labels and canonical(labels["split"]) in heldout
 
 
-def _select(
+def _select_row(
     metrics: MetricsSummary,
     sel: Selector,
     heldout: frozenset[str],
     extra: Mapping[str, Any] | None = None,
 ) -> Figure:
-    """The one row a selector names: its metric and exactly its labels."""
+    """The one row a metric selector names: its metric and exactly its labels."""
+    metric = sel.metric or ""
     want: dict[str, Any] = {**sel.labels, **(extra or {})}
-    named = [m for m in metrics.metrics if m.name == sel.metric]
+    named = [m for m in metrics.metrics if m.name == metric]
     if not named:
-        return _problem(sel.metric, f"no metric named {_show(sel.metric)}", want)
+        return _problem(metric, f"no metric named {_show(metric)}", want)
     rows = [
         m
         for m in named
         if set(m.labels) == set(want) and all(_same(m.labels[k], v) for k, v in want.items())
     ]
     if not rows:
-        return _problem(sel.metric, "matches no metric row", want)
+        return _problem(metric, "matches no metric row", want)
     if len(rows) > 1:
-        return _problem(sel.metric, f"matches {len(rows)} rows (name every label)", want)
+        return _problem(metric, f"matches {len(rows)} rows (name every label)", want)
     m = rows[0]
     held = _is_heldout(m.labels, heldout)
     if held and not set(m.labels) <= HELDOUT_KEPT:
-        return _problem(sel.metric, "a held-out row below split level is not shown", want)
-    return _figure(m, heldout=held, note="held-out split aggregate" if held else "")
+        return _problem(metric, "a held-out row below split level is not shown", want)
+    note = "held-out split aggregate" if held else ""
+    return _figure(m, heldout=held, note=note, decimals=sel.decimals)
+
+
+DIRECTIONS = {"lower": "lower is better", "higher": "higher is better"}
+
+
+def _select(
+    metrics: MetricsSummary,
+    sel: Selector,
+    heldout: frozenset[str],
+    extra: Mapping[str, Any] | None = None,
+) -> Figure:
+    """A metric selector's row, with its direction and its companion row beside it."""
+    fig = _select_row(metrics, sel, heldout, extra)
+    if fig.problem is None:
+        fig.direction = DIRECTIONS.get(sel.direction or "")
+        c = sel.companion
+        if c is not None:
+            fig.companion = _select_row(metrics, c, heldout, extra)
+            fig.companion_label = _named(c.label, c.metric)
+    return _captioned(fig, sel)
+
+
+def _captioned(fig: Figure, sel: Selector) -> Figure:
+    """The config's caption (the project's own words on the figure) joins the figure's note."""
+    if sel.caption and fig.problem is None:
+        fig.note = "; ".join(x for x in (fig.note, _clean(sel.caption)) if x)
+    return fig
+
+
+# ---- a project's own summary format (path selectors) ------------------------------------------
+
+
+def _node_metric(name: str, node: Any, sel: Selector, labels: Mapping[str, Any]) -> Metric:
+    """A selected value as a metrics-1 row: a number, or an object holding `point` with
+    optional `lo`/`hi` (its interval) and `k`/`n` (its exact count). Raises ValueError."""
+    row: dict[str, Any] = {"name": name, "unit": sel.unit or "ratio", "labels": dict(labels)}
+    if isinstance(node, dict):
+        if "point" not in node:
+            raise ValueError("is not a figure: an object without point")
+        row["value"] = node["point"]
+        lo, hi = node.get("lo"), node.get("hi")
+        if lo is not None or hi is not None:
+            method = sel.ci_method or "as recorded by the project"
+            row.update(ci_low=lo, ci_high=hi, ci_method=method)
+        for key in ("k", "n"):
+            if node.get(key) is not None:
+                row[key] = node[key]
+    elif isinstance(node, int | float) and not isinstance(node, bool):
+        row["value"] = node
+    else:
+        raise ValueError("is not a figure: neither a number nor an object with point")
+    try:
+        return Metric.model_validate(row)
+    except ValidationError as exc:
+        raise ValueError("is not a valid figure: " + describe_validation(exc)[0]) from None
+
+
+def _path_name(path: str) -> str:
+    fields = [s.name for s in parse_path(path) if isinstance(s, _Field)]
+    name = (fields[-1] if fields else "value").lower()
+    return name if NAME_RE.match(name) else "value"
+
+
+def _path_rows(data: Any, sel: Selector, heldout: frozenset[str]) -> list[Figure] | str:
+    """Every figure a path selector selects (one per `per` value), or the problem."""
+    path = sel.path or "$"
+    name = _path_name(path)
+    try:
+        found = eval_path(path, data)
+    except ValueError as exc:
+        return str(exc)
+    out: list[Figure] = []
+    for node, item in found:
+        labels: dict[str, Any] = {}
+        if sel.per is not None:
+            value = item.get(sel.per) if item is not None else None
+            if isinstance(value, bool) or not isinstance(value, str | int):
+                return f"an item has no {sel.per} (a string or an integer)"
+            labels[sel.per] = value
+        try:
+            m = _node_metric(name, node, sel, labels)
+        except ValueError as exc:
+            return f"the selected value {exc}"
+        held = _is_heldout(m.labels, heldout)
+        if held and not set(m.labels) <= HELDOUT_KEPT:
+            return "a held-out row below split level is not shown"
+        out.append(_figure(m, heldout=held, decimals=sel.decimals))
+    return out
+
+
+def _select_path(data: Any, sel: Selector, heldout: frozenset[str]) -> Figure:
+    """A path selector's figure: exactly one value (or, with `per`, one per distinct label
+    value, in document order), with its direction and companion."""
+    metric = _path_name(sel.path or "$")
+    rows = _path_rows(data, sel, heldout)
+    if isinstance(rows, str):
+        return _problem(metric, rows)
+    if not rows:
+        return _problem(metric, "matches no value")
+    keys = [tuple(sorted(r.labels.items())) for r in rows]
+    if len(set(keys)) != len(keys):
+        what = f"per {sel.per} value" if sel.per else "value"
+        return _problem(metric, f"matches {len(rows)} values, not one {what}")
+    companions: dict[tuple[Any, ...], Figure] = {}
+    c = sel.companion
+    if c is not None:
+        found = _path_rows(data, c, heldout)
+        if isinstance(found, str):
+            return _problem(metric, f"companion: {found}")
+        for r in found:
+            key = tuple(sorted(r.labels.items()))
+            if key in companions:
+                return _problem(metric, "companion: matches several values for one row")
+            companions[key] = r
+    direction = DIRECTIONS.get(sel.direction or "")
+    for r, key in zip(rows, keys, strict=True):
+        r.direction = direction
+        if c is not None:
+            r.companion = companions.get(key) or _problem(_path_name(c.path or "$"), "no value")
+            r.companion_label = _named(c.label, r.companion.metric)
+    if sel.per is None:
+        return _captioned(rows[0], sel)
+    fanned = Figure(
+        metric=_show(metric),
+        unit=rows[0].unit,
+        text="; ".join(f"{_row_name(r)}: {r.text}" for r in rows),
+        direction=direction,
+        rows=rows,
+    )
+    return _captioned(fanned, sel)
+
+
+def _path_scalar(data: Any, path: str | None) -> str | None:
+    """The one string a path selects (a run id, a timestamp), else None."""
+    if path is None:
+        return None
+    try:
+        found = eval_path(path, data)
+    except ValueError:
+        return None
+    if len(found) != 1 or not isinstance(found[0][0], str):
+        return None
+    return found[0][0]
+
+
+def _own_simulated(data: Any, rule: SimulatedRule | None) -> bool | None:
+    """True or false only when the file states it; None when the rule's path selects nothing."""
+    if rule is None:
+        return None
+    try:
+        found = eval_path(rule.path, data)
+    except ValueError:
+        return None
+    if len(found) != 1:
+        return None
+    return _equal(found[0][0], rule.equals)
 
 
 # ---- gates ------------------------------------------------------------------------------------
@@ -755,6 +1263,9 @@ class ProjectEntry:
     evalkit_pin: str | None = None
     headline: Figure | None = None
     headline_label: str | None = None
+    headline_comparison: Figure | None = None  # the config's optional comparison row
+    comparison_label: str | None = None
+    pointer: dict[str, Any] | None = None  # the pointer file the summary path was read from
     calibration: dict[str, Any] | None = None
     gate: GateStatus | None = None
     stamps: list[str] = field(default_factory=list)
@@ -790,6 +1301,11 @@ class ProjectEntry:
             "evalkit_pin": self.evalkit_pin,
             "headline": None if self.headline is None else self.headline.as_dict(),
             "headline_label": self.headline_label,
+            "headline_comparison": (
+                None if self.headline_comparison is None else self.headline_comparison.as_dict()
+            ),
+            "comparison_label": self.comparison_label,
+            "pointer": self.pointer,
             "calibration": self.calibration,
             "gate": None if self.gate is None else self.gate.as_dict(),
             "stamps": self.stamps,
@@ -1046,10 +1562,16 @@ def _models(
     eff = [m for m in metrics.metrics if eff_row(m)]
     q = cfg.quality
     qkeys = None if q is None else {*q.labels, "model"}
+    # a quality selector that names a model designates that model's quality only: the other
+    # models' cells say "not designated", never a row the project did not name
+    named = q.labels.get("model") if q is not None else None
     quality_rows = [
         m
         for m in metrics.metrics
-        if q is not None and m.name == q.metric and set(m.labels) == qkeys
+        if q is not None
+        and m.name == q.metric
+        and set(m.labels) == qkeys
+        and (named is None or _same(m.labels["model"], named))
     ]
     order: list[str] = []
     for m in [*eff, *quality_rows]:
@@ -1094,7 +1616,7 @@ def _models(
         mode = first.labels.get("mode") if first is not None else None
         price = first.labels.get("price_date") if first is not None else None
         quality = None
-        if q is not None:
+        if q is not None and (named is None or _same(model, named)):
             quality = _select(metrics, q, heldout, {"model": model})
         rows.append(
             ModelRow(
@@ -1214,7 +1736,26 @@ def _read(
         raise _Missing("no summary file in the snapshot")
     entry.summary_path = snap["files"]["summary"]["path"]
     entry.url = _url(row.repo, entry.commit, entry.summary_path)
-    metrics, summary, kind = _parse_summary(_text(_read_role(folder, snap, "summary"), "summary"))
+    text = _text(_read_role(folder, snap, "summary"), "summary")
+    ptr = snap.get("pointer")
+    if (
+        isinstance(ptr, dict)
+        and isinstance(ptr.get("path"), str)
+        and not _path_problem(ptr["path"])
+    ):
+        entry.pointer = {
+            "path": _show(ptr["path"]),
+            "target": _show(ptr.get("target")),
+            "url": _url(row.repo, entry.commit, ptr["path"]),
+        }
+    lessons = snap.get("lessons")
+    if isinstance(lessons, str) and not _path_problem(lessons):
+        entry.lessons_url = _url(row.repo, entry.commit, lessons)
+    if cfg.own_format is not None:
+        _read_own(text, entry, cfg, cfg.own_format, base_heldout)
+        entry.status = "ok"
+        return entry
+    metrics, summary, kind = _parse_summary(text)
     entry.kind = kind
     entry.run_id = _show(metrics.run_id)
     entry.run_at = _show(metrics.created_at)
@@ -1238,18 +1779,65 @@ def _read(
     entry.gate, heldout = _gate(folder, snap, metrics, status, base_heldout)
     if cfg.headline is not None:
         entry.headline = _select(metrics, cfg.headline, heldout)
-        entry.headline_label = _show(cfg.headline.label or cfg.headline.metric)
+        entry.headline_label = _named(cfg.headline.label, cfg.headline.metric)
+    if cfg.comparison is not None:
+        entry.headline_comparison = _select(metrics, cfg.comparison, heldout)
+        entry.comparison_label = _named(cfg.comparison.label, cfg.comparison.metric)
     entry.calibration = _calibration(metrics, summary, cfg, heldout)
     models = _models(metrics, cfg, kind, heldout)
     entry.models, entry.comparison = _rank(models)
     if not models:
         entry.efficiency_note = "no per-model efficiency in this summary (no model label)"
     _improvements(folder, snap, entry)
-    lessons = snap.get("lessons")
-    if isinstance(lessons, str) and not _path_problem(lessons):
-        entry.lessons_url = _url(row.repo, entry.commit, lessons)
     entry.status = "ok"
     return entry
+
+
+def _timestamp_or_none(v: str | None) -> str | None:
+    if v is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(v)
+    except ValueError:
+        return None
+    return v if parsed.tzinfo is not None else None
+
+
+def _read_own(
+    text: str, entry: ProjectEntry, cfg: ProjectConfig, own: OwnFormat, heldout: frozenset[str]
+) -> None:
+    """A project's own summary format, read only through the config's path selectors: no
+    metrics-1 rows, so no gates, calibration or per-model efficiency are read from it."""
+    try:
+        data = loads_json(text)
+    except MetricsError as exc:
+        raise _Missing(f"summary is not valid JSON: {exc.problems[0]}") from None
+    if not isinstance(data, dict):
+        raise _Missing("the project's own summary is not a JSON object")
+    entry.kind = "own-format"
+    run_id = _path_scalar(data, own.run_id)
+    entry.run_id = _show(run_id) if run_id else None
+    if own.run_at is not None:
+        run_at = _timestamp_or_none(_path_scalar(data, own.run_at))
+        if run_at is None:
+            entry.problems.append("run time not read: the path selects no ISO 8601 time")
+        entry.run_at = _show(run_at) if run_at else None
+    entry.simulated = _own_simulated(data, own.simulated)
+    if entry.simulated:
+        entry.stamps.insert(0, "SIMULATED: results from a simulator, not production")
+    entry.gate = GateStatus("not gated", "the project's own summary format: no gates file read")
+    if cfg.headline is not None:
+        entry.headline = _select_path(data, cfg.headline, heldout)
+        entry.headline_label = _named(cfg.headline.label, entry.headline.metric)
+    if cfg.comparison is not None:
+        entry.headline_comparison = _select_path(data, cfg.comparison, heldout)
+        entry.comparison_label = _named(cfg.comparison.label, entry.headline_comparison.metric)
+    entry.calibration = {
+        "status": "not stated",
+        "text": "not stated in the project's own summary format",
+        "judges": [],
+    }
+    entry.efficiency_note = "no per-model efficiency in this summary (the project's own format)"
 
 
 def read_project(
@@ -1290,6 +1878,11 @@ def _labels_text(labels: Mapping[str, str]) -> str:
     return ", ".join(f"{k}={v}" for k, v in labels.items())
 
 
+def _row_name(f: Figure) -> str:
+    """A fanned-out row's name: its `per` label's value."""
+    return ", ".join(f.labels.values())
+
+
 def _gate_target(r: Mapping[str, Any]) -> str:
     t = r["threshold"]
     t_text = ("true" if t else "false") if isinstance(t, bool) else str(t)
@@ -1327,10 +1920,13 @@ def _story(e: ProjectEntry, cfg: ProjectConfig) -> dict[str, Any]:
         }
     short = (e.commit or "")[:7]
     version = e.evalkit_version or "not recorded"
+    if e.evalkit_pin:
+        version += f" (pin {e.evalkit_pin})"
     h = e.headline
     label = e.headline_label or "headline"
+    run = f"run {e.run_id}; " if e.run_id else ""
     if h is None:
-        headline = {"value": "not designated", "label": label, "note": f"run {e.run_id}"}
+        headline = {"value": "not designated", "label": label, "note": f"{run}commit {short}"}
     elif h.problem:
         headline = {"value": "not shown", "label": label, "note": h.problem}
     else:
@@ -1340,28 +1936,36 @@ def _story(e: ProjectEntry, cfg: ProjectConfig) -> dict[str, Any]:
             if h.ci_low is not None and h.ci_high is not None
             else ""
         )
+        if h.rows and h.rows[0].ci_method:
+            ci = f"intervals: {h.rows[0].ci_method}; "
+        direction = f"{h.direction}; " if h.direction else ""
+        simulated = "simulated; " if e.simulated else ""
         headline = {
-            "value": h.text,
+            "value": h.shown,
             "label": label,
-            "note": f"{ci}run {e.run_id}; commit {short}; EvalKit {version}",
+            "note": f"{ci}{direction}{simulated}{run}commit {short}; EvalKit {version}",
         }
     gate_pending = e.gate is not None and e.gate.status in (
         "judging pending",
         "stopped at the cost cap",
     )
-    trusted = (
-        e.calibration is not None and e.calibration.get("status") == "calibrated"
-        if e.kind == "evalkit-summary"
-        else not e.simulated
-    )
+    if e.kind == "evalkit-summary":
+        trusted = e.calibration is not None and e.calibration.get("status") == "calibrated"
+    else:  # metrics-1 states simulated (false by default); an own format must state false
+        trusted = e.simulated is False
     evals: list[dict[str, Any]] = []
-    if h is not None and not h.problem:
+    shown = [(label, h), (e.comparison_label or "comparison", e.headline_comparison)]
+    for name, f in shown:
+        if f is None or f.problem:
+            continue
+        first = f.rows[0] if f.rows else f
         evals.append(
             {
-                "name": label,
-                "data": f"n={h.n}" if h.n is not None else "n not stated",
-                "method": h.ci_method or ("exact count" if h.k is not None else "point value"),
-                "result": h.text,
+                "name": name,
+                "data": f"n={first.n}" if first.n is not None else "n not stated",
+                "method": first.ci_method
+                or ("exact count" if first.k is not None else "point value"),
+                "result": f.shown,
                 "status": "pending" if gate_pending else ("final" if trusted else "provisional"),
                 "url": e.url,
             }
@@ -1484,9 +2088,17 @@ def _fig_html(f: Figure | None) -> str:
         return "—"
     if f.problem:
         return f"<span class=muted>{_e(f.problem)}</span>"
+    if f.rows:
+        parts = "; ".join(f"{_e(_row_name(r))}: {_fig_html(r)}" for r in f.rows)
+        notes = (f.note, f.direction)
+        return parts + "".join(f" <span class=muted>({_e(x)})</span>" for x in notes if x)
     tip = f' title="{_e(f.ci_method)}"' if f.ci_method else ""
-    note = f" <span class=muted>({_e(f.note)})</span>" if f.note else ""
-    return f"<span{tip}>{_e(f.text)}</span>{note}"
+    html = f"<span{tip}>{_e(f.text)}</span>"
+    if f.companion is not None:
+        html += f" ({_e(f.companion_label or f.companion.metric)} {_fig_html(f.companion)})"
+    return html + "".join(
+        f" <span class=muted>({_e(x)})</span>" for x in (f.note, f.direction) if x
+    )
 
 
 def _gate_html(g: GateStatus | None) -> str:
@@ -1498,9 +2110,12 @@ def _gate_html(g: GateStatus | None) -> str:
 
 
 def _version_html(p: ProjectEntry) -> str:
-    if p.evalkit_version:
-        return f"{_e(p.evalkit_version)} <span class=muted>({_e(p.evalkit_version_source)})</span>"
     pin = f"; pin {_e(p.evalkit_pin)}" if p.evalkit_pin else ""
+    if p.evalkit_version:
+        return (
+            f"{_e(p.evalkit_version)} <span class=muted>({_e(p.evalkit_version_source)}{pin})"
+            "</span>"
+        )
     return f"<span class=muted>not recorded in the run{pin}</span>"
 
 
@@ -1525,6 +2140,11 @@ def _overview(index: Index) -> str:
             headline = "<span class=muted>not designated</span>"
         else:
             headline = f"{_e(p.headline_label)}: {_fig_html(p.headline)}"
+        if p.headline_comparison is not None:
+            headline += (
+                f"<br><span class=muted>vs {_e(p.comparison_label)}:</span> "
+                f"{_fig_html(p.headline_comparison)}"
+            )
         cal = _e(p.calibration["status"]) if p.calibration else "—"
         commit = _link(p.url, (p.commit or "")[:7])
         body.append(
@@ -1569,8 +2189,9 @@ def _models_html(p: ProjectEntry) -> str:
         cls = " class=lowest" if m.lowest else ""
         mark = ' <span class="badge pass">lowest cost per correct</span>' if m.lowest else ""
         cells = "".join(f"<td class=num>{_fig_html(m.efficiency.get(k))}</td>" for k, _ in cols)
+        quality = _fig_html(m.quality) if m.quality else "<span class=muted>not designated</span>"
         body.append(
-            f"<tr{cls}><th scope=row>{_e(m.model)}{mark}</th><td>{_fig_html(m.quality)}</td>"
+            f"<tr{cls}><th scope=row>{_e(m.model)}{mark}</th><td>{quality}</td>"
             f"{cells}<td>{_e(m.mode)}</td><td>{_e(m.price_date)}</td><td>{_e(m.source)}</td></tr>"
         )
     note = f"<p>{_e(p.comparison)}</p>" if p.comparison else ""
@@ -1609,9 +2230,14 @@ def _project_html(p: ProjectEntry) -> str:
             f"{_e(p.summary_path or 'not registered')}</p></div>"
         )
     sim = ' <span class="badge sim">SIMULATED</span>' if p.simulated else ""
+    via = (
+        f" (named by {_link(p.pointer.get('url'), str(p.pointer.get('path')))})"
+        if p.pointer
+        else ""
+    )
     meta = (
         f"<p class=meta>Run {_e(p.run_id)} · {_e(p.run_at)} · {_e(p.kind)} · "
-        f"{_link(p.url, p.summary_path or '')} at {_e((p.commit or '')[:7])} · EvalKit "
+        f"{_link(p.url, p.summary_path or '')}{via} at {_e((p.commit or '')[:7])} · EvalKit "
         f"{_version_html(p)}</p>"
     )
     stamps = (
@@ -1624,6 +2250,11 @@ def _project_html(p: ProjectEntry) -> str:
         if p.headline is None
         else f"<p><strong>{_e(p.headline_label)}</strong>: {_fig_html(p.headline)}</p>"
     )
+    if p.headline_comparison is not None:
+        headline += (
+            f"<p>Comparison, <strong>{_e(p.comparison_label)}</strong>: "
+            f"{_fig_html(p.headline_comparison)}</p>"
+        )
     cal = f"<p>Calibration: {_e(p.calibration['text'])}</p>" if p.calibration else ""
     problems = (
         "<ul>" + "".join(f"<li class=muted>{_e(x)}</li>" for x in p.problems) + "</ul>"

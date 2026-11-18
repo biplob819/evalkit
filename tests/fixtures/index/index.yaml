@@ -35,8 +35,23 @@ projects:
     lessons: docs/lessons.md
     kinds: {attack_successes: guardrail}
   respectful-offers:
-    headline:
-      metric: incremental_retained_per_1000
-      labels: {policy: bandit, variant: central}
-      label: Incremental members kept per 1,000
+    headline:  # a two-arm row: the difference between two policies
+      metric: diff.incremental_retained_per_1000_ntd
+      labels: {a: bandit, b: rule_following_baseline, variant: central}
+      label: Extra members kept per 1,000 NTD, bandit vs baseline (simulated)
+      decimals: 3
     gates: configs/gates.yaml
+  agentic-analytics:
+    own_format: {run_id: $.run_id, run_at: $.finished_at}
+    headline:
+      path: "$.backends[?fixes == []].accuracy"
+      per: backend
+      unit: rate
+      ci_method: two-level bootstrap
+      label: Text-to-SQL accuracy (strict beside)
+      companion:
+        path: "$.backends[?fixes == []].accuracy_strict"
+        per: backend
+        unit: rate
+        ci_method: two-level bootstrap
+        label: strict

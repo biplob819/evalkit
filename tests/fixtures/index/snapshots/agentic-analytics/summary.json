@@ -1,12 +1,161 @@
 {
   "as_of": "2026-11-17",
   "backends": [
-    "fixture"
+    {
+      "accuracy": {
+        "hi": 0.76,
+        "lo": 0.63,
+        "point": 0.7
+      },
+      "accuracy_strict": {
+        "hi": 0.77,
+        "lo": 0.62,
+        "point": 0.7
+      },
+      "backend": "claude_mcp",
+      "by_category": [
+        {
+          "accuracy": {
+            "hi": 1.0,
+            "lo": 0.7,
+            "point": 0.9
+          },
+          "category": "aggregation",
+          "n": 10
+        }
+      ],
+      "cost_per_correct_usd": 0.01,
+      "fixes": [],
+      "latency_p50_ms": 4000,
+      "trials": 3
+    },
+    {
+      "accuracy": {
+        "hi": 0.86,
+        "lo": 0.73,
+        "point": 0.8
+      },
+      "accuracy_strict": {
+        "hi": 0.82,
+        "lo": 0.67,
+        "point": 0.75
+      },
+      "backend": "claude_mcp",
+      "by_category": [
+        {
+          "accuracy": {
+            "hi": 1.0,
+            "lo": 0.7,
+            "point": 0.9
+          },
+          "category": "aggregation",
+          "n": 10
+        }
+      ],
+      "cost_per_correct_usd": 0.01,
+      "fixes": [
+        "descriptions"
+      ],
+      "latency_p50_ms": 4000,
+      "trials": 3
+    },
+    {
+      "accuracy": {
+        "hi": 0.96,
+        "lo": 0.83,
+        "point": 0.9
+      },
+      "accuracy_strict": {
+        "hi": 0.92,
+        "lo": 0.77,
+        "point": 0.85
+      },
+      "backend": "gpt_mcp",
+      "by_category": [
+        {
+          "accuracy": {
+            "hi": 1.0,
+            "lo": 0.7,
+            "point": 0.9
+          },
+          "category": "aggregation",
+          "n": 10
+        }
+      ],
+      "cost_per_correct_usd": 0.01,
+      "fixes": [],
+      "latency_p50_ms": 4000,
+      "trials": 3
+    },
+    {
+      "accuracy": {
+        "hi": 0.98,
+        "lo": 0.85,
+        "point": 0.92
+      },
+      "accuracy_strict": {
+        "hi": 0.97,
+        "lo": 0.82,
+        "point": 0.9
+      },
+      "backend": "gpt_mcp",
+      "by_category": [
+        {
+          "accuracy": {
+            "hi": 1.0,
+            "lo": 0.7,
+            "point": 0.9
+          },
+          "category": "aggregation",
+          "n": 10
+        }
+      ],
+      "cost_per_correct_usd": 0.01,
+      "fixes": [
+        "descriptions",
+        "examples"
+      ],
+      "latency_p50_ms": 4000,
+      "trials": 3
+    },
+    {
+      "accuracy": {
+        "hi": 0.86,
+        "lo": 0.73,
+        "point": 0.8
+      },
+      "accuracy_strict": {
+        "hi": 0.67,
+        "lo": 0.52,
+        "point": 0.6
+      },
+      "backend": "cortex_analyst",
+      "by_category": [
+        {
+          "accuracy": {
+            "hi": 1.0,
+            "lo": 0.7,
+            "point": 0.9
+          },
+          "category": "aggregation",
+          "n": 10
+        }
+      ],
+      "cost_per_correct_usd": 0.01,
+      "fixes": [],
+      "latency_p50_ms": 4000,
+      "trials": 3
+    }
   ],
   "config_hash": "fixture",
+  "cost_status": "reconciled",
   "finished_at": "2026-11-17T09:00:00Z",
-  "run_id": "run-fixture",
+  "gold_mode": "cross_engine",
+  "pack": "fixture@1.0",
+  "probes": {},
+  "run_id": "rescore-fixture",
   "schema_version": "1.0",
   "started_at": "2026-11-17T08:00:00Z",
-  "total_cost_usd": 1.0
+  "total_cost_usd": 1.0,
+  "uplifts": []
 }

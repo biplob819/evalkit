@@ -11,6 +11,7 @@ import argparse
 import ast
 import hashlib
 import json
+import re
 import shutil
 import socket
 import subprocess
@@ -22,6 +23,7 @@ import pytest
 from evalkit import cli
 from evalkit import index as ix
 from evalkit.metrics import EFFICIENCY_NAMES
+from evalkit.stats import clopper_pearson
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "index"
@@ -249,7 +251,7 @@ def test_build_makes_no_network_model_or_git_call(monkeypatch):
     monkeypatch.setattr(subprocess, "run", refuse)
     monkeypatch.setattr(subprocess, "Popen", refuse)
     index = build()
-    assert [p.status for p in index.projects].count("ok") == 5
+    assert [p.status for p in index.projects].count("ok") == 6
     tree = ast.parse((ROOT / "src" / "evalkit" / "index.py").read_text(encoding="utf-8"))
     names = {
         a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names
@@ -270,14 +272,18 @@ def test_every_registered_project_is_listed_and_unreadable_ones_are_missing_with
     assert [p.project for p in index.projects] == ORDER
     reasons = {p.project: p.reason for p in index.missing}
     assert reasons == {
-        "agentic-analytics": (
-            "not metrics-1 or an EvalKit summary.json: it has schema_version '1.0' but not "
-            "EvalKit's summary.json keys (task, judge_mode, calibration_status, judging_status, "
-            "models): another project's summary.json, not an EvalKit run"
-        ),
         "ai-visibility": "no summary registered in the registry",
         "fraud-review-bedrock": "git fetch failed (exit 128)",
     }
+    # another project's own summary format is missing unless the config says how to read it
+    cfg = ix.parse_config(CONFIG.read_text(encoding="utf-8"))
+    projects = {k: v for k, v in cfg.projects.items() if k != "agentic-analytics"}
+    other = entry(build(config=cfg.model_copy(update={"projects": projects})), "agentic-analytics")
+    assert other.status == "missing" and other.reason == (
+        "not metrics-1 or an EvalKit summary.json: it has schema_version '1.0' but not "
+        "EvalKit's summary.json keys (task, judge_mode, calibration_status, judging_status, "
+        "models): another project's summary.json, not an EvalKit run"
+    )
     for p in index.missing:
         assert p.headline is None and p.gate is None and p.calibration is None
         assert p.models == [] and p.run_id is None and p.evalkit_version is None
@@ -294,11 +300,7 @@ def test_require_all_exits_1_when_a_project_is_missing_and_2_on_a_bad_registry(t
         "index", "build", *base, "--out", str(tmp_path), "--require-all", "--json", capsys=capsys
     )
     assert code == 1
-    assert json.loads(out)["missing"] == [
-        "agentic-analytics",
-        "ai-visibility",
-        "fraud-review-bedrock",
-    ]
+    assert json.loads(out)["missing"] == ["ai-visibility", "fraud-review-bedrock"]
     assert (tmp_path / "index.html").is_file()  # written even when missing projects exit 1
     bad = tmp_path / "bad.tsv"
     bad.write_text("project\trepo\nx\ty/z\n", encoding="utf-8")
@@ -739,3 +741,403 @@ def test_snapshot_refuses_env_and_escaping_paths_and_records_failed_fetches(tmp_
     assert e.status == "missing" and e.reason == res[0].reason
     with pytest.raises(ix.IndexInputError, match="unknown project"):
         ix.snapshot(one_row_registry(tmp_path, "m.json"), out, sources={"nobody": "x"}, root=own)
+
+
+# ---- the confirmed headlines: selectors for each project's real shape ---------------------------
+#
+# Each project's session confirmed its headline (file, selector, label) on 2026-11-18. The real
+# config (configs/index.yaml) is applied here to synthetic files shaped like each project's real
+# one (tests/fixtures/index/shapes and snapshots; structure only, made-up values).
+
+REAL_CONFIG = ROOT / "configs" / "index.yaml"
+SHAPES = FIX / "shapes"
+
+
+def real_cfg(project: str) -> ix.ProjectConfig:
+    return ix.load_config(REAL_CONFIG).projects[project]
+
+
+def own_snapshot(tmp_path: Path, project: str, data: bytes, path: str) -> Path:
+    """A snapshot folder holding one summary file, as `evalkit index snapshot` writes it."""
+    folder = tmp_path / project
+    folder.mkdir(parents=True)
+    (folder / "summary.json").write_bytes(data)
+    snap = {
+        "schema_version": "index-snapshot-1",
+        "project": project,
+        "repo": f"biplob819/{project}",
+        "source": "local",
+        "ref": "main",
+        "commit": "a" * 40,
+        "fetched_at": "2026-11-18T09:00:00Z",
+        "status": "ok",
+        "reason": "",
+        "evalkit_pin": "evalkit-harness==0.3.0",
+        "evalkit_version": None,
+        "lessons": None,
+        "files": {
+            "summary": {
+                "path": path,
+                "name": "summary.json",
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+        },
+    }
+    (folder / "snapshot.json").write_text(json.dumps(snap), encoding="utf-8")
+    return folder
+
+
+def registry_row(project: str) -> ix.RegistryRow:
+    return ix.RegistryRow(project, f"biplob819/{project}", "main", "evalkit-harness==0.3.0", None)
+
+
+@pytest.mark.parametrize(
+    ("path", "problem"),
+    [
+        ("leakage", "a path starts with $"),
+        ("$..leakage", "expected a field name after ."),
+        ("$.rows[0]", "unexpected '['"),
+        ("$.rows[*].x", "unexpected '['"),
+        ("$.rows[?(@.x == 1)]", "expected a field name in the filter"),
+        ("$.rows[?x != 1]", "a filter compares a field with == only"),
+        ("$.rows[?x == undefined]", "a filter value is a string in double quotes"),
+        ("$.rows[?x == 'one']", "a filter value is a string in double quotes"),
+        ("$.rows[?x == 1 || y == 2]", "expected && or ]"),
+        ("$.__import__('os')", "unexpected '('"),
+        ("$." + "a" * 300, "a path is at most 200 characters"),
+    ],
+)
+def test_path_selector_refuses_anything_beyond_fields_and_equality_filters(path, problem):
+    with pytest.raises(ValueError, match=re.escape(problem)):
+        ix.parse_path(path)
+    text = (
+        "schema_version: index-config-1\nprojects:\n  ai-visibility:\n"
+        f"    own_format: {{}}\n    headline: {{path: {json.dumps(path)}}}\n"
+    )
+    with pytest.raises(ix.IndexInputError, match=re.escape(problem)):
+        ix.parse_config(text)
+
+
+def test_path_selector_filters_by_json_equality_and_keeps_the_item_for_fan_out():
+    data = {
+        "rows": [
+            {"name": "a", "run": 1, "intent": None, "fixes": [], "ok": True},
+            {"name": "b", "run": "1", "intent": "x", "fixes": ["f"], "ok": 1},
+            {"name": "c", "run": 1.0, "fixes": [], "ok": False},
+        ],
+        "one": {"point": 0.5},
+    }
+
+    def names(path: str) -> list[Any]:
+        return [v for v, _ in ix.eval_path(path, data)]
+
+    assert names("$.rows[?run == 1].name") == ["a", "c"]  # JSON numbers; "1" is a string
+    assert names('$.rows[?run == "1"].name') == ["b"]
+    assert names("$.rows[?intent == null].name") == ["a"]  # an absent field is not null
+    assert names("$.rows[?fixes == []].name") == ["a", "c"]
+    assert names("$.rows[?ok == true].name") == ["a"]  # true is not 1
+    assert names("$.rows[?ok == 1].name") == ["b"]
+    assert names("$.rows[?fixes == [] && ok == false].name") == ["c"]
+    assert names("$.rows[?run==1&&ok==true].name") == ["a"]  # spaces are optional
+    assert names("$.rows.name") == []  # a field step never reaches into a list
+    assert names("$.missing") == [] and names("$.one") == [{"point": 0.5}]
+    kept = ix.eval_path("$.rows[?fixes == []].name", data)
+    assert [item["name"] for _, item in kept if item is not None] == ["a", "c"]
+    assert ix.eval_path("$.one.point", data) == [(0.5, None)]
+
+
+def test_agentic_fans_out_per_backend_with_the_strict_score_beside():
+    """agentic-analytics (own summary.json): accuracy on the rows with no fixes, one per
+    backend in file order, its strict score beside; rows with fixes are never read."""
+    a = entry(build(), "agentic-analytics")
+    assert (a.status, a.kind, a.run_id, a.run_date) == (
+        "ok",
+        "own-format",
+        "rescore-fixture",
+        "2026-11-17",
+    )
+    h = a.headline
+    assert h is not None and h.problem is None and h.value is None
+    assert [r.labels for r in h.rows] == [
+        {"backend": "claude_mcp"},
+        {"backend": "gpt_mcp"},
+        {"backend": "cortex_analyst"},
+    ]
+    pairs = [(r.value, r.companion.value if r.companion else None) for r in h.rows]
+    assert pairs == [(0.7, 0.7), (0.9, 0.85), (0.8, 0.6)]
+    assert h.rows[0].ci_method == "two-level bootstrap" and h.rows[0].companion_label == "strict"
+    assert h.shown.startswith(
+        "claude_mcp: 70.0% [63.0%, 76.0%] (strict 70.0% [62.0%, 77.0%]); gpt_mcp: 90.0%"
+    )
+    assert a.gate is not None and a.gate.status == "not gated"
+    assert a.calibration is not None and a.calibration["status"] == "not stated"
+    assert a.simulated is None and a.models == []  # not stated: never invented
+    assert a.story["evals"][0]["status"] == "provisional"  # never final unless stated real
+    assert a.story["headline"]["value"] == h.shown
+    html = ix.render_html(build())
+    assert "(strict <span" in html and "cortex_analyst" in html
+    # a filter that keeps two rows for one backend, or several values without `per`: a problem,
+    # never one of them
+    cfg = ix.parse_config(CONFIG.read_text(encoding="utf-8"))
+    head = cfg.projects["agentic-analytics"].headline
+    assert head is not None
+    for update, problem in (
+        ({"path": "$.backends[?trials == 3].accuracy"}, "matches 5 values, not one per backend"),
+        ({"per": None, "companion": None}, "matches 3 values, not one value"),
+        ({"path": "$.backends[?fixes == [] && trials == 9].accuracy"}, "matches no value"),
+        ({"path": "$.backends[?fixes == []].by_category"}, "the selected value is not a figure"),
+        ({"per": "trials_x"}, "an item has no trials_x"),
+    ):
+        projects = {
+            **cfg.projects,
+            "agentic-analytics": cfg.projects["agentic-analytics"].model_copy(
+                update={"headline": head.model_copy(update=update)}
+            ),
+        }
+        got = entry(
+            build(config=cfg.model_copy(update={"projects": projects})), "agentic-analytics"
+        )
+        assert got.headline is not None and got.headline.problem is not None
+        assert got.headline.problem.startswith(problem), got.headline.problem
+        assert got.headline.rows == [] and got.headline.value is None
+
+
+def test_fraud_leakage_reads_its_own_figure_lower_is_better_and_simulated(tmp_path):
+    """fraud-review-bedrock (summary-eval2.json): $.leakage {k, n, point, lo, hi}, lower is
+    better, `data_label: simulated` shown as simulated (real config)."""
+    data = (SHAPES / "fraud-review-bedrock.json").read_bytes()
+    cfg = real_cfg("fraud-review-bedrock")
+    path = "docs/measurements/summary-eval2.json"
+    assert cfg.summary == path
+    folder = own_snapshot(tmp_path / "a", "fraud-review-bedrock", data, path)
+    e = ix.read_project(folder, registry_row("fraud-review-bedrock"), cfg)
+    assert e.status == "ok" and e.kind == "own-format" and e.run_id == "eval2-fixture"
+    h = e.headline
+    assert h is not None and h.problem is None
+    assert (h.value, h.k, h.n, h.ci_low, h.unit) == (0.0, 0, 40, 0.0, "rate")
+    # the file's exact one-sided 95% upper bound is the one the wording states
+    assert h.ci_high == pytest.approx(clopper_pearson(0, 40, 0.05, "upper").hi, abs=1e-12)
+    assert h.text == "0 of 40, below 7.22% at 95%"
+    assert h.direction == "lower is better" and h.ci_method == "exact 95% upper bound"
+    assert e.headline_label == "Fraud leakage (frauds auto-cleared, lower is better)"
+    assert e.simulated is True and e.stamps[0].startswith("SIMULATED")
+    assert "lower is better" in e.story["headline"]["note"]
+    assert "simulated" in e.story["headline"]["note"]
+    assert {x["status"] for x in e.story["evals"]} == {"provisional"}
+    html = ix.render_html(ix.Index([e]))
+    assert html.count('<span class="badge sim">SIMULATED</span>') == 2
+    assert "<span class=muted>(lower is better)</span>" in html
+    assert e.evalkit_pin == "evalkit-harness==0.3.0" and "pin evalkit-harness==0.3.0" in html
+    # another data_label is false; no data_label is not stated (never invented)
+    for i, (label, want) in enumerate((("real", False), (None, None))):
+        doc = json.loads(data)
+        if label is None:
+            doc.pop("data_label")
+        else:
+            doc["data_label"] = label
+        folder = own_snapshot(
+            tmp_path / f"b{i}", "fraud-review-bedrock", json.dumps(doc).encode(), path
+        )
+        got = ix.read_project(folder, registry_row("fraud-review-bedrock"), cfg)
+        assert got.simulated is want and not any(s.startswith("SIMULATED") for s in got.stamps)
+
+
+def test_ai_visibility_selects_one_share_row_and_an_optional_comparison(tmp_path):
+    """ai-visibility (studies/uk-health/results/summary.json): the presence share of nhs.uk
+    for one model, run 1, all intents (intent null), and the same row for another model."""
+    data = (SHAPES / "ai-visibility.json").read_bytes()
+    cfg = real_cfg("ai-visibility")
+    folder = own_snapshot(tmp_path, "ai-visibility", data, str(cfg.summary))
+    e = ix.read_project(folder, registry_row("ai-visibility"), cfg)
+    assert e.status == "ok" and e.run_id is None and e.run_date == "2026-11-16"
+    h, c = e.headline, e.headline_comparison
+    assert h is not None and c is not None and h.problem is None and c.problem is None
+    assert (h.value, h.k, h.n, h.text) == (0.7, 70, 100, "70.0% [63.0%, 78.0%]")
+    assert (c.value, c.k, c.n, c.text) == (0.12, 12, 100, "12.0% [5.0%, 20.0%]")
+    assert e.headline_label == "Answers citing nhs.uk, GPT-6.1 Sol (run 1)"
+    assert [x["name"] for x in e.story["evals"]] == [e.headline_label, e.comparison_label]
+    assert e.simulated is None  # the file does not say: never invented
+    html = ix.render_html(ix.Index([e]))
+    assert "Comparison, <strong>same selector, model claude-sonnet-5-5</strong>" in html
+    head = cfg.headline
+    assert head is not None and head.path is not None
+    for path, problem in (
+        (head.path.replace(" && intent == null", ""), "matches 2 values, not one value"),
+        (head.path.replace("run == 1", 'run == "1"'), "matches no value"),
+    ):
+        one = cfg.model_copy(update={"headline": head.model_copy(update={"path": path})})
+        got = ix.read_project(folder, registry_row("ai-visibility"), one)
+        assert got.headline is not None and got.headline.problem == problem
+
+
+def test_respectful_offers_two_arm_row_is_the_headline_and_stays_simulated():
+    """respectful-offers (metrics-1): the diff.* row with labels {a, b, variant}."""
+    o = entry(build(), "respectful-offers")
+    h = o.headline
+    assert h is not None and h.problem is None
+    assert h.metric == "diff.incremental_retained_per_1000_ntd"
+    assert h.labels == {"a": "bandit", "b": "rule_following_baseline", "variant": "central"}
+    assert h.text == "0.011 [0.004, 0.018]"  # the selector's three decimals
+    assert o.simulated is True and "simulated" in o.story["headline"]["note"]
+    real = real_cfg("respectful-offers").headline
+    assert real is not None and real.metric == "diff.incremental_retained_per_1000_ntd"
+    assert real.labels == {"a": "bandit", "b": "rule_following_baseline", "variant": "central"}
+    assert real.decimals == 3 and real.label is not None and "simulated" in real.label
+
+
+def test_the_real_index_config_names_each_confirmed_headline_and_nothing_else():
+    cfg = ix.load_config(REAL_CONFIG)
+    registered = {r.project for r in ix.read_registry(ROOT / "docs" / "downstream.tsv")}
+    assert set(cfg.projects) == registered | {"evalkit"}
+    assert cfg.projects["course-assistant"].headline is None  # no confirmation: not designated
+    assay = cfg.projects["assay-pipeline"]
+    # the owner named one model's row; the other model's quality stays not designated
+    assert assay.quality is not None and assay.quality.labels == {
+        "model": "claude-sonnet-5-5",
+        "split": "public",
+    }
+    assert assay.quality.caption == (
+        "strict query match; the answers state the gold value 100% of the time"
+    )
+    assert assay.pointer is not None and (assay.pointer.path, assay.pointer.file) == (
+        "docs/results/LATEST",
+        "metrics.json",
+    )
+    assert assay.headline is not None and assay.headline.metric == "scripted_attacker_stopped"
+    gemma = cfg.projects["gemma-grounded-health"].headline
+    assert gemma is not None and gemma.label == "Correct and fully grounded (fine-tuned v1)"
+    assert gemma.labels == {"model": "gemma-e2b-grounded-q4", "judge": "claude-opus-5-5"}
+    # each own-format selector reads its project's fixture shape without a problem
+    agentic = cfg.projects["agentic-analytics"].headline
+    assert agentic is not None and agentic.per == "backend"
+    data = json.loads((SNAPS / "agentic-analytics" / "summary.json").read_text(encoding="utf-8"))
+    fig = ix._select_path(data, agentic, frozenset({"heldout"}))
+    assert fig.problem is None and len(fig.rows) == 3
+
+
+def test_a_model_without_a_designated_quality_says_not_designated():
+    cfg = ix.parse_config(CONFIG.read_text(encoding="utf-8"))
+    assay = cfg.projects["assay-pipeline"].model_copy(update={"quality": None})
+    e = entry(
+        build(
+            config=cfg.model_copy(update={"projects": {**cfg.projects, "assay-pipeline": assay}})
+        ),
+        "assay-pipeline",
+    )
+    assert e.models and all(m.quality is None for m in e.models)
+    html = ix.render_html(ix.Index([e]))
+    assert html.count("<td><span class=muted>not designated</span></td>") == len(e.models)
+
+
+def test_a_quality_selector_that_names_a_model_designates_that_model_only():
+    """assay-pipeline: quality `normal_answer_correct_rate {model: claude-sonnet-5-5, split:
+    public}` with its owner's caption; the other model's cell is not designated, never filled
+    from its own row."""
+    cfg = ix.parse_config(CONFIG.read_text(encoding="utf-8"))
+    q = ix.Selector(
+        metric="normal_answer_correct_rate",
+        labels={"model": "claude-sonnet-5-5", "split": "public"},
+        caption="strict query match",
+    )
+    assay = cfg.projects["assay-pipeline"].model_copy(update={"quality": q})
+    projects = {**cfg.projects, "assay-pipeline": assay}
+    e = entry(build(config=cfg.model_copy(update={"projects": projects})), "assay-pipeline")
+    by = {m.model: m for m in e.models}
+    assert set(by) == {"gpt-6.1-sol", "claude-sonnet-5-5"}  # efficiency rows still listed
+    sonnet = by["claude-sonnet-5-5"].quality
+    assert sonnet is not None and sonnet.problem is None
+    assert sonnet.labels == {"model": "claude-sonnet-5-5", "split": "public"}
+    assert sonnet.note == "strict query match"
+    assert by["gpt-6.1-sol"].quality is None
+    html = ix.render_html(ix.Index([e]))
+    assert "<span class=muted>(strict query match)</span>" in html
+    assert html.count("<td><span class=muted>not designated</span></td>") == 1
+
+
+@pytest.mark.parametrize(
+    ("project", "problem"),
+    [
+        ("{summary: a.json, pointer: {path: LATEST, file: m.json}}", "give summary or pointer"),
+        ("{headline: {path: $.x}}", "a path selector needs own_format"),
+        ("{own_format: {}, headline: {metric: x}}", "headline and comparison use path"),
+        ("{own_format: {}, headline: {path: $.x, per: name}}", "per needs a [?...] filter"),
+        ("{own_format: {}, headline: {path: $.x, labels: {a: 1}}}", "a path selector has no"),
+        (
+            "{own_format: {}, headline: {path: '$.a[?k == 1].x', per: k, "
+            "companion: {path: '$.a[?k == 1].y'}}}",
+            "with the same per",
+        ),
+        ("{own_format: {}, gates: g.yaml}", "no quality, calibration"),
+        ("{headline: {metric: x, unit: rate}}", "belong to a path selector"),
+        ("{headline: {metric: x, decimals: 9}}", "decimals"),
+        ("{headline: {metric: x, path: $.x}}", "or a path, not both"),
+        ("{pointer: {path: ../LATEST, file: m.json}}", "must not contain empty, . or .. parts"),
+        ("{pointer: {path: LATEST, file: .env}}", "must not name a .env file"),
+        ("{own_format: {simulated: {path: data_label}}}", "a path starts with $"),
+    ],
+)
+def test_config_refuses_mixed_or_unsafe_selectors(project, problem):
+    text = f"schema_version: index-config-1\nprojects:\n  ai-visibility: {project}\n"
+    with pytest.raises(ix.IndexInputError, match=re.escape(problem)):
+        ix.parse_config(text)
+
+
+def test_snapshot_follows_a_pointer_file_to_the_current_bundle(tmp_path):
+    """assay-pipeline: docs/results/LATEST names the current bundle; metrics.json sits beside
+    it. The snapshot records the pointer (path, target, sha256) and the summary path it gave."""
+    metrics = (SNAPS / "assay-pipeline" / "summary.json").read_bytes()
+    repo = tmp_path / "assay"
+    make_repo(
+        repo,
+        {
+            "docs/results/LATEST": b"main-b/bundle.json\n",
+            "docs/results/main-a/metrics.json": b"{}",
+            "docs/results/main-b/bundle.json": b"{}",
+            "docs/results/main-b/metrics.json": metrics,
+        },
+    )
+    reg = tmp_path / "reg.tsv"
+    reg.write_text(
+        "project\trepo\tbranch\tpin\tsummary\n"
+        "assay-pipeline\tbiplob819/assay-pipeline\tmain\tevalkit-harness>=0.3,<0.4\t-\n",
+        encoding="utf-8",
+    )
+    cfg = ix.parse_config(
+        "schema_version: index-config-1\nprojects:\n  assay-pipeline:\n"
+        "    pointer: {path: docs/results/LATEST, file: metrics.json}\n"
+        "    headline: {metric: scripted_attacker_stopped}\n"
+    )
+    own = tmp_path / "self"
+    make_repo(own, {"README": b"x"})
+    out = tmp_path / "snaps"
+    res = ix.snapshot(reg, out, config=cfg, sources={"assay-pipeline": str(repo)}, root=own)
+    assert res[0].status == "ok" and res[0].files == {"summary": "docs/results/main-b/metrics.json"}
+    snap = json.loads((out / "assay-pipeline" / "snapshot.json").read_text(encoding="utf-8"))
+    assert snap["pointer"] == {
+        "path": "docs/results/LATEST",
+        "target": "main-b/bundle.json",
+        "sha256": hashlib.sha256(b"main-b/bundle.json\n").hexdigest(),
+    }
+    e = entry(ix.build_index(reg, out, cfg), "assay-pipeline")
+    assert e.status == "ok" and e.summary_path == "docs/results/main-b/metrics.json"
+    assert e.pointer is not None and e.pointer["path"] == "docs/results/LATEST"
+    assert e.headline is not None and e.headline.problem is None
+    assert "(named by <a href=" in ix.render_html(ix.Index([e]))
+    for text, want in (
+        (b"main-a\n", "ok"),  # a folder: the summary is metrics.json inside it
+        (b"../../outside\n", "pointer names a refused path"),
+        (b"main-a\nmain-b\n", "pointer file must hold exactly one path"),
+        (b"main-z\n", "pointer names nothing at commit"),
+        (b"\xff\n", "pointer file is not UTF-8"),
+    ):
+        (repo / "docs/results/LATEST").write_bytes(text)
+        git(repo, "commit", "-qam", "move the pointer")
+        res = ix.snapshot(reg, out, config=cfg, sources={"assay-pipeline": str(repo)}, root=own)
+        if want == "ok":
+            assert res[0].files["summary"] == "docs/results/main-a/metrics.json"
+        else:
+            assert res[0].status == "missing" and res[0].reason.startswith(want), res[0].reason
+    (repo / "docs/results/LATEST").unlink()
+    git(repo, "commit", "-qam", "drop the pointer")
+    res = ix.snapshot(reg, out, config=cfg, sources={"assay-pipeline": str(repo)}, root=own)
+    assert res[0].reason.startswith("pointer docs/results/LATEST not found at commit")

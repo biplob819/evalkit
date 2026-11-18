@@ -1,0 +1,44 @@
+{
+  "auto_clear_rate": {
+    "hi": 0.14,
+    "k": 30,
+    "lo": 0.07,
+    "n": 300,
+    "point": 0.1
+  },
+  "data_label": "simulated",
+  "finished_at": "2026-11-17T08:10:00Z",
+  "leakage": {
+    "hi": 0.0721575245055146,
+    "k": 0,
+    "lo": 0.0,
+    "n": 40,
+    "point": 0.0
+  },
+  "minutes_saved_per_1000": {
+    "hi": 400.0,
+    "lo": 200.0,
+    "point": 300.0
+  },
+  "n_alerts": 300,
+  "n_frauds": 40,
+  "recall_end_to_end": {
+    "hi": 1.0,
+    "k": 40,
+    "lo": 0.912,
+    "n": 40,
+    "point": 1.0
+  },
+  "run_id": "eval2-fixture",
+  "schema_version": "1.0",
+  "split": "eval",
+  "started_at": "2026-11-17T08:00:00.000000Z",
+  "thresholds": [
+    {
+      "metric": "leakage",
+      "op": "==",
+      "passed": true,
+      "value": 0.0
+    }
+  ]
+}

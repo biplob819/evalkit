@@ -46,6 +46,9 @@ The rule is fraud-review-bedrock's (its MON-03), so its numbers reproduce bit fo
   share of 0 on the other, floored like any empty bin, and listed in the row's `bins_one_side`
   (`reference_only`, `new_only`). Its absence is never an error and never drift by itself; the
   PSI counts only the share the other side gives it. Two sides that share no bin at all exit 2.
+  An exporter that drops an empty bin's edge can fold a near-constant feature into one bin, so
+  its PSI is 0 by construction (respectful-offers' L-42); bin such a feature with the
+  constant-reference rule instead (below, equal, above).
 - Each share is floored at 1e-4 (not renormalised), then PSI = Σ (q − p) · ln(q / p). The floor
   leaves PSI unchanged when no bin is empty and makes a bin that appears from nothing count: a
   5% share against an empty reference bin adds about 0.31, an alarm by itself.
@@ -108,9 +111,10 @@ interval is `no_interval` and never flagged.
 **Measured error rates (B5.7 verifier, 252 no-drift cells × 300 trials).** With aligned bins, ECE and bin flags stayed at or below 4.3% and alarms at or below 3.3%. With unaligned bins, ECE *flags* (warns) reached 7.3% when a stable miscalibration met predictions moving within bins, and 6.7% with empty reference bins; alarms stayed within 5%. Detection power is good from a reference of 1,000 rows; with 200, a +0.08 bias is caught only 1–2% of the time, so freeze a reference of at least 1,000 rows.
 
 **Bins must align to be compared.** Aggregated reliability bins are compared only when the
-drift config declares `binning: equal-width`. Quantile bins (as respectful-offers exports
-today) move with each period, so per-bin drift is reported as `not available`
-(`bins_not_aligned`) and only Brier and ECE are compared.
+drift config declares `binning: equal-width`. Quantile bins move with each period, so per-bin
+drift is reported as `not available` (`bins_not_aligned`) and only Brier and ECE are compared.
+respectful-offers exports ten equal-width reliability bins since its E4.3 (OWNER D-73 met) and
+declares `binning: equal-width`, so its per-bin drift is compared.
 
 **A bin on one side only is not comparable.** An export that leaves empty bins out (an absent
 top bin `[0.9, 1.0)` is common) gives a reliability bin on one side only, or on neither. A
@@ -156,7 +160,9 @@ is no timestamp: the same inputs give the same bytes.
 (`drift.psi` per feature, the new batch's `drift.brier` and `drift.ece`, and
 `drift.brier_delta` / `drift.ece_delta` with their intervals), so the figures can be gated
 with `evalkit gate` and added to the run history, where they get alarm bands once five periods
-are in and appear in the trend page's PSI panel.
+are in and appear in the trend page's PSI panel. It carries `simulated` from the new batch's
+metrics-1 file, else from the reference's source file; when neither states it, neither does
+the emitted file.
 
 Exit codes: 0 no alarm, or alarms only in checks at `warn` severity (printed), 1 an alarm in a
 check at `fail` severity (the default: PSI, calibration or bins), 2 bad input (an edited

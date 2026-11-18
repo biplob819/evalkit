@@ -27,3 +27,6 @@ heldout/*
 
 # scratch folders that test probes may leave in the repo root
 /tmp*/
+
+# the eval index snapshot: whole downstream summary files, never committed (docs/index.md)
+docs/index/snapshots/

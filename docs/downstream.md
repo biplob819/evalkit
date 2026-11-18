@@ -587,7 +587,7 @@ Capabilities it asked for, in 0.4.0:
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (met). It imports only `evalkit.metrics` (`load_metrics`, `parse_metrics`,
   `MetricsError`) and `evalkit.gates` (`run_gate`, `EXIT_PASS`, `EXIT_INPUT`), enforced by its ast
   test. Its stricter validator refused id-shaped label values; EvalKit refuses them too since
-  0.4.0. Equal-width reliability bins (D-73) come with its E4.3.
+  0.4.0. Equal-width reliability bins (D-73): met since its E4.3.
 
 | Import today | Class in 0.3.0 | Replace with |
 |---|---|---|
@@ -604,10 +604,11 @@ Capabilities it asked for (OWNER D-63, D-67):
 - Run-vs-run compare (B5.6): `evalkit.compare.compare_runs`.
 - Drift and calibration monitor (B5.7, LED-04): not in 0.3.0.
 
-**An ask from EvalKit (OWNER D-73):** please export **equal-width reliability bins** (edges
-0.0, 0.1, ..., 1.0) with your calibration figures. Until you do, EvalKit's drift monitor
-compares only your Brier score and ECE and reports per-bin drift as not available; it never
-compares quantile bins whose edges move between runs.
+**An ask from EvalKit (OWNER D-73), met:** export **equal-width reliability bins** (edges
+0.0, 0.1, ..., 1.0) with the calibration figures. Since its E4.3 it exports ten equal-width
+reliability bins and its drift config declares `binning: equal-width`, so EvalKit's drift
+monitor compares per-bin drift as well as the Brier score and ECE (quantile bins, whose edges
+move between runs, are never compared).
 
 ### 0.3 → 0.4
 
@@ -624,4 +625,4 @@ Capabilities it asked for, in 0.4.0:
 
 - Drift and calibration monitor with a severity per check (B5.7, LED-04): `evalkit.drift.check`, `evalkit.drift.load_config` (each check `severity: warn` or `fail`, default `fail`; a `warn` alarm is printed and exits 0), `evalkit.drift.DriftReport`, `evalkit.drift.calibration_drift`, and the `drift check` command with `--config FILE`; bins left out of an export read as empty ([drift.md](drift.md)).
 - Run history (B5.7): `evalkit.ledger.record_run`, `evalkit.ledger.check_run`.
-- The OWNER D-73 ask above still stands: until it exports equal-width reliability bins, per-bin drift is reported as not available.
+- The OWNER D-73 ask above is met: ten equal-width reliability bins since its E4.3, so per-bin drift is compared. `drift check --emit-metrics` carries its `simulated: true` into the emitted metrics-1 file.

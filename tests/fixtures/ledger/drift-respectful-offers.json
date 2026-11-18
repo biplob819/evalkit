@@ -250,11 +250,13 @@
   ],
   "new": {
     "kind": "metrics",
+    "simulated": true,
     "source_sha256": "eccf94969da1ecb79c99caec787dc86c798be8e193c1a57d6f068c2e50a45574"
   },
   "reference": {
     "created_at": "2026-11-18T11:06:40Z",
-    "profile_sha256": "8e102330f1d7e1b510c60f1ae16029deeaa718e1dc1c00f6189451779374e186",
+    "profile_sha256": "adf7dcd78e185c33084ce3b042ad49aa56464d60e4699d708fb1fe29eef44137",
+    "simulated": true,
     "source_sha256": "8e201047989d19e12cd622f3462d3319622289756ab76898d53075f2ec2cfbba"
   },
   "schema": "drift-1",
