@@ -11,3 +11,4 @@
 - [x] 9. fraud-review-bedrock D-42 mutation test adapted (scratch); stricter rules adopted
 - [x] 10. Commit on the lane branch
 - [x] 11. verify516b (gen4) closed world: failing tests first, rules (A) and (B), all generators re-run, fraud-review measured
+- [x] 12. verify516c (gen5) strict facts grammar: failing tests first (wrong subjects never verified, facts-line forms verified), chain framing, facts headers, wrappers, currencies, docs grammar with tested examples, all generators re-run, documented-forms verify rate, fraud-review measured

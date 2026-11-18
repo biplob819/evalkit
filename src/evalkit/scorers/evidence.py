@@ -8,12 +8,12 @@ Copyright (c) 2026 Biplob Chakraborty, the same author) and general to any decis
   judge each reason against the record exactly as it judges an explanation against a document
   (sentence i of the list is evidence sentence i; the judge prompt numbers them).
 - `value_check` checks the numbers in a reason against the record without a model, strictly
-  (B5.16, D-74): a number is checked only when the text binds it to one field by positive
-  evidence (the field's whole name or an alias, in a recognised shape such as "risk score is
-  0.83", "amount above 800", "40 earlier purchases", or a declared `ValuePhrase`) in a
-  statement framed by a clause start and a clause end; every numeric token (digits anywhere,
-  number words) no such binding consumes makes its reason unverifiable (a closed world), and
-  no number is ever matched to a field because its value is close. Each reason is `verified`,
+  (B5.16, D-74, D-77): it reads a strict facts grammar ("Facts: Amount is 812.40. Hour is
+  3."). A statement ("<field> is <value>", "<field>: <value>", or a declared `ValuePhrase`)
+  binds only when it starts the reason, follows a facts header on its own, or follows the
+  terminator of a statement that itself bound; every numeric token (digits anywhere, number
+  words) no such statement consumes makes its reason unverifiable (a closed world), and no
+  number is ever matched to a field because its value is close. Each reason is `verified`,
   `contradicted` or `unverifiable` (D-72), and `value_check_shares` gives each share across
   a run with its count and an exact interval.
 
@@ -31,7 +31,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from fractions import Fraction
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from pydantic import model_validator
 
@@ -169,8 +169,10 @@ class ValuePhrase(Model):
 
 Outcome = Literal["verified", "contradicted", "unverifiable"]
 OUTCOMES: tuple[Outcome, ...] = ("verified", "contradicted", "unverifiable")
-Unit = Literal["fraction", "percent", "multiple", "currency", "hour"]
-UNITS: tuple[str, ...] = ("fraction", "percent", "multiple", "currency", "hour")
+Unit = Literal["fraction", "percent", "multiple", "currency", "usd", "eur", "gbp", "hour"]
+UNITS: tuple[str, ...] = get_args(Unit)
+# the currency each currency unit declares ("currency" is the US dollar)
+_UNIT_CURRENCY = {"currency": "usd", "usd": "usd", "eur": "eur", "gbp": "gbp"}
 
 # A displayed-precision match more than this share off the value is a coarse rounding
 # ("risk score is 1" on 0.83): unverifiable, neither verified nor contradicted.
@@ -186,24 +188,8 @@ def _words(text: str) -> frozenset[str]:
     return frozenset(text.split())
 
 
-# field <conn> number
-_EQ_PHRASES: tuple[tuple[str, ...], ...] = (
-    ("came", "in", "at"),
-    ("is", "equal", "to"),
-    ("was", "equal", "to"),
-    ("is", "at"),
-    ("was", "at"),
-    ("stands", "at"),
-    ("stood", "at"),
-    ("is",),
-    ("was",),
-    ("equals",),
-    ("of",),
-    ("at",),
-    ("totals",),
-    ("totaled",),
-    ("totalled",),
-)
+# field <conn> value (B5.16 strict facts grammar, verify516c): nothing else connects them
+_CONNECTORS = frozenset(("is", "was", "equals", "=", ":"))
 # comparison words directly before a number
 _CMP_PHRASES: tuple[tuple[tuple[str, ...], str], ...] = (
     (("greater", "than", "or", "equal", "to"), ">="),
@@ -236,19 +222,16 @@ _CMP_PHRASES: tuple[tuple[tuple[str, ...], str], ...] = (
 )
 # "or more", "and above" after a number: not read as a comparison (the reason is ambiguous)
 _POSTFIX = _words("more higher above greater over up less lower below fewer under")
-# before a field named first (or the start, or punctuation)
-_PRE_WORDS = _words(
-    "and but while whereas with so because since as when where at then also which that"
-)
-# before a field named first, only an article or a possessive ("the", "its", "the card's" when
-# "card" is a word of that field's own name): "The merchant's card history" binds nothing
-_DETERMINERS = frozenset(("the", "a", "an"))
-_POSSESSIVES = frozenset(("its", "their"))
+# before a field name only "the" (verify516c: never "its", "their", "a", "this")
+_DETERMINERS = frozenset(("the",))
 # a statement ends at the end, a line break or one of these; "," and "and" join it to another
 # fully bound statement (B5.16 closed world: anything else leaves it unframed)
-_STATEMENT_END = frozenset(".;!?")
+_STATEMENT_END = frozenset(".;")
 _JOINERS = frozenset(("and", ","))
-_ABBREVIATIONS = _words("vs eg ie etc cf ca approx est no nos ref fig avg max min mr ms dr st")
+# a facts header on its own at a line start: the closed list (verify516c)
+_HEADERS: tuple[tuple[str, ...], ...] = tuple(
+    (*words, mark) for words in (("facts",), ("key", "facts")) for mark in (":", "-", "–", "—")
+)
 # a hedge anywhere in a reason: nothing in it is verified or contradicted (verify516)
 _HEDGE_WORDS = _words(
     "roughly about approximately approx around nearly almost ballpark circa est estd abt apprx "
@@ -308,8 +291,14 @@ _BLOCK_WORDS = _words(
 )
 _CLAUSE_WORDS = _words("and but while whereas so which yet because although though since")
 _CLAUSE_PUNCT = frozenset(".!?;,()[]—–")
-_CURRENCY_WORDS = _words("usd dollars dollar eur euros euro gbp pounds")
-_CURRENCY_SIGNS = frozenset("$€£")
+# a currency mark and the currency it names
+_CURRENCY_WORDS = {
+    **dict.fromkeys(("usd", "dollar", "dollars"), "usd"),
+    **dict.fromkeys(("eur", "euro", "euros"), "eur"),
+    **dict.fromkeys(("gbp", "pound", "pounds"), "gbp"),
+}
+_CURRENCY_CODES = frozenset(("usd", "eur", "gbp"))
+_CURRENCY_SIGNS = {"$": "usd", "€": "eur", "£": "gbp"}
 _MULTIPLE_WORDS = frozenset({"times", "fold", "x", "×"})
 _PERCENT_WORDS = frozenset({"percent", "pct"})
 # words that compare; one no binding used makes the reason ambiguous
@@ -353,6 +342,7 @@ class _Num:
     unit: str | None  # None, pct, mult, cur, time, other
     is_time_minutes: bool = False
     dot_end: bool = False  # "3 a.m." took the sentence's full stop
+    currency: str | None = None  # usd, eur, gbp: the currency its mark names
 
 
 @dataclass
@@ -477,46 +467,32 @@ class _Reader:
     def is_mention(self, i: int) -> bool:
         return 0 <= i < len(self.toks) and self.toks[i].kind == "mention"
 
-    def line_start_dash(self, i: int) -> bool:
-        t = self.toks[i]
-        if t.low not in ("-", "•", "*"):
-            return False
-        k = t.start - 1
-        while k >= 0 and self.text[k] in " \t":
-            k -= 1
-        return k < 0 or self.text[k] == "\n"
-
-    def subject_start(self, m: int, f: str | None) -> int:
+    def subject_start(self, m: int, f: str | None = None) -> int:
         """The first token of the subject whose field is named at mention m: the mention, or
-        an article or possessive right before it ("the", "its", "the card's" when "card" is a
-        word of field f's own key or alias)."""
-        p = m
-        w = self.word(p - 1)
-        if w in _POSSESSIVES:
-            return p - 1
-        if w and f and w.endswith("'s") and w[:-2] in self.field_words.get(f, ()):
-            p -= 1
-        if self.word(p - 1) in _DETERMINERS:
-            p -= 1
-        return p
+        "the" right before it (never "its", "their", "a", "this" or a possessive)."""
+        return m - 1 if self.word(m - 1) in _DETERMINERS else m
 
-    def head(self, s: int) -> bool:
-        """Token s starts a clause: the start, a line break, a sentence end (. ; ! ?) or a
-        line-start bullet before it. Never after a comma, colon, dash, bracket or a word."""
-        if s == 0 or self.newline_before(s):
-            return True
-        w = self.word(s - 1)
-        if w == "." and s >= 2 and self.toks[s - 2].kind == "word":
-            # an abbreviation's full stop starts nothing ("e.g. amount", "Avg. amount"); "a.m."
-            # and "p.m." do
-            prev = self.toks[s - 2].low
-            if prev in _ABBREVIATIONS or (len(prev) == 1 and prev != "m"):
-                return False
-        return (w is not None and w in _STATEMENT_END) or self.line_start_dash(s - 1)
+    def headers(self) -> set[int]:
+        """The tokens right after a facts header on its own at a line start ("Facts:",
+        "Facts -", "Key facts:"; the closed list `_HEADERS`, optionally in bold: "**Facts:**")."""
+        out: set[int] = set()
+        for i in range(len(self.toks)):
+            if i and not self.newline_before(i):
+                continue
+            bold = self.word(i) == self.word(i + 1) == "*" and self.adjacent(i, i + 1)
+            h = i + 2 if bold else i
+            for words in _HEADERS:
+                n = len(words)
+                if all(self.word(h + k) == w for k, w in enumerate(words)):
+                    if not bold:
+                        out.add(h + n)
+                    elif self.word(h + n) == self.word(h + n + 1) == "*":
+                        out.add(h + n + 2)
+        return out
 
     def tail(self, e: int) -> bool:
-        """Token e (the first after a statement) ends its clause: the end, a line break or
-        a sentence end (. ; ! ?), never a decimal point."""
+        """Token e (the first after a statement) ends it: the end, a line break or a full
+        stop or semicolon, never a decimal point."""
         if e >= len(self.toks) or self.newline_before(e):
             return True
         w = self.word(e)
@@ -525,16 +501,12 @@ class _Reader:
         return w is not None and w in _STATEMENT_END
 
     def clean_before_mention(self, m: int, f: str | None = None) -> str | None:
-        """None when the token before mention m lets it be a subject, else the reason."""
+        """None unless the field at mention m is coordinated with another ("risk score and hour
+        are ..."): what may stand before a statement is settled by the framing (`_frame`)."""
         p = self.subject_start(m, f) - 1
-        if p < 0:
-            return None
-        w = self.word(p)
-        if w in _COORD and self.is_mention(p - 1):
-            return "unclear_field"  # coordinated fields: "risk score and hour are ..."
-        if w is not None and (w in _PRE_WORDS or w in _PRE_PUNCT or self.line_start_dash(p)):
-            return None
-        return "unclear_subject"  # "risk of the amount", "the average amount", "We note amount"
+        if p >= 0 and self.word(p) in _COORD and self.is_mention(p - 1):
+            return "unclear_field"
+        return None
 
     def match_span(self, start: int, end: int) -> tuple[int, int] | None:
         """The tokens [first, after) of a text match, with an article right before it; None
@@ -575,18 +547,20 @@ class _Reader:
             if not at or self.text[at - 1] in " \t\n(=:":
                 negative = True
                 first = i - 1
-        cur = False
-        if (
-            first > 0
-            and self.word(first - 1) in _CURRENCY_SIGNS
-            and self.adjacent(first - 1, first)
-        ):
-            cur = True
+        cur: str | None = None
+        sign = self.word(first - 1) if first > 0 else None
+        if sign in _CURRENCY_SIGNS and self.adjacent(first - 1, first):
+            cur = _CURRENCY_SIGNS[sign]
             first -= 1
-            if first > 0 and self.word(first - 1) == "us" and self.adjacent(first - 1, first):
+            if (
+                cur == "usd"
+                and first > 0
+                and self.word(first - 1) == "us"
+                and self.adjacent(first - 1, first)
+            ):
                 first -= 1
-        elif first > 0 and self.word(first - 1) in ("usd", "eur", "gbp"):
-            cur = True
+        elif sign in _CURRENCY_CODES:
+            cur = sign
             first -= 1
         value: Fraction | None = None
         half = Fraction(1, 2)
@@ -629,7 +603,10 @@ class _Reader:
             elif w in _MULTIPLE_WORDS:
                 unit, took = "mult", 1
             elif w in _CURRENCY_WORDS and nxt.kind == "word":
-                unit, took = "cur", 1
+                code = _CURRENCY_WORDS[w]
+                # "$812.40 EUR" names two currencies: unread
+                unit, took = ("cur" if cur in (None, code) else "other"), 1
+                cur = code
             elif w in _SCALE_WORDS:
                 unit, took = "other", 1
             if took:
@@ -647,7 +624,9 @@ class _Reader:
                 value = None
             half = Fraction(1, 2)
         dot = unit == "time" and pos > t.end and self.text[pos - 1] == "."
-        return _Num(i, first, j, self.toks[first].start, end, value, half, unit, minutes, dot)
+        if cur is not None and unit != "cur":
+            unit = "other"  # a currency mark on a percent, multiple or time: unread
+        return _Num(i, first, j, self.toks[first].start, end, value, half, unit, minutes, dot, cur)
 
     def comparison_before(self, i: int) -> tuple[int, str] | None:
         return self.phrase_before(i, _CMP_PHRASES)
@@ -660,23 +639,16 @@ class _Reader:
         w = self.word(i - 1)
         m = -1
         op = "="
-        if self.is_mention(i - 1):
-            m = i - 1
-        elif w == "(" and self.is_mention(i - 2):
-            m = i - 2
-            op = "("
-        elif w in ("=", ":") and self.is_mention(i - 2):
-            m = i - 2
-        elif cmp := self.comparison_before(i):
+        if cmp := self.comparison_before(i):
+            # "<field> [is|was] <cmp> <n>"
             k, op = cmp
             if self.word(k - 1) in ("is", "was"):
                 k -= 1
             if self.is_mention(k - 1):
                 m = k - 1
-        elif eq := self.phrase_before(i, ((p, "=") for p in _EQ_PHRASES)):
-            k, _ = eq
-            if self.is_mention(k - 1):
-                m = k - 1
+        elif w in _CONNECTORS and self.is_mention(i - 2):
+            # "<field> is|was|equals|=|: <n>"; no other word, bracket or adjacency connects
+            m = i - 2
         if m < 0:
             return None, op, -1, None
         f = self.mention_field(m)
@@ -685,28 +657,22 @@ class _Reader:
         why = self.clean_before_mention(m, f)
         return f, op, m, why
 
-    def right(self, n: _Num, j: int) -> tuple[str | None, int, str | None]:
-        """The field named right after the number ("40 earlier purchases"): (field, mention
-        index, void)."""
-        if not self.is_mention(j) or self.newline_before(j):
-            return None, -1, None
-        f = self.mention_field(j)
-        if f is None:
-            return None, j, "unclear_field"
-        if not self.clean_after(j + 1):
-            return None, j, "unclear_subject"
-        return f, j, None
+    def right(self, j: int) -> int:
+        """The mention right after a number on the same line (index), or -1: a field named
+        after a number never binds it ("40 earlier purchases" is not a facts statement)."""
+        return j if self.is_mention(j) and not self.newline_before(j) else -1
 
-    def unit_ok(self, unit: str | None, f: str, phrase: bool) -> bool:
+    def unit_ok(self, n: _Num, f: str, phrase: bool) -> bool:
         declared = self.units.get(f)
+        unit = n.unit
         if unit is None:
             return True
         if unit == "pct":
             return declared in ("fraction", "percent")
         if unit == "mult":
             return phrase or declared == "multiple"
-        if unit == "cur":
-            return phrase or declared == "currency"
+        if unit == "cur":  # the mark's currency must be the declared one (verify516c)
+            return declared is not None and _UNIT_CURRENCY.get(declared) == n.currency
         if unit == "time":
             return declared == "hour"
         return False
@@ -717,39 +683,23 @@ class _Reader:
             return _Reading(void="malformed" if n.unit != "time" else "time")
         if n.unit == "time" and n.is_time_minutes:
             return _Reading(void="time")
-        before = self.word(n.first - 1)
         j = n.after
         lf, lop, lm, lvoid = self.left(n)
-        rf, rm, rvoid = self.right(n, j) if lm < 0 else (None, -1, None)
+        rm = self.right(j) if not n.dot_end else -1
         structural: _Bind | None = None
         void: str | None = None
-        if lm >= 0 and lop == "(":
-            # "<field> (<number>)": the closing bracket must follow
-            if self.word(j) != ")":
-                void = "unclear_subject"
-            elif lvoid or lf is None:
-                void = lvoid or "unclear_field"
-            else:
-                structural = _Bind(lf, "=", "paren", (self.subject_start(lm, lf), j + 1))
-        elif lm >= 0:
+        if lm >= 0:
             if lvoid or lf is None:
                 void = lvoid or "unclear_field"
-            elif self.is_mention(j) and not n.dot_end:
+            elif rm >= 0:
                 void = "unclear_field"  # a field on both sides
             elif not (self.clean_after(j) or n.dot_end):
                 void = "unclear_subject"
             else:
                 structural = _Bind(lf, lop, "left", (self.subject_start(lm, lf), j))
-        elif rf is not None or rvoid:
-            cmp = self.comparison_before(n.first)
-            k = cmp[0] if cmp else n.first  # the first token of "[<cmp>] <n>"
-            if rvoid:
-                void = rvoid
-            elif cmp and before == "over":
-                void = "unclear_comparison"  # "over 517 earlier purchases": across, or above?
-            else:  # framed later: only at a clause start ("The merchant has 40 ..." never)
-                structural = _Bind(rf or "", cmp[1] if cmp else "=", "right", (k, rm + 1))
-        if structural is not None and not self.unit_ok(n.unit, structural.field, False):
+        elif rm >= 0:
+            void = "unclear_subject"  # "40 earlier purchases": a field after its number
+        if structural is not None and not self.unit_ok(n, structural.field, False):
             structural, void = None, "unit"
         if phrase_void:
             return _Reading(void=phrase_void)
@@ -758,7 +708,7 @@ class _Reader:
         attached = [self.toks[m].fields for m in (lm, rm) if m >= 0]
         if phrase_binds and any(fs != {b.field} for fs in attached for b in phrase_binds):
             return _Reading(void="unclear_field")
-        binds = [b for b in phrase_binds if self.unit_ok(n.unit, b.field, True)]
+        binds = [b for b in phrase_binds if self.unit_ok(n, b.field, True)]
         if phrase_binds and not binds:
             return _Reading(void="unit")
         if structural is not None:
@@ -919,10 +869,68 @@ def _numeric_runs(text: str) -> list[tuple[int, int]]:
     return runs
 
 
-def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]]) -> list[bool]:
-    """(B) Which statements ([first, after) tokens, and whether a time took the full stop) are
-    framed: each starts a clause or follows "and" / "," / ", and" after a framed statement, and
-    each ends a clause or is followed by "and" / "," / ", and" and a framed statement."""
+_FENCE = re.compile(r"```[A-Za-z0-9_+-]*[ \t]*\n")
+_LINE_MARK = re.compile(r"(?:>|[-*•+]|[0-9]{1,2}[.)])[ \t]+")
+_WRAPS: tuple[tuple[str, str], ...] = (
+    ("**", "**"),
+    ("__", "__"),
+    ("`", "`"),
+    ('"', '"'),
+    ("“", "”"),
+)
+
+
+def _unwrap(text: str) -> str:
+    """`text` with the wrappers of the whole reason and of each whole line blanked out (same
+    length, so positions still quote the reason): a code fence, quotes, backticks or bold
+    around all of it, and a line's leading "> ", "- ", "* ", "1. " or "1) " and its whole-line
+    quotes, backticks or bold. A partial wrapper stays, so its statement never binds."""
+    chars = list(text)
+
+    def blank(a: int, b: int) -> None:
+        for p in range(a, b):
+            if chars[p] != "\n":
+                chars[p] = " "
+
+    def strip(lo: int, hi: int, *, line: bool) -> None:
+        while True:
+            while lo < hi and chars[lo].isspace():
+                lo += 1
+            while hi > lo and chars[hi - 1].isspace():
+                hi -= 1
+            seg = "".join(chars[lo:hi])
+            if line and (m := _LINE_MARK.match(seg)) and m.end() < len(seg):
+                blank(lo, lo + m.end())
+                continue
+            fence = _FENCE.match(seg) if not line and seg.endswith("```") else None
+            if fence and len(seg) > fence.end() + 3:
+                blank(lo, lo + fence.end())
+                blank(hi - 3, hi)
+                continue
+            for a, b in _WRAPS:
+                if len(seg) > len(a) + len(b) and seg.startswith(a) and seg.endswith(b):
+                    blank(lo, lo + len(a))
+                    blank(hi - len(b), hi)
+                    break
+            else:
+                return
+
+    strip(0, len(chars), line=False)
+    start = 0
+    for end in [*(p for p, ch in enumerate(chars) if ch == "\n"), len(chars)]:
+        strip(start, end, line=True)
+        start = end + 1
+    return "".join(chars)
+
+
+def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]], headers: set[int]) -> list[bool]:
+    """(B, verify516c) Which statements ([first, after) tokens, and whether a time took the
+    full stop) are framed. A statement's left boundary is the start of the reason, a facts
+    header on its own at a line start, or the terminator of the statement right before it,
+    which must itself be framed (a chain): a full stop, a semicolon, "," / "and" / ", and", or
+    a line break (with or without a full stop at the line's end). Any other text before it
+    breaks the chain. Its right boundary is the end, a line break, a full stop or semicolon,
+    or "," / "and" / ", and" followed by a framed statement."""
     by_start: dict[int, list[int]] = {}
     by_end: dict[int, list[int]] = {}
     for k, (s, e, _) in enumerate(stmts):
@@ -931,26 +939,37 @@ def _frame(rd: _Reader, stmts: Sequence[tuple[int, int, bool]]) -> list[bool]:
     pre = [False] * len(stmts)
     for k in sorted(range(len(stmts)), key=lambda k: stmts[k][0]):
         s = stmts[k][0]
-        joins: list[int] = []
-        if not rd.newline_before(s) and rd.word(s - 1) in _JOINERS:
-            joins.append(s - 1)
-            if rd.word(s - 1) == "and" and rd.word(s - 2) == ",":
-                joins.append(s - 2)
-        pre[k] = rd.head(s) or any(pre[q] for j in joins for q in by_end.get(j, ()))
+        if s == 0 or s in headers:
+            pre[k] = True
+            continue
+        ends: list[int] = []  # where the statement before must end (its `after` index)
+        dot_ends: list[int] = []  # ... when a time took the full stop ("3 a.m. Amount is")
+        if rd.newline_before(s):
+            ends.append(s)
+            if rd.word(s - 1) in _STATEMENT_END:
+                ends.append(s - 1)
+        else:
+            w = rd.word(s - 1)
+            if w in _STATEMENT_END or w in _JOINERS:
+                ends.append(s - 1)
+                if w == "and" and rd.word(s - 2) == ",":
+                    ends.append(s - 2)
+            dot_ends.append(s)
+        pre[k] = any(pre[q] for e in ends for q in by_end.get(e, ())) or any(
+            pre[q] for e in dot_ends for q in by_end.get(e, ()) if stmts[q][2]
+        )
     post = [False] * len(stmts)
     for k in sorted(range(len(stmts)), key=lambda k: -stmts[k][1]):
         _, e, dot = stmts[k]
-        after = e < len(rd.toks) and rd.toks[e].text[:1].isupper()
-        nxt = -1
+        if rd.tail(e):
+            post[k] = True
+            continue
+        nxt: list[int] = [e] if dot else []
         if rd.word(e) == "," and rd.word(e + 1) == "and":
-            nxt = e + 2
+            nxt.append(e + 2)
         elif rd.word(e) in _JOINERS:
-            nxt = e + 1
-        post[k] = (
-            rd.tail(e)
-            or (dot and (e >= len(rd.toks) or after))
-            or any(post[q] for q in by_start.get(nxt, ()))
-        )
+            nxt.append(e + 1)
+        post[k] = any(pre[q] and post[q] for j in nxt for q in by_start.get(j, ()))
     return [a and b for a, b in zip(pre, post, strict=True)]
 
 
@@ -968,7 +987,8 @@ def _check_reason(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """(checks, unchecked) for one reason; `unchecked` lists the numbers inside `ignore`
     spans (ids, never claims)."""
-    text = reason.replace("’", "'").replace("‘", "'")  # same length: positions quote `reason`
+    # same length: positions quote `reason`; whole-reason and whole-line wrappers blanked
+    text = _unwrap(reason.replace("’", "'").replace("‘", "'"))
     rd = _Reader(text, record, aliases, units)
     toks = rd.toks
     ignored = _cover(
@@ -1106,12 +1126,14 @@ def _check_reason(
                     "ok": status == "ok",
                     "status": status,
                     "reason": why,
+                    "_stmt": -1,
                 }
             )
             if (span := rd.match_span(m.start(), m.end())) is not None:
+                phrase_checks[-1]["_stmt"] = len(stmts)
                 holds_stmts.add(len(stmts))
                 stmts.append((span[0], span[1], False))
-    framed = _frame(rd, stmts)
+    framed = _frame(rd, stmts, rd.headers())
     for tok, k in num_stmt.items():
         if not framed[k]:
             readings[tok] = _Reading(void="unframed")
@@ -1119,6 +1141,10 @@ def _check_reason(
         if not framed[k]:
             c.update(field=None, op=None, found=None, ok=False, status="unbound", reason="unframed")
         checks.append(c)
+    for c in phrase_checks:  # a condition is a statement too: unframed, it is not read
+        k = c.pop("_stmt")
+        if k < 0 or not framed[k]:
+            c.update(ok=False, status="unbound", reason="unframed")
     used_cmp: set[int] = set()
     for n in nums:
         if readings[n.tok].binds:
@@ -1338,20 +1364,17 @@ def _unbound(text: str, start: int, why: str) -> dict[str, Any]:
 def _bool_claim(
     rd: _Reader, i: int, record: Mapping[str, Any]
 ) -> tuple[dict[str, Any], tuple[int, int]] | None:
-    """ "<field> is true", "<field>: false", "(<field> true)": (a check, its statement's tokens
+    """ "<field> is true", "<field>: false", "<field> = true": (a check, its statement's tokens
     [first, after)), or None when "true" or "false" is not bound to a field this way."""
-    w = rd.word(i - 1)
-    m = i - 1 if rd.is_mention(i - 1) else -1
-    if m < 0 and w in ("is", "was", "=", ":") and rd.is_mention(i - 2):
-        m = i - 2
-    if m < 0 or not rd.clean_after(i + 1):
+    if rd.word(i - 1) not in _CONNECTORS or not rd.is_mention(i - 2):
+        return None
+    m = i - 2
+    if not rd.clean_after(i + 1):
         return None
     f = rd.mention_field(m)
     if f is None or rd.clean_before_mention(m, f):
         return None
     s, e = rd.subject_start(m, f), i + 1
-    if rd.word(s - 1) == "(" and rd.word(e) == ")":
-        s, e = s - 1, e + 1  # "(<field> true)" stands as one statement
     t = rd.toks[i]
     claimed = t.low == "true"
     base = {
@@ -1475,12 +1498,19 @@ def value_check(
 ) -> ScoreResult:
     """Check the numbers and declared phrases in `reason` against `record`, strictly (D-74).
 
-    A number is checked only when the text binds it to one field: the field's whole key or an
-    alias from `aliases` (case-free; spaces and underscores interchangeable) in one of these
-    shapes, nothing else between: "<field> is|was|of|at|=|:|equals|totals <n>", "<field> (<n>)",
-    "<field> <n>", "<field> [is|was] above|over|below|under|exceeds|more than|less than|at
-    least|at most|>|<|>=|<= <n>", "[<comparison>] <n> <field>", or the one number inside a
-    `ValuePhrase(field=...)` match.
+    Strict facts grammar (verify516c, D-77). A number is checked only when a statement binds it
+    to one field: the field's whole key or an alias from `aliases` (case-free; spaces and
+    underscores interchangeable; the longest name wins), with nothing before it but "the", in
+    "<field> is|was|equals|=|: <n>" or "<field> [is|was] above|over|below|under|exceeds|more
+    than|less than|at least|at most|>|<|>=|<= <n>", or the one number inside a
+    `ValuePhrase(field=...)` match that is a whole statement. A statement binds only when it
+    starts the reason, follows a facts header on its own at a line start ("Facts:", "Facts -",
+    "Key facts:", the closed list `_HEADERS`), or follows the terminator (". ", ";", "," /
+    "and" / ", and", a line break) of a statement that itself bound; any other text before it
+    breaks the chain, so it and every later statement of its run are `unframed`. It ends at
+    the end, a line break, ". " or ";", or a joiner followed by a statement that binds.
+    Wrappers around the whole reason or a whole line (quotes, backticks, bold, a code fence;
+    a leading "> ", "- ", "* ", "1. ", "1) ") are removed first; a partial wrapper stays.
 
     Closed world (verify516b). (A) Every numeric token, meaning any run of digits anywhere
     (glued to letters, underscores or currency codes, inside markdown or quotes, in any
@@ -1489,31 +1519,28 @@ def value_check(
     "half", "dozen", ...), must be consumed by exactly one framed binding. Any other numeric
     token is an `unbound` check (reason id, unread_number, non_ascii_number, number_word,
     double_bound), so its reason is unverifiable. Only `ignore` spans and the field names
-    themselves are exempt; a `constants` value is still unbound. (B) A bound statement (a
-    number shape or a "true"/"false"; a condition phrase too, which consumes its numeric
-    tokens only when framed) is framed only when it starts a clause (the start, a line break,
-    a line-start bullet or a sentence end . ; ! ?, never a comma, colon, dash, bracket or
-    word) with nothing before the field name but an article or a possessive ("the", "its",
-    "the card's" when "card" is a word of that field's own name), and ends one (the end, a
-    line break or a sentence end); "and", "," or ", and" may join it to another framed
-    statement ("Amount is 812.40 and hour is 3."). Anything else ("Amount is 812.40, which is
-    high", "For the refund, amount is 812.40", "The card has 40 earlier purchases",
-    "900-ish", "(est.)") leaves it `unbound` (`unframed`). A phrase match must be the whole
-    statement ("9.1x usual." binds; "Spend is 9.1x usual" does not). A phrase's or a
-    right-hand field's number binds nothing when another field is named right before it or
-    in its clause ("Risk score is 9.1x usual"). Fields joined by and, or, /, &, a field on
-    both sides, or two fields for one number bind nothing. No number is ever matched to a
-    field by value. Every other number (an unknown subject, a partial or plural name, a
-    list, a range, "about 9", "41 or more", a time with no hour field, a constant, a number
-    word) is `unbound`, so its reason is unverifiable.
+    themselves are exempt; a `constants` value is still unbound. (B) Every bound statement (a
+    number, a "true"/"false", or a phrase match; a condition phrase is checked, and consumes
+    its number words, only when it is a framed statement) must be framed by the grammar
+    above: "Amount is 812.40, which is high", "For the refund, amount is 812.40", "Prev. hour
+    is 3", "The merchant is new. Its risk score is 0.83", "Merchant:\\nRisk score is 0.83",
+    "Hour is 3 a.m. UTC", "900-ish" leave it `unbound` (`unframed`). A phrase's number binds
+    nothing when another field is named right before or after it or in its clause ("Risk
+    score is 9.1x usual"). Fields joined by and, or, /, &, a field on both sides, or two
+    fields for one number bind nothing. No number is ever matched to a field by value. Every
+    other number (an unknown subject, a partial or plural name, a list, a range, "about 9",
+    "41 or more", a time with no hour field, a constant, a number word) is `unbound`, so its
+    reason is unverifiable.
 
     Units must be declared per field in `units`: "fraction" (field 0-1; "83%" is 0.83, a bare
     number above 1 is unchecked), "percent" (field 0-100), "multiple" ("9x", "9 times"),
-    "currency" ("$812.40", "812 USD"), "hour" (field 0-23; "3 a.m.", "15:00"; other minutes
-    are unbound). An undeclared unit, a scale ("5k", "thousand", "cents") or a suffix ("3rd",
-    "1e9") is unbound; a phrase-bound number may carry a multiple or currency mark. Integer
-    fields are exact. A non-integer field equals a claim when it rounds to the claim at the
-    claim's displayed precision and is within 0.005 or 0.5% of it (and at most 10% off);
+    "currency" or "usd" ("$812.40", "812 USD", "dollars"), "eur" ("€812.40", "EUR", "euros"),
+    "gbp" ("£812.40", "GBP", "pounds"), "hour" (field 0-23; "3 a.m.", "15:00"; other minutes
+    are unbound). A currency mark must name the field's declared currency. An undeclared unit,
+    a scale ("5k", "thousand", "cents") or a suffix ("3rd", "1e9") is unbound; a phrase-bound
+    number may carry a multiple mark. Integer fields are exact. A non-integer field equals a
+    claim when it rounds to the claim at the claim's displayed precision and is within 0.005
+    or 0.5% of it (and at most 10% off);
     a coarser correct rounding is `ambiguous` (`coarse_rounding`, `rounding`), never a
     failure. `tolerance` (relative, non-integer fields only) widens this. Comparisons are
     exact. "true" / "false" bound to a boolean field the same way are checked. Condition

@@ -186,7 +186,99 @@ policy_check = rule_compliance_scorer(
 
 #### value_check: a structured-facts check (0.4.0, D-74, D-77)
 
-`value_check` verifies plain "field is value" statements only, and every other number in a reason makes it unverifiable. To get coverage, ask your model to end each reason with a short facts line built from field names, for example: "Facts: Amount is 812.40. Hour is 3. Risk score is 0.83." The check verifies such a line reliably. Prose around it, such as "a large late-night purchase", is not read and does not need to be. Put the facts line in its own reason string, or in its own sentence, so that no other number shares its clause.
+`value_check` verifies plain "field is value" statements only, and every other number in a reason makes it unverifiable. To get coverage, ask your model to end each reason with a short facts line built from field names, for example: "Facts: Amount is 812.40. Hour is 3. Risk score is 0.83." The check verifies such a line reliably. Prose is not read and does not need to be, but a statement after prose is not read either: put the facts line in its own reason string, or after the prose on a new line that starts with a facts header ("A large late-night purchase.\nFacts: Amount is 812.40. Hour is 3."). The grammar it reads is stated exactly in [The facts grammar](#value_check-the-facts-grammar-verify516c).
+
+#### value_check: the facts grammar (verify516c)
+
+A reason is read as a run of statements. Each statement binds a value to a field, and a
+statement binds only where the grammar says it may start. Everything else is unbound, so a
+reason holding it is unverifiable (never verified, never contradicted).
+
+- **Statements.** `<Field> is <value>` and `<Field>: <value>` (key: value). `was`, `equals`
+  and `=` read like `is`. A comparison may stand in place of the connector or after `is` /
+  `was`: `<Field> [is|was] above|over|below|under|exceeds|more than|less than|at least|at
+  most|>|<|>=|<=|≥|≤ <value>`. A boolean field takes `true` / `false` the same way ("Flag
+  is true", "Flag: false"). Nothing else connects a field to its value: "Amount 812.40",
+  "Amount of 812.40", "Risk score (0.83)" and "40 card history" bind nothing.
+- **Field names.** The record key or an alias you declare, case-insensitive, with spaces and
+  underscores interchangeable (`risk_score` = "Risk score" = "RISK_SCORE"). The longest name
+  wins: with both `amount` and `amount_usd` in the record, "Amount usd is 1300.00" is about
+  `amount_usd`. Before the field name only nothing or "The" / "the" may stand: never "Its",
+  "Their", "A", "This", a possessive or any other word.
+- **Left boundary.** A statement binds only when it starts at (1) the start of the reason;
+  (2) right after a facts header on its own, at the start of the reason or of a line:
+  `Facts:`, `Facts -`, `Facts –`, `Facts —`, `Key facts:`, `Key facts -`, `Key facts –` or
+  `Key facts —` (this closed list, any case, also in bold as `**Facts:**`; the statements may
+  follow on the same line or the next; a header starts a new run, whatever the prose before
+  it says); or (3) right after the terminator of the statement before it, when that statement
+  itself bound (a chain). Any other text before a statement (an unknown word or abbreviation
+  such as "Prev." or "Merch.", a heading such as "Merchant:" or "Refund facts:", a pronoun, a
+  prose sentence) breaks the chain: that statement and every later one in its run are unbound.
+- **Terminators.** A statement ends at the end of the reason, a line break (each line is one
+  statement; a full stop at the line's end is optional), `. `, `;`, or `,` / `and` / `, and`
+  followed by another statement that binds. A value followed by anything else is unbound:
+  "Amount is 812.40, which is high", "Risk score is 0.83 (high)", "Hour is 3 a.m. UTC".
+- **Wrappers.** When the whole reason, or a whole line, is wrapped in quotes (`"..."`,
+  `“...”`), backticks, bold (`**...**`, `__...__`) or a code fence, or a line starts with a
+  marker (`> `, `- `, `* `, `• `, `1. `, `1) `), the wrapper is removed first; the marker's
+  number is not a claim. A partial wrapper stays and its statement is unbound ("**Amount** is
+  812.40", "Amount is `812.40`").
+- **Values and units.** A number with an optional sign, thousands commas and the field's
+  declared unit (see Units below). A currency mark (`$`, `US$`, `€`, `£`, `USD`, `EUR`, `GBP`,
+  dollars, euros, pounds) must name the currency the field declares: `currency` and `usd` are
+  the US dollar, `eur` the euro, `gbp` the pound sterling; on a field without a currency unit,
+  or naming another currency ("€812.40" on a dollar field), the value is unbound. A time zone
+  or any other qualifier after the value ("3 a.m. UTC", "15:00 local") leaves it unbound.
+
+Facts and prose: a reason may hold prose after its facts ("Amount is 812.40. A large
+purchase.") but prose before them breaks the chain, so put the facts line in its own reason
+string or after a facts header on a new line. A number or quantity word in the prose is
+still unbound (closed world, below), and a negation or hedge anywhere still voids the reason.
+
+<!-- value_check grammar examples: tests/scorers/test_value_check.py runs this block -->
+```python
+from evalkit.scorers.evidence import value_check  # internal until 0.4.0
+
+record = {"amount": 812.4, "amount_usd": 1300.0, "hour": 3, "prev_hour": 14,
+          "risk_score": 0.83, "flag": True}
+units = {"amount": "currency", "amount_usd": "currency", "hour": "hour",
+         "prev_hour": "hour", "risk_score": "fraction"}
+
+verified = [
+    "Facts: Amount is 812.40. Hour is 3.",
+    "Facts: Amount is $812.40. Hour is 3. Risk score is 0.83.",
+    "Facts:\nAmount is $812.40\nHour is 3",
+    "Key facts: Amount is $812.40, hour is 3 and the risk score is 83%.",
+    "A large late-night purchase at a new merchant.\nFacts: Amount is 812.40. Hour is 3.",
+    "amount: 812.40\nhour: 3\nrisk_score: 0.83\nflag: true",
+    "Amount is 812.40 USD; hour was 3 a.m.; risk score is above 0.8.",
+    "Amount usd is $1,300.00.",
+    '"Amount is 812.40. Hour is 3."',
+    "```\nAmount is 812.40.\nHour is 3.\n```",
+    "1. Amount is 812.40.\n2. Hour is 3.",
+    "- **Amount is 812.40.**\n- Hour is 3.",
+]
+unverifiable = [
+    "A large purchase. Amount is 812.40.",       # prose before the facts, no header
+    "Prev. hour is 3.",                          # unknown abbreviation before the field
+    "The merchant is new. Its risk score is 0.83.",
+    "Merchant:\nRisk score is 0.83.",            # not a facts header
+    "Amount 812.40.",                            # no connector
+    "Amount is €812.40.",                        # not the declared currency
+    "Hour is 3 a.m. UTC.",                       # a qualifier after the value
+    "**Amount** is 812.40.",                     # a partial wrapper
+    "Amount is 812.40, which is high.",
+]
+contradicted = [
+    "Facts: Amount is 900.00. Hour is 3.",
+    "Amount usd is 812.40.",                     # the longest name: amount_usd is 1300.00
+    "Prev hour is 3.",                           # prev_hour is 14
+]
+for want, reasons in (("verified", verified), ("unverifiable", unverifiable),
+                      ("contradicted", contradicted)):
+    for reason in reasons:
+        assert value_check(reason, record, units=units).details["outcome"] == want, reason
+```
 
 
 `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and
@@ -230,7 +322,9 @@ Each check carries `status` and `reason`:
   on 40, "rare category" declared as `category_freq < 0.05` on 0.07).
 - `unbound`: a number the text does not bind to exactly one field. `reason`: `no_field`,
   `unclear_subject`, `unclear_field`, `unclear_comparison`, `unit`, `hedged`, `time`,
-  `malformed`, `constant`, `number_word` or `non_ascii_number`.
+  `malformed`, `constant`, `number_word`, `non_ascii_number`, `id`, `unread_number`,
+  `double_bound` or `unframed` (a statement outside the facts grammar; a condition phrase
+  that is not a whole statement is `unbound` with `unframed` too).
 - `ambiguous`: bound, but the reason may not assert it: `negation`, `hypothetical`, `denial`,
   `respectively`, `question`, `unclear_comparison` or `unreadable` (anywhere in the reason),
   `unclear_field`, `rule_id` or `block_word` (in its clause), or `rounding` and
@@ -252,32 +346,24 @@ positive evidence and holds. No number is ever matched to a field because its va
   with spaces and underscores interchangeable (`risk_score` = "risk score" = "RISK_SCORE" =
   "riskscore"). Partial names ("card history" for `card_history_n` without the alias),
   plurals, hyphenations, typos and other subjects ("price", "total") name nothing.
-- **Shapes.** A number binds to a field only in these shapes, with nothing else between:
-  `<field> is|was|of|at|=|:|equals|totals <n>`, `<field> (<n>)`, `<field> <n>`,
-  `<field> [is|was] <cmp> <n>` with cmp one of above, over, below, under, exceeds, more /
-  greater / higher / less / fewer / lower than, at least, at most, at or above, at or below,
-  `>`, `<`, `>=`, `<=`, `≥`, `≤`; `[<cmp>] <n> <field>` ("More than 30 earlier
-  purchases."); and the one number inside a `ValuePhrase(field=...)` match (a comparison
-  word right before it is read). A phrase's number, or a right-hand field's, binds nothing
-  when another field is named right before it or anywhere in its clause: "Risk score is 9.1x
-  usual" and "Amount is 9.1x the card's usual" bind nothing to `amt_vs_usual`. Fields joined
-  by and / or / `,` / `/` / `&` ("Risk score and hour: 3"), a field on both sides of a
-  number, a field named for two numbers, and a number bound to two fields bind nothing. "41
-  or more" is not read as a comparison: the reason is unverifiable.
-- **Framed statements (closed world, verify516b).** A bound statement counts only when the
-  words right around it are understood. It starts a clause: the start, a line break, a
-  line-start bullet, or a sentence end (`.` `;` `!` `?`, not an abbreviation's full stop such
-  as "e.g." or "avg."); never a comma, colon, dash, bracket or other word. Only an article or
-  a possessive may stand before the field name ("the", "a", "its", "the card's" when "card"
-  is a word of that field's own name or alias). It ends a clause: the end, a line break or a
-  sentence end; or "and", "," or ", and" joins it to another framed statement ("Amount is
-  $812.40, and hour is 3."). A phrase match must be the whole statement ("9.1x usual."
-  binds; "Spend is 9.1x usual" does not: declare the subject in the pattern if you need it).
-  Anything else leaves the statement unbound (`unframed`): "Amount is $812.40, which is
-  high", "Risk score is 0.83 (high)", "For the refund, amount is $812.40", "For the merchant:
-  card history is 40", "The card has 40 earlier purchases", "The merchant, with 40 earlier
-  purchases, is new", "Flag is true (for the previous card)", and every hedge spelling after
-  a number ("900-ish", ", est.", "(rounded)", "±5", "+/- 5", ", give-or-take").
+- **Statements (the facts grammar, verify516c).** A number binds to a field only in a
+  statement of [the facts grammar](#value_check-the-facts-grammar-verify516c): `<field>
+  is|was|equals|=|: <n>` or `<field> [is|was] <cmp> <n>`, starting at the start of the
+  reason, after a facts header on its own, or after the terminator of a statement that
+  itself bound, with only "the" before the field, and ending at a terminator. A
+  `ValuePhrase` match is a statement too: the one number inside a `ValuePhrase(field=...)`
+  match is bound to its field (a comparison word right before it is read), and a
+  `ValuePhrase(holds=...)` match is checked, only when the match itself starts and ends a
+  statement ("9.1x usual." and "At night." bind; "Spend is 9.1x usual" and "Purchase at
+  night" do not: declare the subject in the pattern if you need it). A phrase's number binds
+  nothing when another field is named right before or after it or anywhere in its clause:
+  "Risk score is 9.1x usual" binds nothing to `amt_vs_usual`. Fields joined by and / or /
+  `,` / `/` / `&` ("Risk score and hour: 3"), a field on both sides of a number, a field
+  named for two numbers, and a number bound to two fields bind nothing. "41 or more" is not
+  read as a comparison: the reason is unverifiable. A statement that breaks the grammar is
+  unbound (`unframed`): "For the refund, amount is $812.40", "The card has 40 earlier
+  purchases", "Flag is true (for the previous card)", and every hedge spelling after a
+  number ("900-ish", ", est.", "(rounded)", "±5", "+/- 5", ", give-or-take").
 - **Every numeric token is read (closed world, verify516b).** Each run of digits anywhere in
   the reason (glued to letters, underscores or currency codes as in "USD900", "h8", "P7.1";
   inside markdown or quotes as in "_0.5_" or "`70`"; in any script, or a character whose
@@ -297,12 +383,15 @@ positive evidence and holds. No number is ever matched to a field because its va
   "between", "each", "+") has those checks ambiguous.
 - **Units.** Declare them per field: `units={"risk_score": "fraction", "amt_vs_usual":
   "multiple", "amount": "currency", "hour": "hour"}`. `fraction` (field 0 to 1; "83%" is
-  0.83), `percent` (field 0 to 100), `multiple` ("9x", "9 times", "9-fold"), `currency`
-  ("$812.40", "812.40 USD"), `hour` (field 0 to 23; "3 a.m.", "3pm", "15:00"; other
-  minutes are unbound). Without a declared unit only a bare number binds: "risk score is 83%"
-  is unverifiable. On a `fraction` field a bare number above 1 ("category freq is 3.8") is
-  unchecked. Scales and suffixes ("5k", "thousand", "cents", "3rd", "1e9") never bind.
-  A phrase-bound number may carry a multiple or currency mark.
+  0.83), `percent` (field 0 to 100), `multiple` ("9x", "9 times", "9-fold"), `currency` or
+  `usd` (US dollars: "$812.40", "US$812.40", "812.40 USD", "812.40 dollars"), `eur` ("€812.40",
+  "812.40 EUR", "euros"), `gbp` ("£812.40", "812.40 GBP", "pounds"), `hour` (field 0 to 23;
+  "3 a.m.", "3pm", "15:00"; other minutes are unbound). Without a declared unit only a bare
+  number binds: "risk score is 83%" is unverifiable. A currency mark must name the field's
+  declared currency, also inside a phrase; a bare number binds to a currency field. On a
+  `fraction` field a bare number above 1 ("category freq is 3.8") is unchecked. Scales and
+  suffixes ("5k", "thousand", "cents", "3rd", "1e9") never bind. A phrase-bound number may
+  carry a multiple mark.
 - **Tolerance.** Integer fields (an `int` in the record) are exact, whatever `tolerance`
   says. A non-integer field equals a claim when it rounds to the claim at the claim's
   displayed precision and is within 0.005 or 0.5% of it, and at most 10% off ("risk score is
@@ -330,18 +419,18 @@ positive evidence and holds. No number is ever matched to a field because its va
   reason false while its numbers are true. Declare them with `unreadable=[regex, ...]`: a
   match outside every `ValuePhrase` match makes the reason unverifiable; a phrase that reads
   the word ("rare category" -> `category_freq < 0.05`) checks it instead.
-- **Booleans and conditions.** `<field> is true|false` (and `<field>: false`,
-  `(<field> true)`) is checked against a boolean field; any other "true" or "false" is an
-  unbound claim, so its reason is unverifiable; `ValuePhrase(holds=...)` conditions
-  use the rule grammar and are never executed.
+- **Booleans and conditions.** `<field> is true|false` (and `<field>: false`, `<field> =
+  true`) is checked against a boolean field; any other "true" or "false" is an unbound
+  claim, so its reason is unverifiable; `ValuePhrase(holds=...)` conditions use the rule
+  grammar and are never executed.
 
 This is stricter than B5.13's checker, which matched an unbound number to a nearby field or
-any field close in value, and the closed world makes it stricter still: it verifies short,
-plain statements ("Amount is $812.40.", "Hour is 3.", "Risk score 0.83, card history 40.")
-and leaves prose unverifiable. On fraud-review-bedrock's 10,225 recorded reasons (written
-as prose, with rule ids such as "P7.1"), 8 are verified (0.08%; 11 when its rule ids are
-declared in `ignore`), 375 contradicted (3.7%, every one by a condition phrase) and the
-rest unverifiable; its mutation test (D-42, 160,000 false claims) verifies none.
+any field close in value, and the closed world and the facts grammar make it stricter
+still: it verifies facts lines ("Facts: Amount is $812.40. Hour is 3.") and leaves prose
+unverifiable. On fraud-review-bedrock's 10,225 recorded reasons (written as prose, with
+rule ids such as "P7.1"), 4 are verified (0.04%), none contradicted and the rest
+unverifiable; its mutation test (D-42, 160,000 false claims) verifies none. Facts lines in
+the documented forms verify: 81,000 of 81,000 built from verify516c's generator records.
 
 `value_check_scorer` scores a case: its `outcome` is `contradicted` when any reason is,
 `verified` when every reason is (at least one), else `unverifiable`, and its value is 1.0
@@ -358,7 +447,7 @@ To report the three shares across a run, pass the results (of `value_check` or
 without an outcome, such as failed calls), and `verified_share`, `contradicted_share` and
 `unverifiable_share`, each a share of all reasons with an exact (Clopper-Pearson) 1 - alpha
 interval, or null with no reasons. Cite them as counts and shares, for example "of 10,225
-reasons, 8 verified (0.08%), 375 contradicted (3.7%), 9,842 unverifiable (96.3%)".
+reasons, 4 verified (0.04%), 0 contradicted, 10,221 unverifiable (99.96%)".
 
 ```python
 from evalkit.scorers.evidence import value_check, value_check_shares  # internal until 0.4.0

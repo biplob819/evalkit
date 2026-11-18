@@ -141,15 +141,13 @@ def test_gen2_families_with_declared_units_and_aliases_verify_nothing():
     [
         "Amount is 812.40",
         "The amount is 812.40.",
-        "amount of 812.4",
         "Amount: 812.40",
         "amount = 812.4",
+        "amount equals 812.40",
         "amount is 812",  # displayed precision
-        "risk score 0.83",
         "risk_score is 0.83",
         "RISK SCORE is 0.83",
         "riskscore is 0.83",  # spaces and underscores are interchangeable
-        "The risk score (0.83).",
         "risk score above 0.8",
         "risk score is below 0.9",
         "risk score > 0.5",
@@ -159,8 +157,6 @@ def test_gen2_families_with_declared_units_and_aliases_verify_nothing():
         "amount exceeds 800",
         "card history is 40",
         "card_history_n is 40",
-        "40 earlier purchases",
-        "more than 30 earlier purchases",
         "risk score is 83%",
         "category freq is 5%",
         "amt vs usual is 9.1x",
@@ -171,9 +167,8 @@ def test_gen2_families_with_declared_units_and_aliases_verify_nothing():
         "hour is 03:00",
         "merchant_first_seen is true",
         "Amount is 812.40 and risk score is 0.83; card history is 40.",
-        "Amount 812.40, risk score 0.83, card history 40.",
+        "Amount: 812.40, risk score: 0.83, card history: 40.",
         "- amount: 812.40\n- risk score: 0.83",
-        "Risk score of 0.83.",
     ],
 )
 def test_bound_true_claims_are_verified(reason):
@@ -184,7 +179,10 @@ def test_bound_true_claims_are_verified(reason):
 def test_fixture_phrases_bind_their_one_number():
     assert outcome("9.1x this card's usual.", phrases=PHRASES) == "verified"
     assert outcome("More than 5 times the usual.", phrases=PHRASES) == "verified"
-    assert outcome("$812.40.", phrases=PHRASES) == "verified"
+    # a currency mark binds only to a field declaring that currency (verify516c)
+    assert outcome("$812.40.", phrases=PHRASES) == "unverifiable"
+    assert outcome("$812.40.", phrases=PHRASES, units=UNITS) == "verified"
+    assert outcome("$812.40.", phrases=PHRASES, units={"amount": "eur"}) == "unverifiable"
     # "9x" on 9.1 is a correct rounding but 1.1% off: too coarse to verify (D-42 tolerance)
     assert outcome("9x this card's usual.", phrases=PHRASES) == "unverifiable"
     assert outcome("15x this card's usual.", phrases=PHRASES) == "contradicted"
@@ -261,6 +259,12 @@ def test_fixture_phrases_bind_their_one_number():
         ("The card has 40 earlier purchases", "not at a clause start (closed world)"),
         ("card history is ٤٠", "non-ASCII digits"),
         ("card history is 1.2.3", "malformed"),
+        ("amount of 812.4", "not a facts connector (verify516c)"),
+        ("risk score 0.83", "no connector (verify516c)"),
+        ("The risk score (0.83).", "brackets (verify516c)"),
+        ("40 earlier purchases", "the field after its number (verify516c)"),
+        ("more than 30 earlier purchases", "the field after its number (verify516c)"),
+        ("Amount 812.40, risk score 0.83, card history 40.", "no connector (verify516c)"),
     ],
 )
 def test_unbound_numbers_are_unverifiable(reason, why):
@@ -366,16 +370,23 @@ def test_negations_hypotheticals_and_denials_never_verify_or_contradict(reason):
 
 def test_condition_phrases_are_checked_and_a_negation_voids_them():
     night = ValuePhrase(pattern=r"at night", holds="hour >= 22 or hour < 6")
-    assert outcome("Purchase at night", phrases=[night]) == "verified"
-    assert outcome("Purchase at night", {**REC, "hour": 14}, phrases=[night]) == "contradicted"
+    assert outcome("At night.", phrases=[night]) == "verified"
+    assert outcome("Amount is 812.40. At night.", phrases=[night]) == "verified"
+    assert outcome("At night.", {**REC, "hour": 14}, phrases=[night]) == "contradicted"
     assert outcome("Purchase not at night", phrases=[night]) == "unverifiable"
-    missing = value_check("Purchase at night", {"amount": 1.0}, phrases=[night])
+    # a condition is a facts statement too: with words before it, it is unframed (verify516c)
+    assert outcome("Purchase at night", phrases=[night]) == "unverifiable"
+    assert outcome("The refund was at night", {**REC, "hour": 14}, phrases=[night]) == (
+        "unverifiable"
+    )
+    missing = value_check("At night", {"amount": 1.0}, phrases=[night])
     assert missing.details["checks"][0]["reason"] == "missing_value:hour"
 
 
 def test_booleans_bind_like_numbers():
     assert outcome("merchant_first_seen is true") == "verified"
-    assert outcome("(merchant_first_seen true)") == "verified"
+    assert outcome("merchant_first_seen = true") == "verified"
+    assert outcome("(merchant_first_seen true)") == "unverifiable"  # no connector
     assert outcome("merchant_first_seen: false") == "contradicted"
     assert outcome("amount is true") == "unverifiable"  # wrong type: unchecked
     assert outcome("merchant first seen is true", {"amount": 1.0}) == "unverifiable"
@@ -471,6 +482,11 @@ _FR = [
     ),
     (
         "category_freq is 0.073, so food_dining is a rare category for this card",
+        {"category_freq": 0.07332900713822194},
+        "unverifiable",  # the condition phrase has words before it (verify516c)
+    ),
+    (
+        "category_freq is 0.073. Rare category.",
         {"category_freq": 0.07332900713822194},
         "contradicted",
     ),
@@ -844,19 +860,22 @@ def test_fraud_review_d42_false_and_tricky_claims_are_never_verified(reason):
 def test_fraud_review_d42_true_claims_still_verify():
     for reason in (
         "Amount is 11.01",
-        "The purchase amount of $11.01",
+        "The purchase amount is $11.01",
         "amount is under 50",
         "0.21 times the card's usual",
         "amt_vs_usual is 0.213",
         "risk score is 3.9%",
         "risk score is below 0.9",
-        "category_freq 0.038",
-        "1545 earlier purchases",
+        "category_freq: 0.038",
+        "card history is 1545",
         "card_history_n is 1545",
-        "hour 22",
+        "hour is 22",
         "merchant_first_seen is false",
     ):
         assert value_check(reason, D42_REC, **D42).details["outcome"] == "verified", reason
+    # forms outside the strict facts grammar (verify516c) are unverifiable, not false
+    for reason in ("The purchase amount of $11.01", "category_freq 0.038", "hour 22"):
+        assert value_check(reason, D42_REC, **D42).details["outcome"] == "unverifiable", reason
 
 
 def test_unreadable_claims_void_the_reason_unless_a_phrase_reads_them():
@@ -864,7 +883,7 @@ def test_unreadable_claims_void_the_reason_unless_a_phrase_reads_them():
     phrase = ValuePhrase(pattern=r"rare category", holds="category_freq < 0.05")
     assert outcome("category freq is 0.05. A rare pick") == "verified"
     assert outcome("category freq is 0.05. A rare pick", unreadable=rare) == "unverifiable"
-    got = outcome("category freq is 0.05. A rare category", unreadable=rare, phrases=[phrase])
+    got = outcome("category freq is 0.05. Rare category.", unreadable=rare, phrases=[phrase])
     assert got == "contradicted"  # read by the phrase: 0.05 is not below 0.05
 
 
@@ -953,10 +972,12 @@ def test_the_right_hand_shape_checks_its_subject(reason):
     assert g3(reason) == "unverifiable"
 
 
-def test_the_right_hand_shape_still_binds_its_own_subject():
-    assert g3("40 earlier purchases.") == "verified"
-    assert g3("Risk score is 0.83 and 40 earlier purchases.") == "verified"
-    assert g3("More than 30 earlier purchases.") == "verified"
+def test_the_right_hand_shape_no_longer_binds():
+    """verify516c: a field named after its number is not a facts statement."""
+    assert g3("40 earlier purchases.") == "unverifiable"
+    assert g3("Risk score is 0.83 and 40 earlier purchases.") == "unverifiable"
+    assert g3("More than 30 earlier purchases.") == "unverifiable"
+    assert g3("Card history is 40.") == "verified"
 
 
 @pytest.mark.parametrize(
@@ -1154,20 +1175,16 @@ def test_closed_world_hedges_are_unverifiable_never_contradicted(template):
         "Risk score is 0.83.",
         "Card history is 40.",
         "The amount is $812.40.",
-        "Its risk score is 0.83.",
-        "Amount $812.40 and hour 3.",
-        "Risk score 0.83, card history 40.",
+        "Amount is $812.40 and hour is 3.",
+        "Risk score: 0.83, card history: 40.",
         "Amount is $812.40, and hour is 3.",
         "Amount is $812.40 and risk score is 0.83; card history is 40.",
         "Hour was 3 a.m. Amount is $812.40.",
         "Merchant history is 7.",
-        "40 earlier purchases.",
-        "More than 30 earlier purchases.",
         "Flag is true.",
         "Flag: true, risk score is 0.83.",
-        "(flag true)",
         "- amount: $812.40\n- risk score: 0.83",
-        "Spend is high.\nAmount is $812.40.",
+        "Spend is high.\nFacts: Amount is $812.40.",
         "9.1x usual.",
     ],
 )
@@ -1200,3 +1217,224 @@ def test_closed_world_ignore_is_the_only_exemption():
     assert got.details["outcome"] == "verified"
     got = g4("Amount is $812.40. The 200 limit applies.", constants=[200])
     assert got.details["outcome"] == "unverifiable"
+
+
+# ================================ verify516c (gen5): the strict facts grammar =============
+
+# gen5's record shape: sibling fields whose names extend another's (prev_hour, amount_usd,
+# merchant_risk_score), so a statement about another subject finds a field with another value.
+G5_REC: dict[str, Any] = {
+    "amount": 812.4,
+    "amount_usd": 1300.0,
+    "amount_usd_net": 400.25,
+    "refund_amount": 95.5,
+    "prev_amount": 77.1,
+    "hour": 3,
+    "prev_hour": 14,
+    "risk_score": 0.83,
+    "merchant_risk_score": 0.41,
+    "card_history_n": 40,
+    "merchant_history_n": 7,
+    "amt_vs_usual": 15.9,
+    "approval_pct": 61,
+    "flag": True,
+}
+G5_UNITS: dict[str, Any] = {
+    "risk_score": "fraction",
+    "merchant_risk_score": "fraction",
+    "amount": "currency",
+    "amount_usd": "currency",
+    "amount_usd_net": "currency",
+    "refund_amount": "currency",
+    "prev_amount": "currency",
+    "amt_vs_usual": "multiple",
+    "hour": "hour",
+    "prev_hour": "hour",
+    "approval_pct": "percent",
+}
+G5_ALIASES = {
+    "card_history_n": ["card history"],
+    "merchant_history_n": ["merchant history"],
+    "risk_score": ["score"],
+}
+
+
+def g5(reason: str, record: dict[str, Any] | None = None, **kw: Any) -> ScoreResult:
+    opts: dict[str, Any] = {"aliases": G5_ALIASES, "units": G5_UNITS}
+    return value_check(reason, G5_REC if record is None else record, **(opts | kw))
+
+
+@pytest.mark.safety
+@pytest.mark.parametrize(
+    "reason",
+    [
+        # unknown words or abbreviations before the field name break the chain
+        "Prev. hour is 3.",
+        "Prv. hour is 3.",
+        "Previous. hour is 3.",
+        "Last. hour is 3.",
+        "Prior. amount is $812.40.",
+        "Merch. risk score is 0.83.",
+        "Mer. risk score is 0.83.",
+        "Ref. amount is $812.40.",
+        "Refnd. amount is $812.40.",
+        "Orig. amount is $812.40.",
+        "Tot. amount is $812.40.",
+        "Merchant score is 0.83.",
+        # pronouns and determiners other than "the", and prose sentences before the facts
+        "The merchant is new. Its risk score is 0.83.",
+        "The refund was issued. Its amount is $812.40.",
+        "The previous purchase was declined. Its hour is 3.",
+        "The refund is pending; its amount is $812.40.",
+        "Merchant: new. Its risk score is 0.83.",
+        "Its risk score is 0.83.",
+        "Their risk score is 0.83.",
+        "A risk score is 0.83.",
+        "This amount is $812.40.",
+        "The merchant's risk score is 0.83.",
+        "A large late-night purchase at a new merchant. Amount is $812.40.",
+        "Spend is high.\nAmount is $812.40.",
+        "Spend is high. Facts: Amount is $812.40.",
+        # headings that are not a recognised facts header
+        "Merchant:\nRisk score is 0.83.",
+        "Refund:\nAmount is $812.40.",
+        "Previous purchase:\n- Hour is 3.",
+        "Refund facts:\nAmount is $812.40. Hour is 3.",
+        "Merchant facts:\n- Risk score: 0.83",
+        "Facts about the refund:\nAmount is $812.40.",
+        "**Facts** Amount is $812.40.",
+        "Facts:: Amount is $812.40.",
+        "The facts: Amount is $812.40.",
+        "Amount is $812.40\nThe previous card\nHour is 3",
+        # a statement after an unbound one is unbound too
+        "Amount is $812.40. Merch. risk score is 0.83.",
+        "Amount is $812.40. Refund: amount is $812.40.",
+        # partial wrappers
+        '"Amount is $812.40." Hour is 3.',
+        "**Amount** is $812.40.",
+        "Amount is `$812.40`.",
+        "Amount is **$812.40**.",
+        # currency and trailing qualifiers
+        "Amount is €812.40.",
+        "Amount is 812.40 EUR.",
+        "Amount is £812.40.",
+        "Amount is $812.40 EUR.",
+        "Approval pct is $61.",
+        "Hour is 3 a.m. UTC.",
+        "Hour is 3 UTC.",
+        "Hour is 03:00 UTC.",
+        "Hour is 3 a.m. local time.",
+        # the adjacent shape is gone: "Amount USD 1300.00" is not "amount is USD 1300.00"
+        "Amount USD 812.40.",
+        "Amount 812.40.",
+        "Risk score 0.83.",
+        "Risk score (0.83).",
+        "40 card history.",
+        "Amount of $812.40.",
+        "(flag true)",
+        "Flag true.",
+    ],
+)
+def test_strict_facts_wrong_subjects_and_unread_forms_never_verify(reason):
+    """verify516c (gen5): a statement binds only at the start of the reason, after a facts
+    header on its own, or right after the terminator of a statement that itself bound; only
+    "the" may stand before the field; the value ends at a terminator."""
+    res = g5(reason)
+    assert res.details["outcome"] == "unverifiable", res.details
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "Facts: Amount is 812.40. Hour is 3.",  # the D-77 example
+        "Facts: Amount is $812.40. Hour is 3. Risk score is 0.83.",
+        "Facts:\nAmount is $812.40. Hour is 3.",
+        "Facts -\nAmount is $812.40\nHour is 3",
+        "Facts - Amount is $812.40; hour is 3.",
+        "Key facts: Amount is $812.40, and hour is 3.",
+        "Key facts:\n- Amount: $812.40\n- Hour: 3",
+        "**Facts:** Amount is $812.40. Hour is 3.",
+        "facts — amount is $812.40; hour is 3",
+        "A large late-night purchase at a new merchant.\nFacts: Amount is $812.40. Hour is 3.",
+        "Amount is $812.40.\nHour is 3.",
+        "Amount is $812.40\nHour is 3\nRisk score is 83%",
+        "Amount is 812.40 USD\nhour was 3 a.m.\ncard history equals 40",
+        "amount: 812.40\nhour: 3\nrisk_score: 0.83\ncard_history_n: 40",
+        "amount_usd: $1300.00\namount_usd_net: 400.25",
+        "Amount is $812.40, hour is 3 and the risk score is 0.83.",
+        "Amount = 812.40; Hour = 3; Flag = true.",
+        "Amount is $812.40; card history is 40.",
+        "Amt vs usual is 15.9x. Hour is 3.",
+        "Amt vs usual is 15.9 times. Hour is 3.",
+        "Hour is 3 a.m. Amount is $812.40.",
+        "Hour is 3 a.m.\nAmount is $812.40.",
+        "Amount usd is $1300.00.",
+        "Amount USD is 1300.00.",
+        "Amount is USD 812.40.",
+        "The amount is $812.40. The hour is 3.",
+        "Flag is true. Flag: true.",
+        "Risk score is above 0.8. Amount is below 900.",
+        "Risk score > 0.8.",
+        # wrappers around the whole reason or a whole line
+        '"Amount is $812.40. Hour is 3."',
+        "“Amount is $812.40. Hour is 3.”",
+        "`Amount is $812.40. Hour is 3.`",
+        "```\nAmount is $812.40.\nHour is 3.\n```",
+        "```text\nAmount is $812.40.\nHour is 3.\n```",
+        "**Amount is $812.40. Hour is 3.**",
+        "> Amount is $812.40. Hour is 3.",
+        "1. Amount is $812.40.\n2. Hour is 3.",
+        "1) Amount is $812.40\n2) Hour is 3",
+        "- Amount is $812.40\n- Hour is 3",
+        "* **Amount is $812.40.**\n* `Hour is 3.`",
+        "Facts:\n> Amount is $812.40.\n> Hour is 3.",
+    ],
+)
+def test_strict_facts_lines_verify(reason):
+    res = g5(reason)
+    assert res.details["outcome"] == "verified", res.details
+
+
+def test_strict_facts_currency_must_match_the_declared_unit():
+    eur = {**G5_UNITS, "amount": "eur"}
+    gbp = {**G5_UNITS, "amount": "gbp"}
+    assert g5("Amount is €812.40.", units=eur).details["outcome"] == "verified"
+    assert g5("Amount is 812.40 EUR.", units=eur).details["outcome"] == "verified"
+    assert g5("Amount is 812.40 euros.", units=eur).details["outcome"] == "verified"
+    assert g5("Amount is $812.40.", units=eur).details["outcome"] == "unverifiable"
+    assert g5("Amount is £812.40.", units=gbp).details["outcome"] == "verified"
+    assert g5("Amount is €812.40.", units=gbp).details["outcome"] == "unverifiable"
+    assert g5("Amount is 812.40.", units=eur).details["outcome"] == "verified"  # bare number
+    assert g5("Amount is $812.40.", units={"amount": "usd"}).details["outcome"] == "verified"
+    # undeclared currency on a currency-bearing value
+    assert g5("Amount is $812.40.", units={}).details["outcome"] == "unverifiable"
+
+
+def test_strict_facts_false_lines_are_contradicted():
+    assert g5("Facts: Amount is $900.00. Hour is 3.").details["outcome"] == "contradicted"
+    assert g5("Facts:\nAmount is $812.40.\nHour is 9.").details["outcome"] == "contradicted"
+    assert g5('"Amount is $812.40. Hour is 9."').details["outcome"] == "contradicted"
+    assert g5("1. Amount is $812.40.\n2. Hour is 9.").details["outcome"] == "contradicted"
+    # the longest field name wins: "amount usd" is amount_usd, not amount in dollars
+    assert g5("Amount usd is $812.40.").details["outcome"] == "contradicted"
+    assert g5("Prev hour is 3.").details["outcome"] == "contradicted"  # prev_hour is 14
+
+
+def test_plugins_doc_grammar_examples_hold():
+    """docs/plugins.md states the facts grammar with examples; its example block runs here, so
+    every example that is documented to verify does."""
+    doc = (Path(__file__).resolve().parents[2] / "docs" / "plugins.md").read_text("utf-8")
+    marker = "<!-- value_check grammar examples: tests/scorers/test_value_check.py runs this"
+    assert doc.count(marker) == 1
+    block = doc.split(marker, 1)[1].split("```python\n", 1)[1].split("\n```", 1)[0]
+    assert block.count('"') > 40 and "verified = [" in block
+    scope: dict[str, Any] = {}
+    exec(compile(block, "docs/plugins.md", "exec"), scope)
+    assert len(scope["verified"]) >= 10 and len(scope["unverifiable"]) >= 8
+
+
+def test_strict_facts_unbound_statements_name_the_reason():
+    got = g5("The merchant is new. Its risk score is 0.83.")
+    assert [c["reason"] for c in got.details["checks"]] == ["unframed"]
+    got = g5("Amount is $812.40. Merch. risk score is 0.83.")
+    assert [c["status"] for c in got.details["checks"]] == ["ok", "unbound"]
