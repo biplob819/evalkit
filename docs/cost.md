@@ -103,6 +103,13 @@ Batch judging is the exception: a batch covers thousands of claims, so it holds 
 the *expected* judge output rather than the maximum. An unusually verbose batch can therefore
 end slightly above the cap. Use `--live-judges` if the cap must be strict.
 
+Only work that is not already cached holds budget: a rerun or rescore that finds most calls
+in the store reserves nothing for them. Both judges' batches run at once, so a judge's batch
+can be refused only because the other judge's hold is still open; it then waits, within
+`--wait`, for that batch to be collected and settle at its real cost (usually below its
+hold), and is sent if it fits. Past the wait the run exits 4 and the rerun sends it. A
+batch that cannot fit even with every hold released stops the run at the cap (exit 3).
+
 ## Resume for free
 
 Every model call is cached by its exact inputs under `.evalkit/store`. Rerunning the same
@@ -116,6 +123,10 @@ Judges run on the providers' batch APIs at half price. A batch usually finishes 
 but may take longer; `--wait` sets how many minutes to wait (default 30). If judging is
 still pending, the run exits with code 4 and the report says "judging pending"; rerun the
 same command to collect the results at no extra cost.
+A claim the provider returned no result for (an errored or expired batch line) also keeps
+judging pending: the rerun resends just that claim. A run is complete only when every
+extracted claim has a verdict, or a recorded judge failure, from every judge; failures are
+counted per model and judge in `missing_verdicts` and scored as unsupported.
 
 `--live-judges` judges immediately at full price, for when you need the answer now.
 

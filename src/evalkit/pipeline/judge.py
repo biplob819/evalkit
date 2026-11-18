@@ -348,12 +348,31 @@ def custom_id_for(key: str) -> str:
 
 @dataclass
 class _Result(Generic[V]):
+    """One judge's outcome over a list of claims. Every claim that needs a call ends in exactly
+    one of: a verdict; `failed` (a final failure, cached: a refusal, or a reply still invalid
+    after the one retry, Tech Spec §2.4); `missing` (no outcome this invocation: an errored,
+    expired or absent batch item, a provider error, or a claim the cap kept from being sent;
+    it is resubmitted next run); or still in an open batch. `status` is "complete" only when
+    no claim is missing or in an open batch."""
+
     judge: str
     verdicts: dict[str, V] = field(default_factory=dict)  # claim_id -> verdict
     status: Literal["complete", "pending"] = "complete"
     n_errors: int = 0  # claims excluded for this judge after a retry, or failed this run
     cost_usd: float = 0.0
     batch_ids: list[str] = field(default_factory=list)
+    failed: dict[str, str] = field(default_factory=dict)  # claim_id -> final error label
+    missing: set[str] = field(default_factory=set)  # claim ids left without an outcome
+
+    def _fail(self, claim_id: str, error: str | None) -> None:
+        self.failed[claim_id] = error or "error"
+        self.n_errors += 1
+
+    def _miss(self, claim_id: str) -> None:
+        """A claim with no outcome this run: counted, and the judge is not complete."""
+        self.missing.add(claim_id)
+        self.n_errors += 1
+        self.status = "pending"
 
 
 @dataclass
@@ -402,6 +421,7 @@ class _Hit(Generic[V]):
     """A cached outcome: a verdict, or None for a cached failure (counted as unjudged)."""
 
     verdict: V | None
+    error: str | None = None
 
 
 class Rubric(ABC, Generic[InT, V]):
@@ -479,7 +499,7 @@ class ClaimRubric(Rubric[JudgeInput, ClaimVerdict]):
 
     def load(self, executor: Executor, key: str) -> _Hit[ClaimVerdict] | None:
         cached = executor.store.get(key, _Cached)
-        return None if cached is None else _Hit(cached.verdict)
+        return None if cached is None else _Hit(cached.verdict, cached.error)
 
 
 CLAIMS = ClaimRubric()
@@ -685,7 +705,7 @@ class CitationRubric(Rubric[CitationInput, tuple[CitationVerdict, ...]]):
 
     def load(self, executor: Executor, key: str) -> _Hit[tuple[CitationVerdict, ...]] | None:
         cached = executor.store.get(key, _CitationCached)
-        return None if cached is None else _Hit(cached.verdict)
+        return None if cached is None else _Hit(cached.verdict, cached.error)
 
 
 CITATIONS = CitationRubric()
@@ -797,10 +817,14 @@ async def _retry_live(
         await executor.settle(estimate, cost)
 
 
-def _forget(rubric: Rubric[Any, Any], executor: Executor, key: str, result: _Result[Any]) -> None:
-    """Leave a claim unjudged and uncached so the next run resubmits it; count it now."""
+def _forget(
+    rubric: Rubric[Any, Any], executor: Executor, key: str, result: _Result[Any], claim_id: str
+) -> None:
+    """Leave a claim unjudged and uncached so the next run resubmits it; count it now. The
+    judge is then pending, not complete: a dropped batch item must never let a run finish
+    with the claim silently unjudged (gemma-grounded-health, 2026-11-18)."""
     executor.store.delete_meta(key, rubric.meta)
-    result.n_errors += 1
+    result._miss(claim_id)
 
 
 # One collect (status check plus downloading a finished batch's results, which for ~20k claims
@@ -825,10 +849,19 @@ async def judge_claims(
     submitted batch wait for that batch; the rest go into one new batch. With max_wait_s=0
     the call returns "pending" instead of waiting for unfinished batches.
 
-    Budget: a new batch reserves its estimate and keeps it held until collected; on resume,
-    batches an earlier process submitted are re-held first (their money is committed), so
-    fresh claims only get what is left under the cap. If fresh claims do not fit, the batches
-    already paid for are still collected before BudgetExceeded is raised.
+    Budget: a new batch reserves its estimate for its uncached claims only (cached verdicts
+    cost nothing and hold nothing) and keeps it held until collected; on resume, batches an
+    earlier process submitted are re-held first (their money is committed), so fresh claims
+    only get what is left under the cap. When fresh claims do not fit only because open
+    holds (this judge's resumed batches, or another judge's batch) are still reserved, they
+    wait, within max_wait_s, for those holds to settle at their real cost and are sent then;
+    past the wait the result is "pending" (sent next run). When they cannot fit even with
+    every hold released, the batches already paid for are still collected before
+    BudgetExceeded is raised.
+
+    A claim the provider returned no result for (errored, expired or missing from the batch)
+    or whose retry hit a provider error is resubmitted next run, and leaves the result
+    "pending", never "complete" (it is in `missing`). Final failures are in `failed`.
 
     The whole call holds a per-judge lock, so concurrent calls for one judge never submit,
     collect or retry the same claims twice; the second caller finds them cached. The lock is
@@ -913,7 +946,7 @@ async def _judge_batched(
                 if cached.verdict is not None:
                     result.verdicts[claim.id] = cached.verdict
                 else:
-                    result.n_errors += 1
+                    result._fail(claim.id, cached.error)
                 continue
             meta = executor.store.get_meta(key, rubric.meta)
             if meta is not None:
@@ -928,35 +961,47 @@ async def _judge_batched(
         for bid, est in held.items():
             await executor.rehold_batch(bid, est)
 
-        if fresh:
+        async def submit_fresh() -> None:
+            """Send every fresh claim in one batch if its hold fits under the cap. When it
+            does not fit only because other batches' holds are still open (another judge's,
+            or one resumed here), the claims wait for those holds to settle at their real
+            cost; when it cannot fit at all, the cap stops them."""
+            nonlocal fresh, budget_stop
             reqs = {cid: rubric.request(inp) for cid, inp in fresh.items()}
             item_est = {cid: _estimate(price, r, batch=True) for cid, r in reqs.items()}
             estimate = sum(item_est.values())
             try:
                 await executor.reserve(estimate)
             except BudgetExceeded as exc:
-                budget_stop = exc  # collect what is already paid for, then stop
-                result.n_errors += len(fresh)
-            else:
-                try:
-                    batch_id = await adapter.submit_batch(
-                        [BatchRequest(custom_id=cid, request=r) for cid, r in reqs.items()]
-                    )
-                except BaseException:
-                    await executor.settle(estimate, 0.0)
-                    raise
-                await executor.hold_batch(batch_id, estimate)  # stays reserved until collected
-                for cid, inp in fresh.items():
-                    executor.store.put_meta(
-                        rubric.cache_key(inp),
-                        rubric.meta,
-                        {"batch_id": batch_id, "provider": provider, "estimate": item_est[cid]},
-                    )
-                by_batch[batch_id] = dict(fresh)
+                if not executor.fits_once_held_settle(estimate):
+                    budget_stop = exc  # collect what is already paid for, then stop
+                    for inp in fresh.values():
+                        result._miss(inp.claim_id)
+                    fresh = {}
+                return
+            try:
+                batch_id = await adapter.submit_batch(
+                    [BatchRequest(custom_id=cid, request=r) for cid, r in reqs.items()]
+                )
+            except BaseException:
+                await executor.settle(estimate, 0.0)
+                raise
+            await executor.hold_batch(batch_id, estimate)  # stays reserved until collected
+            for cid, inp in fresh.items():
+                executor.store.put_meta(
+                    rubric.cache_key(inp),
+                    rubric.meta,
+                    {"batch_id": batch_id, "provider": provider, "estimate": item_est[cid]},
+                )
+            open_batches[batch_id] = dict(fresh)
+            fresh = {}
 
         deadline = time.monotonic() + max_wait_s
         open_batches = dict(by_batch)
-        while open_batches:
+        while True:
+            if fresh:
+                await submit_fresh()
+            collected_any = False
             for batch_id in list(open_batches):
                 batch = open_batches[batch_id]
                 reqs = {cid: rubric.request(inp) for cid, inp in batch.items()}
@@ -970,15 +1015,20 @@ async def _judge_batched(
                 if collected is None:
                     continue
                 del open_batches[batch_id]
+                collected_any = True
                 result.batch_ids.append(batch_id)
                 stop = await _process(
                     rubric, executor, adapter, price, batch_id, batch, collected, result
                 )
                 budget_stop = budget_stop or stop
-            if not open_batches:
+            if not open_batches and not fresh:
                 break
+            if fresh and collected_any:
+                continue  # a hold was just released: try the waiting claims again now
             remaining = deadline - time.monotonic()
             if remaining <= 0:
+                # Open batches are collected next run; claims still waiting for budget held
+                # by open batches are sent then (exit 4, not a cost-cap stop).
                 result.status = "pending"
                 result.batch_ids.extend(open_batches)
                 break
@@ -1031,15 +1081,15 @@ async def _process(
                 if done.verdict is not None:
                     result.verdicts[inp.claim_id] = done.verdict
                 else:
-                    result.n_errors += 1
+                    result._fail(inp.claim_id, done.error)
                 continue
             if raw is None:  # expired, cancelled or errored item: resubmit next run
-                _forget(rubric, executor, key, result)
+                _forget(rubric, executor, key, result, inp.claim_id)
                 spent += cost
                 continue
             if raw.refusal:
                 rubric.store(executor, key, None, "refusal", cost)
-                result.n_errors += 1
+                result._fail(inp.claim_id, "refusal")
                 spent += cost
                 continue
             verdict: V | None
@@ -1055,7 +1105,7 @@ async def _process(
                         result.cost_usd += retry_cost  # settled by _retry_live (N1)
                     except BudgetExceeded as exc:
                         budget_stop = exc
-                        _forget(rubric, executor, key, result)
+                        _forget(rubric, executor, key, result, inp.claim_id)
                         spent += cost
                         continue
                     except Exception as exc:
@@ -1063,11 +1113,11 @@ async def _process(
                             raise
                         # Transient or not (a 400 such as "credit balance too low" can clear),
                         # a provider error is never cached: count it, resubmit next run.
-                        _forget(rubric, executor, key, result)
+                        _forget(rubric, executor, key, result, inp.claim_id)
                         spent += cost
                         continue
                 else:
-                    _forget(rubric, executor, key, result)
+                    _forget(rubric, executor, key, result, inp.claim_id)
                     spent += cost
                     continue
             rubric.store(executor, key, verdict, err, cost)
@@ -1075,9 +1125,10 @@ async def _process(
             if verdict is not None:
                 result.verdicts[inp.claim_id] = verdict
             else:
-                result.n_errors += 1
-        for cid in set(batch) - seen:  # the provider returned nothing for it (N4)
-            _forget(rubric, executor, rubric.cache_key(batch[cid]), result)
+                result._fail(inp.claim_id, err)
+        for cid in sorted(set(batch) - seen):  # the provider returned nothing for it (N4)
+            gone = batch[cid]
+            _forget(rubric, executor, rubric.cache_key(gone), result, gone.claim_id)
     finally:
         await executor.settle_batch(batch_id, spent)  # releases the hold exactly once
         result.cost_usd += spent
@@ -1177,7 +1228,7 @@ async def _judge_live(
             if cached.verdict is not None:
                 result.verdicts[claim.id] = cached.verdict
             else:
-                result.n_errors += 1
+                result._fail(claim.id, cached.error)
             return
         if executor.store.get_meta(key, rubric.meta) is not None:
             # Already in a submitted batch that the provider will bill: never pay twice.
@@ -1199,7 +1250,7 @@ async def _judge_live(
             except Exception as exc:
                 if _is_fatal(exc):
                     raise
-                result.n_errors += 1  # provider error: never cached, retried next run
+                result._miss(claim.id)  # provider error: never cached, retried next run
                 return
             finally:
                 await executor.settle(estimate, cost)
@@ -1207,7 +1258,7 @@ async def _judge_live(
             if raw.refusal:
                 if max_output_tokens is None:  # a lower output limit is not the benchmark's judge
                     rubric.store(executor, key, None, "refusal", cost)
-                result.n_errors += 1
+                result._fail(claim.id, "refusal")
                 return
             try:
                 verdict, err = rubric.parse(raw.raw_text, inp), None
@@ -1219,7 +1270,7 @@ async def _judge_live(
                 except Exception as exc:
                     if _is_fatal(exc) or isinstance(exc, BudgetExceeded):
                         raise
-                    result.n_errors += 1
+                    result._miss(claim.id)  # provider error on the retry: never cached
                     return
                 result.cost_usd += retry_cost
                 cost += retry_cost
@@ -1228,7 +1279,7 @@ async def _judge_live(
         if verdict is not None:
             result.verdicts[claim.id] = verdict
         else:
-            result.n_errors += 1
+            result._fail(claim.id, err)
 
     async with executor.named_lock(f"{rubric.lock}:{judge}"):
         # Let every in-flight call finish and settle its spend, then surface the first stop.
@@ -1241,16 +1292,21 @@ async def _judge_live(
 
 
 def groundedness(
-    claims: Sequence[Claim], verdicts: Mapping[str, ClaimVerdict]
+    claims: Sequence[Claim],
+    verdicts: Mapping[str, ClaimVerdict],
+    *,
+    unjudged_unsupported: bool = False,
 ) -> tuple[float, bool]:
     """(share of judged claims supported, fully grounded). Fully grounded needs every claim
-    judged and supported, and at least one claim (JDG-06)."""
+    judged and supported, and at least one claim (JDG-06). With `unjudged_unsupported` (the
+    benchmark's scores, H5/NFR5) the share is over every claim: a claim the judge never ruled
+    on counts as unsupported instead of leaving the denominator."""
     judged = [verdicts[c.id] for c in claims if c.id in verdicts]
     if not judged:
         return 0.0, False
     supported = sum(v.verdict == "supported" for v in judged)
     fully = len(judged) == len(claims) and supported == len(claims)
-    return supported / len(judged), fully
+    return supported / (len(claims) if unjudged_unsupported else len(judged)), fully
 
 
 class PlantedClaim(Model):

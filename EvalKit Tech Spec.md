@@ -99,7 +99,8 @@ LoadAgentTasks ─▶ for task × agent × trial(k):
 | Transport, 429, 5xx | Exponential backoff with jitter, up to 6 attempts | Incorrect and ungrounded if it still fails |
 | Schema failure (invalid JSON or fields) | Never | Incorrect and ungrounded |
 | Refusal | Never | Incorrect; counted separately as `refusal` |
-| Judge parse failure | Once, with the same prompt | Claim excluded from that judge, and counted |
+| Judge parse failure | Once, with the same prompt | No verdict from that judge: recorded in `Record.judge_errors`, counted in `ModelSummary.missing_verdicts`, and unsupported in groundedness |
+| Judge batch item with no result (errored, expired, missing) | Resubmitted on the next run | Counted in `missing_verdicts`; judging stays pending (exit 4) until every claim has a verdict or a recorded judge error from every judge |
 
 - `Completion.error` holds the error type, and `ModelSummary.n_errors` counts errors by type.
 - Native structured-output mode is either on for every provider or off for every provider, recorded in `RunConfig.structured_output`.

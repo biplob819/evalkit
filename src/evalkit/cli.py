@@ -215,10 +215,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     tail = ""
     if outcome.exit_code == 4:
         tail = (
-            "judging pending: batches from an earlier run are still open; rerun without "
-            "--live-judges to collect them (never paid twice)"
+            "judging pending: a judge call failed, or batches from an earlier run are still "
+            "open; rerun to retry (without --live-judges to collect open batches; never paid "
+            "twice)"
             if args.live_judges
-            else "judging pending: rerun the same command to collect the batches (no extra cost)"
+            else "judging pending: rerun the same command to collect the batches (no extra "
+            "cost) and resend any claim the provider returned no result for"
         )
     from evalkit.pipeline.aggregate import stamp_lines
 

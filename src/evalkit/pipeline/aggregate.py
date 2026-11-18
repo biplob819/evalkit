@@ -71,7 +71,8 @@ def score_record(
     """Scores for one answer. `verdicts` maps judge -> claim id -> verdict for the judges that
     finished; a judge still pending is simply absent. A failed call, a missing answer or a
     failed extraction is ungrounded for every judge (AGG-05); a claim a judge never ruled on
-    keeps the answer from being fully grounded (JDG-06)."""
+    keeps the answer from being fully grounded (JDG-06) and counts as unsupported in its
+    groundedness, never leaving the denominator (H5, NFR5)."""
     correct = label_correct(case, completion).value == 1.0
     usable = (
         completion.error is None
@@ -83,7 +84,7 @@ def score_record(
     fully: dict[str, bool] = {}
     for judge, by_claim in verdicts.items():
         if usable and claim_set is not None:
-            g, f = groundedness(claim_set.claims, by_claim)
+            g, f = groundedness(claim_set.claims, by_claim, unjudged_unsupported=True)
         else:
             g, f = 0.0, False
         ground[judge], fully[judge] = g, f
@@ -120,6 +121,7 @@ def build_records(
     if len(generated) != len(claim_sets):
         raise ValueError("one claim set per generated answer")
     done = {r.judge: r.verdicts for r in judging if r.status == "complete"}
+    failed = {r.judge: r.failed for r in judging if r.status == "complete"}
     cited = {r.judge: r.verdicts for r in citations if r.status == "complete"}
     out = []
     for g, cs in zip(generated, claim_sets, strict=True):
@@ -166,9 +168,47 @@ def build_records(
                     for j in sorted(cited)
                     if (vs := tuple(v for c in cs.claims for v in cited[j].get(c.id, ())))
                 },
+                # final judge failures, so a claim without a verdict is never unexplained
+                judge_errors={
+                    j: errs
+                    for j in sorted(failed)
+                    if (errs := {c.id: failed[j][c.id] for c in cs.claims if c.id in failed[j]})
+                },
             )
         )
     return out
+
+
+def verdict_gaps(
+    records: Sequence[Record], judges: Sequence[str], judging: Sequence[JudgingResult] = ()
+) -> tuple[dict[str, dict[str, int]], bool]:
+    """(model -> judge -> extracted claims with no verdict from that judge, whether any of
+    them is unexplained). For a judge whose verdicts are in the records (its result complete,
+    or no results given), every claim must carry its verdict or a recorded final failure
+    (`Record.judge_errors`); a claim with neither is unexplained, so judging is not complete.
+    For a pending judge, the claims it was given no result for this run (`missing`)."""
+    status = {r.judge: r for r in judging}
+    in_records = [j for j in judges if j not in status or status[j].status == "complete"]
+    gaps: dict[str, dict[str, int]] = {}
+    unexplained = False
+    model_of: dict[str, str] = {}
+    for r in records:
+        m = r.completion.model
+        per = gaps.setdefault(m, {})
+        ruled = {(v.claim_id, v.judge) for v in r.verdicts}
+        for c in r.claims:
+            model_of[c.id] = m
+            for j in in_records:
+                if (c.id, j) not in ruled:
+                    per[j] = per.get(j, 0) + 1
+                    unexplained = unexplained or c.id not in r.judge_errors.get(j, {})
+    for j in judges:
+        if j in status and status[j].status != "complete":
+            for cid in status[j].missing:
+                if cid in model_of:
+                    per = gaps[model_of[cid]]
+                    per[j] = per.get(j, 0) + 1
+    return gaps, unexplained
 
 
 # Ties between roles are broken in this order, so an aim reading is never hidden (B5.12).
@@ -267,6 +307,11 @@ def aggregate(
     judges = selection.judges
     judge_mode = selection.judge_mode
     judging_status = judging_status_of(judges, judging)
+    # Complete only when every extracted claim has a verdict (or a recorded final failure)
+    # from every judge: a dropped verdict keeps the run pending, whatever the results say.
+    gaps, unexplained = verdict_gaps(records, judges, judging)
+    if unexplained:
+        judging_status = "pending"
     calibration_status = calibration_status_of(judges, agreements, task=task)
     by_model: dict[str, dict[str, Record]] = {m: {} for m in models}
     for r in records:
@@ -359,6 +404,7 @@ def aggregate(
                 price_date=(price_dates or {}).get(m),
                 eval_overhead_usd=(eval_overhead_usd or {}).get(m),
             ),
+            missing_verdicts={j: k for j, k in sorted(gaps.get(m, {}).items()) if k},
         )
         failed = []
         all_failed = sum(errors.values()) == n
@@ -559,13 +605,14 @@ def _s(r: Record) -> Scores:
 def judging_status_of(
     judges: Sequence[str], judging: Sequence[JudgingResult]
 ) -> Literal["pending", "complete"]:
-    """Complete only when every selected judge has a result and none is pending."""
+    """Complete only when every selected judge has a result, none is pending and none left a
+    claim without an outcome (`missing`: resubmitted next run)."""
     names = [r.judge for r in judging]
     if len(names) != len(set(names)):
         raise ValueError("one judging result per judge")
     by_judge = {r.judge: r for r in judging}
     missing = [j for j in judges if j not in by_judge]
-    if missing or any(by_judge[j].status == "pending" for j in judges):
+    if missing or any(by_judge[j].status == "pending" or by_judge[j].missing for j in judges):
         return "pending"
     return "complete"
 
@@ -596,6 +643,13 @@ def stamp_lines(summary: RunSummary) -> list[str]:
         lines.append("judge not calibrated for this task (see docs/calibrate-your-task.md)")
     if summary.judging_status == "pending":
         lines.append("judging pending: headline and groundedness not yet available")
+    gaps: dict[str, int] = {}
+    for m in summary.models:
+        for j, k in m.missing_verdicts.items():
+            gaps[j] = gaps.get(j, 0) + k
+    if gaps:
+        per = ", ".join(f"{j}: {k}" for j, k in sorted(gaps.items()))
+        lines.append(f"claims without a judge verdict ({per}), counted as unsupported")
     return lines
 
 
