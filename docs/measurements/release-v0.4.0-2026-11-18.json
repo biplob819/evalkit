@@ -1,0 +1,28 @@
+{
+ "release": "v0.4.0",
+ "node": "B5.10",
+ "tag": "v0.4.0",
+ "commit": "f9cbc8e5396c4fc638021cb426cc34e2d6853d78",
+ "package": "evalkit-harness",
+ "version": "0.4.0",
+ "approved_by": "owner, in the EvalKit session (question widget), 2026-11-18",
+ "published_by": "trusted publishing from .github/workflows/release.yml on the tag (run 44290689495); post-release install check passed on ubuntu, windows and macos",
+ "files": [
+  {
+   "type": "bdist_wheel",
+   "filename": "evalkit_harness-0.4.0-py3-none-any.whl",
+   "sha256": "7bceabbd9a47f3b884a6e35ca588159aea927c1901a7c6c8a888df9965f92030",
+   "uploaded": "2026-11-18T11:05:24.681474Z"
+  },
+  {
+   "type": "sdist",
+   "filename": "evalkit_harness-0.4.0.tar.gz",
+   "sha256": "1695d3ff1ad28ea8c17830a77059bfc647c60d78545e25519947cb99615e949d",
+   "uploaded": "2026-11-18T11:05:26.010800Z"
+  }
+ ],
+ "ci": "green on Linux, macOS and Windows at the tagged commit",
+ "canary": "docs/measurements/downstream-canary-2026-11-18-rc4.json (three pass, four known drift, each explained)",
+ "source": "https://pypi.org/pypi/evalkit-harness/0.4.0/json, read 2026-11-18",
+ "spend_usd": 0
+}

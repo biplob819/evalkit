@@ -148,6 +148,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `equivalences` (B5.15, strict by default).
 
 ## 2026-11-18
+- [RELEASE] [B5.10] — v0.4.0 released (owner-approved): tag v0.4.0 at f9cbc8e, evalkit-harness 0.4.0 on PyPI by trusted publishing, install check green on Linux, macOS and Windows; record docs/measurements/release-v0.4.0-2026-11-18.json. Spend: $0.
 - [RELEASE] [B5.10] — v0.4.0 release candidate: RC canary on fresh clones (docs/measurements/downstream-canary-2026-11-18-rc4.json): three pass, four known drift, every one explained (agentic-analytics and fraud-review-bedrock fail only version-pin checks, which embed or compare 0.3.0). Spend: $0.
 - [DOCS] — Walkthrough GIF for the portfolio: docs/assets/walkthrough.gif (10 screens of committed outputs, 825 KB), shot list in docs/walkthrough.md, docs/portfolio.yaml, scripts/capture_walkthrough.py. No keys, no spend. Spend: $0.
 - [FEAT] [B5.7] — Green after three verifier passes: run, experiment, drift and spend ledger (`evalkit history|experiment|drift|spend`), tamper-evident and held-out-safe; no-drift false alarms ≤ 5% across 252 cells. Spend: $0.
