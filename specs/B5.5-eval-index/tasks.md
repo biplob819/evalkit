@@ -7,4 +7,4 @@
 - [x] 5. Build `evalkit.index`, `evalkit index snapshot|build`, docs/index.md, public API lists, Pages step
 - [x] 6. Goldens (expected/index.html, expected/index.json) byte-reproducible
 - [x] 7. Gates: ruff check, ruff format --check, pyright, pytest
-- [ ] 8. Converge on main after the v0.4.0 tag (lead); verifier; proofs into the catalog (lead)
+- [x] 8. Converge on main after the v0.4.0 tag (lead); verifier; proofs into the catalog (lead)
