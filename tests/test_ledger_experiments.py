@@ -19,6 +19,7 @@ from evalkit import heldout as H
 from evalkit import ledger as L
 from evalkit.ledger.experiments import verdict_for
 from tests.ledger_helpers import (
+    EXAMPLE_RUN,
     FIX,
     HELD_IDS,
     HELDOUT_FIX,
@@ -537,3 +538,109 @@ def test_heldout_result_only_as_split_aggregates_and_only_with_a_reserved_look(t
     exp2 = _open(ledger, before)
     with pytest.raises(L.LedgerError):  # the candidate's result is already recorded
         L.close_experiment(ledger, exp2, before=before, after=after, heldout=result)
+
+
+# ---- freeze guard: candidate identity (verifier findings) ----------------------------------------
+
+
+def _evalkit_run(
+    tmp: Path,
+    name: str,
+    *,
+    seed: int = 7,
+    run_id: str = "g",
+    effort: str | None = None,
+    prompt_hash: str | None = None,
+) -> Path:
+    """A copy of the bundled EvalKit example run, re-seeded the way `evalkit run` re-seeds:
+    the seed, the config hash (which covers the seed), the run id and the times change."""
+    folder = tmp / name
+    shutil.copytree(EXAMPLE_RUN, folder)
+    config_hash = "golden" if seed == 7 else f"cfg-seed-{seed}"
+    stamp = f"2026-11-{14 + seed % 10:02d}T12:00:00Z"
+    run = json.loads((folder / "run.json").read_text(encoding="utf-8"))
+    times = {"started_at": stamp, "finished_at": stamp.replace("T12", "T13")}
+    run.update(seed=seed, config_hash=config_hash, run_id=run_id, **times)
+    (folder / "run.json").write_text(json.dumps(run, indent=2), encoding="utf-8")
+    summary = json.loads((folder / "summary.json").read_text(encoding="utf-8"))
+    summary.update(config_hash=config_hash, run_id=run_id, **times)
+    (folder / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    lines = []
+    for line in (folder / "records.jsonl").read_text(encoding="utf-8").splitlines():
+        rec = json.loads(line)
+        rec.update(seed=seed, run_id=run_id, timestamp=stamp)
+        if prompt_hash is not None:
+            rec["prompt_hash"] = prompt_hash
+        if effort is not None and rec["completion"]["model"] == "gpt-6-luna":
+            rec["completion"]["params"]["effort"] = effort
+        lines.append(json.dumps(rec))
+    (folder / "records.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return folder
+
+
+def test_a_reseeded_evalkit_run_is_the_same_candidate(tmp_path):
+    """logical (LED-03): an EvalKit run re-seeded (new seed, so a new config hash, run id and
+    times) is the same candidate and gets no second look; a changed prompt or a changed model
+    effort is a different candidate."""
+    a = _evalkit_run(tmp_path, "a")
+    b = _evalkit_run(tmp_path, "b", seed=99, run_id="r-reseeded")
+    assert L.candidate_hash(a) == L.candidate_hash(b) == L.candidate_hash(b / "summary.json")
+    prompt = _evalkit_run(tmp_path, "p", prompt_hash="ffffffffffffffff")
+    effort = _evalkit_run(tmp_path, "e", effort="high")
+    assert len({L.candidate_hash(x) for x in (a, prompt, effort)}) == 3
+    ledger, log = tmp_path / "experiments.jsonl", tmp_path / "log.jsonl"
+    exp = L.open_experiment(
+        ledger,
+        hypothesis="h",
+        change="c",
+        metric="accuracy",
+        labels={"model": "claude-sonnet-5-5"},
+        direction="up",
+        baseline=a,
+    )["id"]
+    L.reserve_look(ledger, exp, candidate=a, manifest=MANIFEST, log=log)
+    snapshot = (ledger.read_bytes(), log.read_bytes())
+    with pytest.raises(L.LedgerError) as exc:
+        L.reserve_look(ledger, exp, candidate=b, manifest=MANIFEST, log=log)
+    assert exc.value.code == 1 and (ledger.read_bytes(), log.read_bytes()) == snapshot
+
+
+def test_a_run_and_its_settings_json_are_one_candidate(tmp_path):
+    """logical (LED-03): a run folder and the settings.json inside it hash the same candidate,
+    so naming the other buys no second look; a settings.json on its own identifies a candidate
+    only by its candidate_sha256 (exit 2 otherwise); different candidates still differ."""
+    run = write_run(
+        tmp_path / "cand",
+        [rate("acc", 5, 10)],
+        project="evalkit",
+        settings={"prompt_hash": "p9", "seed": 1},
+        provenance={"code_version": "c1"},
+    )
+    settings = run.parent / "settings.json"
+    assert L.candidate_hash(run.parent) == L.candidate_hash(settings) == L.candidate_hash(run)
+    ek = _evalkit_run(tmp_path, "ek")
+    (ek / "settings.json").write_text(json.dumps({"rules": "r1"}), encoding="utf-8")
+    assert L.candidate_hash(ek) == L.candidate_hash(ek / "settings.json")
+    ledger, log = tmp_path / "experiments.jsonl", tmp_path / "log.jsonl"
+    exp = L.open_experiment(
+        ledger, hypothesis="h", change="c", metric="acc", direction="up", baseline=run
+    )["id"]
+    L.reserve_look(ledger, exp, candidate=run.parent, manifest=MANIFEST, log=log)
+    snapshot = (ledger.read_bytes(), log.read_bytes())
+    with pytest.raises(L.LedgerError) as exc:
+        L.reserve_look(ledger, exp, candidate=settings, manifest=MANIFEST, log=log)
+    assert exc.value.code == 1 and (ledger.read_bytes(), log.read_bytes()) == snapshot
+    alone = tmp_path / "copied" / "settings.json"
+    alone.parent.mkdir()
+    shutil.copyfile(settings, alone)
+    with pytest.raises(L.LedgerError, match="candidate_sha256") as exc:
+        L.candidate_hash(alone)
+    assert exc.value.code == 2
+    other = write_run(
+        tmp_path / "other",
+        [rate("acc", 5, 10)],
+        project="evalkit",
+        settings={"prompt_hash": "p10", "seed": 1},
+        provenance={"code_version": "c1"},
+    )
+    assert L.candidate_hash(other) != L.candidate_hash(run)

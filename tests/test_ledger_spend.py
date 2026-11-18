@@ -19,8 +19,14 @@ import pytest
 
 from evalkit import cli, smoke
 from evalkit import ledger as L
-from evalkit.ledger._io import chain_state, legacy_seal, sha256_text
-from tests.ledger_helpers import EVALKIT_SPEND, ROOT, no_network  # noqa: F401
+from evalkit.ledger._io import canonical_json, chain_state, legacy_seal, sha256_text
+from tests.ledger_helpers import (  # noqa: F401
+    EVALKIT_SPEND,
+    ROOT,
+    commit,
+    no_network,
+    repo,
+)
 
 LEGACY = EVALKIT_SPEND.read_text(encoding="utf-8").splitlines()[:22]
 
@@ -57,9 +63,10 @@ def _course_assistant(path: Path, amounts: list[float], month: str = "2026-11") 
     return path
 
 
-def _legacy_copy(tmp: Path) -> Path:
+def _sealed_copy(tmp: Path) -> Path:
+    """EvalKit's ledger as committed: 22 legacy lines and the line that seals them."""
     p = tmp / "spend-ledger.jsonl"
-    p.write_text("".join(x + "\n" for x in LEGACY), encoding="utf-8")
+    p.write_bytes(EVALKIT_SPEND.read_bytes())
     return p
 
 
@@ -300,7 +307,7 @@ def test_smoke_record_spend_keeps_its_signature_and_return_value(tmp_path):
     sig = inspect.signature(smoke.record_spend)
     assert list(sig.parameters) == ["kind", "spent_usd", "detail", "ledger"]
     assert sig.parameters["ledger"].default == smoke.LEDGER == EVALKIT_SPEND
-    path = _legacy_copy(tmp_path)
+    path = _sealed_copy(tmp_path)
     legacy_total = round(sum(json.loads(x)["spent_usd"] for x in LEGACY), 6)
     assert legacy_total == 31.557859  # the figure docs/case-study.md cites
     total = smoke.record_spend(
@@ -332,18 +339,9 @@ def test_evalkits_legacy_ledger_is_kept_and_sealed_by_its_first_chained_line(tmp
         seal["sealed"] == legacy_seal(LEGACY) == {"lines": 22, "sha256": seal["sealed"]["sha256"]}
     )
     assert seal["spent_usd"] == 0.0 and seal["spend_kind"] == "ledger_seal"
-    path = _legacy_copy(tmp_path)
-    original = path.read_bytes()
-    L.record_spend(
-        path,
-        spend_kind="ledger_seal",
-        spent_usd=0.0,
-        project="evalkit",
-        note=seal["note"],
-        at=seal["at"],
-    )
-    assert path.read_bytes().startswith(original)
-    assert path.read_text(encoding="utf-8").splitlines()[22] == lines[22]
+    body = {k: v for k, v in seal.items() if k not in ("prev", "sealed")}
+    sealed = {**body, "sealed": legacy_seal(LEGACY), "prev": sha256_text(LEGACY[-1])}
+    assert canonical_json(sealed) == lines[22]
 
 
 # ---- repro ---------------------------------------------------------------------------------------
@@ -362,7 +360,7 @@ for i in range(25):
 
 def test_concurrent_writers_never_lose_or_tear_a_line(tmp_path):
     """repro: two processes appending at once leave every line, whole and chained."""
-    path = _legacy_copy(tmp_path)
+    path = _sealed_copy(tmp_path)
     go = tmp_path / "go"
     procs = [
         subprocess.Popen([sys.executable, "-c", _WRITER, str(path), str(go), tag])
@@ -371,9 +369,9 @@ def test_concurrent_writers_never_lose_or_tear_a_line(tmp_path):
     go.write_text("go", encoding="utf-8")
     assert [p.wait(timeout=120) for p in procs] == [0, 0]
     lines = path.read_text(encoding="utf-8").splitlines()
-    assert len(lines) == 22 + 50
+    assert len(lines) == 23 + 50
     rows = [json.loads(x) for x in lines]
-    assert sorted(r.get("spend_kind") for r in rows[22:]) == ["a"] * 25 + ["b"] * 25
+    assert sorted(r.get("spend_kind") for r in rows[23:]) == ["a"] * 25 + ["b"] * 25
     assert L.verify_ledger(path) == []
     assert L.check_spend(path, cap=100, window="total").spent_usd == round(31.557859 + 0.5, 6)
 
@@ -386,7 +384,7 @@ def test_concurrent_writers_never_lose_or_tear_a_line(tmp_path):
 def test_editing_a_legacy_line_breaks_the_seal(tmp_path, line):
     """safety: once sealed, an edit to any legacy line (the last one, or any before it) breaks
     the seal; spend check refuses the ledger (exit 2)."""
-    path = _legacy_copy(tmp_path)
+    path = _sealed_copy(tmp_path)
     L.record_spend(path, spend_kind="smoke", spent_usd=0.1, project="evalkit")
     lines = path.read_text(encoding="utf-8").splitlines()
     row = json.loads(lines[line])
@@ -443,3 +441,59 @@ def test_spend_commands_read_no_secrets(tmp_path, monkeypatch, capsys):
     assert not any(Path(f).name == ".env" for f in opened)
     assert "NEVER" not in out.out + out.err + ledger.read_text(encoding="utf-8")
     assert str(ROOT) not in ledger.read_text(encoding="utf-8")
+
+
+# ---- verifier findings ---------------------------------------------------------------------------
+
+
+@pytest.mark.safety
+def test_cutting_the_whole_chained_part_fails_the_chain_check(tmp_path, capsys):
+    """safety: EvalKit's ledger cut back to its 22 legacy lines (every chained line dropped) is
+    not a legacy file waiting for its seal: that prefix is a recorded checkpoint
+    (`KNOWN_SEALS`), so verify reports it, spend check refuses it (exit 2) and no line can be
+    appended (that would re-seal a shorter history). Another project's unsealed legacy file is
+    still read as it is."""
+    path = _sealed_copy(tmp_path)
+    L.record_spend(path, spend_kind="smoke", spent_usd=0.5, project="evalkit")
+    path.write_text("".join(x + "\n" for x in LEGACY), encoding="utf-8")
+    assert any("chained part" in p for p in L.verify_ledger(path))
+    assert cli.main(["history", "verify", str(path), "--chain-only"]) == 1
+    with pytest.raises(L.LedgerError, match="broken") as exc:
+        L.check_spend(path, cap=100, window="total")
+    assert exc.value.code == 2
+    before = path.read_bytes()
+    with pytest.raises(L.LedgerError, match="broken"):
+        L.record_spend(path, spend_kind="smoke", spent_usd=0.1, project="evalkit")
+    assert path.read_bytes() == before
+    capsys.readouterr()
+    assert cli.main(["spend", "check", "--cap", "100", "--spend-ledger", str(path)]) == 2
+    other = tmp_path / "other.jsonl"
+    other.write_text("".join(x + "\n" for x in LEGACY[:21]), encoding="utf-8")
+    assert L.verify_ledger(other) == []
+    assert L.check_spend(other, cap=100, window="total").chain == "unchained"
+
+
+@pytest.mark.safety
+def test_tail_truncation_is_caught_by_the_append_only_check_and_verify_says_so(tmp_path, capsys):
+    """safety: dropping the last chained lines leaves a valid chain, so the defence there is
+    B5.14's append-only check against the repository: `history verify --rev` catches it, and
+    every verify reports for each ledger whether that check ran."""
+    root = repo(tmp_path)
+    path = root / "spend-ledger.jsonl"
+    path.write_bytes(EVALKIT_SPEND.read_bytes())
+    for _ in range(3):
+        L.record_spend(path, spend_kind="smoke", spent_usd=0.1, project="evalkit")
+    base = commit(root, "spend")
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    path.write_text("".join(lines[:-2]), encoding="utf-8")
+    assert L.verify_ledger(path) == []  # the chain alone cannot see a cut tail
+    capsys.readouterr()
+    assert cli.main(["history", "verify", str(path), "--chain-only", "--json"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["append_only"][str(path)].startswith("not checked")
+    assert cli.main(["history", "verify", str(path), "--chain-only"]) == 0
+    assert "append-only: not checked" in capsys.readouterr().out
+    assert cli.main(["history", "verify", str(path), "--rev", base, "--json"]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["append_only"][str(path)].startswith("checked")
+    assert out["ledgers"][str(path)]

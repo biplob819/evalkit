@@ -24,7 +24,8 @@ is refused (exit 2), so it cannot be edited after freezing.
 Inputs are either rows or aggregates:
 
 - **Rows:** a CSV (with a header) or a JSON Lines file, `--features a,b` (numeric unless listed
-  in `--categorical`), and for calibration `--prob COLUMN --label COLUMN` (a probability in
+  in `--categorical`; a feature named only in `--categorical` is profiled too, by category, and
+  a name that is not a column exits 2), and for calibration `--prob COLUMN --label COLUMN` (a probability in
   [0, 1] and a 0/1 outcome). Empty values, `NA`, `null` and non-finite numbers are missing:
   left out of the PSI and reported as `missing_share` per side.
 - **Aggregates** (for projects that hand EvalKit no rows): a [metrics-1](gates.md) file with
@@ -53,17 +54,31 @@ The rule is fraud-review-bedrock's (its MON-03), so its numbers reproduce bit fo
 ## Calibration
 
 From rows: Brier = mean (p − y)²; ECE = Σ_b (n_b / N) |ȳ_b − p̄_b| over 10 equal-width bins
-(bin `floor(p · 10 + 1e-12)`, p = 1 in the last bin), with seeded percentile bootstrap
-intervals over rows (seed 7, 10,000 resamples; `--resamples` lowers it for large batches); each
-bin's observed rate has a Clopper-Pearson interval. Equal-width bins align across periods.
+(bin `floor(p · 10 + 1e-12)`, p = 1 in the last bin), with seeded bootstrap intervals over
+rows (seed 7, 10,000 resamples; `--resamples` lowers it for large batches): studentized
+(bootstrap-t) for Brier, so a small batch's skewed squared errors keep their coverage, and
+percentile for ECE; each bin's observed rate has a Clopper-Pearson interval. Equal-width bins
+align across periods.
 
 The changes new − reference each carry a 95% interval:
 
 | Change | Interval |
 |---|---|
 | Brier | MOVER from the two intervals (different periods: unpaired) |
-| ECE | independent parametric bootstraps of each side's bins (observed ~ Binomial(n_b, obs_b) / n_b, predicted fixed) |
+| ECE | debiased against no drift: the delta is new − reference less the difference expected with nothing changed at the two batch sizes (`no_drift_expected`; the raw difference is `delta_raw`), with the basic interval and a two-sided p-value from that no-drift distribution |
 | each bin's observed rate | MOVER of the two Clopper-Pearson intervals |
+
+**Why ECE is debiased.** ECE is biased upward in a small batch: a perfectly calibrated bin
+still shows |observed − predicted| > 0 from sampling alone, more so with fewer rows. Comparing
+a 50-row batch with a 2,000-row reference raw would read that sampling bias as drift (a
+perfectly calibrated model alarmed on every check). So the ECE change is judged against its
+distribution under no drift, drawn by a seeded parametric bootstrap: with aligned bins, each
+bin keeps both sides' counts and mean predictions and both sides' outcomes are drawn from the
+bin's pooled observed rate; with bins that do not align, a batch of the new size is drawn from
+the reference (bin by share, outcome by observed rate) and the reference is redrawn at its own
+size. Measured on a perfectly calibrated model (reference 500 or 2,000 rows, new batch 10 to
+2,000 rows, 100 checks per cell): the alarm rate is at most 4% in every cell and the warn rate
+at most 3%; a model 0.2 to 0.3 off still alarms in a 100- or 300-row batch.
 
 A change is `changed` when its Holm-adjusted p-value (across the calibration block) is below
 0.05; `warn` when it changed for the worse (Brier or ECE up, a bin's |observed − predicted| gap

@@ -35,6 +35,7 @@ from evalkit.ledger._io import (
     load_manifest,
     project_of,
     read_entries,
+    require_ledger,
     sha256_text,
     text_field,
     utc_stamp,
@@ -98,7 +99,7 @@ def load_run(run: str | Path) -> LoadedRun:
     )
     return LoadedRun(
         path=path,
-        summary_sha256=sha256_text_bytes(path.read_bytes()),
+        summary_sha256=summary_digest(path),
         source="metrics-1" if ri.kind == "metrics-1" else "evalkit-summary",
         metrics=ri.metrics,
         settings=dict(ri.settings),
@@ -106,10 +107,16 @@ def load_run(run: str | Path) -> LoadedRun:
     )
 
 
-def sha256_text_bytes(data: bytes) -> str:
-    import hashlib
+def summary_digest(path: Path) -> str:
+    """sha256 of the summary's canonical JSON (sorted keys, compact, ASCII), so the same run
+    pretty-printed, minified or with its keys reordered is the same run (recorded once)."""
+    import json
 
-    return hashlib.sha256(data).hexdigest()
+    try:
+        data = json.loads(path.read_bytes().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        raise LedgerError(f"{path.name} is unreadable or not JSON") from None
+    return sha256_text(canonical_json(data))
 
 
 def _gates(gates: str | Path | GatesFile | None) -> GatesFile | None:
@@ -513,7 +520,8 @@ def check_run(
     heldout_splits: Sequence[Any] = (),
 ) -> RunCheck:
     """Judge a run against the ledger's history without recording it. Raises LedgerError
-    (code 2 bad input, 4 judging pending)."""
+    (code 2 bad input, a missing ledger included; 4 judging pending)."""
+    require_ledger(ledger)
     g = _gates(gates)
     held = held_splits(g, heldout_splits)
     loaded = load_run(run)
@@ -540,6 +548,7 @@ def record_run(
     gates: str | Path | GatesFile | None = None,
     heldout_splits: Sequence[Any] = (),
     manifest: str | Path | Mapping[str, Any] | None = None,
+    cases: Mapping[str, str | Path] | None = None,
     note: str | None = None,
     at: str | None = None,
 ) -> RunCheck:
@@ -554,7 +563,7 @@ def record_run(
     if loaded.status == "pending":
         raise LedgerError("judging is pending: the run is not recorded", EXIT_PENDING)
     entry = run_entry(loaded, held=held, note=note, at=at)
-    guard_ids(entry, m, held)
+    guard_ids(entry, m, held, cases)
     seen: list[list[Band]] = []
 
     def check(rows: list[dict[str, Any]], e: dict[str, Any]) -> None:
@@ -796,7 +805,7 @@ def history(
     the latest band, the EFF-03 spread table and the PSI series of drift checks."""
     g = _gates(gates)
     held = held_splits(g, heldout_splits)
-    rows = [r for r in read_entries(ledger) if r.get("schema") == LEDGER_SCHEMA]
+    rows = [r for r in read_entries(require_ledger(ledger)) if r.get("schema") == LEDGER_SCHEMA]
     project = project_of(rows)
     points: dict[tuple[str, LabelKey], list[TrendPoint]] = {}
     meta: dict[tuple[str, LabelKey], tuple[Mapping[str, Any], str, Band]] = {}

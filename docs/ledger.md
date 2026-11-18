@@ -8,7 +8,7 @@ against its own history. Drift and calibration checks for a new batch of data ar
 
 | Ledger | Default path | Commands |
 |---|---|---|
-| Run history | `docs/measurements/runs.jsonl` | `history add`, `check`, `show`, `reset`, `verify` |
+| Run history | `docs/measurements/runs.jsonl` | `history init`, `add`, `check`, `show`, `reset`, `verify` |
 | Experiments | `docs/measurements/experiments.jsonl` | `experiment open`, `close`, `look`, `show` |
 | Spend | `docs/measurements/spend-ledger.jsonl` | `spend add`, `check` |
 
@@ -36,6 +36,19 @@ evalkit history verify docs/measurements/runs.jsonl --base BEFORE_SHA --default-
 append-only in git: the push base, every parent of HEAD and the default branch tip, exactly
 as `python -m evalkit.heldout verify-log` does. It exits 1 on any problem.
 
+A hash chain shows an edited, dropped or reordered line, but not lines cut from its end: what
+is left is still a valid chain. **The defence against a cut tail is the git append-only
+check**, so `verify` reports for every ledger whether it ran (`append-only: checked against N
+revision(s)` or `not checked`; `append_only` in the JSON). Run it with `--base` (CI: the push's
+before) or `--rev`; `--chain-only`, or no revision to compare with, leaves a cut tail unseen.
+One cut is caught by the chain check itself: a spend ledger cut back to a legacy prefix that
+EvalKit has already sealed (see Legacy lines below).
+
+**A missing ledger is an error.** `history check`, `history show` and `report --history` exit
+2 when the ledger path does not exist, naming it, so a mistyped path never reads as an empty
+history. `evalkit history init --ledger docs/measurements/runs.jsonl` creates an empty ledger (an existing one is
+left as it is), and the first `history add` creates one too.
+
 ## Run history
 
 ```
@@ -53,7 +66,7 @@ folders are not committed:
 | Field | What it holds |
 |---|---|
 | `run_id`, `source` | the run, and `metrics-1` or `evalkit-summary` |
-| `summary_sha256` | sha256 of the input file's bytes; a run is recorded once |
+| `summary_sha256` | sha256 of the input file's canonical JSON (sorted keys, compact, ASCII); a run is recorded once, so the same file pretty-printed or minified is refused (exit 2) |
 | `config_hash`, `code_version`, `snapshot`, `evalkit` | from the run's provenance (null when unrecorded) |
 | `recorded_with`, `settings_sha256` | the EvalKit that wrote the line; a hash of the run's settings (seed and EvalKit version excluded) |
 | `simulated`, `status` | the run's flag; `complete` or `stopped` |
@@ -65,7 +78,8 @@ folders are not committed:
   and exits 3.
 - A held-out row (split `heldout`, the gates file's `heldout_splits`, or `--heldout-split`)
   keeps its figures only when its labels are within split, model and judge, as compare
-  folds them. With `--manifest`, a line that names a held-out case id is refused (exit 2).
+  folds them. With `--manifest`, a line that names a held-out case is refused (exit 2); see
+  [Held-out rules](#held-out-rules).
 - An efficiency row's `price_date` label moves to `price_dates`, so a new price table keeps
   the row comparable and shows up as a hint instead of a new series.
 
@@ -150,7 +164,18 @@ evalkit experiment show
 - The candidate hash is `candidate_sha256` from the candidate's `settings.json` when present
   (a fix hash, a challenger hash); otherwise the sha256 of every recorded setting except
   `seed`, `evalkit` and `results_format`, so a re-seed or an upgrade does not buy a second
-  look. A candidate that records nothing identifying is refused (exit 2).
+  look. Run ids, times and paths are never part of it. An EvalKit run's `config_hash` is left
+  out too, because it covers the seed; each model's call settings from its records
+  (`effort`, `structured_output`) are hashed in its place, with the code version, prompt
+  hash, model ids, judges, judge prompt hash and extractor version. Run-config knobs the
+  records do not state (`max_output_tokens`, endpoints) are not seen: record a
+  `candidate_sha256` when they matter. A project's own `config_hash` (metrics-1) is kept: if
+  it covers the seed, record `candidate_sha256`. A candidate that records nothing identifying
+  is refused (exit 2).
+- `--candidate` names a run (folder, summary.json or metrics-1 file) or a settings file. The
+  `settings.json` inside a run folder is the same candidate as the folder. A settings file on
+  its own (not in a run folder) identifies a candidate only by its `candidate_sha256`;
+  without one it is refused (exit 2), so copying a run's settings elsewhere buys no look.
 - `close --heldout RESULT` stores the candidate's held-out result as split-level aggregates
   only, and only when RESULT's candidate hash matches a look reserved in this experiment and
   no result was recorded for it.
@@ -194,6 +219,14 @@ chained line names the last legacy line's sha256 as `prev` and records `sealed: 
 sha256}` over all of them, so editing any legacy line breaks the seal. EvalKit's own ledger has
 22 such lines, sealed by a $0 `ledger_seal` line.
 
+Cutting away the whole chained part, the seal included, would leave a file that looks like a
+legacy file not yet sealed. So the seals EvalKit has made are recorded in its code
+(`evalkit.ledger._io.KNOWN_SEALS`: line count and sha256 of the prefix). A file that holds a
+known sealed prefix with no chained line after it is a broken chain: `verify` reports it,
+`spend check` exits 2 and `spend add` refuses to append, which would re-seal a shorter
+history. Lines cut from the end of the chained part leave a valid chain; the git append-only
+check catches those (see `history verify` above).
+
 ## Exit codes
 
 Precedence 2 > 3 > 4 > 1 > 0 wherever more than one applies, as for `evalkit gate`.
@@ -211,8 +244,15 @@ Precedence 2 > 3 > 4 > 1 > 0 wherever more than one applies, as for `evalkit gat
 No held-out case id, id hash or text is written to any ledger line, report, chart, JSON output
 or error. Run entries fold held-out rows to split level; experiment entries store compare's
 folded output and look metadata only; a look's case hashes live only in the held-out log. With
-`--manifest`, every writer checks the line it is about to append for held-out ids and refuses
-it (exit 2) on a hit; the held-out exposure scan covers the committed ledgers in CI.
+`--manifest`, every writer checks the line it is about to append and refuses it (exit 2) when
+it names a held-out case id, or a held-out `id_sha256` or `content_sha256` (the whole hash or a
+prefix of at least 12 hex characters, the manifest id, in any letter case). The manifest holds
+hashes only, so to refuse held-out case **text** in free-text fields (`note`, `hypothesis`,
+`change`), also pass the held-out case files with `--cases SPLIT=PATH` (`history add`,
+`experiment open`, `experiment close`). They are checked against the manifest first, then the
+line is read with B5.14's exposure-scan normalisation (NFKC, casefolded, runs of punctuation
+and spaces as one space): a whole case string of 25 or more characters, or any 10 consecutive
+words of one, is refused. The held-out exposure scan covers the committed ledgers in CI.
 
 ## From Python
 
