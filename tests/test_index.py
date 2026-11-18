@@ -102,10 +102,10 @@ def test_each_project_shows_headline_ci_calibration_gate_version_and_date():
     )
     assert own.gate is not None and own.gate.status == "fail" and own.gate.exit_code == 1
     assert own.gate.source == "EvalKit default gates: every model passes its thresholds"
-    assert (own.evalkit_version, own.evalkit_version_source) == (
-        "0.4.0",
-        "pyproject.toml at the commit",
-    )
+    # the run records no EvalKit version: the repository's version at the commit is not the
+    # build that made the run, so it is never shown as the run's version
+    assert (own.evalkit_version, own.evalkit_version_source) == (None, "not recorded")
+    assert own.evalkit_pin == "evalkit-harness 0.4.0 (the repository at the commit)"
 
     course = entry(index, "course-assistant")
     assert course.calibration is not None and course.calibration["status"] == "uncalibrated"
@@ -280,7 +280,7 @@ def test_every_registered_project_is_listed_and_unreadable_ones_are_missing_with
     projects = {k: v for k, v in cfg.projects.items() if k != "agentic-analytics"}
     other = entry(build(config=cfg.model_copy(update={"projects": projects})), "agentic-analytics")
     assert other.status == "missing" and other.reason == (
-        "not metrics-1 or an EvalKit summary.json: it has schema_version '1.0' but not "
+        "not metrics-1 or an EvalKit summary.json: it has schema_version '…' but not "
         "EvalKit's summary.json keys (task, judge_mode, calibration_status, judging_status, "
         "models): another project's summary.json, not an EvalKit run"
     )
@@ -339,7 +339,7 @@ def _corrupt_cases() -> list[tuple[str, str, str]]:
         ("no-snapshot", "gemma-grounded-health", "not fetched: no snapshot"),
         ("bad-metrics", "respectful-offers", "invalid metrics-1: metrics[0].unit"),
         ("bad-summary", "course-assistant", "invalid EvalKit summary: "),
-        ("dup-key", "respectful-offers", "summary is not valid JSON: duplicate key 'run_id'"),
+        ("dup-key", "respectful-offers", "summary is not valid JSON: a duplicate key"),
     ]
 
 
@@ -691,7 +691,9 @@ def test_snapshot_fetches_the_registered_files_at_a_commit_and_the_build_reads_t
         e.url
         == f"https://github.com/biplob819/respectful-offers/blob/{sha}/results/kkbox/metrics.json"
     )
-    assert entry(index, "evalkit").evalkit_version == "9.9.9"
+    own_entry = entry(index, "evalkit")  # the repository's version, never the run's
+    assert own_entry.evalkit_version is None
+    assert own_entry.evalkit_pin == "evalkit-harness 9.9.9 (the repository at the commit)"
 
 
 def test_snapshot_reads_the_commit_asked_for_not_the_branch_head(tmp_path):
@@ -921,12 +923,15 @@ def test_fraud_leakage_reads_its_own_figure_lower_is_better_and_simulated(tmp_pa
     assert h.direction == "lower is better" and h.ci_method == "exact 95% upper bound"
     assert e.headline_label == "Fraud leakage (frauds auto-cleared, lower is better)"
     assert e.simulated is True and e.stamps[0].startswith("SIMULATED")
-    assert "lower is better" in e.story["headline"]["note"]
+    # the label already says "lower is better": not repeated beside the value or in the note
+    assert "lower is better" in e.story["headline"]["label"]
+    assert "lower is better" not in e.story["headline"]["note"]
     assert "simulated" in e.story["headline"]["note"]
     assert {x["status"] for x in e.story["evals"]} == {"provisional"}
     html = ix.render_html(ix.Index([e]))
     assert html.count('<span class="badge sim">SIMULATED</span>') == 2
-    assert "<span class=muted>(lower is better)</span>" in html
+    assert html.count("lower is better") == 2  # the label, in the overview and the section
+    assert h.direction_in_label
     assert e.evalkit_pin == "evalkit-harness==0.3.0" and "pin evalkit-harness==0.3.0" in html
     # another data_label is false; no data_label is not stated (never invented)
     for i, (label, want) in enumerate((("real", False), (None, None))):
@@ -1141,3 +1146,223 @@ def test_snapshot_follows_a_pointer_file_to_the_current_bundle(tmp_path):
     git(repo, "commit", "-qam", "drop the pointer")
     res = ix.snapshot(reg, out, config=cfg, sources={"assay-pipeline": str(repo)}, root=own)
     assert res[0].reason.startswith("pointer docs/results/LATEST not found at commit")
+
+
+# ---- show only what the source states (verifier round 1, public page) --------------------------
+
+
+PYPROJECT = b"""[project]
+name = "assay"
+dependencies = ["duckdb>=1", "evalkit-harness>=0.3,<0.4"]
+
+[project.optional-dependencies]
+eval = ["Evalkit_Harness >= 0.3, < 0.4"]
+
+[dependency-groups]
+dev = ["evalkit-harness>=0.3,<0.4", "pytest"]
+"""
+
+LOCK = b"""version = 1
+[[package]]
+name = "duckdb"
+version = "1.1.0"
+
+[[package]]
+name = "evalkit-harness"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+"""
+
+
+def test_the_pin_is_read_from_the_projects_own_pyproject_and_a_stale_registry_is_flagged(
+    tmp_path,
+):
+    """The registry's pin cell can go stale; the snapshot reads the EvalKit requirement from the
+    project's pyproject.toml (and the version uv.lock resolved) at the commit, the index shows
+    that, and a registry cell that disagrees is flagged, never shown as the pin."""
+    metrics = (SNAPS / "respectful-offers" / "summary.json").read_bytes()
+    repo = tmp_path / "offers"
+    make_repo(
+        repo,
+        {"results/kkbox/metrics.json": metrics, "pyproject.toml": PYPROJECT, "uv.lock": LOCK},
+    )
+    reg = tmp_path / "reg.tsv"
+    reg.write_text(
+        "project\trepo\tbranch\tpin\tsummary\n"
+        "respectful-offers\tbiplob819/respectful-offers\tmain\tevalkit-harness==0.1.0\t"
+        "results/kkbox/metrics.json\n",
+        encoding="utf-8",
+    )
+    own = tmp_path / "self"
+    make_repo(own, {"README": b"x"})
+    out = tmp_path / "snaps"
+    ix.snapshot(reg, out, sources={"respectful-offers": str(repo)}, root=own)
+    snap = json.loads((out / "respectful-offers" / "snapshot.json").read_text(encoding="utf-8"))
+    assert snap["evalkit_declared"] == ["evalkit-harness>=0.3,<0.4"]  # one, normalised
+    assert snap["evalkit_locked"] == "0.3.0"
+    e = entry(ix.build_index(reg, out), "respectful-offers")
+    assert e.evalkit_pin == "evalkit-harness>=0.3,<0.4"
+    assert e.evalkit_pin_source == "pyproject.toml at the commit (uv.lock: 0.3.0)"
+    assert e.registry_pin == "evalkit-harness==0.1.0"
+    assert e.pin_note == "the registry's pin (evalkit-harness==0.1.0) differs"
+    html = ix.render_html(ix.Index([e]))
+    assert "evalkit-harness&gt;=0.3,&lt;0.4" in html and "differs" in html
+    # a registry cell that agrees is not flagged; credentials in a URL are never shown
+    (repo / "pyproject.toml").write_bytes(
+        b'[project]\nname = "x"\ndependencies = ['
+        b'"evalkit-harness @ git+https://user:s3cret@github.com/biplob819/evalkit@'
+        + b"a" * 40
+        + b'"]\n'
+    )
+    git(repo, "commit", "-qam", "pin by url")
+    ix.snapshot(reg, out, sources={"respectful-offers": str(repo)}, root=own)
+    e = entry(ix.build_index(reg, out), "respectful-offers")
+    assert e.evalkit_pin is not None and "s3cret" not in e.evalkit_pin
+    assert "s3cret" not in ix.index_json(ix.Index([e]))
+    # no pyproject requirement at the commit: the registry cell, labelled as such
+    (repo / "pyproject.toml").unlink()
+    git(repo, "commit", "-qam", "no pyproject")
+    ix.snapshot(reg, out, sources={"respectful-offers": str(repo)}, root=own)
+    e = entry(ix.build_index(reg, out), "respectful-offers")
+    assert e.evalkit_pin == "evalkit-harness==0.1.0"
+    assert e.evalkit_pin_source == "the registry (no EvalKit requirement in pyproject.toml)"
+    assert e.pin_note == ""
+
+
+def test_registry_pins_match_the_projects_pyprojects():
+    """docs/downstream.tsv against each project's pyproject.toml at the commit the eval index
+    snapshot read on 2026-11-18 (assay-pipeline and agentic-analytics were stale, verifier;
+    respectful-offers had moved to 0.4; fraud-review-bedrock's extras were left out)."""
+    pins = {r.project: r.pin for r in ix.read_registry(ROOT / "docs" / "downstream.tsv")}
+    sha = "@git+https://github.com/biplob819/evalkit@"
+    assert {k: ix._norm_req(v) for k, v in pins.items()} == {
+        "agentic-analytics": "evalkit-harness==0.3.0",
+        "ai-visibility": "evalkit-harness" + sha + "218192132ad601f02976d486d839e712e39bc4e2",
+        "assay-pipeline": "evalkit-harness>=0.3,<0.4",
+        "course-assistant": "evalkit-harness>=0.2,<0.3",
+        "fraud-review-bedrock": "evalkit-harness[anthropic,openai]"
+        + sha
+        + "4ddfef50d55db653aaf57048af06f2ba606e1573",
+        "gemma-grounded-health": "evalkit-harness[openai,anthropic]"
+        + sha
+        + "06591f8de9b178078c971940a83019a6530fd119",
+        "respectful-offers": "evalkit-harness>=0.4,<0.5",
+    }
+
+
+def test_a_run_mode_or_simulated_flag_the_summary_does_not_record_is_not_recorded():
+    """A summary written before 0.3 records no run mode, and an EvalKit summary never says
+    whether it is simulated: the index says `not recorded`, never `live` or `false`."""
+    from evalkit.metrics import from_run_summary
+    from evalkit.schemas import RunSummary
+
+    text = (SNAPS / "gemma-grounded-health" / "summary.json").read_text(encoding="utf-8")
+    m = from_run_summary(RunSummary.model_validate_json(text))
+    assert all("mode" not in x.labels for x in m.metrics if x.name == "error_rate")
+    index = build()
+    for name in ("gemma-grounded-health", "course-assistant"):
+        e = entry(index, name)
+        assert e.models and all(row.mode is None for row in e.models), name
+        assert e.simulated is None, name
+    html = ix.render_html(ix.Index([entry(index, "course-assistant")]))
+    assert "<td>live</td>" not in html and "<td>not recorded</td>" in html
+    # metrics-1 without a `simulated` key: not stated (metrics-1's default is not a statement)
+    assay = entry(index, "assay-pipeline")
+    assert assay.simulated is False  # its file states false
+    assert {m.mode for m in assay.models} == {"live"}  # its file states the mode
+
+
+def test_a_metrics1_file_that_omits_simulated_is_not_stated(tmp_path):
+    snaps = copy_snaps(tmp_path)
+    folder = snaps / "respectful-offers"
+    data = json.loads((folder / "summary.json").read_text(encoding="utf-8"))
+    data.pop("simulated")
+    (folder / "summary.json").write_text(json.dumps(data), encoding="utf-8")
+    reseal(folder)
+    e = entry(build(snaps), "respectful-offers")
+    assert e.simulated is None and {x["status"] for x in e.story["evals"]} == {"provisional"}
+
+
+def test_a_long_interval_method_fits_and_a_direction_in_the_label_is_shown_once(tmp_path):
+    snaps = copy_snaps(tmp_path)
+    folder = snaps / "respectful-offers"
+    data = json.loads((folder / "summary.json").read_text(encoding="utf-8"))
+    method = "paired block-bootstrap percentile 95%; Holm per metric and variant (D-16)"
+    assert len(method) == 73
+    for m in data["metrics"]:
+        if m["name"] == "diff.incremental_retained_per_1000_ntd":
+            m["ci_method"] = method
+    (folder / "summary.json").write_text(json.dumps(data), encoding="utf-8")
+    reseal(folder)
+    cfg = ix.parse_config(CONFIG.read_text(encoding="utf-8"))
+    head = cfg.projects["respectful-offers"].headline
+    assert head is not None
+    labelled = head.model_copy(update={"direction": "higher", "label": "Kept (higher is better)"})
+    projects = {
+        **cfg.projects,
+        "respectful-offers": cfg.projects["respectful-offers"].model_copy(
+            update={"headline": labelled}
+        ),
+    }
+    e = entry(build(snaps, cfg.model_copy(update={"projects": projects})), "respectful-offers")
+    assert e.headline is not None and e.headline.ci_method == method
+    assert method in e.story["headline"]["note"]
+    html = ix.render_html(ix.Index([e]))
+    assert html.count("higher is better") == 2  # once per place the label appears, no more
+    assert "higher is better; " not in e.story["headline"]["note"]
+    # still capped: a method longer than 128 characters is not shown
+    for m in data["metrics"]:
+        if m["name"] == "diff.incremental_retained_per_1000_ntd":
+            m["ci_method"] = "x" * 129
+    (folder / "summary.json").write_text(json.dumps(data), encoding="utf-8")
+    reseal(folder)
+    e = entry(build(snaps), "respectful-offers")
+    assert e.headline is not None and e.headline.ci_method == "<129 characters, not shown>"
+
+
+def test_reasons_never_echo_a_key_or_value_from_the_source(tmp_path):
+    snaps = copy_snaps(tmp_path)
+    folder = snaps / "gemma-grounded-health"
+    (folder / "summary.json").write_text(
+        '{"a-67936e7b30b370c9": 1, "a-67936e7b30b370c9": 2}', encoding="utf-8"
+    )
+    reseal(folder)
+    offers = snaps / "respectful-offers"
+    data = json.loads((offers / "summary.json").read_text(encoding="utf-8"))
+    data["metrics"][0]["labels"] = {"alert_id": "x"}
+    (offers / "summary.json").write_text(json.dumps(data), encoding="utf-8")
+    reseal(offers)
+    index = build(snaps)
+    gemma, ro = entry(index, "gemma-grounded-health"), entry(index, "respectful-offers")
+    assert gemma.reason == "summary is not valid JSON: a duplicate key in a JSON object"
+    assert ro.status == "missing" and "names an id" in ro.reason
+    blob = ix.index_json(index) + ix.render_html(index)
+    assert "a-67936e7b30b370c9" not in blob and "alert_id" not in blob
+
+
+@pytest.mark.parametrize(
+    ("value", "shown"),
+    [
+        ("a-67936e7b30b370c9", False),
+        ("case-0042", False),
+        ("member_00123", False),
+        ("run-1a2b3c4d", False),
+        ("claude_mcp", True),
+        ("gpt-6.1-sol", True),
+        ("claude-sonnet-5-5", True),
+        ("gemma-e2b-grounded-q4", True),
+        ("2026-11-01", True),
+        ("B6", True),
+    ],
+)
+def test_id_shaped_fan_out_labels_are_refused(value, shown):
+    """A hyphenated or underscored prefix plus 8 or more hex characters, or 3 or more digits,
+    is id-shaped: a figure labelled with one is not shown."""
+    data = {"rows": [{"name": value, "fixes": [], "v": {"point": 0.5}}]}
+    sel = ix.Selector(path="$.rows[?fixes == []].v", per="name")
+    fig = ix._select_path(data, sel, frozenset({"heldout"}))
+    if shown:
+        assert fig.problem is None and fig.rows[0].labels == {"name": value}
+    else:
+        assert fig.problem == "a label value is shaped like an id: not shown"
+        assert value not in json.dumps(fig.as_dict())

@@ -28,7 +28,10 @@ evalkit index build --config configs/index.yaml
      config's `pointer` leads to; the pointer file itself is read, never copied);
    - `run.json` beside an EvalKit `summary.json`;
    - the config's `gates` and `experiments` files;
-   - the config's `lessons` path, checked for existence only and never copied.
+   - the config's `lessons` path, checked for existence only and never copied;
+   - `pyproject.toml` and `uv.lock`, read only for the EvalKit requirement and the version the
+     lock resolved (recorded in `snapshot.json` as `evalkit_declared` and `evalkit_locked`,
+     credentials in a URL hidden), never copied.
 
    Absolute paths, `..` and `.env` files are refused before any git call.
 2. **`evalkit index build`** reads the registry, the config and the snapshot folder, and nothing
@@ -63,8 +66,20 @@ neither.
   held-out folding as in [gates.md](gates.md)). An EvalKit summary without a gates file uses
   `evalkit gate`'s default: every model passes its thresholds. A metrics-1 file without one
   says `not gated`.
-- **EvalKit version:** metrics-1 `provenance.evalkit`, or EvalKit's own `pyproject.toml` at the
-  commit. Otherwise `not recorded in the run`, shown with the registry's pin.
+- **EvalKit version:** the version that made the run, only as the run records it (metrics-1
+  `provenance.evalkit`); otherwise `not recorded in the run`. The repository's version at the
+  commit is not the build that made an older run, so it is never shown as the run's version.
+- **EvalKit pin:** the `evalkit-harness` requirement as the project's own `pyproject.toml`
+  states it at the commit (its dependencies, optional dependencies and dependency groups),
+  with the version its `uv.lock` resolved. A registry cell that disagrees is flagged
+  (`the registry's pin (…) differs`), never shown as the pin. The registry cell is shown only
+  when the pyproject states no EvalKit requirement, labelled as such. EvalKit's own row shows
+  its repository's version at the commit, labelled `the repository at the commit`.
+- **Show only what the source states:** a run mode, price date or `simulated` flag the file
+  does not record reads `not recorded` (or is left out of `index.json` as null). A summary
+  written before 0.3 records no run mode, an EvalKit summary has no `simulated` field, and
+  metrics-1's default `false` is not a statement; a metrics-1 headline is `final` only when its
+  file states `simulated: false`.
 - **Run date, run id, commit:** the commit links the summary file on GitHub at that commit. A
   `simulated` run carries a SIMULATED badge (D-63), along with EvalKit's own stamps (single
   judge, uncalibrated, judging pending, missing verdicts, stopped at the cost cap).
@@ -134,8 +149,15 @@ model's interval lies below every other model's; otherwise it says `intervals ov
 - Held-out rows appear only at split level (`split`, `model`, `judge`). A selector that points
   at a held-out row below split level is refused, and gate rows are folded by `evalkit.gates`.
 - metrics-1 refuses case and member ids, both as label names and as id-shaped values.
-- Every value from a project's file is escaped and limited to 64 characters. Anthropic, OpenAI,
-  AWS, GitHub and PyPI key shapes are shown as `<hidden>`.
+- Every value from a project's file is escaped and limited to 64 characters (an interval method
+  to 128). Anthropic, OpenAI, AWS, GitHub and PyPI key shapes are shown as `<hidden>`.
+- A label value shaped like an id in the index (a prefix, a hyphen or underscore, then 8 or
+  more hex characters or 3 or more digits: `a-67936e7b30b370c9`, `case-0042`) is refused: a
+  figure labelled with one shows `a label value is shaped like an id: not shown`, and a gate
+  row shows the value as `<hidden>`.
+- A reason never quotes the source: a duplicate key reads `a duplicate key in a JSON object`,
+  and quoted keys and values in a validation problem read `'…'`.
+- A direction the label already states (`… lower is better`) is not repeated beside the value.
 - Answers, claims and lesson text are never read into the index.
 - A file that cannot be read shows up as its project's own `missing` row; it never stops the
   page from rendering.

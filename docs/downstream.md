@@ -98,7 +98,9 @@ The full list, with what to do, is [the 0.3 → 0.4 migration](versioning.md#03-
 
 ## agentic-analytics
 
-- **Current pin**: `evalkit-harness @ git+https://github.com/biplob819/evalkit@06591f8de9b178078c971940a83019a6530fd119`
+- **Current pin**: `evalkit-harness==0.3.0`, as its pyproject.toml states at its commit cba4dce
+  (read by the eval index snapshot on 2026-11-18; the registry had still named the commit pin
+  `@06591f8`).
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4`
 - **Release-candidate canary**: pass (238 passed).
 
@@ -237,7 +239,9 @@ Capabilities it asked for, in 0.4.0:
 
 ## assay-pipeline
 
-- **Current pin**: `evalkit-harness==0.1.0`
+- **Current pin**: `evalkit-harness>=0.3,<0.4`, as its pyproject.toml states at its commit
+  ff879e6 (read by the eval index snapshot on 2026-11-18; the registry had still said
+  `==0.1.0`). Adopting 0.4 is a separate change.
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4`
 - **Release-candidate canary**: pass (60 passed).
 
@@ -426,7 +430,7 @@ Capabilities it asked for, in 0.4.0:
 
 ## fraud-review-bedrock
 
-- **Current pin**: `evalkit-harness @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573` (with extras `anthropic` and `openai`)
+- **Current pin**: `evalkit-harness[anthropic,openai] @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573` (the v0.3.0 tag, as its pyproject.toml states it at its commit 50fe3e0)
   (the v0.3.0 tag commit; its suite passes on it, 1321 tests. It was the release candidate 118b661, and add5af9 before that)
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (move from the release-candidate commit to the tag).
 - **Release-candidate canary**: pass (1264 passed) on its e41ddc9, which moved its bridge test and
@@ -581,9 +585,10 @@ Capabilities it asked for, in 0.4.0:
 
 ## respectful-offers
 
-- **Current pin**: `evalkit-harness>=0.3,<0.4` (its `evalkit` extra and dev group), adopted at its
-  commit 7d595ef (its E4.2); the canary runs `tests/evalkit/test_evalkit_contract.py` (43 offline
-  contract tests).
+- **Current pin**: `evalkit-harness>=0.4,<0.5` (its `evalkit` extra and dev group; its D-59,
+  E4.3), as its pyproject.toml states at its commit 396fb34 (read by the eval index snapshot on
+  2026-11-18). It had pinned `>=0.3,<0.4` since its commit 7d595ef (its E4.2). The canary runs
+  `tests/evalkit/test_evalkit_contract.py` (43 offline contract tests).
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (met). It imports only `evalkit.metrics` (`load_metrics`, `parse_metrics`,
   `MetricsError`) and `evalkit.gates` (`run_gate`, `EXIT_PASS`, `EXIT_INPUT`), enforced by its ast
   test. Its stricter validator refused id-shaped label values; EvalKit refuses them too since

@@ -56,7 +56,6 @@ from evalkit.metrics import (
     describe_validation,
     from_run_summary,
     loads_json,
-    safe_text,
     unit_kind,
     validate_metrics,
 )
@@ -134,11 +133,26 @@ class IndexInputError(ValueError):
         super().__init__("; ".join(self.problems))
 
 
-def _show(value: object) -> str:
-    """A value from a project's file as the index may show it: at most 64 characters, key
-    shapes hidden."""
-    text = safe_text(value)
+def _show(value: object, limit: int = 64) -> str:
+    """A value from a project's file as the index may show it: at most `limit` characters (64
+    by default; an interval method may take 128), key shapes hidden."""
+    text = value if isinstance(value, str) else json.dumps(value)
+    if len(text) > limit:
+        text = f"<{len(text)} characters, not shown>"
     return "<hidden>" if _SECRETS.search(text) else text
+
+
+# A label value shaped like a case, alert or member id in the index (stricter than metrics-1's
+# own check): a prefix, a hyphen or underscore, then 8 or more hex characters or 3 or more
+# digits (`a-67936e7b30b370c9`, `case-0042`, `member_00123`).
+_ID_LABEL_RE = re.compile(
+    r"[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z][A-Za-z0-9]*)*[-_](?:[0-9A-Fa-f]{8,}|[0-9]{3,})"
+)
+ID_LABEL_PROBLEM = "a label value is shaped like an id: not shown"
+
+
+def _id_label(labels: Mapping[str, Any]) -> bool:
+    return any(isinstance(v, str) and _ID_LABEL_RE.fullmatch(v) for v in labels.values())
 
 
 def _clean(text: str) -> str:
@@ -770,8 +784,89 @@ def _snap_one(
                 text = read("pyproject.toml").decode("utf-8")
                 found = re.search(r'^version\s*=\s*"([^"\n]{1,32})"', text, re.M)
                 meta["evalkit_version"] = found.group(1) if found else None
+        elif row.project != SELF:
+            # the EvalKit pin as the project itself states it at this commit (the registry's
+            # cell can go stale): its pyproject.toml requirement and the version uv.lock chose
+            meta["evalkit_declared"] = []
+            if exists("pyproject.toml"):
+                try:
+                    meta["evalkit_declared"] = _declared(read("pyproject.toml"))
+                except (_GitError, ValueError):
+                    meta["evalkit_declared"] = None  # unreadable: not known, never guessed
+            if exists("uv.lock"):
+                with contextlib.suppress(_GitError, ValueError):
+                    meta["evalkit_locked"] = _locked(read("uv.lock"))
     meta["status"], meta["reason"] = "ok", ""
     return meta, blobs
+
+
+EVALKIT_DIST = "evalkit-harness"
+
+
+def _dist_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _requirement(req: str) -> str | None:
+    """An `evalkit-harness` requirement as shown (canonical name, operators without spaces,
+    credentials in a URL hidden), or None for another distribution."""
+    m = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*(.*)\Z", req, re.S)
+    if m is None or _dist_name(m.group(1)) != EVALKIT_DIST:
+        return None
+    extras = re.sub(r"\s+", "", m.group(2) or "")
+    rest = m.group(3).strip()
+    if rest.startswith("@"):
+        rest = " @ " + re.sub(r"\s+", " ", rest[1:].strip())
+    else:
+        rest = re.sub(r"\s+", "", rest)
+    text = re.sub(r"://[^/@\s]+@", "://<hidden>@", f"{EVALKIT_DIST}{extras}{rest}")
+    return _clean(text)
+
+
+def _declared(data: bytes) -> list[str]:
+    """Every distinct EvalKit requirement in a pyproject.toml: `project.dependencies`, its
+    optional dependencies and its dependency groups. Raises ValueError when unreadable."""
+    import tomllib
+
+    try:
+        doc = tomllib.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        raise ValueError("pyproject.toml is not valid TOML") from None
+    found_project = doc.get("project")
+    project: dict[str, Any] = found_project if isinstance(found_project, dict) else {}
+    lists: list[Any] = [project.get("dependencies")]
+    for table in (project.get("optional-dependencies"), doc.get("dependency-groups")):
+        if isinstance(table, dict):
+            lists += list(table.values())
+    found: list[str] = []
+    for items in lists:
+        for item in items if isinstance(items, list) else []:
+            req = _requirement(item) if isinstance(item, str) else None
+            if req is not None and req not in found:
+                found.append(req)
+    return found
+
+
+def _locked(data: bytes) -> str | None:
+    """The EvalKit version uv.lock resolved (with the git commit when it is a git source)."""
+    import tomllib
+
+    try:
+        doc = tomllib.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    packages = doc.get("package")
+    for pkg in packages if isinstance(packages, list) else []:
+        if not isinstance(pkg, dict) or _dist_name(str(pkg.get("name", ""))) != EVALKIT_DIST:
+            continue
+        version = pkg.get("version")
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9A-Za-z.+!-]{1,32}", version):
+            return None
+        source = pkg.get("source")
+        git = source.get("git") if isinstance(source, dict) else None
+        sha = re.search(r"#([0-9a-f]{40})\Z", git) if isinstance(git, str) else None
+        return f"{version} (git {sha.group(1)[:12]})" if sha else version
+    return None
 
 
 def snapshot(
@@ -884,6 +979,7 @@ class Figure:
     problem: str | None = None
     heldout: bool = False
     direction: str | None = None  # "lower is better" / "higher is better", when configured
+    direction_in_label: bool = False  # the label already says it: not repeated beside the value
     companion: Figure | None = None  # shown beside the value (e.g. the strict score)
     companion_label: str | None = None
     rows: list[Figure] = field(default_factory=list)  # a per-label fan-out: one per value
@@ -917,6 +1013,7 @@ class Figure:
             "problem": self.problem,
             "heldout": self.heldout,
             "direction": self.direction,
+            "direction_in_label": self.direction_in_label,
             "companion": None if self.companion is None else self.companion.as_dict(),
             "companion_label": self.companion_label,
             "rows": [r.as_dict() for r in self.rows],
@@ -955,7 +1052,7 @@ def _figure(
         value=value,
         ci_low=lo,
         ci_high=hi,
-        ci_method=_show(m.ci_method) if m.ci_method is not None else None,
+        ci_method=_show(m.ci_method, 128) if m.ci_method is not None else None,
         n=m.n,
         k=m.k,
         text=text,
@@ -1004,6 +1101,8 @@ def _select_row(
     if len(rows) > 1:
         return _problem(metric, f"matches {len(rows)} rows (name every label)", want)
     m = rows[0]
+    if _id_label(m.labels):
+        return _problem(metric, ID_LABEL_PROBLEM, sel.labels)
     held = _is_heldout(m.labels, heldout)
     if held and not set(m.labels) <= HELDOUT_KEPT:
         return _problem(metric, "a held-out row below split level is not shown", want)
@@ -1088,6 +1187,8 @@ def _path_rows(data: Any, sel: Selector, heldout: frozenset[str]) -> list[Figure
             if isinstance(value, bool) or not isinstance(value, str | int):
                 return f"an item has no {sel.per} (a string or an integer)"
             labels[sel.per] = value
+            if _id_label(labels):
+                return ID_LABEL_PROBLEM
         try:
             m = _node_metric(name, node, sel, labels)
         except ValueError as exc:
@@ -1125,7 +1226,8 @@ def _select_path(data: Any, sel: Selector, heldout: frozenset[str]) -> Figure:
             companions[key] = r
     direction = DIRECTIONS.get(sel.direction or "")
     for r, key in zip(rows, keys, strict=True):
-        r.direction = direction
+        if sel.per is None:  # a fan-out states its direction once, on the whole figure
+            r.direction = direction
         if c is not None:
             r.companion = companions.get(key) or _problem(_path_name(c.path or "$"), "no value")
             r.companion_label = _named(c.label, r.companion.metric)
@@ -1200,7 +1302,10 @@ def _gate_rows(report: Any) -> list[dict[str, Any]]:
             {
                 "gate": d["gate"],
                 "metric": _show(d["metric"]),
-                "labels": {_show(k): _show(v) for k, v in sorted(d["labels"].items())},
+                "labels": {
+                    _show(k): "<hidden>" if _id_label({k: v}) else _show(v)
+                    for k, v in sorted(d["labels"].items())
+                },
                 "op": d["op"],
                 "threshold": d["threshold"],
                 "bound": d["bound"],
@@ -1261,6 +1366,9 @@ class ProjectEntry:
     evalkit_version: str | None = None
     evalkit_version_source: str = "not recorded"
     evalkit_pin: str | None = None
+    evalkit_pin_source: str = "the registry"
+    registry_pin: str | None = None
+    pin_note: str = ""  # set when the registry's cell disagrees with the project's pyproject
     headline: Figure | None = None
     headline_label: str | None = None
     headline_comparison: Figure | None = None  # the config's optional comparison row
@@ -1299,6 +1407,9 @@ class ProjectEntry:
             "evalkit_version": self.evalkit_version,
             "evalkit_version_source": self.evalkit_version_source,
             "evalkit_pin": self.evalkit_pin,
+            "evalkit_pin_source": self.evalkit_pin_source,
+            "registry_pin": self.registry_pin,
+            "pin_note": self.pin_note,
             "headline": None if self.headline is None else self.headline.as_dict(),
             "headline_label": self.headline_label,
             "headline_comparison": (
@@ -1393,31 +1504,50 @@ def _load_snapshot(folder: Path, row: RegistryRow, summary_path: str | None) -> 
     return snap
 
 
-def _parse_summary(text: str) -> tuple[MetricsSummary, Any, str]:
-    """metrics-1, or an EvalKit summary.json (strict marker); else the reason it is neither."""
+def _scrub(problem: str) -> str:
+    """A parse or validation problem without anything quoted from the source: quoted keys and
+    values become '…', and a dict key in a location (`labels.<key>`) becomes `<key>`."""
+    problem = re.sub(r"(?<![A-Za-z])'[^']*'(?![A-Za-z])|\"[^\"]*\"", "'…'", problem)
+    return re.sub(r"\blabels\.[^\s:;,]+", "labels.<key>", problem)
+
+
+def _loads_summary(text: str) -> Any:
+    """Strict JSON (duplicate keys refused) with a reason that never echoes the source."""
+    try:
+        return loads_json(text)
+    except MetricsError as exc:
+        first = exc.problems[0]
+        if first.startswith("duplicate key"):
+            first = "a duplicate key in a JSON object"
+        raise _Missing(f"summary is not valid JSON: {_scrub(first)}") from None
+
+
+def _parse_summary(text: str) -> tuple[MetricsSummary, Any, str, bool | None]:
+    """metrics-1, or an EvalKit summary.json (strict marker); else the reason it is neither.
+    The last item is `simulated` as the file states it (None when it does not)."""
     from evalkit.runfolder import marker_problem
     from evalkit.schemas import RunSummary
 
-    try:
-        data = loads_json(text)
-    except MetricsError as exc:
-        raise _Missing(f"summary is not valid JSON: {exc.problems[0]}") from None
+    data = _loads_summary(text)
     version = data.get("schema_version") if isinstance(data, dict) else None
     if version == SCHEMA:
         try:
-            return validate_metrics(data), None, "metrics-1"
+            metrics = validate_metrics(data)
         except MetricsError as exc:
-            raise _Missing("invalid metrics-1: " + "; ".join(exc.problems[:3])) from None
+            problems = "; ".join(_scrub(p) for p in exc.problems[:3])
+            raise _Missing(f"invalid metrics-1: {problems}") from None
+        stated = data.get("simulated") if isinstance(data, dict) else None
+        return metrics, None, "metrics-1", stated if isinstance(stated, bool) else None
     problem = marker_problem(data, "summary.json")
     if problem is not None:
-        raise _Missing(f"not metrics-1 or an EvalKit summary.json: it {problem}")
+        raise _Missing(f"not metrics-1 or an EvalKit summary.json: it {_scrub(problem)}")
     try:
         summary = RunSummary.model_validate_json(text)
     except ValidationError as exc:
-        problems = "; ".join(describe_validation(exc)[:3])
+        problems = "; ".join(_scrub(p) for p in describe_validation(exc)[:3])
         raise _Missing(f"invalid EvalKit summary: {problems}") from None
     try:
-        return from_run_summary(summary), summary, "evalkit-summary"
+        return from_run_summary(summary), summary, "evalkit-summary", None
     except (ValueError, ValidationError) as exc:
         raise _Missing(f"cannot convert the summary ({type(exc).__name__})") from None
 
@@ -1503,7 +1633,8 @@ def _gate(
         except _Missing as exc:
             return GateStatus("error", source, errors=[exc.reason]), heldout
         except MetricsError as exc:
-            return GateStatus("error", source, errors=[_show(p) for p in exc.problems[:3]]), heldout
+            errors = [_scrub(_show(p)) for p in exc.problems[:3]]
+            return GateStatus("error", source, errors=errors), heldout
         held = heldout | frozenset(_canon(v) for v in gates.heldout_splits)
         gates = gates.model_copy(update={"heldout_splits": sorted(held)})
     elif status is not None:
@@ -1726,12 +1857,11 @@ def _read(
 ) -> ProjectEntry:
     summary_path = cfg.summary or row.summary
     entry = ProjectEntry(row.project, row.repo, "missing", summary_path=summary_path)
-    entry.evalkit_pin = _pin(row.pin)
+    entry.evalkit_pin = entry.registry_pin = _pin(row.pin)
     snap = _load_snapshot(folder, row, summary_path)
     entry.commit = snap["commit"]
     entry.fetched_at = _show(snap.get("fetched_at")) if snap.get("fetched_at") else None
-    if isinstance(snap.get("evalkit_pin"), str):
-        entry.evalkit_pin = _pin(snap["evalkit_pin"])
+    _pins(entry, snap, row)
     if "summary" not in snap["files"]:
         raise _Missing("no summary file in the snapshot")
     entry.summary_path = snap["files"]["summary"]["path"]
@@ -1755,17 +1885,16 @@ def _read(
         _read_own(text, entry, cfg, cfg.own_format, base_heldout)
         entry.status = "ok"
         return entry
-    metrics, summary, kind = _parse_summary(text)
+    metrics, summary, kind, stated = _parse_summary(text)
     entry.kind = kind
     entry.run_id = _show(metrics.run_id)
     entry.run_at = _show(metrics.created_at)
-    entry.simulated = bool(metrics.simulated)
+    # only what the file states: metrics-1's default `false` and an EvalKit summary (which has
+    # no such field) say nothing about simulation
+    entry.simulated = stated
     if metrics.provenance.evalkit:
         entry.evalkit_version = _show(metrics.provenance.evalkit)
         entry.evalkit_version_source = "recorded in the run"
-    elif isinstance(snap.get("evalkit_version"), str):
-        entry.evalkit_version = _show(snap["evalkit_version"])
-        entry.evalkit_version_source = "pyproject.toml at the commit"
     status = None
     if summary is not None:
         from evalkit.pipeline.aggregate import stamp_lines
@@ -1783,6 +1912,7 @@ def _read(
     if cfg.comparison is not None:
         entry.headline_comparison = _select(metrics, cfg.comparison, heldout)
         entry.comparison_label = _named(cfg.comparison.label, cfg.comparison.metric)
+    _direction_once(entry)
     entry.calibration = _calibration(metrics, summary, cfg, heldout)
     models = _models(metrics, cfg, kind, heldout)
     entry.models, entry.comparison = _rank(models)
@@ -1791,6 +1921,48 @@ def _read(
     _improvements(folder, snap, entry)
     entry.status = "ok"
     return entry
+
+
+def _direction_once(entry: ProjectEntry) -> None:
+    """A direction the label already states (`... lower is better)`) is not repeated."""
+    for fig, label in (
+        (entry.headline, entry.headline_label),
+        (entry.headline_comparison, entry.comparison_label),
+    ):
+        if fig is not None and fig.direction and label and fig.direction in label.lower():
+            fig.direction_in_label = True
+
+
+def _norm_req(req: str) -> str:
+    """A requirement as compared: lower case, no spaces, `_` and `-` alike in the name."""
+    text = re.sub(r"\s+", "", req).lower()
+    return re.sub(r"^evalkit[-_.]harness", "evalkit-harness", text)
+
+
+def _pins(entry: ProjectEntry, snap: Mapping[str, Any], row: RegistryRow) -> None:
+    """The EvalKit pin as the project's own pyproject.toml states it at the commit (and the
+    version its uv.lock resolved), with a registry cell that disagrees flagged; the registry
+    cell only when the pyproject states no EvalKit requirement. EvalKit's own row shows its
+    repository's version at the commit, labelled as such (it is not the build that made the
+    run)."""
+    declared = snap.get("evalkit_declared")
+    locked = snap.get("evalkit_locked")
+    lock = f" (uv.lock: {_show(locked)})" if isinstance(locked, str) and locked else ""
+    if row.project == SELF:
+        version = snap.get("evalkit_version")
+        if isinstance(version, str) and version:
+            entry.evalkit_pin = f"evalkit-harness {_show(version)} (the repository at the commit)"
+            entry.evalkit_pin_source = "pyproject.toml at the commit"
+        return
+    reqs = [r for r in declared if isinstance(r, str)] if isinstance(declared, list) else []
+    if reqs:
+        entry.evalkit_pin = _clean(re.sub(r"://[^/@\s]+@", "://<hidden>@", "; ".join(reqs)))
+        entry.evalkit_pin_source = f"pyproject.toml at the commit{lock}"
+        reg = row.pin.strip()
+        if reg not in ("", "-") and _norm_req(reg) not in {_norm_req(r) for r in reqs}:
+            entry.pin_note = f"the registry's pin ({entry.registry_pin}) differs"
+    elif isinstance(declared, list):  # the snapshot looked and found none
+        entry.evalkit_pin_source = "the registry (no EvalKit requirement in pyproject.toml)"
 
 
 def _timestamp_or_none(v: str | None) -> str | None:
@@ -1808,10 +1980,7 @@ def _read_own(
 ) -> None:
     """A project's own summary format, read only through the config's path selectors: no
     metrics-1 rows, so no gates, calibration or per-model efficiency are read from it."""
-    try:
-        data = loads_json(text)
-    except MetricsError as exc:
-        raise _Missing(f"summary is not valid JSON: {exc.problems[0]}") from None
+    data = _loads_summary(text)
     if not isinstance(data, dict):
         raise _Missing("the project's own summary is not a JSON object")
     entry.kind = "own-format"
@@ -1832,6 +2001,7 @@ def _read_own(
     if cfg.comparison is not None:
         entry.headline_comparison = _select_path(data, cfg.comparison, heldout)
         entry.comparison_label = _named(cfg.comparison.label, entry.headline_comparison.metric)
+    _direction_once(entry)
     entry.calibration = {
         "status": "not stated",
         "text": "not stated in the project's own summary format",
@@ -1868,6 +2038,7 @@ def _missing(row: RegistryRow, cfg: ProjectConfig, reason: str) -> ProjectEntry:
         reason=_clean(reason),
         summary_path=cfg.summary or row.summary,
         evalkit_pin=_pin(row.pin),
+        registry_pin=_pin(row.pin),
     )
 
 
@@ -1922,6 +2093,8 @@ def _story(e: ProjectEntry, cfg: ProjectConfig) -> dict[str, Any]:
     version = e.evalkit_version or "not recorded"
     if e.evalkit_pin:
         version += f" (pin {e.evalkit_pin})"
+    if e.pin_note:
+        version += f" ({e.pin_note})"
     h = e.headline
     label = e.headline_label or "headline"
     run = f"run {e.run_id}; " if e.run_id else ""
@@ -1938,7 +2111,7 @@ def _story(e: ProjectEntry, cfg: ProjectConfig) -> dict[str, Any]:
         )
         if h.rows and h.rows[0].ci_method:
             ci = f"intervals: {h.rows[0].ci_method}; "
-        direction = f"{h.direction}; " if h.direction else ""
+        direction = f"{_direction_shown(h)}; " if _direction_shown(h) else ""
         simulated = "simulated; " if e.simulated else ""
         headline = {
             "value": h.shown,
@@ -1976,7 +2149,7 @@ def _story(e: ProjectEntry, cfg: ProjectConfig) -> dict[str, Any]:
         status = {"pass": "pass", "fail": "fail", "warn": "provisional"}.get(res, "pending")
         if gate_pending:
             status = "pending"
-        elif status == "pass" and e.simulated:
+        elif status == "pass" and (e.simulated or (e.kind == "metrics-1" and e.simulated is None)):
             status = "provisional"
         name = r["metric"] + (f" ({_labels_text(r['labels'])})" if r["labels"] else "")
         data = f"{r['heldout_rows']} held-out row(s), split level" if r["heldout_rows"] else ""
@@ -2083,6 +2256,10 @@ def _link(url: str | None, text: str) -> str:
     return f'<a href="{_e(url)}">{_e(text)}</a>' if url else _e(text)
 
 
+def _direction_shown(f: Figure) -> str | None:
+    return None if f.direction_in_label else f.direction
+
+
 def _fig_html(f: Figure | None) -> str:
     if f is None:
         return "—"
@@ -2090,14 +2267,14 @@ def _fig_html(f: Figure | None) -> str:
         return f"<span class=muted>{_e(f.problem)}</span>"
     if f.rows:
         parts = "; ".join(f"{_e(_row_name(r))}: {_fig_html(r)}" for r in f.rows)
-        notes = (f.note, f.direction)
+        notes = (f.note, _direction_shown(f))
         return parts + "".join(f" <span class=muted>({_e(x)})</span>" for x in notes if x)
     tip = f' title="{_e(f.ci_method)}"' if f.ci_method else ""
     html = f"<span{tip}>{_e(f.text)}</span>"
     if f.companion is not None:
         html += f" ({_e(f.companion_label or f.companion.metric)} {_fig_html(f.companion)})"
     return html + "".join(
-        f" <span class=muted>({_e(x)})</span>" for x in (f.note, f.direction) if x
+        f" <span class=muted>({_e(x)})</span>" for x in (f.note, _direction_shown(f)) if x
     )
 
 
@@ -2110,7 +2287,10 @@ def _gate_html(g: GateStatus | None) -> str:
 
 
 def _version_html(p: ProjectEntry) -> str:
-    pin = f"; pin {_e(p.evalkit_pin)}" if p.evalkit_pin else ""
+    pin = f"; pin {_e(p.evalkit_pin)}, from {_e(p.evalkit_pin_source)}" if p.evalkit_pin else ""
+    if p.pin_note:
+        pin += f'; <span class="badge fail">{_e(p.pin_note)}</span>'
+
     if p.evalkit_version:
         return (
             f"{_e(p.evalkit_version)} <span class=muted>({_e(p.evalkit_version_source)}{pin})"
@@ -2192,7 +2372,8 @@ def _models_html(p: ProjectEntry) -> str:
         quality = _fig_html(m.quality) if m.quality else "<span class=muted>not designated</span>"
         body.append(
             f"<tr{cls}><th scope=row>{_e(m.model)}{mark}</th><td>{quality}</td>"
-            f"{cells}<td>{_e(m.mode)}</td><td>{_e(m.price_date)}</td><td>{_e(m.source)}</td></tr>"
+            f"{cells}<td>{_e(m.mode or 'not recorded')}</td>"
+            f"<td>{_e(m.price_date or 'not recorded')}</td><td>{_e(m.source)}</td></tr>"
         )
     note = f"<p>{_e(p.comparison)}</p>" if p.comparison else ""
     return head + "".join(body) + "</tbody></table>" + note

@@ -281,3 +281,7 @@ Each registered project's exact list for 0.4, with its 0.4.0 requirement line, i
   `decimals` and a `companion` row.
 - `evalkit.drift.to_metrics` carries `simulated` from the new batch's metrics-1 file, else the
   reference's source file (never stated when neither states it).
+- `evalkit.metrics.from_run_summary`: the model-level `error_rate` row of a summary written
+  before 0.3 is labelled `{model}` only. It was labelled `mode: live`, which the summary never
+  records. A gate on `error_rate {model: X, mode: live}` over such a summary names `{model: X}`
+  now; rows from an efficiency block keep the mode the block records.

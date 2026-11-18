@@ -460,7 +460,7 @@ def _row_metrics(row: Any, labels: Mapping[str, Any], *, model_level: bool) -> l
             value=errors / n if n else 0.0,
             n=n,
             k=errors,
-            labels={**labels, "mode": "live"},
+            labels=dict(labels),  # the summary records no run mode: none is stated here
         )
     )
     out.append(
@@ -530,9 +530,7 @@ def from_run_summary(
     if efficiency:
         # the efficiency block carries the model-level error rate (same k and n): keep one
         metrics = [
-            x
-            for x in metrics
-            if not (x.name == "error_rate" and set(x.labels) == {"model", "mode"})
+            x for x in metrics if not (x.name == "error_rate" and set(x.labels) == {"model"})
         ]
         metrics += efficiency
     created = summary.finished_at or summary.started_at

@@ -13,6 +13,7 @@
       "cost_per_correct_comparison": "",
       "efficiency_note": "no per-model efficiency in this summary (the project's own format)",
       "evalkit_pin": null,
+      "evalkit_pin_source": "the registry",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
       "fetched_at": "2026-11-18T09:00:00Z",
@@ -32,6 +33,7 @@
         "companion": null,
         "companion_label": null,
         "direction": null,
+        "direction_in_label": false,
         "heldout": false,
         "k": null,
         "labels": {},
@@ -51,6 +53,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -68,6 +71,7 @@
             },
             "companion_label": "strict",
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": null,
             "labels": {
@@ -94,6 +98,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -111,6 +116,7 @@
             },
             "companion_label": "strict",
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": null,
             "labels": {
@@ -137,6 +143,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -154,6 +161,7 @@
             },
             "companion_label": "strict",
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": null,
             "labels": {
@@ -181,10 +189,12 @@
       "kind": "own-format",
       "lessons_url": null,
       "models": [],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "agentic-analytics",
       "reason": "",
+      "registry_pin": null,
       "repo": "biplob819/agentic-analytics",
       "run_at": "2026-11-17T09:00:00Z",
       "run_date": "2026-11-17",
@@ -222,6 +232,7 @@
       "cost_per_correct_comparison": "",
       "efficiency_note": "",
       "evalkit_pin": null,
+      "evalkit_pin_source": "the registry",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
       "fetched_at": null,
@@ -233,10 +244,12 @@
       "kind": null,
       "lessons_url": null,
       "models": [],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "ai-visibility",
       "reason": "no summary registered in the registry",
+      "registry_pin": null,
       "repo": "biplob819/ai-visibility",
       "run_at": null,
       "run_date": null,
@@ -267,6 +280,7 @@
           "companion": null,
           "companion_label": null,
           "direction": null,
+          "direction_in_label": false,
           "heldout": false,
           "k": 45,
           "labels": {
@@ -291,6 +305,7 @@
       "cost_per_correct_comparison": "lowest cost per correct: gpt-6.1-sol (clear: its interval is below every other model's)",
       "efficiency_note": "",
       "evalkit_pin": "evalkit-harness==0.1.0",
+      "evalkit_pin_source": "the registry",
       "evalkit_version": "0.3.0",
       "evalkit_version_source": "recorded in the run",
       "fetched_at": "2026-11-18T09:00:00Z",
@@ -497,6 +512,7 @@
         "companion": null,
         "companion_label": null,
         "direction": null,
+        "direction_in_label": false,
         "heldout": false,
         "k": 60,
         "labels": {
@@ -537,6 +553,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -560,6 +577,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -583,6 +601,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -606,6 +625,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
@@ -629,6 +649,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -652,6 +673,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -675,6 +697,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -698,6 +721,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -721,6 +745,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -744,6 +769,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -767,6 +793,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -795,6 +822,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 47,
             "labels": {
@@ -823,6 +851,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -846,6 +875,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -869,6 +899,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -892,6 +923,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
@@ -915,6 +947,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -938,6 +971,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -961,6 +995,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -984,6 +1019,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1007,6 +1043,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1030,6 +1067,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1058,6 +1096,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 52,
             "labels": {
@@ -1077,10 +1116,12 @@
           "source": "efficiency block"
         }
       ],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "assay-pipeline",
       "reason": "",
+      "registry_pin": "evalkit-harness==0.1.0",
       "repo": "biplob819/assay-pipeline",
       "run_at": "2026-11-18T07:30:00Z",
       "run_date": "2026-11-18",
@@ -1287,6 +1328,7 @@
       "cost_per_correct_comparison": "lowest cost per correct: course-ta (the only model with one)",
       "efficiency_note": "",
       "evalkit_pin": "evalkit-harness>=0.2,<0.3",
+      "evalkit_pin_source": "the registry",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
       "fetched_at": "2026-11-18T09:00:00Z",
@@ -1325,6 +1367,7 @@
         "companion": null,
         "companion_label": null,
         "direction": null,
+        "direction_in_label": false,
         "heldout": false,
         "k": null,
         "labels": {
@@ -1356,6 +1399,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1378,6 +1422,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1400,10 +1445,10 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
-                "mode": "live",
                 "model": "course-ta"
               },
               "metric": "error_rate",
@@ -1423,6 +1468,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1445,6 +1491,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1462,7 +1509,7 @@
             }
           },
           "lowest_cost_per_correct": true,
-          "mode": "live",
+          "mode": null,
           "model": "course-ta",
           "price_date": null,
           "quality": {
@@ -1472,6 +1519,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 3,
             "labels": {
@@ -1490,15 +1538,17 @@
           "source": "from summary (no interval)"
         }
       ],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "course-assistant",
       "reason": "",
+      "registry_pin": "evalkit-harness>=0.2,<0.3",
       "repo": "biplob819/course-assistant",
       "run_at": "2026-11-14T13:00:00+00:00",
       "run_date": "2026-11-14",
       "run_id": "r-fixture0course",
-      "simulated": false,
+      "simulated": null,
       "stamps": [
         "judge not calibrated for this task (see docs/calibrate-your-task.md)"
       ],
@@ -1549,6 +1599,7 @@
       "cost_per_correct_comparison": "",
       "efficiency_note": "",
       "evalkit_pin": null,
+      "evalkit_pin_source": "the registry",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
       "fetched_at": null,
@@ -1560,10 +1611,12 @@
       "kind": null,
       "lessons_url": null,
       "models": [],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "fraud-review-bedrock",
       "reason": "git fetch failed (exit 128)",
+      "registry_pin": null,
       "repo": "biplob819/fraud-review-bedrock",
       "run_at": null,
       "run_date": null,
@@ -1595,7 +1648,8 @@
       "comparison_label": null,
       "cost_per_correct_comparison": "lowest cost per correct: tied between gemma-e2b-base-q4, gemma-e2b-grounded-q4",
       "efficiency_note": "",
-      "evalkit_pin": "evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@0000000000000000000000000000000000000000",
+      "evalkit_pin": null,
+      "evalkit_pin_source": "the registry",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
       "fetched_at": "2026-11-18T09:00:00Z",
@@ -1688,6 +1742,7 @@
         "companion": null,
         "companion_label": null,
         "direction": null,
+        "direction_in_label": false,
         "heldout": false,
         "k": 6,
         "labels": {
@@ -1719,6 +1774,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1741,6 +1797,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1763,10 +1820,10 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
-                "mode": "live",
                 "model": "gemma-e2b-base-q4"
               },
               "metric": "error_rate",
@@ -1786,6 +1843,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1808,6 +1866,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1825,7 +1884,7 @@
             }
           },
           "lowest_cost_per_correct": true,
-          "mode": "live",
+          "mode": null,
           "model": "gemma-e2b-base-q4",
           "price_date": null,
           "quality": {
@@ -1835,6 +1894,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 6,
             "labels": {
@@ -1862,6 +1922,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1884,6 +1945,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1906,10 +1968,10 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
-                "mode": "live",
                 "model": "gemma-e2b-grounded-q4"
               },
               "metric": "error_rate",
@@ -1929,6 +1991,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1951,6 +2014,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -1968,7 +2032,7 @@
             }
           },
           "lowest_cost_per_correct": true,
-          "mode": "live",
+          "mode": null,
           "model": "gemma-e2b-grounded-q4",
           "price_date": null,
           "quality": {
@@ -1978,6 +2042,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 6,
             "labels": {
@@ -2005,6 +2070,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2027,6 +2093,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2049,10 +2116,10 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
-                "mode": "live",
                 "model": "gpt-6-luna"
               },
               "metric": "error_rate",
@@ -2072,6 +2139,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2094,6 +2162,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2111,7 +2180,7 @@
             }
           },
           "lowest_cost_per_correct": false,
-          "mode": "live",
+          "mode": null,
           "model": "gpt-6-luna",
           "price_date": null,
           "quality": {
@@ -2121,6 +2190,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 6,
             "labels": {
@@ -2148,6 +2218,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2170,6 +2241,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2192,10 +2264,10 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
-                "mode": "live",
                 "model": "claude-haiku-5-5"
               },
               "metric": "error_rate",
@@ -2215,6 +2287,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2237,6 +2310,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -2254,7 +2328,7 @@
             }
           },
           "lowest_cost_per_correct": false,
-          "mode": "live",
+          "mode": null,
           "model": "claude-haiku-5-5",
           "price_date": null,
           "quality": {
@@ -2264,6 +2338,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 6,
             "labels": {
@@ -2282,15 +2357,17 @@
           "source": "from summary (no interval)"
         }
       ],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "gemma-grounded-health",
       "reason": "",
+      "registry_pin": null,
       "repo": "biplob819/gemma-grounded-health",
       "run_at": "2026-11-14T13:00:00+00:00",
       "run_date": "2026-11-14",
       "run_id": "r-fixture0gemma",
-      "simulated": false,
+      "simulated": null,
       "stamps": [
         "judge not calibrated for this task (see docs/calibrate-your-task.md)"
       ],
@@ -2340,7 +2417,7 @@
         ],
         "headline": {
           "label": "Accuracy (grounded Gemma)",
-          "note": "interval 25.0% to 75.0% (percentile bootstrap over cases (seeded)); run r-fixture0gemma; commit 4d503de; EvalKit not recorded (pin evalkit-harness[openai,anthropic] @ git+https://github.com/biplob819/evalkit@0000000000000000000000000000000000000000)",
+          "note": "interval 25.0% to 75.0% (percentile bootstrap over cases (seeded)); run r-fixture0gemma; commit 4d503de; EvalKit not recorded",
           "value": "50.0% [25.0%, 75.0%]"
         },
         "improvements": [],
@@ -2390,6 +2467,7 @@
       "cost_per_correct_comparison": "",
       "efficiency_note": "no per-model efficiency in this summary (no model label)",
       "evalkit_pin": "evalkit-harness>=0.3,<0.4",
+      "evalkit_pin_source": "the registry",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
       "fetched_at": "2026-11-18T09:00:00Z",
@@ -2702,6 +2780,7 @@
         "companion": null,
         "companion_label": null,
         "direction": null,
+        "direction_in_label": false,
         "heldout": false,
         "k": null,
         "labels": {
@@ -2725,10 +2804,12 @@
       "kind": "metrics-1",
       "lessons_url": null,
       "models": [],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "respectful-offers",
       "reason": "",
+      "registry_pin": "evalkit-harness>=0.3,<0.4",
       "repo": "biplob819/respectful-offers",
       "run_at": "2026-11-17T16:45:00+05:30",
       "run_date": "2026-11-17",
@@ -2997,9 +3078,10 @@
       "comparison_label": null,
       "cost_per_correct_comparison": "lowest cost per correct: gpt-6.1-sol (intervals overlap)",
       "efficiency_note": "",
-      "evalkit_pin": null,
-      "evalkit_version": "0.4.0",
-      "evalkit_version_source": "pyproject.toml at the commit",
+      "evalkit_pin": "evalkit-harness 0.4.0 (the repository at the commit)",
+      "evalkit_pin_source": "pyproject.toml at the commit",
+      "evalkit_version": null,
+      "evalkit_version_source": "not recorded",
       "fetched_at": "2026-11-18T09:00:00Z",
       "gate": {
         "errors": [],
@@ -3072,6 +3154,7 @@
         "companion": null,
         "companion_label": null,
         "direction": null,
+        "direction_in_label": false,
         "heldout": false,
         "k": 6,
         "labels": {
@@ -3104,6 +3187,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3128,6 +3212,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3152,6 +3237,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3176,6 +3262,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
@@ -3200,6 +3287,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3224,6 +3312,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3248,6 +3337,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3272,6 +3362,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3296,6 +3387,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3320,6 +3412,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3344,6 +3437,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3368,6 +3462,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3392,6 +3487,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3421,6 +3517,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 6,
             "labels": {
@@ -3448,6 +3545,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3472,6 +3570,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3496,6 +3595,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3520,6 +3620,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 1,
               "labels": {
@@ -3544,6 +3645,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3568,6 +3670,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3592,6 +3695,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3616,6 +3720,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3640,6 +3745,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3664,6 +3770,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3688,6 +3795,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3712,6 +3820,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3736,6 +3845,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3765,6 +3875,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 3,
             "labels": {
@@ -3792,6 +3903,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3816,6 +3928,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3840,6 +3953,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": 2,
               "labels": {
@@ -3864,6 +3978,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3888,6 +4003,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3912,6 +4028,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3936,6 +4053,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3960,6 +4078,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -3984,6 +4103,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -4008,6 +4128,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -4032,6 +4153,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -4056,6 +4178,7 @@
               "companion": null,
               "companion_label": null,
               "direction": null,
+              "direction_in_label": false,
               "heldout": false,
               "k": null,
               "labels": {
@@ -4085,6 +4208,7 @@
             "companion": null,
             "companion_label": null,
             "direction": null,
+            "direction_in_label": false,
             "heldout": false,
             "k": 0,
             "labels": {
@@ -4103,15 +4227,17 @@
           "source": "efficiency block"
         }
       ],
+      "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "evalkit",
       "reason": "",
+      "registry_pin": null,
       "repo": "biplob819/evalkit",
       "run_at": "2026-11-14T13:00:00+00:00",
       "run_date": "2026-11-14",
       "run_id": "r-fixture0self",
-      "simulated": false,
+      "simulated": null,
       "stamps": [],
       "status": "ok",
       "story": {
@@ -4151,7 +4277,7 @@
         ],
         "headline": {
           "label": "Correct and fully grounded",
-          "note": "interval 25.0% to 75.0% (percentile bootstrap over cases (seeded)); run r-fixture0self; commit 92b26fe; EvalKit 0.4.0",
+          "note": "interval 25.0% to 75.0% (percentile bootstrap over cases (seeded)); run r-fixture0self; commit 92b26fe; EvalKit not recorded (pin evalkit-harness 0.4.0 (the repository at the commit))",
           "value": "50.0% [25.0%, 75.0%]"
         },
         "improvements": [],
