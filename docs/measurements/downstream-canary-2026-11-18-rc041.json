@@ -239,7 +239,11 @@
    "repo": "biplob819/fraud-review-bedrock",
    "status": "known-drift",
    "tests": "all",
-   "finding": "Version pin only: it pins the v0.4.0 release (doctor.py EVALKIT_VERSION = \"0.4.0\"), so its exact-version doctor check and the offline test that asserts the doctor's exit code fail under 0.4.1. Its new tests/test_walkthrough.py imports Pillow, which it gets transitively through its demo extra (streamlit); the canary now installs --extra demo to match."
+   "finding": "Version pin only: it pins the v0.4.0 release (doctor.py EVALKIT_VERSION = \"0.4.0\"), so its exact-version doctor check and the offline test that asserts the doctor's exit code fail under 0.4.1. Its new tests/test_walkthrough.py imports Pillow, which it gets transitively through its demo extra (streamlit); the canary now installs --extra demo to match.",
+   "known": [
+    "tests/test_doctor.py::test_evalkit_is_pinned_to_an_exact_release_and_imports",
+    "tests/test_doctor.py::test_offline_makes_no_aws_call"
+   ]
   },
   "gemma-grounded-health": {
    "audit": {

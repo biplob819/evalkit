@@ -966,3 +966,15 @@ def test_emitted_metrics_carry_the_simulated_flag_and_never_invent_one(tmp_path)
         doc = D.to_metrics(report, project="respectful-offers", run_id="mar")
         assert doc.get("simulated") == want and ("simulated" in doc) == (want is not None), i
         assert parse_metrics(json.dumps(doc)).simulated is bool(want)
+
+
+def test_a_reference_frozen_on_0_4_0_still_loads_and_checks():
+    """0.4.1 records `simulated` in drift-ref-1, so a reference frozen again gets a new
+    profile_sha256 (respectful-offers); one frozen on 0.4.0 must still load and check."""
+    from evalkit import drift
+
+    fixtures = Path(__file__).parent / "fixtures" / "drift"
+    ref = drift.load_reference(fixtures / "reference-made-on-0.4.0.json")
+    assert "simulated" not in ref  # the 0.4.0 shape
+    report = drift.check(ref, fixtures / "new-batch.csv")
+    assert report is not None

@@ -1232,7 +1232,9 @@ def test_the_pin_is_read_from_the_projects_own_pyproject_and_a_stale_registry_is
 def test_registry_pins_match_the_projects_pyprojects():
     """docs/downstream.tsv against each project's pyproject.toml at the commit the eval index
     snapshot read on 2026-11-18 (assay-pipeline and agentic-analytics were stale, verifier;
-    respectful-offers had moved to 0.4; fraud-review-bedrock's extras were left out)."""
+    respectful-offers had moved to 0.4; fraud-review-bedrock's extras were left out), as updated
+    when a project reports a pin change (fraud-review-bedrock and respectful-offers moved to 0.4.1
+    on 2026-11-18)."""
     pins = {r.project: r.pin for r in ix.read_registry(ROOT / "docs" / "downstream.tsv")}
     sha = "@git+https://github.com/biplob819/evalkit@"
     assert {k: ix._norm_req(v) for k, v in pins.items()} == {
@@ -1240,13 +1242,11 @@ def test_registry_pins_match_the_projects_pyprojects():
         "ai-visibility": "evalkit-harness" + sha + "218192132ad601f02976d486d839e712e39bc4e2",
         "assay-pipeline": "evalkit-harness>=0.3,<0.4",
         "course-assistant": "evalkit-harness>=0.2,<0.3",
-        "fraud-review-bedrock": "evalkit-harness[anthropic,openai]"
-        + sha
-        + "4ddfef50d55db653aaf57048af06f2ba606e1573",
+        "fraud-review-bedrock": "evalkit-harness[anthropic,openai]==0.4.1",  # its 0d87ead
         "gemma-grounded-health": "evalkit-harness[openai,anthropic]"
         + sha
         + "06591f8de9b178078c971940a83019a6530fd119",
-        "respectful-offers": "evalkit-harness>=0.4,<0.5",
+        "respectful-offers": "evalkit-harness>=0.4.1,<0.5",  # its 24e518a
     }
 
 

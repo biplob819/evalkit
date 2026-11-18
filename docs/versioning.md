@@ -188,6 +188,10 @@ canary covers it) or use the replacement named in
   `evalkit.run.read_records`, `evalkit.tasks.builtin_task`, `evalkit.tasks.render_prompt`,
   `evalkit.text.number_sentences`, `evalkit.text.split_sentences`.
 
+## 0.4.0 → 0.4.1
+
+Additive. One byte-level change: `drift-ref-1` and `drift-1` now record `simulated` (respectful-offers), so a drift reference frozen again on 0.4.1 has a new `profile_sha256` for the same input; every figure and level is unchanged, and a reference frozen on 0.4.0 still loads and checks (tests/test_drift.py). A project that commits a frozen reference and compares it byte for byte should re-freeze it once on 0.4.1.
+
 ## 0.3 → 0.4 migration
 
 Every named import that worked in 0.3 still works in 0.4, and a run that uses none of the

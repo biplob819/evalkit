@@ -341,6 +341,7 @@ def _run_one(row: Row, checkout: Path, evalkit_root: Path, runner: Runner) -> di
                 **result,
                 "counts": counts,
                 "failures": failures,
+                "known": sorted(known),  # the registry's known ids this run used
                 "known_fixed": sorted((known & set(parse_passed(out))) - set(failures)),
                 "status": status,
                 "detail": "" if status == "pass" else "\n".join(tail),

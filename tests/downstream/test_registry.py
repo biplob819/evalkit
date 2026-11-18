@@ -55,7 +55,8 @@ def test_respectful_offers_runs_its_offline_contract_tests():
     """It imported nothing until its E4.2 (7d595ef), pinned 0.3 from then and 0.4 since its
     E4.3 (its D-59; its pyproject.toml at 396fb34); the canary runs it."""
     (row,) = [r for r in dc.load_registry() if r.project == "respectful-offers"]
-    assert row.tests == "auto" and row.pin == "evalkit-harness>=0.4,<0.5"
+    assert row.tests == "auto" and row.pin.startswith("evalkit-harness>=0.4")
+    assert row.pin.endswith(",<0.5")  # within the 0.4 line (0.4.1 since its 24e518a)
 
 
 def test_a_malformed_registry_is_refused(tmp_path):

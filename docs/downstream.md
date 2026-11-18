@@ -430,7 +430,7 @@ Capabilities it asked for, in 0.4.0:
 
 ## fraud-review-bedrock
 
-- **Current pin**: `evalkit-harness[anthropic,openai] @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573` (the v0.3.0 tag, as its pyproject.toml states it at its commit 50fe3e0)
+- **Current pin**: `evalkit-harness[anthropic,openai]==0.4.1` (its 0d87ead, 2026-11-18; it was the v0.3.0 tag commit 4ddfef5, then the v0.4.0 release)
   (the v0.3.0 tag commit; its suite passes on it, 1321 tests. It was the release candidate 118b661, and add5af9 before that)
 - **0.3.0 requirement**: `evalkit-harness>=0.3,<0.4` (move from the release-candidate commit to the tag).
 - **Release-candidate canary**: pass (1264 passed) on its e41ddc9, which moved its bridge test and
@@ -585,7 +585,7 @@ Capabilities it asked for, in 0.4.0:
 
 ## respectful-offers
 
-- **Current pin**: `evalkit-harness>=0.4,<0.5` (its `evalkit` extra and dev group; its D-59,
+- **Current pin**: `evalkit-harness>=0.4.1,<0.5` (its `evalkit` extra and dev group; its 24e518a, 2026-11-18)
   E4.3), as its pyproject.toml states at its commit 396fb34 (read by the eval index snapshot on
   2026-11-18). It had pinned `>=0.3,<0.4` since its commit 7d595ef (its E4.2). The canary runs
   `tests/evalkit/test_evalkit_contract.py` (43 offline contract tests).

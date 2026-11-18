@@ -520,7 +520,10 @@ def test_rc_canary_covers_every_registered_project():
                 ),
             }
             failures = {renamed.get(f, f) for f in p["failures"]}
-            assert failures <= set(row.known_failures()), name
+            # the known ids the run itself used (a project may later fix them and leave the
+            # registry); fall back to today's registry for records written before that field
+            allowed = {renamed.get(k, k) for k in p.get("known", [])} | set(row.known_failures())
+            assert failures <= allowed, name
 
 
 # ---- V04-02 release record (after the owner approves the tag and the publish) -----------------
