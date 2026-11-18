@@ -1,7 +1,9 @@
 {
   "alarms": 2,
+  "blocking_alarms": 2,
   "calibration": {
     "bins": "not available",
+    "bins_not_comparable": [],
     "bins_status": "bins_not_aligned",
     "deltas": [
       {
@@ -13,6 +15,7 @@
         "name": "brier",
         "p_holm": 0.0,
         "p_value": 0.0,
+        "severity": "fail",
         "status": "alarm",
         "tolerance": 0.01,
         "worse": true
@@ -28,6 +31,7 @@
         "no_drift_expected": 4.4395060633141485e-06,
         "p_holm": 0.9959004099590041,
         "p_value": 0.9959004099590041,
+        "severity": "fail",
         "status": "ok",
         "tolerance": 0.02,
         "worse": false
@@ -203,6 +207,10 @@
   "features": [
     {
       "bins": 3,
+      "bins_one_side": {
+        "new_only": [],
+        "reference_only": []
+      },
       "expected_psi": 4.1303966213355636e-05,
       "feature": "plan",
       "kind": "binned",
@@ -215,10 +223,15 @@
       "psi_alarm": 0.25,
       "psi_shown": "0.3850",
       "psi_warn": 0.1,
+      "severity": "fail",
       "small_batch": false
     },
     {
       "bins": 4,
+      "bins_one_side": {
+        "new_only": [],
+        "reference_only": []
+      },
       "expected_psi": 6.195594932003346e-05,
       "feature": "tenure_band",
       "kind": "binned",
@@ -231,6 +244,7 @@
       "psi_alarm": 0.25,
       "psi_shown": "0.1389",
       "psi_warn": 0.1,
+      "severity": "fail",
       "small_batch": false
     }
   ],
@@ -250,7 +264,12 @@
     "psi_epsilon": 0.0001,
     "psi_warn": 0.1,
     "resamples": 10000,
-    "seed": 7
+    "seed": 7,
+    "severity": {
+      "bins": "fail",
+      "calibration": "fail",
+      "psi": "fail"
+    }
   },
   "verdict": "alarm",
   "warns": 1

@@ -167,6 +167,9 @@ def cmd_history(args: argparse.Namespace) -> int:
                 labels=_kv(args.labels, "--labels"),
                 reason=args.reason,
                 project=args.project,
+                heldout_splits=tuple(args.heldout_split or ()),
+                manifest=args.manifest,
+                cases=_cases(args),
             )
             _print(
                 args,
@@ -410,9 +413,13 @@ def cmd_drift(args: argparse.Namespace) -> int:
                 )
             if cal["bins_status"] == "bins_not_aligned":
                 lines.append("  reliability bins do not align: per-bin drift not available")
+            for b in cal.get("bins_not_comparable", []):
+                lines.append(f"  reliability bin {b['bin']}: only in the {b['present_in']}")
+        warned = payload["alarms"] - payload["blocking_alarms"]
         head = (
             f"drift: {payload['verdict']} ({payload['alarms']} alarm(s), "
             f"{payload['warns']} warn(s))"
+            + (f"; {warned} alarm(s) at warn severity do not fail" if warned else "")
         )
         _print(args, payload, "\n".join([head, *lines]))
         return report.exit_code
@@ -444,6 +451,9 @@ def cmd_spend(args: argparse.Namespace) -> int:
                 model=args.model,
                 n_cases=args.n_cases,
                 note=args.note,
+                heldout_splits=tuple(args.heldout_split or ()),
+                manifest=args.manifest,
+                cases=_cases(args),
             )
             total = S.running_total(args.spend_ledger)
             _print(
@@ -548,6 +558,9 @@ def add_commands(sub: Any) -> None:
     r.add_argument("--reason", required=True)
     r.add_argument("--ledger", default=str(RUNS_PATH))
     r.add_argument("--project", default=None, help="needed only for an empty ledger")
+    r.add_argument("--manifest", default=None, help="B5.14 manifest: refuse held-out ids")
+    r.add_argument("--cases", nargs="+", default=None, metavar="SPLIT=PATH", help=CASES_HELP)
+    r.add_argument("--heldout-split", action="append", default=None, metavar="SPLIT")
     _common(r)
     v = hs.add_parser("verify", help="check the hash chain and append-only history of ledgers")
     v.add_argument("files", nargs="*", help="ledgers (default: the three default paths)")
@@ -656,6 +669,9 @@ def add_commands(sub: Any) -> None:
     ad.add_argument("--model", default=None)
     ad.add_argument("--n-cases", type=int, default=None)
     ad.add_argument("--note", default=None)
+    ad.add_argument("--manifest", default=None, help="B5.14 manifest: refuse held-out ids")
+    ad.add_argument("--cases", nargs="+", default=None, metavar="SPLIT=PATH", help=CASES_HELP)
+    ad.add_argument("--heldout-split", action="append", default=None, metavar="SPLIT")
     ad.add_argument("--spend-ledger", default=str(SPEND_PATH))
     _common(ad)
     sc = ss.add_parser("check", help="window spend against a cap", epilog=LEDGER_EXIT_CODES)

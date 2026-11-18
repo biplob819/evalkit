@@ -427,8 +427,13 @@ def _load_run(summary_path: Path) -> RunInput:
         settings["models"] = ", ".join(sorted(str(x) for x in run["models"]))
     for key in ("judge_mode", "seed"):
         settings[key] = _scalar_text(run.get(key))
-    if isinstance(run.get("judges"), list):
-        settings["judges"] = ", ".join(str(x) for x in run["judges"])
+    if isinstance(run.get("judges"), list):  # a set: the listing order is not a setting
+        settings["judges"] = ", ".join(sorted(str(x) for x in run["judges"]))
+    systems = run.get("systems")  # alias -> registered system adapter, where the run records it
+    if isinstance(systems, dict) and systems:
+        settings["systems"] = ", ".join(sorted(f"{k}={v}" for k, v in systems.items()))
+    elif isinstance(systems, list) and systems:
+        settings["systems"] = ", ".join(sorted(str(x) for x in systems))
     summary = loads_json(_read_text(summary_path))
     settings["results_format"] = _scalar_text(summary.get("schema_version"))
     cases = None
@@ -452,6 +457,8 @@ def _load_run(summary_path: Path) -> RunInput:
         slices = [str(s) for s in run.get("slices", []) if isinstance(s, str)]
         complete = status.judging == "complete"
         cases = _record_values(records, folder, slices, complete, metrics)
+    if settings.get("code_version") is None and isinstance(run.get("git_sha"), str):
+        settings["code_version"] = run["git_sha"] or None  # a run.json that records git_sha
     _merge_settings(settings, _read_settings(folder / "settings.json"))
     state = {
         (False, "complete"): "complete",

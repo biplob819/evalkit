@@ -258,8 +258,11 @@ def test_deltas_mover_holm_and_the_warn_and_alarm_tolerances():
     r5, n5 = ref["bins"][5], worse["bins"][5]
     ri, ni = clopper_pearson(r5["k"], r5["n"]), clopper_pearson(n5["k"], n5["n"])
     dd = n5["k"] / n5["n"] - r5["k"] / r5["n"]
+    shift = n5["mean_pred"] - r5["mean_pred"]  # the gap delta: the observed delta less it
+    assert bin5["obs_delta"] == pytest.approx(dd)
+    assert bin5["delta"] == pytest.approx(dd - shift)
     assert bin5["ci_high"] == pytest.approx(
-        dd + math.sqrt((ni.hi - n5["k"] / n5["n"]) ** 2 + (r5["k"] / r5["n"] - ri.lo) ** 2)
+        dd - shift + math.sqrt((ni.hi - n5["k"] / n5["n"]) ** 2 + (r5["k"] / r5["n"] - ri.lo) ** 2)
     )
     calm = D.calibration_drift(ref, same, seed=7, resamples=500)
     assert calm["level"] == "ok" and all(x["status"] in ("ok", "changed") for x in calm["deltas"])
@@ -307,6 +310,51 @@ def test_true_calibration_drift_still_alarms_in_a_smaller_batch():
         assert ece["delta_raw"] == pytest.approx(raw)
         assert ece["delta"] == pytest.approx(raw - ece["no_drift_expected"])
         assert ece["ci_low"] <= ece["delta"] <= ece["ci_high"]
+
+
+def _within_bin_rows(n: int, seed: int, offset: float) -> tuple[list[float], list[int]]:
+    """Perfectly calibrated rows whose predictions sit `offset` into each tenth (0.01 low in
+    every bin, 0.09 high): the observed rate per bin moves with the predictions, the
+    calibration gap does not."""
+    rng = random.Random(seed)
+    ps, ys = [], []
+    for _ in range(n):
+        p = rng.randrange(10) / 10 + offset
+        ps.append(round(p, 4))
+        ys.append(1 if rng.random() < p else 0)
+    return ps, ys
+
+
+def test_predictions_moving_within_bins_with_calibration_unchanged_seldom_flag():
+    """logical (verifier pass 2): a bin delta tests the calibration GAP (observed − mean
+    predicted), not the observed rate, and the ECE no-drift null keeps each side's own mean
+    predictions per bin. Predictions moving within their bins with calibration unchanged flag
+    at most 5% of checks (bins, ECE, any), while true drift of the gap still alarms."""
+    checks = flags = bin_flags = ece_flags = 0
+    for t in range(20):
+        ref = D.calibration(*_within_bin_rows(3000, 100 + t, 0.01), seed=t, resamples=100)
+        new = D.calibration(*_within_bin_rows(3000, 500 + t, 0.09), seed=t, resamples=100)
+        out = D.calibration_drift(ref, new, seed=t, resamples=400)
+        checks += 1
+        flags += out["level"] != "ok"
+        bins = [d for d in out["deltas"] if "bin" in d]
+        bin_flags += any(d["status"] in ("warn", "alarm") for d in bins)
+        ece = {d["name"]: d for d in out["deltas"]}["ece"]
+        ece_flags += ece["status"] in ("warn", "alarm")
+        for d in bins:
+            assert d["delta"] == pytest.approx(d["gap_new"] - d["gap_ref"])
+            assert d["ci_low"] <= d["delta"] <= d["ci_high"]
+    assert checks == 20
+    assert bin_flags / checks <= 0.05, (bin_flags, checks)
+    assert ece_flags / checks <= 0.05, (ece_flags, checks)
+    assert flags / checks <= 0.05, (flags, checks)
+    ref = D.calibration(*_within_bin_rows(3000, 1, 0.01), seed=7, resamples=100)
+    ps, _ = _within_bin_rows(3000, 2, 0.09)
+    rng = random.Random(3)
+    ys = [1 if rng.random() < min(1.0, p + 0.15) else 0 for p in ps]
+    out = D.calibration_drift(ref, D.calibration(ps, ys, resamples=100), resamples=400)
+    assert out["level"] == "alarm"
+    assert any(d["status"] == "alarm" for d in out["deltas"] if "bin" in d)
 
 
 def test_a_categorical_feature_is_profiled_even_when_not_listed_in_features(tmp_path, capsys):
@@ -425,6 +473,7 @@ def test_reference_and_report_shapes_and_an_edited_profile_exits_2(tmp_path, cap
         "exit_code",
         "verdict",
         "alarms",
+        "blocking_alarms",
         "warns",
         "reference",
         "new",
@@ -447,6 +496,7 @@ def test_reference_and_report_shapes_and_an_edited_profile_exits_2(tmp_path, cap
         "small_batch",
         "missing_share_ref",
         "missing_share_new",
+        "severity",
     }
     edited = dict(ref)
     edited["features"] = {
@@ -718,3 +768,170 @@ def test_heldout_ids_in_a_reference_are_refused_by_ids_in_text(tmp_path, capsys)
         )
         == 0
     )
+
+
+# ============================== respectful-offers on real data ==============================
+
+
+def _ro_period(
+    run_id: str,
+    shares: dict[int, float],
+    cal: dict[int, tuple[int, float, float]],
+    brier: float,
+) -> dict[str, Any]:
+    """respectful-offers' monitor export shape (its results/kkbox/monitor at 091ed83): a
+    `drift.feature_share` row per bin and ten equal-width reliability bins, empty bins left out
+    rather than written with n = 0 (so the top bin [0.9, 1.0) is absent)."""
+    rows: list[dict[str, Any]] = [
+        {
+            "name": "drift.feature_share",
+            "unit": "rate",
+            "value": s,
+            "n": 100000,
+            "labels": {"feature": "tenure_days", "bin": b},
+        }
+        for b, s in sorted(shares.items())
+    ]
+    n = sum(c[0] for c in cal.values())
+    rows.append(
+        {
+            "name": "churn.brier",
+            "unit": "ratio",
+            "value": brier,
+            "n": n,
+            "ci_low": brier - 0.0005,
+            "ci_high": brier + 0.0005,
+            "ci_method": "bootstrap",
+        }
+    )
+    rows.append({"name": "churn.ece", "unit": "ratio", "value": 0.01, "n": n})
+    for b, (nb, pred, obs) in sorted(cal.items()):
+        for name, value in (("predicted", pred), ("observed", obs)):
+            rows.append(
+                {
+                    "name": f"churn.reliability.{name}",
+                    "unit": "rate",
+                    "value": value,
+                    "n": nb,
+                    "labels": {"bin": b},
+                }
+            )
+    return {
+        "schema_version": "metrics-1",
+        "project": "respectful-offers",
+        "run_id": run_id,
+        "created_at": "2026-11-18T00:00:00Z",
+        "simulated": False,
+        "metrics": rows,
+    }
+
+
+_RO_CAL = {b: (1000, b / 10 + 0.05, round((b / 10 + 0.05) * 1000) / 1000) for b in range(9)}
+_ALIGNED = {"calibration": {"binning": "equal-width"}}
+
+
+def _ro_files(tmp_path: Path, *, moved: bool = False) -> tuple[Path, Path]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    ref_shares = {b: 0.1 for b in range(9)}
+    ref_shares[0] = 0.3 - 0.0001
+    ref_shares[3] = 0.0001  # a bin at PSI's floor: present here, empty (left out) next period
+    new_shares = {b: s for b, s in ref_shares.items() if b != 3}
+    new_shares[0] = 0.3
+    if moved:
+        new_shares[0], new_shares[1] = 0.05, 0.35
+    new_cal = {b: c for b, c in _RO_CAL.items() if b != 4}  # bin 4 empty in the new period
+    ref = tmp_path / "reference.metrics.json"
+    new = tmp_path / "period.metrics.json"
+    ref.write_text(json.dumps(_ro_period("feb", ref_shares, _RO_CAL, 0.04)), encoding="utf-8")
+    new.write_text(json.dumps(_ro_period("mar", new_shares, new_cal, 0.04)), encoding="utf-8")
+    return ref, new
+
+
+def test_bins_left_out_of_an_export_are_empty_not_an_error_or_a_drift_signal(tmp_path):
+    """contract (respectful-offers on real data): an export leaves empty bins out. A bin absent
+    on both sides (the top reliability bin) plays no part; a feature bin present on one side
+    only is that side's share against n = 0 on the other (PSI's 1e-4 floor), listed in
+    `bins_one_side`; a reliability bin present on one side only is not comparable (no bin
+    delta, listed in `bins_not_comparable`). Neither is an error (exit 2) or a flag by
+    itself; a real move of the shares still alarms."""
+    ref_path, new_path = _ro_files(tmp_path)
+    ref = D.freeze_reference(ref_path, calibration_prefix="churn")
+    report = D.check(ref, new_path, config=_ALIGNED, resamples=500)
+    row = report.features[0]
+    assert row["bins_one_side"] == {"reference_only": ["3"], "new_only": []}
+    assert row["bins"] == 9
+    ref_sh = [0.3 - 0.0001, 0.1, 0.1, 0.0001, 0.1, 0.1, 0.1, 0.1, 0.1]
+    new_sh = [0.3, 0.1, 0.1, 0.0, 0.1, 0.1, 0.1, 0.1, 0.1]
+    assert row["psi"] == pytest.approx(D.psi_from_shares(ref_sh, new_sh))
+    assert row["level"] == "ok"
+    cal = report.calibration
+    assert cal is not None
+    bins = [d["name"] for d in cal["deltas"] if "bin" in d]
+    assert bins == [f"bin {b}" for b in (0, 1, 2, 3, 5, 6, 7, 8)]
+    assert cal["bins_not_comparable"] == [{"bin": "4", "present_in": "reference"}]
+    assert cal["level"] == "ok" and report.exit_code == 0
+    moved = D.check(ref, _ro_files(tmp_path / "m", moved=True)[1], config=_ALIGNED, resamples=500)
+    assert moved.features[0]["level"] == "alarm" and moved.exit_code == 1
+    swapped = D.check(
+        D.freeze_reference(new_path, calibration_prefix="churn"),
+        ref_path,
+        config=_ALIGNED,
+        resamples=500,
+    )
+    assert swapped.features[0]["bins_one_side"] == {"reference_only": [], "new_only": ["3"]}
+    assert swapped.features[0]["level"] == "ok"
+    assert swapped.calibration is not None
+    assert swapped.calibration["bins_not_comparable"] == [{"bin": "4", "present_in": "new batch"}]
+
+
+def test_per_check_severity_warn_reports_the_alarm_but_never_exits_1(tmp_path, capsys):
+    """contract (respectful-offers OWNER D-56): `severity: {psi, calibration, bins}` in the
+    drift config, each `warn` or `fail` (default fail). A check set to warn still reports its
+    alarm (verdict, counts, the row's status) but never sets exit 1, as gates' warn severity;
+    a check left at fail still exits 1; anything else is refused (exit 2)."""
+    ref_path, _ = _ro_files(tmp_path)
+    _, moved = _ro_files(tmp_path / "m", moved=True)
+    ref = D.freeze_reference(ref_path, calibration_prefix="churn")
+    worse = json.loads(moved.read_text(encoding="utf-8"))
+    for m in worse["metrics"]:
+        if m["name"] == "churn.brier":
+            m.update(value=0.09, ci_low=0.0895, ci_high=0.0905)
+    moved.write_text(json.dumps(worse), encoding="utf-8")
+    fail = D.check(ref, moved, config=_ALIGNED, resamples=500)
+    assert fail.calibration is not None
+    by = {d["name"]: d for d in fail.calibration["deltas"]}
+    assert fail.features[0]["level"] == "alarm" and by["brier"]["status"] == "alarm"
+    assert fail.exit_code == 1
+    psi_warn = D.check(ref, moved, config={**_ALIGNED, "severity": {"psi": "warn"}}, resamples=500)
+    assert psi_warn.exit_code == 1  # calibration is still fail
+    every = {"psi": "warn", "calibration": "warn", "bins": "warn"}
+    warned = D.check(ref, moved, config={**_ALIGNED, "severity": every}, resamples=500)
+    out = warned.as_dict()
+    assert warned.exit_code == 0 and out["verdict"] == "alarm" and out["alarms"] >= 2
+    assert out["blocking_alarms"] == 0 and fail.as_dict()["blocking_alarms"] >= 2
+    assert out["settings"]["severity"] == {"bins": "warn", "calibration": "warn", "psi": "warn"}
+    assert warned.features[0]["severity"] == "warn"
+    assert warned.calibration is not None
+    assert {d["severity"] for d in warned.calibration["deltas"]} == {"warn"}
+    assert dict(D.load_config(None).severity) == {
+        "bins": "fail",
+        "calibration": "fail",
+        "psi": "fail",
+    }
+    for bad in ({"psi": "block"}, {"gates": "warn"}, "warn"):
+        with pytest.raises(D.DriftError, match="severity"):
+            D.load_config({"severity": bad})
+    cfg = tmp_path / "drift.yaml"
+    cfg.write_text(
+        "calibration:\n  binning: equal-width\n"
+        "severity:\n  psi: warn\n  calibration: warn\n  bins: warn\n",
+        encoding="utf-8",
+    )
+    refp = tmp_path / "ref.json"
+    refp.write_text(json.dumps(ref), encoding="utf-8")
+    capsys.readouterr()
+    argv = ["drift", "check", "--reference", str(refp), "--metrics", str(moved), "--json"]
+    argv += ["--resamples", "500"]
+    assert cli.main([*argv, "--config", str(cfg)]) == 0
+    assert json.loads(capsys.readouterr().out)["verdict"] == "alarm"
+    assert cli.main(argv) == 1

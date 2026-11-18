@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -644,3 +645,72 @@ def test_a_run_and_its_settings_json_are_one_candidate(tmp_path):
         provenance={"code_version": "c1"},
     )
     assert L.candidate_hash(other) != L.candidate_hash(run)
+
+
+def _edit_run_json(folder: Path, **changes: Any) -> Path:
+    run = json.loads((folder / "run.json").read_text(encoding="utf-8"))
+    run.update(changes)
+    (folder / "run.json").write_text(json.dumps(run, indent=2), encoding="utf-8")
+    return folder
+
+
+def _edit_records(folder: Path, **changes: Any) -> Path:
+    lines = []
+    for line in (folder / "records.jsonl").read_text(encoding="utf-8").splitlines():
+        rec = json.loads(line)
+        rec.update(changes)
+        lines.append(json.dumps(rec))
+    (folder / "records.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return folder
+
+
+def test_set_like_fields_are_canonical_and_systems_and_code_version_identify(tmp_path):
+    """logical (LED-03, verifier pass 2): the candidate identity sorts every set-like field, so
+    the judges (or models, or systems) listed in another order are the same candidate and buy
+    no second look; `systems` (run.json, or a settings.json list) and the code version (the
+    records' git_sha) are part of it where present, so changing either is a new candidate."""
+    base = _evalkit_run(tmp_path, "base")
+    recorded = json.loads((base / "run.json").read_text(encoding="utf-8"))
+    swapped = _edit_run_json(_evalkit_run(tmp_path, "swapped"), judges=recorded["judges"][::-1])
+    reordered = _edit_run_json(_evalkit_run(tmp_path, "models"), models=recorded["models"][::-1])
+    assert L.candidate_hash(base) == L.candidate_hash(swapped) == L.candidate_hash(reordered)
+    systems = {"claude-sonnet-5-5": "rag-v1", "gpt-6-luna": "rag-v1"}
+    with_sys = _edit_run_json(_evalkit_run(tmp_path, "sys"), systems=systems)
+    sys_rev = _edit_run_json(
+        _evalkit_run(tmp_path, "sys-rev"), systems=dict(reversed(list(systems.items())))
+    )
+    sys_other = _edit_run_json(
+        _evalkit_run(tmp_path, "sys-other"), systems={**systems, "gpt-6-luna": "rag-v2"}
+    )
+    assert L.candidate_hash(with_sys) == L.candidate_hash(sys_rev)
+    assert len({L.candidate_hash(x) for x in (base, with_sys, sys_other)}) == 3
+    code = _edit_records(_evalkit_run(tmp_path, "code"), git_sha="abc1234")
+    assert L.candidate_hash(code) != L.candidate_hash(base)
+    a = write_run(
+        tmp_path / "ea",
+        [rate("acc", 5, 10)],
+        project="p",
+        settings={"prompt_hash": "p1", "judges": ["j1", "j2"], "systems": ["s1", "s2"]},
+    )
+    b = write_run(
+        tmp_path / "eb",
+        [rate("acc", 5, 10)],
+        project="p",
+        settings={"prompt_hash": "p1", "judges": ["j2", "j1"], "systems": ["s2", "s1"]},
+    )
+    assert L.candidate_hash(a) == L.candidate_hash(b)
+    ledger, log = tmp_path / "experiments.jsonl", tmp_path / "log.jsonl"
+    exp = L.open_experiment(
+        ledger,
+        hypothesis="h",
+        change="c",
+        metric="accuracy",
+        labels={"model": "claude-sonnet-5-5"},
+        direction="up",
+        baseline=base,
+    )["id"]
+    L.reserve_look(ledger, exp, candidate=base, manifest=MANIFEST, log=log)
+    snapshot = (ledger.read_bytes(), log.read_bytes())
+    with pytest.raises(L.LedgerError) as exc:
+        L.reserve_look(ledger, exp, candidate=swapped, manifest=MANIFEST, log=log)
+    assert exc.value.code == 1 and (ledger.read_bytes(), log.read_bytes()) == snapshot

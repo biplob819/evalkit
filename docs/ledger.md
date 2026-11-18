@@ -167,9 +167,15 @@ evalkit experiment show
   look. Run ids, times and paths are never part of it. An EvalKit run's `config_hash` is left
   out too, because it covers the seed; each model's call settings from its records
   (`effort`, `structured_output`) are hashed in its place, with the code version, prompt
-  hash, model ids, judges, judge prompt hash and extractor version. Run-config knobs the
-  records do not state (`max_output_tokens`, endpoints) are not seen: record a
-  `candidate_sha256` when they matter. A project's own `config_hash` (metrics-1) is kept: if
+  hash, model ids, judges, judge prompt hash and extractor version, and the run's `systems`
+  (alias to system adapter) and `git_sha` where its run.json records them. Set-like settings
+  (`models`, `judges`, `systems`, whether joined text or a settings.json list) are sorted
+  first, so the same judges listed in another order are the same candidate. The code version
+  is the records' `git_sha`, which is `unknown` when `EVALKIT_GIT_SHA` was not set: then every
+  code version reads the same, and a code change alone does not make a new candidate (set
+  `EVALKIT_GIT_SHA`, or record a `candidate_sha256`). Run-config knobs the records do not
+  state (`max_output_tokens`, endpoints) are not seen: record a `candidate_sha256` when they
+  matter. A project's own `config_hash` (metrics-1) is kept: if
   it covers the seed, record `candidate_sha256`. A candidate that records nothing identifying
   is refused (exit 2).
 - `--candidate` names a run (folder, summary.json or metrics-1 file) or a settings file. The
@@ -211,7 +217,8 @@ Bad input (an unreadable ledger, a broken chain, a line without a numeric amount
 **Other projects' ledgers** are read unchanged through `--map FIELD=SOURCE`: course-assistant's
 per-call lines with `--map spent_usd=cost_usd`, assay-pipeline's hand-written lines with
 `--map spent_usd=usd at=date` (a bare date is a UTC date). An unchained file is reported
-`unchained`, not an error.
+`unchained`, not an error. `spend add` never appends to one: that line would seal a legacy
+prefix EvalKit has not recorded (below), so it exits 2; write new spend to a chained ledger.
 
 **Legacy lines (OWNER D-73).** A spend ledger may start with lines written before chaining.
 They are kept byte for byte, because published dollar figures are cited from them. The first
@@ -221,11 +228,24 @@ sha256}` over all of them, so editing any legacy line breaks the seal. EvalKit's
 
 Cutting away the whole chained part, the seal included, would leave a file that looks like a
 legacy file not yet sealed. So the seals EvalKit has made are recorded in its code
-(`evalkit.ledger._io.KNOWN_SEALS`: line count and sha256 of the prefix). A file that holds a
-known sealed prefix with no chained line after it is a broken chain: `verify` reports it,
-`spend check` exits 2 and `spend add` refuses to append, which would re-seal a shorter
-history. Lines cut from the end of the chained part leave a valid chain; the git append-only
+(`evalkit.ledger._io.KNOWN_SEALS`: line count and sha256 of the prefix, and a short sha256 of
+each legacy line). A seal is valid only when it records exactly a recorded prefix, so a
+shorter or edited legacy history sealed again fails. A file that holds a known sealed prefix
+with no chained line after it, or some of its legacy lines but not the whole prefix (cut to
+21 lines, its first line dropped), is a broken chain: `verify` reports it, `spend check`
+exits 2 and `spend add` refuses to append, which would re-seal a shorter history. Lines cut from the end of the chained part leave a valid chain; the git append-only
 check catches those (see `history verify` above).
+
+## One kind per ledger
+
+A ledger's first line declares its kind: a run ledger holds `run` and `band_reset` lines, an
+experiment ledger `experiment_*` lines, a spend ledger `spend` lines (and may start with
+unchained legacy lines); a chained line of another schema is a B5.14 held-out log. While a
+ledger is empty its file name declares it (the word `run`/`runs`, `experiment(s)` or `spend`,
+as in the defaults `runs.jsonl`, `experiments.jsonl` and `spend-ledger.jsonl`); a name with
+none or several of them declares nothing. A writer refuses a ledger of another kind (exit 2,
+nothing written): `spend add` into a run ledger, `experiment open` into a run ledger,
+`history add` or `history reset` into a spend ledger.
 
 ## Exit codes
 
@@ -244,15 +264,21 @@ Precedence 2 > 3 > 4 > 1 > 0 wherever more than one applies, as for `evalkit gat
 No held-out case id, id hash or text is written to any ledger line, report, chart, JSON output
 or error. Run entries fold held-out rows to split level; experiment entries store compare's
 folded output and look metadata only; a look's case hashes live only in the held-out log. With
-`--manifest`, every writer checks the line it is about to append and refuses it (exit 2) when
-it names a held-out case id, or a held-out `id_sha256` or `content_sha256` (the whole hash or a
-prefix of at least 12 hex characters, the manifest id, in any letter case). The manifest holds
-hashes only, so to refuse held-out case **text** in free-text fields (`note`, `hypothesis`,
-`change`), also pass the held-out case files with `--cases SPLIT=PATH` (`history add`,
-`experiment open`, `experiment close`). They are checked against the manifest first, then the
-line is read with B5.14's exposure-scan normalisation (NFKC, casefolded, runs of punctuation
-and spaces as one space): a whole case string of 25 or more characters, or any 10 consecutive
-words of one, is refused. The held-out exposure scan covers the committed ledgers in CI.
+`--manifest`, every writer (`history add`, `history reset --reason`, `experiment open` and
+`close`, `spend add --note`) checks the line it is about to append and refuses it (exit 2)
+when it names a held-out case id, or a held-out `id_sha256` or `content_sha256` (the whole hash
+or a prefix of at least 12 hex characters, the manifest id, in any letter case). The manifest
+holds hashes only, so to refuse held-out case **text** in free-text fields (`note`,
+`hypothesis`, `change`, `reason`), also pass the held-out case files with `--cases SPLIT=PATH`
+(`history add`, `history reset`, `experiment open`, `experiment close`, `spend add`). They are
+checked against the manifest first, then the line is read with B5.14's exposure-scan
+normalisation (NFKC; invisible characters such as zero-width spaces, joiners, soft hyphens and
+BOMs removed, and also read as spaces; casefolded; common Cyrillic, Greek and Armenian
+homoglyphs folded to the ASCII letters they resemble; runs of punctuation and spaces as one
+space): a whole case string of 25 or more characters, or any 10 consecutive words of one, is
+refused. An id is matched as written and in the same folded form, so a fullwidth,
+zero-width-split, homoglyph or upper-case spelling of a held-out id is refused too. The held-out
+exposure scan covers the committed ledgers in CI.
 
 ## From Python
 
