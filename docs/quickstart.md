@@ -73,6 +73,8 @@ against a pinned checksum. See [DATA_CARD.md](../DATA_CARD.md).
 
 ## Next
 
+- [The user guide](guide.md): your own task end to end, from cases to a calibrated, gated
+  and tracked evaluation.
 - [Write your own task](writing-a-task.md) from JSONL or a spreadsheet CSV.
 - [Control cost](cost.md): estimates, caps, batch judging and resume.
 - [Calibrate the judges for your task](calibrate-your-task.md): until you do, every report
