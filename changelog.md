@@ -68,6 +68,10 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 `evalkit calibrate --criterion` (B5.9), `evalkit.security` (B5.11), and opt-in `sql_match`
 `equivalences` (B5.15, strict by default).
 
+## 2026-11-18
+- [FIX] [B5.16] — value_check strict facts grammar (D-77): a statement binds only at the start of a reason, after a facts header, or after a statement that bound; only "the" before a field; whole-reason/line wrappers; currency must match the declared unit. 0 genuine false claims verified on every generator; documented facts lines 100%. Spend: $0.
+- [FIX] [B5.7] — Verifier fixes: freeze guard ignores the seed and treats a run and its settings.json as one candidate; ECE drift judged against the no-drift expectation at both batch sizes (false alarms with no drift ≤4% in every cell, was 100%); held-out id hashes and case text refused; missing ledgers exit 2 (`history init`); canonical summary hashing; `--categorical` honoured; truncation back to EvalKit's sealed legacy prefix fails the chain check. Spend: $0.
+
 ## 2026-11-17
 - [FEAT] [B5.7] — Ledger merged from its lane (awaiting verifier): `evalkit.ledger` and `evalkit.drift`; `evalkit history|experiment|drift|spend` and `report --history`. Hash-chained run, experiment and spend ledgers; median±MAD alarm bands after 5 runs; a one-look freeze guard on held-out sets via B5.14; PSI matching fraud-review-bedrock bit for bit (warn 0.1, alarm 0.25); calibration drift with D-73 tolerances; trend charts; spend alarm at a fraction of the cap. EvalKit's 22 legacy spend lines are sealed by a $0 chained line. Spend: $0.
 - [FEAT] [B5.13] — `clarification_rates(cluster=...)` gives a cluster-bootstrap interval over questions (agentic-analytics OWNER D-100), agreeing with its reference within one lattice step; `evalkit.stats.two_level_interval` is public; strict run-folder detection (a foreign summary.json or run.json is never read as an EvalKit run). Spend: $0.
