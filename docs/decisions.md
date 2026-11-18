@@ -111,3 +111,10 @@ Append-only. Each entry: ID, date, decision, alternatives, reason. `OWNER D-n` m
 **Decision:** a claim with no verdict keeps its judge pending (exit 4), and the rerun resends only those claims. A final failure (a refusal, or a reply still invalid after the one retry) is recorded in `Record.judge_errors`, counted in `ModelSummary.missing_verdicts`, and scored unsupported. It does not keep the run pending, because a rerun would read the same cached failure forever. `aggregate` independently marks a run complete only when every claim has a verdict or a recorded judge error from every judge. An unjudged claim counts as unsupported, never as left out of the denominator (the D-28 error rule). Cost holds already reserved only uncached work. The early stop gemma saw came from two judges' holds being open at once, so a batch now waits within `--wait` for other holds to settle instead of failing, and nothing is ever reserved past the cap.
 **Why:** a status that says complete while verdicts are missing makes a published number silently wrong, and a cap that stops a run that would fit it wastes the money already spent.
 
+## D-79 — v0.4.0 public surface (2026-11-18)
+**Decision:**
+1. `value_check` and its four companions become public again (B5.16 is green). The D-74 `WITHHELD` mechanism stays, empty.
+2. Under D-61 rule 2, names imported by two or more projects in the 2026-11-18 canary become public: `evalkit.cost.TokenAssumptions`, `evalkit.stats.interval_from`, `evalkit.identity.JUDGE_RUBRIC`, `evalkit.runtime.Executor` and `Store`, and `evalkit.providers.provider_for`. Their companions `CostEstimate`, `CostLine` and `BudgetExceeded`, which public names return or raise, become public with them.
+3. The three calibration paths moved in 0.3.0 had been promised removal in 0.4.0. ai-visibility and course-assistant still import them, so they keep working, with a warning, until 0.5.0.
+**Why:** the rule exists so that two projects never depend on internals, and removing a name that projects still import would break them for nothing a release later would not do better.
+
