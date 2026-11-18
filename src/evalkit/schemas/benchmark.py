@@ -146,8 +146,16 @@ class Record(Versioned):
     task_scores: FrozenMap[TaskScore] = Field(default_factory=FrozenDict)  # v0.2: by scorer name
     # B5.12: per judge, its citation verdicts for this record's claims (`citation_support`).
     citation_support: FrozenMap[tuple[CitationVerdict, ...]] = Field(default_factory=FrozenDict)
+    # Per judge, the claims it finally failed to rule on (claim id -> "refusal" or "schema",
+    # after the one retry, Tech Spec §2.4): counted and scored unsupported, never dropped. A
+    # claim with neither a verdict nor an entry here is still unjudged: judging is pending.
+    judge_errors: FrozenMap[FrozenMap[NonBlank]] = Field(default_factory=FrozenDict)
 
-    _omit_if_default: ClassVar[tuple[str, ...]] = ("task_scores", "citation_support")
+    _omit_if_default: ClassVar[tuple[str, ...]] = (
+        "task_scores",
+        "citation_support",
+        "judge_errors",
+    )
 
     @model_validator(mode="after")
     def _claims_and_verdicts_link(self) -> Record:
@@ -171,4 +179,11 @@ class Record(Versioned):
                 if (cv.claim_id, cv.n) in seen:
                     raise ValueError(f"{judge} judged sentence {cv.n} of {cv.claim_id} twice")
                 seen.add((cv.claim_id, cv.n))
+        ruled = set(pairs)
+        for judge, errs in self.judge_errors.items():
+            for claim_id in errs:
+                if claim_id not in cited:
+                    raise ValueError(f"judge error names claim {claim_id!r}, not here")
+                if (claim_id, judge) in ruled:
+                    raise ValueError(f"{judge} has both a verdict and an error for {claim_id}")
         return self

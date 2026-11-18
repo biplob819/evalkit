@@ -110,12 +110,18 @@ class ModelSummary(Model):
     aim_citation_rate: FrozenMap[Interval] = Field(default_factory=FrozenDict)
     # 0.3 (EFF-02, OWNER D-70): optional, omitted when absent (no records to compute it from).
     efficiency: Efficiency | None = None
+    # Per judge, this model's extracted claims that judge has no verdict for (H5, NFR5): final
+    # judge failures (scored unsupported, so never dropped from groundedness) plus, while
+    # judging is pending, claims the provider returned no result for (resubmitted next run).
+    # Judges with none are left out; omitted when empty.
+    missing_verdicts: FrozenMap[NonNegInt] = Field(default_factory=FrozenDict)
 
     _omit_if_default: ClassVar[tuple[str, ...]] = (
         "task_scores",
         "citation_precision",
         "aim_citation_rate",
         "efficiency",
+        "missing_verdicts",
     )
 
     @model_validator(mode="after")
@@ -136,6 +142,8 @@ class ModelSummary(Model):
             raise ValueError("latency_p95_ms cannot be below latency_p50_ms")
         if set(self.headline) != set(self.groundedness_mean):
             raise ValueError("headline and groundedness_mean must name the same judges")
+        if any(v == 0 for v in self.missing_verdicts.values()):
+            raise ValueError("missing_verdicts lists only judges with a missing verdict")
         return self
 
 

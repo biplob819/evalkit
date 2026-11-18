@@ -206,6 +206,8 @@ def test_groundedness_and_fully_grounded():
     assert groundedness(cs, all_sup) == (1.0, True)
     missing = dict(list(all_sup.items())[:2])
     assert groundedness(cs, missing) == (1.0, False)  # one claim unjudged: not fully grounded
+    # The benchmark's scores never drop it from the denominator (H5, NFR5).
+    assert groundedness(cs, missing, unjudged_unsupported=True) == (pytest.approx(2 / 3), False)
     one_bad = {**all_sup, cs[2].id: v(2, "unsupported")}
     assert groundedness(cs, one_bad) == (pytest.approx(2 / 3), False)
     assert groundedness([], {}) == (0.0, False)
@@ -396,8 +398,10 @@ def test_resume_in_a_new_process_reholds_committed_batch_spend(tmp_path):
     run(first_ex, [(CASE, claim(0))], fake, max_wait_s=0)
     committed = first_ex.in_flight_usd
     assert committed > 0
-    # A new process whose cap only covers the committed batch cannot submit fresh claims.
-    second = Executor(Store(tmp_path), max_cost_usd=committed * 1.5)
+    # A new process whose cap only covers the committed batch cannot submit fresh claims,
+    # even once that batch settles at its real cost (fresh claims wait for held budget only
+    # while it could still fit).
+    second = Executor(Store(tmp_path), max_cost_usd=committed * 1.05)
     with pytest.raises(BudgetExceeded):
         run(second, [(CASE, claim(0)), (CASE, claim(1, (1,), "Readmissions dropped."))], fake)
     assert len(fake.submitted) == 1
@@ -487,7 +491,9 @@ def test_ids_missing_from_batch_results_are_counted_and_resubmitted(tmp_path):
     items = [(CASE, claim(0)), (CASE, claim(1, (1,), "Readmissions dropped."))]
     first = ScriptedBatchAdapter(supported, drop=lambda cid: True)
     res = run(Executor(Store(tmp_path)), items, first, max_wait_s=1)
-    assert res.verdicts == {} and res.n_errors == 2 and res.status == "complete"
+    # Dropped claims are counted and leave the judge pending, never complete (rerun resends).
+    assert res.verdicts == {} and res.n_errors == 2 and res.status == "pending"
+    assert res.missing == {"pqa-1:m:0", "pqa-1:m:1"} and res.failed == {}
     again = ScriptedBatchAdapter(supported)
     res2 = run(Executor(Store(tmp_path)), items, again, max_wait_s=1)
     assert len(again.submitted) == 1 and len(res2.verdicts) == 2
@@ -595,7 +601,7 @@ def test_tight_cap_on_resume_still_collects_the_paid_batch(tmp_path):
     first = Executor(Store(tmp_path), max_cost_usd=10)
     run(first, [(CASE, claim(0))], fake, max_wait_s=0)
     committed = first.in_flight_usd
-    second = Executor(Store(tmp_path), max_cost_usd=committed * 1.5)
+    second = Executor(Store(tmp_path), max_cost_usd=committed * 1.05)  # no room for claim 1
     with pytest.raises(BudgetExceeded):
         run(second, [(CASE, claim(0)), (CASE, claim(1, (1,), "Readmissions dropped."))], fake)
     # The finished batch was collected and cached despite the budget stop.
@@ -817,3 +823,37 @@ def test_full_run_batch_holds_fit_under_the_default_cap():
         PRICES["claude-opus-5-5"], tokens_in=600, tokens_out=jm.JUDGE_MAX_OUTPUT_TOKENS, batch=True
     )
     assert worst * claims > 20  # the old rule could never have fitted
+
+
+# ---- gemma-grounded-health 2026-11-18: an errored batch item is never "complete" --------------
+
+
+def test_an_errored_batch_item_leaves_the_judge_pending_and_is_resent(tmp_path):
+    items = [(CASE, claim(i, (1,), f"Readmissions fell {i}.")) for i in range(3)]
+    probe = ScriptedBatchAdapter(supported)
+    run(Executor(Store(tmp_path / "probe")), items[1:2], probe, max_wait_s=1)
+    bad = probe.submitted[0][0].custom_id  # claim 1's custom id
+
+    def item_error(cid):
+        return "errored:api_error" if cid == bad else None
+
+    flaky = ScriptedBatchAdapter(supported, item_error=item_error)
+    res = run(Executor(Store(tmp_path)), items, flaky, max_wait_s=1)
+    assert res.status == "pending" and set(res.verdicts) == {"pqa-1:m:0", "pqa-1:m:2"}
+    assert res.missing == {"pqa-1:m:1"} and res.failed == {} and res.n_errors == 1
+    again = ScriptedBatchAdapter(supported)
+    res = run(Executor(Store(tmp_path)), items, again, max_wait_s=1)
+    assert res.status == "complete" and len(res.verdicts) == 3 and not res.missing
+    assert [len(b) for b in again.submitted] == [1]
+
+
+def test_final_failures_are_recorded_and_do_not_keep_the_judge_pending(tmp_path):
+    items = [(CASE, claim(0)), (CASE, claim(1, (1,), "Readmissions dropped."))]
+
+    def garbage(req):
+        return "garbage"
+
+    res = run(Executor(Store(tmp_path)), items, ScriptedBatchAdapter(garbage), max_wait_s=1)
+    assert res.status == "complete" and res.failed == {c.id: "schema" for _, c in items}
+    cached = run(Executor(Store(tmp_path)), items, ScriptedBatchAdapter(supported), max_wait_s=1)
+    assert cached.failed == res.failed and cached.status == "complete"  # served from the cache

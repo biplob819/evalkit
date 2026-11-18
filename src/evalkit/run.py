@@ -42,7 +42,9 @@ from evalkit.pipeline.aggregate import (
     aggregate,
     build_records,
     family_for,
+    judging_status_of,
     slice_value,
+    verdict_gaps,
     write_summary,
 )
 from evalkit.pipeline.calibrate import usable_agreements
@@ -481,10 +483,12 @@ def summarise(
     judging_status: Literal["pending", "complete"],
     *,
     eval_overhead_usd: Mapping[str, float] | None = None,
+    missing: Mapping[str, set[str]] | None = None,
 ) -> RunSummary:
     """Aggregate a run folder's records, using calibration that still certifies this task.
     The efficiency block's eval overhead is passed in by a run, or kept from the folder's
-    summary.json on a re-summary; its price date is the price table's `checked_on`."""
+    summary.json on a re-summary; its price date is the price table's `checked_on`.
+    `missing` (judge -> claim ids it got no result for this run) is counted per model."""
     calibration = read_calibration(run_dir)
     if eval_overhead_usd is None:
         eval_overhead_usd = _previous_overhead(run_dir)
@@ -493,7 +497,10 @@ def summarise(
     selection = JudgeSelection(
         judges=manifest.judges, judge_mode=manifest.judge_mode, n_available=len(manifest.judges)
     )
-    judging = [JudgingResult(judge=j, status=judging_status) for j in manifest.judges]
+    judging = [
+        JudgingResult(judge=j, status=judging_status, missing=set((missing or {}).get(j, ())))
+        for j in manifest.judges
+    ]
     return aggregate(
         records,
         run_id=manifest.run_id,
@@ -688,10 +695,6 @@ async def _graph(
         else []
     )
 
-    complete = all(r.status == "complete" for r in (*judging, *citing))
-    if complete and manifest.finished_at is None:
-        manifest = manifest.model_copy(update={"finished_at": now()})
-        _atomic_write(run_dir / "run.json", manifest.model_dump_json(indent=2) + "\n")
     try:
         records = build_records(
             generated,
@@ -709,6 +712,16 @@ async def _graph(
     except TaskScorerError as exc:
         raise RunError(f"{exc} (completed calls are cached: fix it and rerun for free)") from None
     _atomic_write(run_dir / "records.jsonl", _jsonl(records))
+    # Finished only when no judge is pending or dropped a claim, and every extracted claim
+    # has a verdict (or a recorded final failure) from every judge.
+    complete = (
+        judging_status_of(selection.judges, judging) == "complete"
+        and all(r.status == "complete" and not r.missing for r in citing)
+        and not verdict_gaps(records, selection.judges, judging)[1]
+    )
+    if complete and manifest.finished_at is None:
+        manifest = manifest.model_copy(update={"finished_at": now()})
+        _atomic_write(run_dir / "run.json", manifest.model_dump_json(indent=2) + "\n")
     overhead = eval_overhead(
         ex,
         generated,
@@ -724,6 +737,7 @@ async def _graph(
         records,
         "complete" if complete else "pending",
         eval_overhead_usd=overhead,
+        missing={r.judge: r.missing for r in judging},
     )
     write_summary(summary, run_dir / "summary.json")
     render(run_dir)

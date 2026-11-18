@@ -7,6 +7,8 @@ Spend cap rules:
 - Estimates should be upper bounds. If a node under-estimates, the cap can be overshot by at
   most the in-flight calls' shortfall: once actual spend reaches the cap, every later call
   is refused, because its reservation can no longer fit.
+- Cache hits reserve nothing. A batch refused only because other holds are still open can
+  wait for them to settle (`fits_once_held_settle`); nothing is ever reserved past the cap.
 """
 
 from __future__ import annotations
@@ -215,6 +217,17 @@ class Executor:
         """Reserve budget for work that does not go through run_node (provider batches).
         Raises BudgetExceeded if it would not fit; pair with `settle`."""
         await self._reserve(_check_amount(estimate, "estimate", "batch"))
+
+    def fits_once_held_settle(self, estimate: float) -> bool:
+        """True when a reservation refused now could still fit later: some reserved spend
+        (an open batch's hold, a live call) is still to settle, and what is already spent plus
+        `estimate` is within the cap. Settled costs are real ones, usually below their holds,
+        so batch judging waits for them instead of stopping at the cap (gemma-grounded-health,
+        2026-11-17). Never true without a cap, where nothing is refused."""
+        cap = self.max_cost_usd
+        if cap is None:
+            return False
+        return self._spend.in_flight > 0 and self._spend.spent + estimate <= cap
 
     async def settle(self, estimate: float, actual: float) -> None:
         """Release a reservation and record what was actually spent."""
