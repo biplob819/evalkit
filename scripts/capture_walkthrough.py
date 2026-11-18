@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import markdown
+import markdown  # pyright: ignore[reportMissingModuleSource]  # run with `uv run --with markdown`
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_RUNS = "runs/walkthrough"  # git-ignored
@@ -201,8 +201,9 @@ def decisions_page() -> str:
 
 def chrome() -> str:
     for name in ("google-chrome", "chromium", "chromium-browser"):
-        if shutil.which(name):
-            return shutil.which(name)
+        found = shutil.which(name)
+        if found:
+            return found
     mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if Path(mac).exists():
         return mac
@@ -234,7 +235,9 @@ def shoot(browser: str, html_file: Path, png: Path, profile: Path) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(
+        description=(__doc__ or "Capture the walkthrough GIF.").splitlines()[0]
+    )
     ap.add_argument("--scratch", required=True, type=Path, help="frames folder (not committed)")
     ap.add_argument("--gif", type=Path, default=ROOT / "docs" / "assets" / "walkthrough.gif")
     ap.add_argument("--no-gif", action="store_true", help="screenshots only")
