@@ -2,6 +2,15 @@
 
 Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 
+## 0.4.1
+
+Additive release on 0.4.0; nothing that worked in 0.4.0 changes behaviour except the two fixes marked below.
+
+- [FEAT] [B5.5] — The cross-project eval index: `evalkit index snapshot` (fetch each registered project's summary at one commit; the only network step) and `evalkit index build` (local files only, byte-reproducible), with `evalkit.index`. Each row shows the headline its project designates in `configs/index.yaml`, its interval, calibration stamp, gate status, the EvalKit pin read from the project's own `pyproject.toml` and `uv.lock`, run date and cost per correct; anything the source does not state shows "not recorded", and an unreadable or ambiguous source shows "missing" or "not designated" with the reason, never a guess. A small selector language reads foreign summary formats (no eval). See docs/index.md; published at /index/.
+- [FIX] [B5.7] — `evalkit.drift.to_metrics()` carries the new batch's `simulated` flag into the metrics-1 it emits (the reference's when the batch has none; never invented). Reported by respectful-offers.
+- [FIX] [B5.3] — `metrics.from_run_summary` no longer labels a pre-0.3 summary's error-rate row `mode: live`; a mode the summary does not record stays unrecorded.
+- [DOCS] — README finished (screenshots, capability map, the seven projects that use EvalKit, status, links), a 12-step user guide (docs/guide.md), the walkthrough GIF, and respectful-offers' D-73 equal-width bins marked met.
+
 ## 0.4.0
 
 - [DOCS] [—] — README shows the looping walkthrough GIF (`docs/assets/walkthrough.gif`) near the top, linked to its shot list; owner request

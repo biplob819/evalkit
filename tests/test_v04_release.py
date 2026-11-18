@@ -135,10 +135,12 @@ def _recorded() -> dict[str, set[str]]:
 
 
 def test_version_is_0_4_0_in_pyproject_package_and_lock():
+    """At release the tree was 0.4.0; a later 0.4.x patch keeps the 0.4 line (test_v041_release)."""
     proj = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert proj["version"] == evalkit.__version__ == VERSION
+    assert proj["version"] == evalkit.__version__
+    assert Version(VERSION) <= Version(proj["version"]) < Version("0.5.0")
     lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
-    assert f'name = "evalkit-harness"\nversion = "{VERSION}"' in lock
+    assert f'name = "evalkit-harness"\nversion = "{proj["version"]}"' in lock
 
 
 def _changelog_section() -> str:
@@ -149,7 +151,9 @@ def _changelog_section() -> str:
 def test_changelog_opens_with_a_consolidated_0_4_0_section():
     text = (ROOT / "changelog.md").read_text(encoding="utf-8")
     headings = re.findall(r"^## (.+)$", text, re.M)
-    assert headings[:2] == [VERSION, "0.3.0"], headings[:3]
+    released = [h for h in headings if re.fullmatch(r"\d+\.\d+\.\d+", h)]
+    i = released.index(VERSION)  # 0.4.x patches may come first
+    assert released[i + 1] == "0.3.0" and all(h.startswith("0.4.") for h in released[:i]), released
     section = _changelog_section()
     assert "[RELEASE] [B5.10]" in section
     for needed in (
