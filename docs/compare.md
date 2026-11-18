@@ -46,7 +46,8 @@ Options: `--gates FILE` (gated metrics, see [Exit codes](#exit-codes); its `held
 apply here), `--manifest FILE` (a [B5.14 held-out manifest](heldout.md)), `--heldout-split NAME`
 (repeatable; `heldout` is always held out), `--seed` (default 7), `--resamples` (default
 10000), `--json` (print compare.json), `--out` (default `compare.json`; written on every exit,
-including exit 2) and `--md FILE` (the markdown report). If the markdown cannot be written,
+including exit 2) and `--md FILE` (the markdown report). Since 0.4.0 `--out` and `--md` may
+name a folder, and `compare.json` or `compare.md` is written inside it. If the markdown cannot be written,
 the command exits 2 and compare.json is rewritten to record exit 2 and the error.
 
 From Python:

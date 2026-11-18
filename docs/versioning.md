@@ -10,7 +10,9 @@ These are covered by the policy, and `tests/test_public_api.py` fails if one dis
 
 - **The command line**: `evalkit` subcommands, their options and the exit codes.
 - **`evalkit.scorers`**: every name in its `__all__` (the scorer functions, `scorer`,
-  `Scorer`, `ScoreResult`, `discover`, `get_scorer`).
+  `Scorer`, `ScoreResult`, `discover`, `get_scorer`); since 0.4.0 this includes `value_check`,
+  `value_check_scorer`, `value_check_shares`, `ValuePhrase` and `ValueCheckShares` (B5.16,
+  D-77), which 0.3.0 withheld (D-74).
 - **`evalkit.adapters`**: the adapter interface (`ModelAdapter`, `CompletionRequest`,
   `RawCompletion`, `BatchRequest`, `BatchResult`, `register`, `discover`, `get_adapter`), and
   since 0.2.0 systems under test (`SystemAdapter`, `register_system`, `discover_systems`,
@@ -25,10 +27,13 @@ Since 0.3.0, the names two or more downstream projects import (D-61 rule 2), eac
 listing exactly these in its `__all__` (its other names stay internal):
 
 - **`evalkit.cost`** (since 0.3.0): `Price`, `load_prices`, `call_cost`, `estimate_tokens`.
+  Since 0.4.0 also `TokenAssumptions` (ai-visibility and fraud-review-bedrock) and
+  `CostEstimate` with its `CostLine`s, which `estimate_faithfulness_cost` returns.
 - **`evalkit.retry`** (since 0.3.0): `with_retries`.
 - **`evalkit.stats`** (since 0.3.0): `Resamples`, `interval`, `paired`, `holm`,
   `percentile_ms`; and (B5.3) `clopper_pearson`, `rate_wording`.
-  Since 0.4.0 also `two_level_interval` (clustered intervals, agentic-analytics D-100).
+  Since 0.4.0 also `two_level_interval` (clustered intervals, agentic-analytics D-100) and
+  `interval_from` (agentic-analytics and fraud-review-bedrock).
 - **`evalkit.metrics`** and **`evalkit.gates`** (since 0.3.0, B5.3): every name in their
   `__all__` (the `metrics-1` format and `evalkit gate`; see [gates.md](gates.md)).
 - **`evalkit.scorers.faithfulness`** (since 0.3.0): `faithfulness`, `FaithfulnessItem`,
@@ -40,7 +45,18 @@ listing exactly these in its `__all__` (its other names stay internal):
 - **`evalkit.errors`** (since 0.3.0): `SchemaError`, raised when a model's output is not valid
   structured output.
 - **`evalkit.identity`** (since 0.3.0): `JUDGE_PROMPT_HASH` and `EXTRACTOR_VERSION`, the
-  values a current `Record` carries as `judge_prompt_hash` and `extractor_version`.
+  values a current `Record` carries as `judge_prompt_hash` and `extractor_version`. Since 0.4.0
+  also `JUDGE_RUBRIC` (ai-visibility and fraud-review-bedrock), the rubric text the hash covers:
+  size prompts with it, pin the hash.
+- **`evalkit.runtime`** (since 0.4.0, ai-visibility and fraud-review-bedrock):
+  `Executor` (`Executor(store, *, concurrency=None, default_concurrency=4, max_cost_usd=None,
+  ...)`, what `faithfulness(executor=...)` takes), `Store` (the content-addressed cache it
+  runs on) and `BudgetExceeded`, which it raises when the next call could pass
+  `max_cost_usd`. The module's other names stay internal.
+- **`evalkit.providers`** (since 0.4.0, ai-visibility and fraud-review-bedrock):
+  `provider_for` (`provider_for(model_id, endpoints=None, systems=None)`), which adapter serves
+  a model (`anthropic`, `openai`, `openai_compatible` or `system`); the object EvalKit's run
+  uses.
 - **`evalkit.compare`** (since 0.3.0, B5.6): every name in its `__all__` (run-vs-run compare
   and `evalkit compare`; see [compare.md](compare.md)).
 - **Claims per item** (0.4.0, fraud-review-bedrock, D-61 rule 3): in `evalkit.cost`,
@@ -48,8 +64,12 @@ listing exactly these in its `__all__` (its other names stay internal):
   `evalkit.scorers.faithfulness`, `estimate_faithfulness_cost`; the run command's
   `--claims-per-answer` option. See [cost.md](cost.md#claims-per-answer).
 
-Everything else, including `evalkit.pipeline`, `evalkit.runtime` and `evalkit.demo`, is
-internal and may change in any release.
+The modules that shipped in 0.4.0 (`evalkit.heldout`, `evalkit.paraphrase`,
+`evalkit.integrity`, `evalkit.security`, `evalkit.ledger`, `evalkit.drift`) are public by
+their `__all__`; see [0.4.0 additions](#040-additions).
+
+Everything else, including `evalkit.pipeline`, the rest of `evalkit.runtime` and
+`evalkit.demo`, is internal and may change in any release.
 
 ## Results format
 
@@ -64,9 +84,9 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 
 ## 0.3.0 additions
 
-> **Provisional in 0.3.0.** `evalkit.heldout`, `evalkit.paraphrase` (and the `--paraphrase` option of the report command), `evalkit.integrity` (and the `--criterion` option of the calibrate command), `evalkit.security` and the `sql_match` `question=`/`equivalences=` options are already in the 0.3.0 wheel because they were green on main, but their nodes ship formally in 0.4.0 (D-62). Their interfaces may still change before 0.4.0 without a deprecation window. Everything else listed here is covered by the usual one-minor-version deprecation window.
+> **Provisional in 0.3.0, resolved in 0.4.0.** `evalkit.heldout`, `evalkit.paraphrase` (and the `--paraphrase` option of the report command), `evalkit.integrity` (and the `--criterion` option of the calibrate command), `evalkit.security` and the `sql_match` `question=`/`equivalences=` options were already in the 0.3.0 wheel because they were green on main, and 0.3.0 marked them provisional: their nodes shipped formally in 0.4.0 (D-62). Since 0.4.0 they are covered by the usual one-minor-version deprecation window, like everything else listed here; see [0.4.0 additions](#040-additions).
 
-- `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer` and `render_evidence` (B5.13, D-65). `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and `ValueCheckShares` are **not** public in 0.3.0 (OWNER D-74): they stay in the internal module `evalkit.scorers.evidence` and may change in any release until their strict redesign (B5.16) ships in 0.4.0 ([plugins.md](plugins.md#value_check-coming-in-040-d-74)); `scripts/check_public_api.py` fails if `evalkit.scorers` exports them.
+- `evalkit.scorers`: `answer_from_rows`, `unsupported_numbers`, `clarification_rates`, `ClarificationRates`, `Rule`, `RuleSet`, `RuleError`, `rule_compliance`, `rule_compliance_scorer` and `render_evidence` (B5.13, D-65). `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and `ValueCheckShares` are **not** public in 0.3.0 (OWNER D-74): they stay in the internal module `evalkit.scorers.evidence` and may change in any release until their strict redesign (B5.16) ships in 0.4.0; `scripts/check_public_api.py` fails if `evalkit.scorers` exports them. They are public since 0.4.0 ([plugins.md](plugins.md#value_check-a-structured-facts-check-040-d-74-d-77)).
 - `evalkit.schemas.CitationVerdict` and the optional fields `Record.citation_support`, `ModelSummary.citation_precision` and `ModelSummary.aim_citation_rate`, and the same two on `SliceSummary` (B5.12, D-65), each omitted from JSON when empty.
 
 - The `evalkit gate` command (B5.3, D-62..D-65), with a summary file and the options `--config`, `--json` and `--out`: gates on any named metric from a `metrics-1` file or an EvalKit `summary.json`; exit codes 0/1/2/3/4 with precedence 2 > 3 > 4 > 1 > 0; no model or network call. See [gates.md](gates.md).
@@ -76,7 +96,11 @@ can read it; a run that uses them needs 0.2.0 or later to read its records and s
 - `summary.json` gains an optional per-model `efficiency` object (EFF-02, OWNER D-70): token means per case, cache-hit share, cost per case and per correct answer and latency p50/p95/p99 with seeded 95% bootstrap intervals, error rate with its count, system cost and eval overhead (extractor and judges), mode and price date; `retry_rate` is null (not recorded). It is omitted when absent, so a summary without it reads as before. The run report gains an Efficiency section with the same figures, and shares that are exactly 0 or 1 read "0 of n, below X% at 95%" instead of a zero-width interval. See [gates.md](gates.md#efficiency-in-summaryjson-03-eff-02-d-70). `run.json` gains `stopped_at_cost_cap`, written only when a run stops at its cap (omitted otherwise, so run folders keep their bytes).
 - The `evalkit compare` command and `evalkit.compare` (B5.6, D-62, D-65): per metric and label, the change new − old with a 95% interval (paired two-level bootstrap on shared case ids, case-only without a trial level, otherwise unpaired from each run's interval and labelled so), Holm-adjusted flags, the settings that differ, missing metrics listed, held-out rows as split-level aggregates only, an optional per-case `cases.jsonl` sidecar beside a metrics-1 file and an optional `settings.json`; options `--gates`, `--manifest`, `--heldout-split`, `--seed`, `--resamples`, `--json`, `--out` and `--md`; exit codes 0/1/2; no model or network call. See [compare.md](compare.md).
 
-## 0.4.0 additions (on main ahead of the release)
+## 0.4.0 additions
+
+- `value_check`, `value_check_scorer`, `value_check_shares`, `ValuePhrase` and `ValueCheckShares` from `evalkit.scorers` (B5.16, D-74, D-77): withheld from 0.3.0, public again as a strict structured-facts check. A reason is `verified` only when every number in it is bound by a framed "field is value" statement (a facts line such as "Facts: Amount is 812.40. Hour is 3.", last in the reason or after a facts header); every other reading, prose included, is `unverifiable` (no false claim verified across about 450,000 generated cases, D-77). See [plugins.md](plugins.md#value_check-a-structured-facts-check-040-d-74-d-77).
+- Names two or more projects import, promoted under D-61 rule 2 (listed under [What is public](#what-is-public)): `evalkit.cost.TokenAssumptions`, `CostEstimate`, `CostLine`; `evalkit.stats.interval_from`; `evalkit.identity.JUDGE_RUBRIC`; `evalkit.runtime.Executor`, `Store`, `BudgetExceeded`; `evalkit.providers.provider_for`. The old paths keep working silently.
+- Judging completeness (D-78): `Record.judge_errors` (per judge, the claims it finally failed to rule on) and `ModelSummary.missing_verdicts` (per judge, the claims with no verdict), both optional and omitted when empty.
 
 - `evalkit.heldout` (B5.14, D-65): held-out manifest of hashes and counts, score-once guard, exposure scan and hash-chained append-only log; `python -m evalkit.heldout manifest|verify|scan|verify-log` (exit codes 0, 1, 2). See [heldout.md](heldout.md).
 - `evalkit.paraphrase` (B5.8, D-68): the paraphrase contamination probe set, its builder and the original-vs-paraphrase report; built-in tasks `pubmedqa-paraphrase` and `pubmedqa-paraphrase-original`; `evalkit report --paraphrase ORIGINAL_RUN PARAPHRASE_RUN`; `python -m evalkit.paraphrase verify|build` (exit codes 0, 2, 3). See [contamination.md](contamination.md).
@@ -117,9 +141,9 @@ efficiency section (D-67, B5.3) and the GAT-07 wording for shares of exactly 0 o
 
 | 0.2 import | 0.3 public import | Old path |
 |---|---|---|
-| `evalkit.pipeline.calibrate._Pair(answer, human, judge)` | `evalkit.calibration.CalibrationPair(cluster, human, judge)` | `DeprecationWarning`, removed in 0.4.0 |
-| `evalkit.pipeline.calibrate.cluster_kappa` | `evalkit.calibration.cluster_kappa` | `DeprecationWarning`, removed in 0.4.0 |
-| `evalkit.pipeline.calibrate.kappa_from` | `evalkit.calibration.kappa_from` | `DeprecationWarning`, removed in 0.4.0 |
+| `evalkit.pipeline.calibrate._Pair(answer, human, judge)` | `evalkit.calibration.CalibrationPair(cluster, human, judge)` | `DeprecationWarning`, removed in 0.5.0 (was 0.4.0) |
+| `evalkit.pipeline.calibrate.cluster_kappa` | `evalkit.calibration.cluster_kappa` | `DeprecationWarning`, removed in 0.5.0 (was 0.4.0) |
+| `evalkit.pipeline.calibrate.kappa_from` | `evalkit.calibration.kappa_from` | `DeprecationWarning`, removed in 0.5.0 (was 0.4.0) |
 | `evalkit.pipeline.answer.SchemaError` | `evalkit.errors.SchemaError` | works, internal |
 | `evalkit.pipeline.judge.JUDGE_PROMPT_HASH` | `evalkit.identity.JUDGE_PROMPT_HASH` | works, internal |
 | `evalkit.pipeline.extract.EXTRACTOR_VERSION` | `evalkit.identity.EXTRACTOR_VERSION` | works, internal |
@@ -163,3 +187,79 @@ canary covers it) or use the replacement named in
   `evalkit.run.load_cases`, `evalkit.run.load_task`, `evalkit.run.read_cases`,
   `evalkit.run.read_records`, `evalkit.tasks.builtin_task`, `evalkit.tasks.render_prompt`,
   `evalkit.text.number_sentences`, `evalkit.text.split_sentences`.
+
+## 0.3 → 0.4 migration
+
+Every named import that worked in 0.3 still works in 0.4, and a run that uses none of the
+changes below writes the same records, cache keys and `summary.json` bytes (`evalkit run`
+still plans 4.5 claims per answer, so its goldens are unchanged). These change behaviour:
+
+1. **Claims per item in estimates (D-76).** When the texts to judge already exist
+   (faithfulness on given explanations, re-judging saved answers), an estimate plans each text
+   at the largest of its words ÷ 8, sentence-like units, key=value fields, distinct numbers,
+   characters ÷ 50 and 4.5, instead of 4.5 claims for every item. Quotes for long
+   explanations rise (fraud-review-bedrock's were about half the real cost) and can now reach
+   a cap that a 0.3 quote did not. Every estimate states its assumption and its source; the
+   dry run's `--json` gains a top-level `claims` object; `CostEstimate` gains `claims`, left out
+   of its JSON while it is the planning default. Pass a measured figure with
+   `--claims-per-answer N` or `claims_per_item=`. See [cost.md](cost.md#claims-per-answer).
+2. **Judging is complete only when every claim is ruled on by every judge (D-78).** A claim
+   with no verdict (a batch item that came back empty, or whose retry hit a provider error)
+   keeps its judge pending, so the run exits 4 and a rerun resends only those claims; in 0.3
+   such a run could say `judging_status: complete` with groundedness computed over the claims
+   that had verdicts. A final failure (a refusal, or a reply still invalid after the one retry)
+   is recorded in `Record.judge_errors`, counted in `ModelSummary.missing_verdicts` and scored
+   unsupported, never left out of the denominator. Both fields are omitted when empty. A batch
+   blocked only by another judge's open hold now waits within `--wait` instead of stopping at
+   the cap; nothing is ever reserved past it.
+3. **Id-shaped label values are refused in metrics-1.** A label value shaped like a case or
+   member id (a uuid, 32 or more hex characters, an email, or a base64-like token of 20 or
+   more characters mixing upper case, lower case and digits) is a parse error, exit 2 in
+   `evalkit gate` and `evalkit compare`, as id-named label keys already were. Model ids,
+   category codes and years are unaffected (respectful-offers' D-53).
+4. **Strict run-folder detection.** A `run.json` or `summary.json` is EvalKit's only when it
+   carries EvalKit's `schema_version` and every key EvalKit always writes there. `evalkit
+   compare`, `evalkit gate`, `evalkit report` and a resumed run say why another project's file
+   is not an EvalKit run instead of reading it as one; compare reads such a folder through its
+   `metrics.json` when it has one. See
+   [compare.md](compare.md#what-counts-as-an-evalkit-run-folder-040).
+5. **`--out` may name a folder.** `evalkit gate SUMMARY --out DIR` writes `DIR/gate.json` and
+   `evalkit compare OLD NEW --out DIR` / `--md DIR` write `compare.json` / `compare.md` inside it (a
+   path that is an existing folder or ends with a path separator); 0.3 exited 2 for a folder.
+6. **`sql_match` details.** The opt-in equivalences (`question=`, `equivalences=`) and the
+   details they add (`correct_strict`, `equivalences`, and `strict_reason` on a rescue) were
+   provisional in 0.3.0 and are covered from 0.4.0. With none named, scores and details are
+   exactly 0.3.0's.
+7. **`value_check` is public and strict (D-74, D-77).** `from evalkit.scorers import
+   value_check` works again. It is not the checker 0.3.0 withheld: `verified` only when every
+   number in a reason is bound by a framed "field is value" statement of the
+   [facts grammar](plugins.md#value_check-the-facts-grammar-verify516c) (`tolerance` defaults
+   to 0.0; `units=` declares each field's unit), and everything else, prose included, is
+   `unverifiable`. On fraud-review-bedrock's 10,225 prose reasons 4 verify; a facts line at the
+   end of each reason ("Facts: Amount is 812.40. Hour is 3.") verifies reliably. Code that used
+   the internal `evalkit.scorers.evidence` in 0.3 gets the strict check too.
+
+Also: the moved calibration paths (`evalkit.pipeline.calibrate._Pair`, `cluster_kappa`,
+`kappa_from`) still work in 0.4 with their `DeprecationWarning`; they were due to go in 0.4.0,
+and are kept one more minor release because two registered projects still import them (the
+[2026-11-18 canary](measurements/downstream-canary-2026-11-18.json)). They are removed in 0.5.0.
+`evalkit.runtime`'s `__all__` now lists only its public names (`Executor`, `Store`,
+`BudgetExceeded`), so `from evalkit.runtime import *` is narrower; named imports are
+unchanged, and no registered project uses `*`.
+
+Names promoted under D-61 rule 2 (each used by two registered projects in the 2026-11-18
+canary record and the owner's local checkouts):
+
+| 0.3 import | 0.4 public import | Projects | Old path |
+|---|---|---|---|
+| `evalkit.cost.TokenAssumptions` | `evalkit.cost.TokenAssumptions` | ai-visibility, fraud-review-bedrock | same path |
+| `evalkit.cost.CostEstimate`, `evalkit.cost.CostLine` | same path | ai-visibility (returned by `estimate_faithfulness_cost`) | same path |
+| `evalkit.stats.interval_from` | `evalkit.stats.interval_from` | agentic-analytics, fraud-review-bedrock | same path |
+| `evalkit.runtime.Executor` | `evalkit.runtime.Executor` | ai-visibility, fraud-review-bedrock | same path |
+| `evalkit.runtime.Store`, `evalkit.runtime.store.Store` | `evalkit.runtime.Store` | ai-visibility, fraud-review-bedrock | works, internal |
+| `evalkit.runtime.executor.BudgetExceeded` | `evalkit.runtime.BudgetExceeded` | fraud-review-bedrock (raised by `Executor`) | works, internal |
+| `evalkit.pipeline.generate.provider_for` | `evalkit.providers.provider_for` | ai-visibility, fraud-review-bedrock | works, internal |
+| `evalkit.pipeline.judge.JUDGE_RUBRIC` | `evalkit.identity.JUDGE_RUBRIC` | ai-visibility, fraud-review-bedrock | works, internal |
+
+Each registered project's exact list for 0.4, with its 0.4.0 requirement line, is in the
+"0.3 → 0.4" part of its section in [downstream.md](downstream.md).

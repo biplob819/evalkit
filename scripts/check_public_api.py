@@ -36,8 +36,13 @@ PUBLIC: dict[str, list[str]] = {
         "rule_compliance",  # v0.3 (B5.13)
         "rule_compliance_scorer",  # v0.3 (B5.13)
         "unsupported_numbers",  # v0.3 (B5.13)
-        # D-74: value_check, value_check_scorer, value_check_shares, ValuePhrase and
-        # ValueCheckShares are NOT public in 0.3.0 (see WITHHELD); B5.16, 0.4.0.
+        # Withheld from 0.3.0 (D-74); public since 0.4.0 as the strict structured-facts check
+        # (B5.16, D-77).
+        "ValueCheckShares",  # v0.4 (B5.16)
+        "ValuePhrase",  # v0.4 (B5.16)
+        "value_check",  # v0.4 (B5.16)
+        "value_check_scorer",  # v0.4 (B5.16)
+        "value_check_shares",  # v0.4 (B5.16)
     ],
     "evalkit.adapters": [
         "ALLOWED_PARAMS",
@@ -246,23 +251,17 @@ PUBLIC: dict[str, list[str]] = {
     ],
 }
 
-# D-74: names built for 0.3.0 but withheld from its public API. They stay importable from
-# their internal module (evalkit.scorers.evidence) and must NOT be exported from the public
-# one, so a release cannot ship them by accident. B5.16 redesigns value_check for 0.4.0.
-WITHHELD: dict[str, list[str]] = {
-    "evalkit.scorers": [
-        "ValueCheckShares",
-        "ValuePhrase",
-        "value_check",
-        "value_check_scorer",
-        "value_check_shares",
-    ],
-}
+# Names built for a release but withheld from its public API: they stay importable from their
+# internal module and must NOT be exported from the public one, so a release cannot ship them
+# by accident. 0.3.0 withheld value_check and its four companions here (D-74); they are public
+# since 0.4.0 (B5.16, D-77). Empty now; kept for the next name a release must hold back.
+WITHHELD: dict[str, list[str]] = {}
 
 # v0.3 (B5.2, PUB-02/03): internal paths downstream projects import whose names now have a
 # public home (old path -> public path). Paths in MOVED raise a DeprecationWarning naming the
-# new path until 0.4.0; the others are where EvalKit defines the name and stay silent. The
-# import audit reports every one as public-elsewhere.
+# new path until 0.5.0 (due in 0.4.0, kept one more minor release by B5.10); the others are
+# where EvalKit defines the name and stay silent. The import audit reports every one as
+# public-elsewhere.
 PROMOTED: dict[str, str] = {
     "evalkit.pipeline.answer.SchemaError": "evalkit.errors.SchemaError",
     "evalkit.pipeline.calibrate._Pair": "evalkit.calibration.CalibrationPair",
@@ -581,6 +580,30 @@ CLI["spend check"] = {
     "--json",
 }
 
+# v0.4 (B5.10, D-61 rule 2): internals two or more downstream projects import in the
+# 2026-11-18 canary record, and the names that are part of their contract (the B5.2 rule).
+# ai-visibility and fraud-review-bedrock both run `faithfulness(executor=...)` live and size its
+# judge prompts; agentic-analytics and fraud-review-bedrock both bootstrap outside `Resamples`.
+PUBLIC["evalkit.cost"] += [
+    "TokenAssumptions",  # ai-visibility, fraud-review-bedrock
+    "CostEstimate",  # returned by the public estimate_faithfulness_cost
+    "CostLine",  # CostEstimate.lines
+]
+PUBLIC["evalkit.stats"] += ["interval_from"]  # agentic-analytics, fraud-review-bedrock
+PUBLIC["evalkit.identity"] += ["JUDGE_RUBRIC"]  # ai-visibility, fraud-review-bedrock
+PUBLIC["evalkit.runtime"] = [
+    "Executor",  # ai-visibility, fraud-review-bedrock
+    "Store",  # ai-visibility, fraud-review-bedrock (as evalkit.runtime.store.Store)
+    "BudgetExceeded",  # what Executor raises at its cost cap
+]
+PUBLIC["evalkit.providers"] = ["provider_for"]  # ai-visibility, fraud-review-bedrock
+PROMOTED.update(
+    {
+        "evalkit.pipeline.generate.provider_for": "evalkit.providers.provider_for",
+        "evalkit.pipeline.judge.JUDGE_RUBRIC": "evalkit.identity.JUDGE_RUBRIC",
+    }
+)
+
 
 def _subparsers(parser):
     import argparse
@@ -634,7 +657,7 @@ def missing() -> list[str]:
     for module, names in WITHHELD.items():
         mod = importlib.import_module(module)
         exported = set(getattr(mod, "__all__", ())) | set(vars(mod))
-        out += [f"{module}.{n} (withheld, D-74)" for n in names if n in exported]
+        out += [f"{module}.{n} (withheld)" for n in names if n in exported]
     return out
 
 

@@ -20,10 +20,15 @@ from evalkit.schemas._base import Model, Name, NonNegFloat, NonNegInt
 
 # Public since 0.3.0: Price, call_cost, estimate_tokens, load_prices. Added for the claims per
 # item behind an estimate (fraud-review-bedrock, D-61 rule 3): ClaimsAssumption,
-# claims_from_texts, measured_claims.
+# claims_from_texts, measured_claims. Since 0.4.0 (D-61 rule 2): TokenAssumptions
+# (ai-visibility and fraud-review-bedrock), and CostEstimate and CostLine, which the public
+# estimate_faithfulness_cost returns.
 __all__ = [
     "ClaimsAssumption",
+    "CostEstimate",
+    "CostLine",
     "Price",
+    "TokenAssumptions",
     "call_cost",
     "claims_from_texts",
     "estimate_tokens",

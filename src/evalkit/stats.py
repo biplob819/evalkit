@@ -19,6 +19,7 @@ __all__ = [  # public since 0.3.0
     "clopper_pearson",  # 0.3.0 (B5.3, GAT-07)
     "holm",
     "interval",
+    "interval_from",  # 0.4.0 (agentic-analytics and fraud-review-bedrock, D-61 rule 2)
     "paired",
     "percentile_ms",
     "rate_wording",  # 0.3.0 (B5.3, GAT-07)

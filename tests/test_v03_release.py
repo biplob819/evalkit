@@ -1,11 +1,17 @@
 """B5.4: v0.3.0 release candidate and the downstream migration guide (V03-01, V03-02).
 
-V03-01: the version agrees everywhere, the changelog opens with a consolidated 0.3.0 section,
-value_check is withheld from the public API (OWNER D-74), and the release-candidate canary
+V03-01: the version agreed everywhere, the changelog holds a consolidated 0.3.0 section,
+value_check was withheld from 0.3.0's public API (OWNER D-74), and the release-candidate canary
 covers every registered project with a passing, explained or test-less status.
 V03-02: docs/downstream.md has a section per registered project with its current pin and the
 0.3.0 requirement line; it names every non-public import recorded by any canary run, and every
 replacement it names imports and is public. No network, no spend.
+
+0.3.0 has shipped (its release record) and the tree has moved on to 0.4.0 (B5.10, checked in
+tests/test_v04_release.py). These tests hold 0.3.0 to its record: the version and the D-74
+withholding are checked against the release record, the changelog and the 0.3.0 snapshots
+below, not against today's tree, and the guide checks read only the 0.3.0 part of each
+project section (the part before its "0.3 → 0.4" subsection).
 """
 
 from __future__ import annotations
@@ -18,7 +24,6 @@ import sys
 import tomllib
 from pathlib import Path
 
-import pytest
 from packaging.requirements import Requirement
 from packaging.version import Version
 
@@ -29,6 +34,22 @@ GUIDE = ROOT / "docs" / "downstream.md"
 MEASURE = ROOT / "docs" / "measurements"
 RC = MEASURE / "downstream-canary-2026-11-17-rc.json"
 VERSION = "0.3.0"
+RELEASE = MEASURE / "release-v0.3.0-2026-11-17.json"
+SUBSECTION_04 = "\n### 0.3 → 0.4"  # where each project's 0.3.0 part ends
+
+# What 0.3.0 shipped, as snapshots (the live contract has moved on in 0.4.0): the names D-74
+# withheld from `evalkit.scorers`, and the PROMOTED paths of the 0.3.0 contract.
+WITHHELD_0_3_0 = frozenset(
+    {"value_check", "value_check_scorer", "value_check_shares", "ValuePhrase", "ValueCheckShares"}
+)
+PROMOTED_0_3_0 = {
+    "evalkit.pipeline.answer.SchemaError": "evalkit.errors.SchemaError",
+    "evalkit.pipeline.calibrate._Pair": "evalkit.calibration.CalibrationPair",
+    "evalkit.pipeline.calibrate.cluster_kappa": "evalkit.calibration.cluster_kappa",
+    "evalkit.pipeline.calibrate.kappa_from": "evalkit.calibration.kappa_from",
+    "evalkit.pipeline.extract.EXTRACTOR_VERSION": "evalkit.identity.EXTRACTOR_VERSION",
+    "evalkit.pipeline.judge.JUDGE_PROMPT_HASH": "evalkit.identity.JUDGE_PROMPT_HASH",
+}
 
 _spec = importlib.util.spec_from_file_location(
     "check_public_api", ROOT / "scripts" / "check_public_api.py"
@@ -37,7 +58,6 @@ assert _spec and _spec.loader
 _api = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_api)
 PUBLIC: dict[str, list[str]] = _api.PUBLIC
-WITHHELD: dict[str, list[str]] = _api.WITHHELD
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import downstream_canary  # noqa: E402
@@ -50,17 +70,22 @@ STATUSES_OK = {"pass", "known-drift", "no-tests"}
 # ---- V03-01 version consistency ---------------------------------------------------------------
 
 
-def test_version_is_0_3_0_in_pyproject_package_and_lock():
+def test_version_0_3_0_was_released_and_the_tree_is_not_older():
+    """0.3.0 shipped (its release record); pyproject, the package and uv.lock agree on a version
+    at least as new (tests/test_v04_release.py checks they agree on 0.4.0)."""
+    rec = json.loads(RELEASE.read_text(encoding="utf-8"))
+    assert rec["version"] == VERSION and rec["tag"] == f"v{VERSION}"
     proj = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert proj["version"] == evalkit.__version__ == VERSION
+    assert proj["version"] == evalkit.__version__
+    assert Version(evalkit.__version__) >= Version(VERSION)
     lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
-    assert f'name = "evalkit-harness"\nversion = "{VERSION}"' in lock
+    assert f'name = "evalkit-harness"\nversion = "{evalkit.__version__}"' in lock
 
 
-def test_changelog_opens_with_a_consolidated_0_3_0_section():
+def test_changelog_keeps_the_consolidated_0_3_0_section():
     text = (ROOT / "changelog.md").read_text(encoding="utf-8")
     headings = re.findall(r"^## (.+)$", text, re.M)
-    assert headings[0] == VERSION, headings[:3]
+    assert VERSION in headings, headings[:3]
     section = text.split(f"## {VERSION}\n", 1)[1].split("\n## ", 1)[0]
     assert "[RELEASE] [B5.4]" in section
     for needed in (
@@ -76,50 +101,50 @@ def test_changelog_opens_with_a_consolidated_0_3_0_section():
         "D-74",
     ):
         assert needed in section, needed
-    # the dated entries below are kept: the next heading is a date
-    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", headings[1])
+    # the dated entries below are kept: the heading after 0.3.0's section is a date
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", headings[headings.index(VERSION) + 1])
 
 
-def test_value_check_is_withheld_from_the_public_api():
-    """OWNER D-74: not exported from `evalkit.scorers`, not in the contract, still importable
-    from its internal module for EvalKit's own tests; render_evidence stays public."""
+def test_value_check_was_withheld_from_the_0_3_0_release():
+    """OWNER D-74, held against the record rather than today's tree (0.4.0 exports them): the
+    0.3.0 changelog section names exactly the withheld names and the release they missed is the
+    one recorded; the 0.3.0 guide marks them withheld; the code they were withheld from is
+    still importable from its internal module, and render_evidence was public throughout."""
     import evalkit.scorers as scorers
     from evalkit.scorers import evidence
 
-    withheld = set(WITHHELD["evalkit.scorers"])
-    assert withheld == {
-        "value_check",
-        "value_check_scorer",
-        "value_check_shares",
-        "ValuePhrase",
-        "ValueCheckShares",
+    rec = json.loads(RELEASE.read_text(encoding="utf-8"))
+    assert rec["version"] == VERSION
+    assert {f["filename"] for f in rec["files"]} == {
+        "evalkit_harness-0.3.0-py3-none-any.whl",
+        "evalkit_harness-0.3.0.tar.gz",
     }
-    assert not withheld & set(scorers.__all__)
-    assert not withheld & set(PUBLIC["evalkit.scorers"])
-    assert not withheld & set(vars(scorers))
-    for name in withheld:
-        with pytest.raises(ImportError):
-            exec(f"from evalkit.scorers import {name}", {})
+    text = (ROOT / "changelog.md").read_text(encoding="utf-8")
+    section = text.split(f"## {VERSION}\n", 1)[1].split("\n## ", 1)[0]
+    not_in = section.split("**Not in 0.3.0**", 1)[1].split("\n**", 1)[0]
+    assert set(re.findall(r"`(\w+)`", not_in)) == WITHHELD_0_3_0
+    assert "D-74" in not_in and "withheld" in not_in
+    fraud = _sections()["fraud-review-bedrock"]
+    for today, kind, _ in _rows(fraud):
+        if today.rsplit(".", 1)[-1] in WITHHELD_0_3_0:
+            assert kind == "withheld (D-74)", today
+    for name in WITHHELD_0_3_0:
         assert hasattr(evidence, name)
     assert "render_evidence" in scorers.__all__ and "render_evidence" in PUBLIC["evalkit.scorers"]
 
 
-def test_the_contract_check_fails_if_a_withheld_name_is_exported(monkeypatch):
-    import evalkit.scorers as scorers
-    from evalkit.scorers.evidence import value_check
-
+def test_the_withheld_guard_would_have_failed_0_3_0_on_todays_exports(monkeypatch):
+    """The D-74 guard is emptied in 0.4.0 but kept: restoring 0.3.0's WITHHELD list makes the
+    contract check fail on every value_check name 0.4.0 exports."""
     assert _api.missing() == []
-    monkeypatch.setattr(scorers, "value_check", value_check, raising=False)
-    assert _api.missing() == ["evalkit.scorers.value_check (withheld, D-74)"]
+    monkeypatch.setattr(_api, "WITHHELD", {"evalkit.scorers": sorted(WITHHELD_0_3_0)})
+    assert _api.missing() == [f"evalkit.scorers.{n} (withheld)" for n in sorted(WITHHELD_0_3_0)]
 
 
 def test_plugins_doc_marks_value_check_as_a_0_4_0_structured_facts_check():
     """0.3.0 said "coming in 0.4.0" (D-74); since D-77 the section names the 0.4.0 check."""
     text = (ROOT / "docs" / "plugins.md").read_text(encoding="utf-8")
     assert "#### value_check: a structured-facts check (0.4.0, D-74, D-77)" in text
-    assert "from evalkit.scorers import value_check" not in text.replace(
-        "`from evalkit.scorers import value_check` fails in 0.3.0", ""
-    )
 
 
 # ---- V03-01 release-candidate canary ----------------------------------------------------------
@@ -144,7 +169,7 @@ def test_rc_canary_covers_every_registered_project_with_tests():
 
 def _withheld_import_break(p: dict) -> bool:
     """A failure made only of collection errors on a name D-74 withheld from evalkit.scorers."""
-    names = "|".join(WITHHELD["evalkit.scorers"])
+    names = "|".join(sorted(WITHHELD_0_3_0))
     hits = re.findall(rf"cannot import name '(?:{names})' from 'evalkit\.scorers'", p["detail"])
     c = p["counts"]
     return bool(hits) and c["failed"] == 0 and c["errors"] == len(p["failures"]) > 0
@@ -172,9 +197,10 @@ def test_rc_canary_statuses_are_ok_or_a_d74_break_named_in_the_guide():
 
 
 def _sections() -> dict[str, str]:
+    """Each project's 0.3.0 part: its section up to its "0.3 → 0.4" subsection (B5.10)."""
     text = GUIDE.read_text(encoding="utf-8")
     parts = re.split(r"^## ", text, flags=re.M)[1:]
-    return {p.split("\n", 1)[0].strip(): p for p in parts}
+    return {p.split("\n", 1)[0].strip(): p.split(SUBSECTION_04, 1)[0] for p in parts}
 
 
 def _rows(section: str) -> list[tuple[str, str, str]]:
@@ -275,15 +301,15 @@ def test_moved_and_promoted_paths_point_at_their_public_homes():
     """Each PROMOTED path in the guide is replaced by exactly its public home."""
     for project, rows in _all_rows().items():
         for today, _, replace in rows:
-            if today in _api.PROMOTED:
-                assert f"`{_api.PROMOTED[today]}`" in replace, (project, today)
+            if today in PROMOTED_0_3_0:
+                assert f"`{PROMOTED_0_3_0[today]}`" in replace, (project, today)
 
 
 def test_withheld_value_check_is_never_offered_as_a_replacement():
-    """Safety (D-74): the guide never tells a project to use a withheld or internal name."""
+    """Safety (D-74): the 0.3.0 guide never told a project to use a withheld or internal name."""
     for project, today, dotted in _replacements():
         name = dotted.rsplit(".", 1)[-1]
-        assert name not in WITHHELD["evalkit.scorers"], (project, today, dotted)
+        assert name not in WITHHELD_0_3_0, (project, today, dotted)
         assert not dotted.startswith("evalkit.scorers.evidence."), (project, today, dotted)
 
 
@@ -319,12 +345,10 @@ def test_the_v0_3_0_release_record_matches_the_tag_the_tree_and_pypi_files():
     sha256 from PyPI; the tagged version equals the package version."""
     import evalkit
 
-    rec = json.loads(
-        (ROOT / "docs" / "measurements" / "release-v0.3.0-2026-11-17.json").read_text("utf-8")
-    )
+    rec = json.loads(RELEASE.read_text("utf-8"))
     assert rec["tag"] == "v0.3.0" == f"v{rec['version']}"
     assert re.fullmatch(r"[0-9a-f]{40}", rec["commit"])
-    assert evalkit.__version__ == rec["version"]
+    assert Version(evalkit.__version__) >= Version(rec["version"])  # the tree has moved on
     assert "owner" in rec["approved_by"]
     names = sorted(f["filename"] for f in rec["files"])
     assert names == ["evalkit_harness-0.3.0-py3-none-any.whl", "evalkit_harness-0.3.0.tar.gz"]
