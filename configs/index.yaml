@@ -17,7 +17,9 @@ projects:
     quality: {metric: accuracy}
     lessons: docs/lessons.md
   course-assistant:
-    # no channel to its session yet: headline and quality not designated
+    # its own request (relayed by the portfolio session, 2026-11-18): the headline is designated
+    # at its node E2.5; until then the row says so. Quality not designated.
+    headline_pending: until E2.5
     lessons: docs/lessons.md
   gemma-grounded-health:
     # confirmed: the fine-tuned v1 model by the cross-family judge (a v2 selector follows later);

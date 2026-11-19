@@ -500,6 +500,9 @@ class ProjectConfig(_Strict):
     pointer: Pointer | None = None  # the summary sits in the folder a pointer file names
     own_format: OwnFormat | None = None  # the project's own summary format, read with paths
     headline: Selector | None = None
+    # when a headline will be designated, in the project's own words: shown after
+    # "not designated" (e.g. "until E2.5"); only for a project with no headline yet
+    headline_pending: StrictStr | None = None
     comparison: Selector | None = None  # an optional second row shown under the headline
     quality: Selector | None = None  # per model: `model` is added to its labels
     calibration: Selector | None = None  # metrics-1 only: the row that states calibration
@@ -522,6 +525,11 @@ class ProjectConfig(_Strict):
     def _consistent(self) -> ProjectConfig:
         if self.summary is not None and self.pointer is not None:
             raise ValueError("give summary or pointer, not both")
+        if self.headline_pending is not None:
+            if self.headline is not None:
+                raise ValueError("headline_pending is for a project with no headline yet")
+            if not self.headline_pending.strip() or len(self.headline_pending) > 120:
+                raise ValueError("headline_pending is 1 to 120 characters")
         shown = [s for s in (self.headline, self.comparison) if s is not None]
         if self.own_format is not None:
             if any(s.path is None for s in shown):
@@ -1371,6 +1379,7 @@ class ProjectEntry:
     pin_note: str = ""  # set when the registry's cell disagrees with the project's pyproject
     headline: Figure | None = None
     headline_label: str | None = None
+    headline_pending: str | None = None  # the config's words after "not designated"
     headline_comparison: Figure | None = None  # the config's optional comparison row
     comparison_label: str | None = None
     pointer: dict[str, Any] | None = None  # the pointer file the summary path was read from
@@ -1412,6 +1421,7 @@ class ProjectEntry:
             "pin_note": self.pin_note,
             "headline": None if self.headline is None else self.headline.as_dict(),
             "headline_label": self.headline_label,
+            "headline_pending": self.headline_pending,
             "headline_comparison": (
                 None if self.headline_comparison is None else self.headline_comparison.as_dict()
             ),
@@ -2026,8 +2036,15 @@ def read_project(
         entry = _missing(row, cfg, exc.reason)
     except Exception as exc:  # an unreadable file never crashes the page
         entry = _missing(row, cfg, f"unexpected {type(exc).__name__}")
+    if entry.headline is None and cfg.headline_pending:
+        entry.headline_pending = _clean(cfg.headline_pending.strip())
     entry.story = _story(entry, cfg)
     return entry
+
+
+def _not_designated(e: ProjectEntry) -> str:
+    """ "not designated", followed by the config's headline_pending words when it gives them."""
+    return f"not designated {e.headline_pending}" if e.headline_pending else "not designated"
 
 
 def _missing(row: RegistryRow, cfg: ProjectConfig, reason: str) -> ProjectEntry:
@@ -2099,7 +2116,11 @@ def _story(e: ProjectEntry, cfg: ProjectConfig) -> dict[str, Any]:
     label = e.headline_label or "headline"
     run = f"run {e.run_id}; " if e.run_id else ""
     if h is None:
-        headline = {"value": "not designated", "label": label, "note": f"{run}commit {short}"}
+        headline = {
+            "value": _not_designated(e),
+            "label": label,
+            "note": f"{run}commit {short}",
+        }
     elif h.problem:
         headline = {"value": "not shown", "label": label, "note": h.problem}
     else:
@@ -2317,7 +2338,7 @@ def _overview(index: Index) -> str:
             continue
         sim = ' <span class="badge sim">SIMULATED</span>' if p.simulated else ""
         if p.headline is None:
-            headline = "<span class=muted>not designated</span>"
+            headline = f"<span class=muted>{_e(_not_designated(p))}</span>"
         else:
             headline = f"{_e(p.headline_label)}: {_fig_html(p.headline)}"
         if p.headline_comparison is not None:
@@ -2427,7 +2448,11 @@ def _project_html(p: ProjectEntry) -> str:
         else ""
     )
     headline = (
-        "<p class=muted>Headline not designated in the index config.</p>"
+        (
+            f"<p class=muted>Headline {_e(_not_designated(p))}.</p>"
+            if p.headline_pending
+            else "<p class=muted>Headline not designated in the index config.</p>"
+        )
         if p.headline is None
         else f"<p><strong>{_e(p.headline_label)}</strong>: {_fig_html(p.headline)}</p>"
     )

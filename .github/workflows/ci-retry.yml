@@ -1,0 +1,42 @@
+name: ci retry
+
+# GitHub sometimes cancels a queued job before any runner picks it up (seen on macos-latest:
+# the job ends "cancelled" with no steps). That is not a test result, so this re-runs those
+# jobs, at most twice. A job that started and failed, or was cancelled after it started, is
+# never retried: real failures stay red.
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rerun-unstarted:
+    if: >-
+      github.event.workflow_run.conclusion != 'success' &&
+      github.event.workflow_run.run_attempt < 3
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN: ${{ github.event.workflow_run.id }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: re-run only jobs that never got a runner
+        run: |
+          jobs=$(gh api "repos/$REPO/actions/runs/$RUN/jobs?per_page=100" --jq '.jobs')
+          bad=$(jq '[.[] | select(.conclusion != "success" and .conclusion != "skipped")]' <<<"$jobs")
+          unstarted=$(jq '[.[] | select(.conclusion == "cancelled" and (.steps | length) == 0)]' <<<"$bad")
+          n_bad=$(jq length <<<"$bad"); n_unstarted=$(jq length <<<"$unstarted")
+          echo "not successful: $n_bad; never started: $n_unstarted"
+          jq -r '.[] | "  \(.name): \(.conclusion), \(.steps | length) steps"' <<<"$bad"
+          if [ "$n_bad" -gt 0 ] && [ "$n_bad" -eq "$n_unstarted" ]; then
+            gh run rerun "$RUN" --failed -R "$REPO"
+            echo "re-ran the jobs that never started"
+          else
+            echo "a job started and did not succeed: not retried"
+          fi

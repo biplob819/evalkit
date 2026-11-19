@@ -77,6 +77,20 @@ def test_workflows_grant_least_privilege():
     assert re.search(r"permissions:\n\s+id-token: write\n\s+contents: read", rel)
 
 
+@pytest.mark.contract
+def test_ci_retry_reruns_only_jobs_that_never_started_and_runs_no_repo_code():
+    retry = _yaml_code(WORKFLOWS / "ci-retry.yml")
+    assert re.search(r"^permissions:\n  actions: write\n  contents: read$", retry, re.M)
+    assert "workflows: [ci]" in retry and "types: [completed]" in retry
+    assert "run_attempt < 3" in retry  # at most two re-runs
+    # a workflow_run job holds a write token: it never checks out or runs the repo's code
+    assert "actions/checkout" not in retry and "uv " not in retry and "secrets." not in retry
+    # re-runs only when every unsuccessful job was cancelled with no steps (never got a runner)
+    assert '.conclusion == "cancelled" and (.steps | length) == 0' in retry
+    assert '[ "$n_bad" -eq "$n_unstarted" ]' in retry
+    assert re.search(r"timeout-minutes: \d+", _yaml_code(WORKFLOWS / "ci.yml"))
+
+
 def test_catalog_round_trip_is_byte_identical(tmp_path):
     from harness_lib import CATALOG_TSV, load_catalog, write_catalog
 

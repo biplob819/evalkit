@@ -16,7 +16,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -185,6 +185,7 @@
       },
       "headline_comparison": null,
       "headline_label": "agentic-analytics — text-to-SQL accuracy (headline, strict beside)",
+      "headline_pending": null,
       "improvements": [],
       "kind": "own-format",
       "lessons_url": "https://github.com/biplob819/agentic-analytics/blob/cba4dce9b7d3fb62f7d969b11a1d29fcc7950e2e/docs/lessons.md",
@@ -245,7 +246,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0 (git 218192132ad6))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -298,6 +299,7 @@
         "value": 0.1
       },
       "headline_label": "Answers citing nhs.uk, GPT-6.1 Sol (run 1)",
+      "headline_pending": null,
       "improvements": [],
       "kind": "own-format",
       "lessons_url": "https://github.com/biplob819/ai-visibility/blob/bddff4aa944c885cf751b99d5b8bab500d270514/docs/lessons.md",
@@ -389,7 +391,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -918,6 +920,7 @@
       },
       "headline_comparison": null,
       "headline_label": "Attacks stopped with no model in the loop",
+      "headline_pending": null,
       "improvements": [],
       "kind": "metrics-1",
       "lessons_url": "https://github.com/biplob819/assay-pipeline/blob/ff879e6fb425a72f05689c47a71e86b187d269cc/docs/lessons.md",
@@ -1938,7 +1941,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -1970,6 +1973,7 @@
       "headline": null,
       "headline_comparison": null,
       "headline_label": null,
+      "headline_pending": "until E2.5",
       "improvements": [],
       "kind": "evalkit-summary",
       "lessons_url": "https://github.com/biplob819/course-assistant/blob/6067c4a7de89fdfde1f4eb3e984996f229ed16df/docs/lessons.md",
@@ -2130,7 +2134,7 @@
         "headline": {
           "label": "headline",
           "note": "run r-65a32f837b06; commit 6067c4a",
-          "value": "not designated"
+          "value": "not designated until E2.5"
         },
         "improvements": [],
         "learnings": [
@@ -2159,15 +2163,15 @@
         "status": "not stated",
         "text": "not stated in the project's own summary format"
       },
-      "commit": "50fe3e05ce25c2494977f3cc70a1a89ca1d7e008",
+      "commit": "11833f120f54ee8ae130b6a9d078d283bd1cab84",
       "comparison_label": null,
       "cost_per_correct_comparison": "",
       "efficiency_note": "no per-model efficiency in this summary (the project's own format)",
-      "evalkit_pin": "evalkit-harness[anthropic,openai] @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573",
-      "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0 (git 4ddfef50d55d))",
+      "evalkit_pin": "evalkit-harness[anthropic,openai]==0.4.1",
+      "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -2200,16 +2204,17 @@
       },
       "headline_comparison": null,
       "headline_label": "Fraud leakage (frauds auto-cleared, lower is better)",
+      "headline_pending": null,
       "improvements": [],
       "kind": "own-format",
-      "lessons_url": "https://github.com/biplob819/fraud-review-bedrock/blob/50fe3e05ce25c2494977f3cc70a1a89ca1d7e008/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/fraud-review-bedrock/blob/11833f120f54ee8ae130b6a9d078d283bd1cab84/docs/lessons.md",
       "models": [],
       "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "fraud-review-bedrock",
       "reason": "",
-      "registry_pin": "evalkit-harness[anthropic,openai] @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573",
+      "registry_pin": "evalkit-harness[anthropic,openai]==0.4.1",
       "repo": "biplob819/fraud-review-bedrock",
       "run_at": "2026-11-17T08:29:25Z",
       "run_date": "2026-11-17",
@@ -2227,26 +2232,26 @@
             "name": "Fraud leakage (frauds auto-cleared, lower is better)",
             "result": "0 of 55, below 5.3% at 95%",
             "status": "provisional",
-            "url": "https://github.com/biplob819/fraud-review-bedrock/blob/50fe3e05ce25c2494977f3cc70a1a89ca1d7e008/docs/measurements/summary-eval2.json"
+            "url": "https://github.com/biplob819/fraud-review-bedrock/blob/11833f120f54ee8ae130b6a9d078d283bd1cab84/docs/measurements/summary-eval2.json"
           }
         ],
         "headline": {
           "label": "Fraud leakage (frauds auto-cleared, lower is better)",
-          "note": "interval 0.0% to 5.3% (exact 95% upper bound); simulated; run eval2-500-7fec65d1; commit 50fe3e0; EvalKit not recorded (pin evalkit-harness[anthropic,openai] @ git+https://github.com/biplob819/evalkit@4ddfef50d55db653aaf57048af06f2ba606e1573)",
+          "note": "interval 0.0% to 5.3% (exact 95% upper bound); simulated; run eval2-500-7fec65d1; commit 11833f1; EvalKit not recorded (pin evalkit-harness[anthropic,openai]==0.4.1)",
           "value": "0 of 55, below 5.3% at 95%"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "fraud-review-bedrock lessons log",
-            "now": "read the log at commit 50fe3e0",
-            "url": "https://github.com/biplob819/fraud-review-bedrock/blob/50fe3e05ce25c2494977f3cc70a1a89ca1d7e008/docs/lessons.md"
+            "now": "read the log at commit 11833f1",
+            "url": "https://github.com/biplob819/fraud-review-bedrock/blob/11833f120f54ee8ae130b6a9d078d283bd1cab84/docs/lessons.md"
           }
         ],
         "monitoring": []
       },
       "summary_path": "docs/measurements/summary-eval2.json",
-      "url": "https://github.com/biplob819/fraud-review-bedrock/blob/50fe3e05ce25c2494977f3cc70a1a89ca1d7e008/docs/measurements/summary-eval2.json"
+      "url": "https://github.com/biplob819/fraud-review-bedrock/blob/11833f120f54ee8ae130b6a9d078d283bd1cab84/docs/measurements/summary-eval2.json"
     },
     {
       "calibration": {
@@ -2262,7 +2267,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.1.0 (git 06591f8de9b1))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -2371,6 +2376,7 @@
       },
       "headline_comparison": null,
       "headline_label": "Correct and fully grounded (fine-tuned v1)",
+      "headline_pending": null,
       "improvements": [],
       "kind": "evalkit-summary",
       "lessons_url": "https://github.com/biplob819/gemma-grounded-health/blob/5a9b01cb2651dca14f23d3fd21c76acd456ff3d3/docs/lessons.md",
@@ -2991,15 +2997,15 @@
         "status": "not stated",
         "text": "not stated in the metrics-1 file"
       },
-      "commit": "396fb3454dd025892b28790874df1db123b92c1f",
+      "commit": "990f24af096dd9006091bdef451af99cf35e70d2",
       "comparison_label": null,
       "cost_per_correct_comparison": "",
       "efficiency_note": "no per-model efficiency in this summary (no model label)",
-      "evalkit_pin": "evalkit-harness>=0.4,<0.5",
-      "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.0)",
+      "evalkit_pin": "evalkit-harness>=0.4.1,<0.5",
+      "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -5286,7 +5292,7 @@
             "unit": "bool"
           }
         ],
-        "source": "gates file configs/gates.yaml at 396fb34",
+        "source": "gates file configs/gates.yaml at 990f24a",
         "status": "pass",
         "warned": 2
       },
@@ -5317,16 +5323,17 @@
       },
       "headline_comparison": null,
       "headline_label": "Extra members kept per 1,000 NTD, bandit vs rule-following baseline (central, simulated)",
+      "headline_pending": null,
       "improvements": [],
       "kind": "metrics-1",
-      "lessons_url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/docs/lessons.md",
       "models": [],
       "pin_note": "",
       "pointer": null,
       "problems": [],
       "project": "respectful-offers",
       "reason": "",
-      "registry_pin": "evalkit-harness>=0.4,<0.5",
+      "registry_pin": "evalkit-harness>=0.4.1,<0.5",
       "repo": "biplob819/respectful-offers",
       "run_at": "2026-11-16T20:12:07.430556Z",
       "run_date": "2026-11-16",
@@ -5344,7 +5351,7 @@
             "name": "Extra members kept per 1,000 NTD, bandit vs rule-following baseline (central, simulated)",
             "result": "5.570 [5.064, 6.096]",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5352,7 +5359,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R1, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5360,7 +5367,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R2, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5368,7 +5375,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R3, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5376,7 +5383,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R7, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5384,7 +5391,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R8, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5392,7 +5399,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R1, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5400,7 +5407,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R2, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5408,7 +5415,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R3, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5416,7 +5423,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R7, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5424,7 +5431,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R8, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5432,7 +5439,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R1, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5440,7 +5447,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R2, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5448,7 +5455,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R3, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5456,7 +5463,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R7, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5464,7 +5471,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R8, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5472,7 +5479,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R1, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5480,7 +5487,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R2, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5488,7 +5495,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R3, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5496,7 +5503,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R7, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5504,7 +5511,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R8, variant=conservative)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5512,7 +5519,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R1, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5520,7 +5527,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R2, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5528,7 +5535,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R3, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5536,7 +5543,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R7, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5544,7 +5551,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R8, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5552,7 +5559,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R1, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5560,7 +5567,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R2, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5568,7 +5575,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R3, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5576,7 +5583,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R7, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5584,7 +5591,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R8, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5592,7 +5599,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R1, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5600,7 +5607,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R2, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5608,7 +5615,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R3, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5616,7 +5623,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R7, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5624,7 +5631,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R8, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5632,7 +5639,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R1, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5640,7 +5647,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R2, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5648,7 +5655,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R3, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5656,7 +5663,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R7, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5664,7 +5671,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R8, variant=central)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5672,7 +5679,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R1, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5680,7 +5687,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R2, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5688,7 +5695,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R3, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5696,7 +5703,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R7, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5704,7 +5711,7 @@
             "name": "violations (policy=no_offer, respectful=true, rule=R8, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5712,7 +5719,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R1, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5720,7 +5727,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R2, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5728,7 +5735,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R3, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5736,7 +5743,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R7, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5744,7 +5751,7 @@
             "name": "violations (policy=rule_following_baseline, respectful=true, rule=R8, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5752,7 +5759,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R1, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5760,7 +5767,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R2, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5768,7 +5775,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R3, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5776,7 +5783,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R7, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5784,7 +5791,7 @@
             "name": "violations (policy=bandit, respectful=true, rule=R8, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5792,7 +5799,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R1, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5800,7 +5807,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R2, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5808,7 +5815,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R3, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5816,7 +5823,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R7, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5824,7 +5831,7 @@
             "name": "violations (policy=segment_oracle, respectful=true, rule=R8, variant=optimistic)",
             "result": "0",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5832,7 +5839,7 @@
             "name": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=conservative)",
             "result": "1.276",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5840,7 +5847,7 @@
             "name": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5848,7 +5855,7 @@
             "name": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=central)",
             "result": "5.064",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5856,7 +5863,7 @@
             "name": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5864,7 +5871,7 @@
             "name": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=optimistic)",
             "result": "8.728",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5872,7 +5879,7 @@
             "name": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5880,7 +5887,7 @@
             "name": "holdout_check (variant=central)",
             "result": "-1.845",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5888,7 +5895,7 @@
             "name": "holdout_check (variant=conservative)",
             "result": "-1.845",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5896,7 +5903,7 @@
             "name": "holdout_check (variant=optimistic)",
             "result": "-1.845",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5904,7 +5911,7 @@
             "name": "holdout_check (variant=central)",
             "result": "3.765",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5912,7 +5919,7 @@
             "name": "holdout_check (variant=conservative)",
             "result": "3.765",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5920,7 +5927,7 @@
             "name": "holdout_check (variant=optimistic)",
             "result": "3.765",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5928,7 +5935,7 @@
             "name": "group.offer_rate (age_band=max - min, policy=bandit, variant=central)",
             "result": "35.9%",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5936,7 +5943,7 @@
             "name": "group.offer_rate (age_band=max - min, policy=rule_following_baseline, variant=central)",
             "result": "40.0%",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5944,7 +5951,7 @@
             "name": "churn.auc",
             "result": "0.839",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5952,7 +5959,7 @@
             "name": "churn.ece",
             "result": "0.02621",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5960,7 +5967,7 @@
             "name": "ope.covered (estimator=ips, policy=no_offer, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5968,7 +5975,7 @@
             "name": "ope.covered (estimator=snips, policy=no_offer, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5976,7 +5983,7 @@
             "name": "ope.covered (estimator=dr, policy=no_offer, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5984,7 +5991,7 @@
             "name": "ope.covered (estimator=ips, policy=rule_following_baseline, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -5992,7 +5999,7 @@
             "name": "ope.covered (estimator=snips, policy=rule_following_baseline, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6000,7 +6007,7 @@
             "name": "ope.covered (estimator=dr, policy=rule_following_baseline, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6008,7 +6015,7 @@
             "name": "ope.covered (estimator=ips, policy=segment_oracle, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6016,7 +6023,7 @@
             "name": "ope.covered (estimator=snips, policy=segment_oracle, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6024,7 +6031,7 @@
             "name": "ope.covered (estimator=dr, policy=segment_oracle, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6032,7 +6039,7 @@
             "name": "ope.covered (estimator=ips, policy=bandit, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6040,7 +6047,7 @@
             "name": "ope.covered (estimator=snips, policy=bandit, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6048,7 +6055,7 @@
             "name": "ope.covered (estimator=dr, policy=bandit, variant=conservative)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6056,7 +6063,7 @@
             "name": "ope.covered (estimator=ips, policy=no_offer, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6064,7 +6071,7 @@
             "name": "ope.covered (estimator=snips, policy=no_offer, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6072,7 +6079,7 @@
             "name": "ope.covered (estimator=dr, policy=no_offer, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6080,7 +6087,7 @@
             "name": "ope.covered (estimator=ips, policy=rule_following_baseline, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6088,7 +6095,7 @@
             "name": "ope.covered (estimator=snips, policy=rule_following_baseline, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6096,7 +6103,7 @@
             "name": "ope.covered (estimator=dr, policy=rule_following_baseline, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6104,7 +6111,7 @@
             "name": "ope.covered (estimator=ips, policy=segment_oracle, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6112,7 +6119,7 @@
             "name": "ope.covered (estimator=snips, policy=segment_oracle, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6120,7 +6127,7 @@
             "name": "ope.covered (estimator=dr, policy=segment_oracle, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6128,7 +6135,7 @@
             "name": "ope.covered (estimator=ips, policy=bandit, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6136,7 +6143,7 @@
             "name": "ope.covered (estimator=snips, policy=bandit, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6144,7 +6151,7 @@
             "name": "ope.covered (estimator=dr, policy=bandit, variant=central)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6152,7 +6159,7 @@
             "name": "ope.covered (estimator=ips, policy=no_offer, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6160,7 +6167,7 @@
             "name": "ope.covered (estimator=snips, policy=no_offer, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6168,7 +6175,7 @@
             "name": "ope.covered (estimator=dr, policy=no_offer, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6176,7 +6183,7 @@
             "name": "ope.covered (estimator=ips, policy=rule_following_baseline, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6184,7 +6191,7 @@
             "name": "ope.covered (estimator=snips, policy=rule_following_baseline, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6192,7 +6199,7 @@
             "name": "ope.covered (estimator=dr, policy=rule_following_baseline, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6200,7 +6207,7 @@
             "name": "ope.covered (estimator=ips, policy=segment_oracle, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6208,7 +6215,7 @@
             "name": "ope.covered (estimator=snips, policy=segment_oracle, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6216,7 +6223,7 @@
             "name": "ope.covered (estimator=dr, policy=segment_oracle, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6224,7 +6231,7 @@
             "name": "ope.covered (estimator=ips, policy=bandit, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6232,7 +6239,7 @@
             "name": "ope.covered (estimator=snips, policy=bandit, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           },
           {
             "data": "gated row",
@@ -6240,803 +6247,803 @@
             "name": "ope.covered (estimator=dr, policy=bandit, variant=optimistic)",
             "result": "true",
             "status": "provisional",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
           }
         ],
         "headline": {
           "label": "Extra members kept per 1,000 NTD, bandit vs rule-following baseline (central, simulated)",
-          "note": "interval 5.064 to 6.096 (paired block-bootstrap percentile 95%; Holm per metric and variant (D-16)); simulated; run real-v2; commit 396fb34; EvalKit not recorded (pin evalkit-harness>=0.4,<0.5)",
+          "note": "interval 5.064 to 6.096 (paired block-bootstrap percentile 95%; Holm per metric and variant (D-16)); simulated; run real-v2; commit 990f24a; EvalKit not recorded (pin evalkit-harness>=0.4.1,<0.5)",
           "value": "5.570 [5.064, 6.096]"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "respectful-offers lessons log",
-            "now": "read the log at commit 396fb34",
-            "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/docs/lessons.md"
+            "now": "read the log at commit 990f24a",
+            "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/docs/lessons.md"
           }
         ],
         "monitoring": [
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R1, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R2, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R3, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R7, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R8, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R1, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R2, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R3, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R7, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R8, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R1, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R2, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R3, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R7, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R8, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R1, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R2, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R3, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R7, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R8, variant=conservative)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R1, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R2, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R3, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R7, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R8, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R1, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R2, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R3, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R7, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R8, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R1, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R2, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R3, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R7, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R8, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R1, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R2, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R3, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R7, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R8, variant=central)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R1, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R2, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R3, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R7, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=no_offer, respectful=true, rule=R8, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R1, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R2, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R3, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R7, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=rule_following_baseline, respectful=true, rule=R8, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R1, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R2, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R3, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R7, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=bandit, respectful=true, rule=R8, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R1, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R2, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R3, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R7, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "0",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "guardrail",
             "metric": "violations (policy=segment_oracle, respectful=true, rule=R8, variant=optimistic)",
             "target": "== 0"
           },
           {
             "current": "1.276",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "north-star",
             "metric": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=conservative)",
             "target": ">= 0 (lower bound)"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "5.064",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "north-star",
             "metric": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=central)",
             "target": ">= 0 (lower bound)"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=central)",
             "target": "== true"
           },
           {
             "current": "8.728",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "north-star",
             "metric": "diff.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=optimistic)",
             "target": ">= 0 (lower bound)"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "separated.incremental_retained_per_1000_ntd (a=bandit, b=rule_following_baseline, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "-1.845",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "holdout_check (variant=central)",
             "target": "<= 0 (lower bound)"
           },
           {
             "current": "-1.845",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "holdout_check (variant=conservative)",
             "target": "<= 0 (lower bound)"
           },
           {
             "current": "-1.845",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "holdout_check (variant=optimistic)",
             "target": "<= 0 (lower bound)"
           },
           {
             "current": "3.765",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "holdout_check (variant=central)",
             "target": ">= 0 (upper bound)"
           },
           {
             "current": "3.765",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "holdout_check (variant=conservative)",
             "target": ">= 0 (upper bound)"
           },
           {
             "current": "3.765",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "holdout_check (variant=optimistic)",
             "target": ">= 0 (upper bound)"
           },
           {
             "current": "35.9%",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "group.offer_rate (age_band=max - min, policy=bandit, variant=central)",
             "target": "<= 0.1"
           },
           {
             "current": "40.0%",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "group.offer_rate (age_band=max - min, policy=rule_following_baseline, variant=central)",
             "target": "<= 0.1"
           },
           {
             "current": "0.839",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "churn.auc",
             "target": ">= 0.8 (lower bound)"
           },
           {
             "current": "0.02621",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "churn.ece",
             "target": "<= 0.05"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=no_offer, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=no_offer, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=no_offer, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=rule_following_baseline, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=rule_following_baseline, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=rule_following_baseline, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=segment_oracle, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=segment_oracle, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=segment_oracle, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=bandit, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=bandit, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=bandit, variant=conservative)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=no_offer, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=no_offer, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=no_offer, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=rule_following_baseline, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=rule_following_baseline, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=rule_following_baseline, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=segment_oracle, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=segment_oracle, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=segment_oracle, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=bandit, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=bandit, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=bandit, variant=central)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=no_offer, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=no_offer, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=no_offer, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=rule_following_baseline, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=rule_following_baseline, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=rule_following_baseline, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=segment_oracle, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=segment_oracle, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=segment_oracle, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=ips, policy=bandit, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=snips, policy=bandit, variant=optimistic)",
             "target": "== true"
           },
           {
             "current": "true",
-            "how": "evalkit gate (gates file configs/gates.yaml at 396fb34)",
+            "how": "evalkit gate (gates file configs/gates.yaml at 990f24a)",
             "kind": "quality",
             "metric": "ope.covered (estimator=dr, policy=bandit, variant=optimistic)",
             "target": "== true"
@@ -7044,7 +7051,7 @@
         ]
       },
       "summary_path": "results/kkbox/metrics.json",
-      "url": "https://github.com/biplob819/respectful-offers/blob/396fb3454dd025892b28790874df1db123b92c1f/results/kkbox/metrics.json"
+      "url": "https://github.com/biplob819/respectful-offers/blob/990f24af096dd9006091bdef451af99cf35e70d2/results/kkbox/metrics.json"
     },
     {
       "calibration": {
@@ -7052,15 +7059,15 @@
         "status": "uncalibrated",
         "text": "uncalibrated: judge not calibrated for this task"
       },
-      "commit": "30ad6cd8b6554d0748bf477f4d8d221aee8994ae",
+      "commit": "ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66",
       "comparison_label": null,
       "cost_per_correct_comparison": "lowest cost per correct: gpt-6-luna (no interval to compare)",
       "efficiency_note": "",
-      "evalkit_pin": "evalkit-harness 0.4.0 (the repository at the commit)",
+      "evalkit_pin": "evalkit-harness 0.4.1 (the repository at the commit)",
       "evalkit_pin_source": "pyproject.toml at the commit",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-18T12:48:55Z",
+      "fetched_at": "2026-11-19T16:18:46Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -7169,9 +7176,10 @@
       },
       "headline_comparison": null,
       "headline_label": "Correct and fully grounded (PubMedQA)",
+      "headline_pending": null,
       "improvements": [],
       "kind": "evalkit-summary",
-      "lessons_url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/lessons.md",
       "models": [
         {
           "cost_per_correct_rank": 1,
@@ -7789,7 +7797,7 @@
             "name": "Correct and fully grounded (PubMedQA)",
             "result": "57.5% [50.5%, 64.0%]",
             "status": "provisional",
-            "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7797,7 +7805,7 @@
             "name": "passes_threshold (model=claude-sonnet-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7805,7 +7813,7 @@
             "name": "passes_threshold (model=claude-haiku-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7813,7 +7821,7 @@
             "name": "passes_threshold (model=gpt-6.1-sol)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7821,20 +7829,20 @@
             "name": "passes_threshold (model=gpt-6-luna)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
           }
         ],
         "headline": {
           "label": "Correct and fully grounded (PubMedQA)",
-          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit 30ad6cd; EvalKit not recorded (pin evalkit-harness 0.4.0 (the repository at the commit))",
+          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit ef1f1db; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
           "value": "57.5% [50.5%, 64.0%]"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "evalkit lessons log",
-            "now": "read the log at commit 30ad6cd",
-            "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/lessons.md"
+            "now": "read the log at commit ef1f1db",
+            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/lessons.md"
           }
         ],
         "monitoring": [
@@ -7869,7 +7877,7 @@
         ]
       },
       "summary_path": "docs/results/summary.json",
-      "url": "https://github.com/biplob819/evalkit/blob/30ad6cd8b6554d0748bf477f4d8d221aee8994ae/docs/results/summary.json"
+      "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
     }
   ],
   "schema_version": "index-1"

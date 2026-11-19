@@ -133,6 +133,39 @@ def test_headline_is_never_picked_by_the_index():
     assert own.value is None and entry(index, "evalkit").story["headline"]["value"] == "not shown"
 
 
+def test_headline_pending_shows_the_projects_words_after_not_designated():
+    cfg = ix.parse_config(CONFIG.read_text(encoding="utf-8"))
+    projects = dict(cfg.projects)
+    gemma = projects["gemma-grounded-health"].model_copy(update={"headline": None})
+    projects["gemma-grounded-health"] = gemma
+    plain = build(config=cfg.model_copy(update={"projects": dict(projects)}))
+    projects["gemma-grounded-health"] = gemma.model_copy(update={"headline_pending": "until E2.5"})
+    index = build(config=cfg.model_copy(update={"projects": projects}))
+    e = entry(index, "gemma-grounded-health")
+    assert e.headline is None and e.headline_pending == "until E2.5"
+    assert e.story["headline"]["value"] == "not designated until E2.5"
+    assert e.as_dict()["headline_pending"] == "until E2.5"
+    html = ix.render_html(index)
+    assert "<span class=muted>not designated until E2.5</span>" in html
+    assert "<p class=muted>Headline not designated until E2.5.</p>" in html
+    # a project without the words keeps the plain cell, and the JSON field is null
+    assert entry(plain, "gemma-grounded-health").as_dict()["headline_pending"] is None
+    assert entry(plain, "gemma-grounded-health").story["headline"]["value"] == "not designated"
+
+
+@pytest.mark.parametrize(
+    ("update", "message"),
+    [
+        ({"headline": {"metric": "headline"}}, "no headline yet"),
+        ({}, "1 to 120 characters"),
+    ],
+)
+def test_headline_pending_is_only_for_a_project_with_no_headline(update, message):
+    words = "   " if not update else "until E2.5"
+    with pytest.raises(ValueError, match=message):
+        ix.ProjectConfig.model_validate({"headline_pending": words, **update})
+
+
 def test_public_api_and_cli_contract(capsys):
     for name in ix.__all__:
         assert hasattr(ix, name), name
@@ -994,7 +1027,8 @@ def test_the_real_index_config_names_each_confirmed_headline_and_nothing_else():
     cfg = ix.load_config(REAL_CONFIG)
     registered = {r.project for r in ix.read_registry(ROOT / "docs" / "downstream.tsv")}
     assert set(cfg.projects) == registered | {"evalkit"}
-    assert cfg.projects["course-assistant"].headline is None  # no confirmation: not designated
+    course = cfg.projects["course-assistant"]
+    assert course.headline is None and course.headline_pending == "until E2.5"  # its own words
     assay = cfg.projects["assay-pipeline"]
     # the owner named one model's row; the other model's quality stays not designated
     assert assay.quality is not None and assay.quality.labels == {

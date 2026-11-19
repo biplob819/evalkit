@@ -165,13 +165,18 @@ model's interval lies below every other model's; otherwise it says `intervals ov
 ## The config
 
 [`configs/index.yaml`](../configs/index.yaml) (`schema_version: index-config-1`) names, per
-project, the optional keys `summary`, `pointer`, `own_format`, `headline`, `comparison`,
-`quality`, `calibration`, `efficiency_labels`, `gates`, `experiments`, `lessons` and `kinds`,
+project, the optional keys `summary`, `pointer`, `own_format`, `headline`, `headline_pending`,
+`comparison`, `quality`, `calibration`, `efficiency_labels`, `gates`, `experiments`, `lessons` and `kinds`,
 plus `heldout_splits` for all projects (`heldout` always counts). Unknown keys, and projects
 that are not registered, are refused. Every headline there is the one the project's own session
 confirmed (file, selector and label as it sent them); a project or a part with no confirmation
 has no selector, so its row says `not designated`. A model's quality cell without a `quality`
 selector says `not designated` too.
+
+`headline_pending` is for a project with no headline yet: its own words on when one will be
+designated (1 to 120 characters), shown after `not designated`. course-assistant's
+`headline_pending: until E2.5` makes its row read `not designated until E2.5`. It is refused
+beside a `headline`.
 
 A selector (`headline`, `comparison`, `quality`, `calibration`) also takes:
 
