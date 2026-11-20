@@ -87,6 +87,8 @@ NOT_RUN_HERE = {
     "compare ": "needs two runs or metrics files: tests/test_compare.py",  # B5.6
     "--labeller": "needs a filled sheet for a run folder: tests/cli/test_cli.py "
     "test_export_force_refuses_while_labels_exist_and_import_refuses_overwrite",  # D-81
+    "examples/llama-server/": "an EvalKit repo file, not in a scaffolded project: "
+    "tests/test_llama_server_example.py",  # B5.17
     "history ": "needs a run and a ledger: tests/test_ledger_history.py",  # B5.7
     "experiment ": "needs runs and a held-out manifest: tests/test_ledger_experiments.py",
     "drift ": "needs reference and new batches: tests/test_drift.py",  # B5.7

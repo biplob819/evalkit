@@ -1,11 +1,12 @@
 name: pages
 
 # Deploy the published headline run (docs/results/) to GitHub Pages (OWNER D-47), and the
-# cross-project eval index (docs/index/, B5.5) at /index/ when it has been built.
+# cross-project eval index (docs/index/, B5.5) at /index/ when it has been built, and Gemma Grounded
+# Health's v2 run (docs/gemma/, B5.17) at /gemma/ when its page has been built.
 on:
   push:
     branches: [main]
-    paths: ["docs/results/**", "docs/index/**", ".github/workflows/pages.yml"]
+    paths: ["docs/results/**", "docs/index/**", "docs/gemma/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -34,6 +35,11 @@ jobs:
           if [ -f docs/index/index.html ]; then
             mkdir -p _site/index
             cp docs/index/index.html docs/index/index.json _site/index/
+          fi
+          # Gemma Grounded Health's v2 run (B5.17), once scripts/build_gemma_page.py has written it
+          if [ -f docs/gemma/index.html ]; then
+            mkdir -p _site/gemma
+            cp docs/gemma/index.html docs/gemma/summary.json docs/gemma/run.json docs/gemma/charts.vl.json docs/gemma/source.json _site/gemma/
           fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

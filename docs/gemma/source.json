@@ -1,0 +1,197 @@
+{
+  "aim_rule": {
+    "citation_rubric_hash": "be34ebe577bc96ae",
+    "comparisons": [
+      {
+        "count": "published",
+        "diff": {
+          "hi": 0.403351,
+          "lo": 0.343505,
+          "point": 0.373662
+        },
+        "metric": "citation_precision",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-grounded-q4",
+        "separated": true
+      },
+      {
+        "count": "published",
+        "diff": {
+          "hi": -0.443132,
+          "lo": -0.5082,
+          "point": -0.475783
+        },
+        "metric": "aim_citation_rate",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-grounded-q4",
+        "separated": true
+      },
+      {
+        "count": "published",
+        "diff": {
+          "hi": 0.023204,
+          "lo": -0.045563,
+          "point": -0.011312
+        },
+        "metric": "citation_precision",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-base-q4",
+        "separated": false
+      },
+      {
+        "count": "published",
+        "diff": {
+          "hi": -0.028054,
+          "lo": -0.08043,
+          "point": -0.054046
+        },
+        "metric": "aim_citation_rate",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-base-q4",
+        "separated": true
+      },
+      {
+        "count": "corrected",
+        "diff": {
+          "hi": 0.401208,
+          "lo": 0.341413,
+          "point": 0.371606
+        },
+        "metric": "citation_precision",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-grounded-q4",
+        "separated": true
+      },
+      {
+        "count": "corrected",
+        "diff": {
+          "hi": -0.437729,
+          "lo": -0.502811,
+          "point": -0.470775
+        },
+        "metric": "aim_citation_rate",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-grounded-q4",
+        "separated": true
+      },
+      {
+        "count": "corrected",
+        "diff": {
+          "hi": -0.01162,
+          "lo": -0.080743,
+          "point": -0.046511
+        },
+        "metric": "citation_precision",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-base-q4",
+        "separated": true
+      },
+      {
+        "count": "corrected",
+        "diff": {
+          "hi": 0.05131,
+          "lo": 0.007809,
+          "point": 0.029798
+        },
+        "metric": "aim_citation_rate",
+        "model_a": "gemma-e2b-grounded-v2-q4",
+        "model_b": "gemma-e2b-base-q4",
+        "separated": true
+      }
+    ],
+    "decision": "OWNER D-62",
+    "judge": "gpt-6.1-sol",
+    "note": "Post-hoc robustness check, made after the V2.2 results were read. The pre-registered numbers stay as published; 'corrected' counts an aim-role cited sentence as supporting when the claim judge used it as evidence for a supported claim that restates the study's aim or design.",
+    "post_hoc": true,
+    "rates": [
+      {
+        "corrected": {
+          "aim_citation_rate": 0.053535,
+          "citation_precision": 0.783404
+        },
+        "model": "gemma-e2b-base-q4",
+        "published": {
+          "aim_citation_rate": 0.138384,
+          "citation_precision": 0.747234
+        }
+      },
+      {
+        "corrected": {
+          "aim_citation_rate": 0.554108,
+          "citation_precision": 0.365288
+        },
+        "model": "gemma-e2b-grounded-q4",
+        "published": {
+          "aim_citation_rate": 0.56012,
+          "citation_precision": 0.36226
+        }
+      },
+      {
+        "corrected": {
+          "aim_citation_rate": 0.083333,
+          "citation_precision": 0.736893
+        },
+        "model": "gemma-e2b-grounded-v2-q4",
+        "published": {
+          "aim_citation_rate": 0.084337,
+          "citation_precision": 0.735922
+        }
+      }
+    ],
+    "source": "docs/measurements/aim_rule_check.json",
+    "text": "v2-vs-base citation results depend on how the judge applies the citation check's aim rule; a post-hoc count makes base better than v2 on citation precision and aim-citation rate, so v2 is not claimed to beat base on citations, while v2-vs-v1 holds under both counts (OWNER D-62, `docs/measurements/aim_rule_check.json`).",
+    "text_source": "docs/README_release_draft.md",
+    "url": "https://github.com/biplob819/gemma-grounded-health/blob/22579b3/docs/measurements/aim_rule_check.json"
+  },
+  "calibration": {
+    "judge": "gpt-6.1-sol",
+    "reference_labeller": "claude-opus-5-5",
+    "run_stamp_note": "EvalKit's own run summaries keep its per-run stamp (OWNER D-59)",
+    "source": "docs/results/results_bundle.json",
+    "status": "calibrated",
+    "wording": "gpt-6.1-sol: calibrated, held-out kappa 0.598 [0.468, 0.711] on 231 pubmedqa claims, lower bound at least 0.4 (OWNER D-59): agreement with a Claude Opus 5.5 reference labeller (a model's labels, not a human expert's; OWNER D-60). Gemma-family check (40 claims from main_v2): agreement 0.950, kappa 0.893 [0.722, 1.000]"
+  },
+  "commit": "22579b32364a90ad632f2c2ed95a4a83df6a589e",
+  "files": {
+    "charts.vl.json": {
+      "from": "docs/results/main_v2/charts.vl.json",
+      "sha256": "968c3d1a525fbd1cb7fa0fe90172134494463a3ed8c165249794e144b4bbf8df"
+    },
+    "run.json": {
+      "from": "docs/results/main_v2/run.json",
+      "sha256": "44ce00c58b77fe372d8dc8d2a9de2a37e3e5b7864e856d1a8c9d0b0d2f49f184"
+    },
+    "summary.json": {
+      "from": "docs/results/main_v2/summary.json",
+      "sha256": "04798004b9a88195820d1a8253ef5d9de846de40eaa037ebc52532739535ec26"
+    }
+  },
+  "judging": {
+    "extractor": "gpt-6-luna",
+    "judge": "gpt-6.1-sol",
+    "source": "docs/README_release_draft.md",
+    "text": "claims extracted by `gpt-6-luna`, judged by `gpt-6.1-sol` alone"
+  },
+  "links": {
+    "gguf": "https://huggingface.co/biplob123/gemma-4-e2b-grounded-health-GGUF",
+    "model": "https://huggingface.co/biplob123/gemma-4-e2b-grounded-health",
+    "repo": "https://github.com/biplob819/gemma-grounded-health"
+  },
+  "models": {
+    "roles": {
+      "gemma-e2b-base-q4": "base",
+      "gemma-e2b-grounded-q4": "v1",
+      "gemma-e2b-grounded-v2-q4": "v2"
+    },
+    "served_by": "llama-server (llama.cpp b12421), EvalKit `endpoints` route",
+    "source": "configs/evalkit_v2.yaml"
+  },
+  "project": "Gemma Grounded Health",
+  "repo": "https://github.com/biplob819/gemma-grounded-health",
+  "run": {
+    "name": "main_v2",
+    "path": "docs/results/main_v2",
+    "run_id": "r-715fc213a8a5"
+  },
+  "schema": "gemma-page-1"
+}
