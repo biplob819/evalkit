@@ -6,4 +6,4 @@
 - [x] 4. Copy GGH's main_v2 summary, run and charts into `docs/gemma/`; `source.json`; `scripts/build_gemma_page.py` (build, `--check`, `--ggh`, `--self-test`); render `docs/gemma/index.html` (GEM-03), with tests
 - [x] 5. `pages.yml` copy step and push path (GEM-04), with a test
 - [x] 6. `ISSUE-aim-rule.md` draft (not filed)
-- [ ] 7. Changelog; catalog proofs; gates; node_converge twice
+- [x] 7. Changelog; catalog proofs; gates; node_converge twice
