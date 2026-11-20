@@ -16,4 +16,4 @@
 
 ## Paused (2026-11-20, owner's account change, relayed by the portfolio session)
 Clean stop: nothing running, no uncommitted edits, main = origin/main. Catalog 209/209 green; v0.4.1 on PyPI.
-**Resume point:** (1) owner's calibration hand labels on run r-e8dac378d2d3 (`evalkit calibrate export|label|label --relabel|score`, $0), then regenerate the report and README headline; (2) when course-assistant sends its headline after its E2.5, replace `headline_pending` in configs/index.yaml with its selector, snapshot and rebuild the index. No paid run pending.
+**Resume point:** (1) calibration labels on run r-e8dac378d2d3 (as done: made by Claude Opus 5.5 at the owner's choice, not by hand; see D-81) (`evalkit calibrate export|label|label --relabel|score`, $0), then regenerate the report and README headline; (2) when course-assistant sends its headline after its E2.5, replace `headline_pending` in configs/index.yaml with its selector, snapshot and rebuild the index. No paid run pending.

@@ -4,7 +4,7 @@
 PubMedQA (Jin et al., 2019), Hugging Face dataset `qiaojin/PubMedQA`, configuration `pqa_labeled`. Each item is a research question built from a PubMed article title, the article's abstract without its conclusion, and an expert yes/no/maybe answer.
 
 ## Licence
-MIT. EvalKit credits the dataset here and in the README, and will publish its own hand labels on extracted claims under the same licence.
+MIT. EvalKit credits the dataset here and in the README, and will publish its calibration labels on extracted claims under the same licence (made by Claude Opus 5.5 from a fixed prompt, not by a person: D-81).
 
 ## Subset and size
 PQA-L only: 1,000 expert-labelled questions (552 yes, 338 no, 110 maybe). The 61k unlabelled and 211k artificially generated subsets are not used. The loader pins the subset's checksum and row count, and refuses to run if either changes.

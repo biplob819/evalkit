@@ -3,7 +3,7 @@
 **Wave 2. Depends on:** A2.4, A2.5. **Unblocks:** B2.1, B2.2.
 
 ## Goal
-Measure how far each judge can be trusted on this task, against the owner's hand labels: a stratified 100-answer sample split into 50 tuning and 50 held-out answers plus a blind 20-answer relabel, kappa with bootstrap CIs per judge and per generator family, the extraction error rate, and the owner's self-consistency. Calibration is tied to the exact rubric (`judge_prompt_hash`), so a rubric change can never keep an old "calibrated" stamp.
+Measure how far each judge can be trusted on this task, against held-out labels (the owner's by hand on the labelling page, or a named model's imported with `--labeller`, D-81): a stratified 100-answer sample split into 50 tuning and 50 held-out answers plus a blind 20-answer relabel, kappa with bootstrap CIs per judge and per generator family, the extraction error rate, and the owner's self-consistency. Calibration is tied to the exact rubric (`judge_prompt_hash`), so a rubric change can never keep an old "calibrated" stamp.
 
 ## Outputs (`evalkit/pipeline/calibrate.py`)
 - `export_sample(records, seed)` → 100 answers stratified by model and reference label, split 50 tuning / 50 held-out with a fixed seed, plus 20 answers drawn for relabelling (CAL-01).

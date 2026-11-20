@@ -1,5 +1,5 @@
 """Calibration (CAL-01..08): how far each judge can be trusted on this task, against the
-owner's hand labels (Tech Spec §5).
+held-out labels, by hand or from a named model labeller (Tech Spec §5, D-81).
 
 Flow: `export_sample` picks 100 answers stratified by model and reference label, split 50
 tuning / 50 held-out, plus 20 for a blind relabel. `build_sheet` turns them into blind rows
