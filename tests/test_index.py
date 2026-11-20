@@ -1027,8 +1027,10 @@ def test_the_real_index_config_names_each_confirmed_headline_and_nothing_else():
     cfg = ix.load_config(REAL_CONFIG)
     registered = {r.project for r in ix.read_registry(ROOT / "docs" / "downstream.tsv")}
     assert set(cfg.projects) == registered | {"evalkit"}
-    course = cfg.projects["course-assistant"]
-    assert course.headline is None and course.headline_pending == "until E2.5"  # its own words
+    course = cfg.projects["course-assistant"]  # confirmed 2026-11-20: heldout-4 gate aggregates
+    assert course.headline is not None and course.headline_pending is None
+    assert course.summary == "docs/measurements/e2.5-heldout4-gates.json"
+    assert course.headline.path == '$.gates[?name == "grounded"].value'
     assay = cfg.projects["assay-pipeline"]
     # the owner named one model's row; the other model's quality stays not designated
     assert assay.quality is not None and assay.quality.labels == {

@@ -16,7 +16,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -246,7 +246,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0 (git 218192132ad6))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -391,7 +391,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -1930,181 +1930,168 @@
     {
       "calibration": {
         "judges": [],
-        "status": "uncalibrated",
-        "text": "uncalibrated: judge not calibrated for this task"
+        "status": "not stated",
+        "text": "not stated in the project's own summary format"
       },
-      "commit": "6067c4a7de89fdfde1f4eb3e984996f229ed16df",
-      "comparison_label": null,
-      "cost_per_correct_comparison": "lowest cost per correct: course-ta (the only model with one)",
-      "efficiency_note": "",
+      "commit": "6488adf586f7794f918e61d13ba582546f9bfdf9",
+      "comparison_label": "Zero-tolerance gates on held-out",
+      "cost_per_correct_comparison": "",
+      "efficiency_note": "no per-model efficiency in this summary (the project's own format)",
       "evalkit_pin": "evalkit-harness>=0.2,<0.3",
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
-        "exit_code": 0,
+        "exit_code": null,
         "failed": 0,
-        "rows": [
-          {
-            "bound": "point",
-            "ci_high": null,
-            "ci_low": null,
-            "gate": 1,
-            "heldout_rows": 0,
-            "labels": {
-              "model": "course-ta"
-            },
-            "metric": "passes_threshold",
-            "note": "",
-            "observed": true,
-            "op": "==",
-            "result": "pass",
-            "severity": "fail",
-            "threshold": true,
-            "unit": "bool"
-          }
-        ],
-        "source": "EvalKit default gates: every model passes its thresholds",
-        "status": "pass",
+        "rows": [],
+        "source": "the project's own summary format: no gates file read",
+        "status": "not gated",
         "warned": 0
       },
-      "headline": null,
-      "headline_comparison": null,
-      "headline_label": null,
-      "headline_pending": "until E2.5",
-      "improvements": [],
-      "kind": "evalkit-summary",
-      "lessons_url": "https://github.com/biplob819/course-assistant/blob/6067c4a7de89fdfde1f4eb3e984996f229ed16df/docs/lessons.md",
-      "models": [
-        {
-          "cost_per_correct_rank": 1,
-          "efficiency": {
-            "cost_per_case": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
-              "companion": null,
-              "companion_label": null,
-              "direction": null,
-              "direction_in_label": false,
-              "heldout": false,
-              "k": null,
-              "labels": {
-                "model": "course-ta"
-              },
-              "metric": "cost_per_case",
-              "n": 16,
-              "note": "from summary (no interval)",
-              "problem": null,
-              "rows": [],
-              "shown": "$0.014",
-              "text": "$0.014",
-              "unit": "USD",
-              "value": 0.01378125
+      "headline": {
+        "ci_high": null,
+        "ci_low": null,
+        "ci_method": null,
+        "companion": null,
+        "companion_label": null,
+        "direction": "higher is better",
+        "direction_in_label": false,
+        "heldout": false,
+        "k": null,
+        "labels": {},
+        "metric": "value",
+        "n": null,
+        "note": "66/75; target ≥ 0.90, lower bound 0.80; below target, shipped as a documented limit (D-90). One OpenAI judge (gpt-6.1-sol) grades; calibration is against a model panel, not a person (D-79, D-80)",
+        "problem": null,
+        "rows": [],
+        "shown": "0.880",
+        "text": "0.880",
+        "unit": "ratio",
+        "value": 0.88
+      },
+      "headline_comparison": {
+        "ci_high": null,
+        "ci_low": null,
+        "ci_method": null,
+        "companion": null,
+        "companion_label": null,
+        "direction": null,
+        "direction_in_label": false,
+        "heldout": false,
+        "k": null,
+        "labels": {},
+        "metric": "value",
+        "n": null,
+        "note": "integrity 56/56, injection 44/44, leak 49/49, identity 5/5; latency p95 11.03 s against 11 s. Every safety gate passes; grounding and latency miss their targets and v0.1.0 ships with both stated as known limits",
+        "problem": null,
+        "rows": [
+          {
+            "ci_high": null,
+            "ci_low": null,
+            "ci_method": null,
+            "companion": null,
+            "companion_label": null,
+            "direction": null,
+            "direction_in_label": false,
+            "heldout": false,
+            "k": null,
+            "labels": {
+              "name": "integrity"
             },
-            "cost_per_correct": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
-              "companion": null,
-              "companion_label": null,
-              "direction": null,
-              "direction_in_label": false,
-              "heldout": false,
-              "k": null,
-              "labels": {
-                "model": "course-ta"
-              },
-              "metric": "cost_per_correct",
-              "n": null,
-              "note": "from summary (no interval)",
-              "problem": null,
-              "rows": [],
-              "shown": "$0.016",
-              "text": "$0.016",
-              "unit": "USD",
-              "value": 0.01575
-            },
-            "error_rate": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
-              "companion": null,
-              "companion_label": null,
-              "direction": null,
-              "direction_in_label": false,
-              "heldout": false,
-              "k": 1,
-              "labels": {
-                "model": "course-ta"
-              },
-              "metric": "error_rate",
-              "n": 16,
-              "note": "",
-              "problem": null,
-              "rows": [],
-              "shown": "6.2%",
-              "text": "6.2%",
-              "unit": "rate",
-              "value": 0.0625
-            },
-            "latency_p50": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
-              "companion": null,
-              "companion_label": null,
-              "direction": null,
-              "direction_in_label": false,
-              "heldout": false,
-              "k": null,
-              "labels": {
-                "model": "course-ta"
-              },
-              "metric": "latency_p50",
-              "n": null,
-              "note": "from summary (no interval)",
-              "problem": null,
-              "rows": [],
-              "shown": "0 ms",
-              "text": "0 ms",
-              "unit": "ms",
-              "value": 0
-            },
-            "latency_p95": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
-              "companion": null,
-              "companion_label": null,
-              "direction": null,
-              "direction_in_label": false,
-              "heldout": false,
-              "k": null,
-              "labels": {
-                "model": "course-ta"
-              },
-              "metric": "latency_p95",
-              "n": null,
-              "note": "from summary (no interval)",
-              "problem": null,
-              "rows": [],
-              "shown": "0 ms",
-              "text": "0 ms",
-              "unit": "ms",
-              "value": 0
-            }
+            "metric": "value",
+            "n": null,
+            "note": "",
+            "problem": null,
+            "rows": [],
+            "shown": "1.000",
+            "text": "1.000",
+            "unit": "ratio",
+            "value": 1.0
           },
-          "lowest_cost_per_correct": true,
-          "mode": null,
-          "model": "course-ta",
-          "price_date": null,
-          "quality": null,
-          "source": "from summary (no interval)"
-        }
-      ],
+          {
+            "ci_high": null,
+            "ci_low": null,
+            "ci_method": null,
+            "companion": null,
+            "companion_label": null,
+            "direction": null,
+            "direction_in_label": false,
+            "heldout": false,
+            "k": null,
+            "labels": {
+              "name": "injection"
+            },
+            "metric": "value",
+            "n": null,
+            "note": "",
+            "problem": null,
+            "rows": [],
+            "shown": "1.000",
+            "text": "1.000",
+            "unit": "ratio",
+            "value": 1.0
+          },
+          {
+            "ci_high": null,
+            "ci_low": null,
+            "ci_method": null,
+            "companion": null,
+            "companion_label": null,
+            "direction": null,
+            "direction_in_label": false,
+            "heldout": false,
+            "k": null,
+            "labels": {
+              "name": "leak"
+            },
+            "metric": "value",
+            "n": null,
+            "note": "",
+            "problem": null,
+            "rows": [],
+            "shown": "1.000",
+            "text": "1.000",
+            "unit": "ratio",
+            "value": 1.0
+          },
+          {
+            "ci_high": null,
+            "ci_low": null,
+            "ci_method": null,
+            "companion": null,
+            "companion_label": null,
+            "direction": null,
+            "direction_in_label": false,
+            "heldout": false,
+            "k": null,
+            "labels": {
+              "name": "identity"
+            },
+            "metric": "value",
+            "n": null,
+            "note": "",
+            "problem": null,
+            "rows": [],
+            "shown": "1.000",
+            "text": "1.000",
+            "unit": "ratio",
+            "value": 1.0
+          }
+        ],
+        "shown": "integrity: 1.000; injection: 1.000; leak: 1.000; identity: 1.000",
+        "text": "integrity: 1.000; injection: 1.000; leak: 1.000; identity: 1.000",
+        "unit": "ratio",
+        "value": null
+      },
+      "headline_label": "Grounded answer rate, held-out (heldout-4, 215 cases, scored once)",
+      "headline_pending": null,
+      "improvements": [],
+      "kind": "own-format",
+      "lessons_url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/lessons.md",
+      "models": [],
       "pin_note": "",
       "pointer": null,
       "problems": [],
@@ -2112,50 +2099,48 @@
       "reason": "",
       "registry_pin": "evalkit-harness>=0.2,<0.3",
       "repo": "biplob819/course-assistant",
-      "run_at": "2026-11-17T08:51:52.443758+00:00",
-      "run_date": "2026-11-17",
-      "run_id": "r-65a32f837b06",
+      "run_at": null,
+      "run_date": null,
+      "run_id": "course-ta-heldout-20261119T181359Z",
       "simulated": null,
-      "stamps": [
-        "judge not calibrated for this task (see docs/calibrate-your-task.md)"
-      ],
+      "stamps": [],
       "status": "ok",
       "story": {
         "evals": [
           {
-            "data": "gated row",
-            "method": "evalkit gate == true",
-            "name": "passes_threshold (model=course-ta)",
-            "result": "true",
-            "status": "pass",
-            "url": "https://github.com/biplob819/course-assistant/blob/6067c4a7de89fdfde1f4eb3e984996f229ed16df/tests/eval/evalreg/summary.json"
+            "data": "n not stated",
+            "method": "point value",
+            "name": "Grounded answer rate, held-out (heldout-4, 215 cases, scored once)",
+            "result": "0.880",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/measurements/e2.5-heldout4-gates.json"
+          },
+          {
+            "data": "n not stated",
+            "method": "point value",
+            "name": "Zero-tolerance gates on held-out",
+            "result": "integrity: 1.000; injection: 1.000; leak: 1.000; identity: 1.000",
+            "status": "provisional",
+            "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/measurements/e2.5-heldout4-gates.json"
           }
         ],
         "headline": {
-          "label": "headline",
-          "note": "run r-65a32f837b06; commit 6067c4a",
-          "value": "not designated until E2.5"
+          "label": "Grounded answer rate, held-out (heldout-4, 215 cases, scored once)",
+          "note": "higher is better; run course-ta-heldout-20261119T181359Z; commit 6488adf; EvalKit not recorded (pin evalkit-harness>=0.2,<0.3)",
+          "value": "0.880"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "course-assistant lessons log",
-            "now": "read the log at commit 6067c4a",
-            "url": "https://github.com/biplob819/course-assistant/blob/6067c4a7de89fdfde1f4eb3e984996f229ed16df/docs/lessons.md"
+            "now": "read the log at commit 6488adf",
+            "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/lessons.md"
           }
         ],
-        "monitoring": [
-          {
-            "current": "true",
-            "how": "evalkit gate (EvalKit default gates: every model passes its thresholds)",
-            "kind": "quality",
-            "metric": "passes_threshold (model=course-ta)",
-            "target": "== true"
-          }
-        ]
+        "monitoring": []
       },
-      "summary_path": "tests/eval/evalreg/summary.json",
-      "url": "https://github.com/biplob819/course-assistant/blob/6067c4a7de89fdfde1f4eb3e984996f229ed16df/tests/eval/evalreg/summary.json"
+      "summary_path": "docs/measurements/e2.5-heldout4-gates.json",
+      "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/measurements/e2.5-heldout4-gates.json"
     },
     {
       "calibration": {
@@ -2171,7 +2156,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -2267,7 +2252,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.1.0 (git 06591f8de9b1))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -3005,7 +2990,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -7074,7 +7059,7 @@
         "status": "calibrated",
         "text": "calibrated: claude-opus-5-5 kappa 0.40 [0.26, 0.51] on 231 held-out claims; gpt-6.1-sol kappa 0.60 [0.47, 0.71] on 231 held-out claims"
       },
-      "commit": "b8b4716582d98d12bb43c65c21c19a5123c7f097",
+      "commit": "1b98301a388480b3979d3324e509ba8de766c457",
       "comparison_label": null,
       "cost_per_correct_comparison": "lowest cost per correct: gpt-6-luna (clear: its interval is below every other model's)",
       "efficiency_note": "",
@@ -7082,7 +7067,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:08:58Z",
+      "fetched_at": "2026-11-20T13:17:09Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -7194,7 +7179,7 @@
       "headline_pending": null,
       "improvements": [],
       "kind": "evalkit-summary",
-      "lessons_url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/lessons.md",
       "models": [
         {
           "cost_per_correct_rank": 1,
@@ -8550,7 +8535,7 @@
             "name": "Correct and fully grounded (PubMedQA)",
             "result": "57.5% [50.5%, 64.0%]",
             "status": "final",
-            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8558,7 +8543,7 @@
             "name": "passes_threshold (model=claude-sonnet-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8566,7 +8551,7 @@
             "name": "passes_threshold (model=claude-haiku-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8574,7 +8559,7 @@
             "name": "passes_threshold (model=gpt-6.1-sol)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8582,20 +8567,20 @@
             "name": "passes_threshold (model=gpt-6-luna)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
           }
         ],
         "headline": {
           "label": "Correct and fully grounded (PubMedQA)",
-          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit b8b4716; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
+          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit 1b98301; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
           "value": "57.5% [50.5%, 64.0%]"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "evalkit lessons log",
-            "now": "read the log at commit b8b4716",
-            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/lessons.md"
+            "now": "read the log at commit 1b98301",
+            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/lessons.md"
           }
         ],
         "monitoring": [
@@ -8630,7 +8615,7 @@
         ]
       },
       "summary_path": "docs/results/summary.json",
-      "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
+      "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
     }
   ],
   "schema_version": "index-1"

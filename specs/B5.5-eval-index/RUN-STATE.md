@@ -9,6 +9,11 @@
 - 2026-11-18 — built in a lane; each project's session confirmed its own headline (owner ruling: publish once projects confirm; course-assistant has no channel and shows "not designated"). Verifier pass 1 confirmed IDX-01/02/EFF-04 but found wrong public facts (stale pins, an invented run mode): fixed by reading pins from each project's pyproject/uv.lock and showing "not recorded" for anything the source does not state. Pass 2: every displayed fact confirmed against the source at its commit; one privacy must-fix (a real alert id copied into examples and tests), replaced by the lead with a synthetic id. GREEN.
 - 2026-11-19 — index config key `headline_pending` (course-assistant reads "not designated until E2.5", its request); live index rebuilt at the published commits (fraud-review-bedrock and respectful-offers at their 0.4.1 commits, same runs, headlines and gates). CI time limits and the `ci retry` workflow (re-runs only jobs that never got a runner). 724ccf9, CI and Pages green.
 
+## Resumed (2026-11-20)
+- Calibration: the owner's first-pass labels (scored 2026-11-19) made r-e8dac378d2d3 calibrated; README headline republished with Opus flagged below the 0.4 certify bar (D-80), b8b4716; index EvalKit row calibrated, 1b98301.
+- course-assistant: its session confirmed the heldout-4 gate file, the grounded row, the zero-tolerance gates and captions; index row built at 6488adf.
+- Still optional: the owner's relabel pass (labeller self-consistency).
+
 ## Paused (2026-11-20, owner's account change, relayed by the portfolio session)
 Clean stop: nothing running, no uncommitted edits, main = origin/main. Catalog 209/209 green; v0.4.1 on PyPI.
 **Resume point:** (1) owner's calibration hand labels on run r-e8dac378d2d3 (`evalkit calibrate export|label|label --relabel|score`, $0), then regenerate the report and README headline; (2) when course-assistant sends its headline after its E2.5, replace `headline_pending` in configs/index.yaml with its selector, snapshot and rebuild the index. No paid run pending.

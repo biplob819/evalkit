@@ -17,9 +17,32 @@ projects:
     quality: {metric: accuracy}
     lessons: docs/lessons.md
   course-assistant:
-    # its own request (relayed by the portfolio session, 2026-11-18): the headline is designated
-    # at its node E2.5; until then the row says so. Quality not designated.
-    headline_pending: until E2.5
+    # confirmed by its own session on 2026-11-20 (main 6488adf): the release gate's aggregates on
+    # heldout-4 (OWNER D-90), not tests/eval/evalreg/summary.json (a 16-case regression fixture)
+    # and not that run's EvalKit summary headline. Single judge (its D-80). An own-format file has
+    # no quality rows, so its quality words are the comparison row's caption.
+    summary: docs/measurements/e2.5-heldout4-gates.json
+    own_format: {run_id: $.run}
+    headline:
+      path: '$.gates[?name == "grounded"].value'
+      unit: ratio
+      decimals: 3
+      direction: higher
+      label: Grounded answer rate, held-out (heldout-4, 215 cases, scored once)
+      caption: >-
+        66/75; target ≥ 0.90, lower bound 0.80; below target, shipped as a documented limit
+        (D-90). One OpenAI judge (gpt-6.1-sol) grades; calibration is against a model panel, not
+        a person (D-79, D-80)
+    comparison:
+      path: '$.gates[?target == "all pass (zero tolerance)"].value'
+      per: name
+      unit: ratio
+      decimals: 3
+      label: Zero-tolerance gates on held-out
+      caption: >-
+        integrity 56/56, injection 44/44, leak 49/49, identity 5/5; latency p95 11.03 s against
+        11 s. Every safety gate passes; grounding and latency miss their targets and v0.1.0 ships
+        with both stated as known limits
     lessons: docs/lessons.md
   gemma-grounded-health:
     # confirmed: the fine-tuned v1 model by the cross-family judge (a v2 selector follows later);
