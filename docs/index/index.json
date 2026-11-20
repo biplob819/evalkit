@@ -16,7 +16,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -246,7 +246,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0 (git 218192132ad6))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -391,7 +391,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -1941,7 +1941,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -2171,7 +2171,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -2267,7 +2267,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.1.0 (git 06591f8de9b1))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -3005,7 +3005,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -7055,19 +7055,34 @@
     },
     {
       "calibration": {
-        "judges": [],
-        "status": "uncalibrated",
-        "text": "uncalibrated: judge not calibrated for this task"
+        "judges": [
+          {
+            "judge": "claude-opus-5-5",
+            "kappa": 0.39668851328044147,
+            "kappa_high": 0.5107568717386441,
+            "kappa_low": 0.26339506560472503,
+            "n_claims": 231
+          },
+          {
+            "judge": "gpt-6.1-sol",
+            "kappa": 0.5978191148171905,
+            "kappa_high": 0.7112119349604802,
+            "kappa_low": 0.4680856337329988,
+            "n_claims": 231
+          }
+        ],
+        "status": "calibrated",
+        "text": "calibrated: claude-opus-5-5 kappa 0.40 [0.26, 0.51] on 231 held-out claims; gpt-6.1-sol kappa 0.60 [0.47, 0.71] on 231 held-out claims"
       },
-      "commit": "ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66",
+      "commit": "b8b4716582d98d12bb43c65c21c19a5123c7f097",
       "comparison_label": null,
-      "cost_per_correct_comparison": "lowest cost per correct: gpt-6-luna (no interval to compare)",
+      "cost_per_correct_comparison": "lowest cost per correct: gpt-6-luna (clear: its interval is below every other model's)",
       "efficiency_note": "",
       "evalkit_pin": "evalkit-harness 0.4.1 (the repository at the commit)",
       "evalkit_pin_source": "pyproject.toml at the commit",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-19T16:18:46Z",
+      "fetched_at": "2026-11-20T13:08:58Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -7179,12 +7194,12 @@
       "headline_pending": null,
       "improvements": [],
       "kind": "evalkit-summary",
-      "lessons_url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/lessons.md",
       "models": [
         {
           "cost_per_correct_rank": 1,
           "efficiency": {
-            "cost_per_case": {
+            "cache_hit_share": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7195,22 +7210,49 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6-luna"
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0%",
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.0001380135625,
+              "ci_low": 0.000130269925,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_case",
               "n": 200,
-              "note": "from summary (no interval)",
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.00013",
-              "text": "$0.00013",
+              "shown": "$0.00013 [$0.00013, $0.00014]",
+              "text": "$0.00013 [$0.00013, $0.00014]",
               "unit": "USD",
               "value": 0.00013408500000000001
             },
             "cost_per_correct": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 0.000270499075,
+              "ci_low": 0.00020831476661417324,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7218,15 +7260,17 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6-luna"
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_correct",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 114,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.00024",
-              "text": "$0.00024",
+              "shown": "$0.00024 [$0.00021, $0.00027]",
+              "text": "$0.00024 [$0.00021, $0.00027]",
               "unit": "USD",
               "value": 0.00023523684210526318
             },
@@ -7241,7 +7285,9 @@
               "heldout": false,
               "k": 0,
               "labels": {
-                "model": "gpt-6-luna"
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
               },
               "metric": "error_rate",
               "n": 200,
@@ -7254,9 +7300,9 @@
               "value": 0.0
             },
             "latency_p50": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 2601.0,
+              "ci_low": 2453.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7264,19 +7310,71 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6-luna"
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
               },
               "metric": "latency_p50",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "2,514 ms",
-              "text": "2,514 ms",
+              "shown": "2,514 ms [2,453 ms, 2,601 ms]",
+              "text": "2,514 ms [2,453 ms, 2,601 ms]",
               "unit": "ms",
               "value": 2514
             },
             "latency_p95": {
+              "ci_high": 3933.0,
+              "ci_low": 3472.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "3,740 ms [3,472 ms, 3,933 ms]",
+              "text": "3,740 ms [3,472 ms, 3,933 ms]",
+              "unit": "ms",
+              "value": 3740
+            },
+            "latency_p99": {
+              "ci_high": 5293.0,
+              "ci_low": 3878.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "4,210 ms [3,878 ms, 5,293 ms]",
+              "text": "4,210 ms [3,878 ms, 5,293 ms]",
+              "unit": "ms",
+              "value": 4210
+            },
+            "system_cost": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7287,23 +7385,125 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6-luna"
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
               },
-              "metric": "latency_p95",
-              "n": null,
-              "note": "from summary (no interval)",
+              "metric": "system_cost",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "3,740 ms",
-              "text": "3,740 ms",
-              "unit": "ms",
-              "value": 3740
+              "shown": "$0.027",
+              "text": "$0.027",
+              "unit": "USD",
+              "value": 0.026817
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0",
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "518.7",
+              "text": "518.7",
+              "unit": "count",
+              "value": 518.725
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "85.5",
+              "text": "85.5",
+              "unit": "count",
+              "value": 85.505
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6-luna",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "78.9",
+              "text": "78.9",
+              "unit": "count",
+              "value": 78.92
             }
           },
           "lowest_cost_per_correct": true,
-          "mode": null,
+          "mode": "live",
           "model": "gpt-6-luna",
-          "price_date": null,
+          "price_date": "2026-11-14",
           "quality": {
             "ci_high": 0.635,
             "ci_low": 0.5,
@@ -7327,12 +7527,12 @@
             "unit": "rate",
             "value": 0.57
           },
-          "source": "from summary (no interval)"
+          "source": "efficiency block"
         },
         {
           "cost_per_correct_rank": 2,
           "efficiency": {
-            "cost_per_case": {
+            "cache_hit_share": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7343,22 +7543,49 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-haiku-5-5"
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0%",
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.000211795325,
+              "ci_low": 0.0001986814625,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_case",
               "n": 200,
-              "note": "from summary (no interval)",
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.0002",
-              "text": "$0.0002",
+              "shown": "$0.0002 [$0.0002, $0.00021]",
+              "text": "$0.0002 [$0.0002, $0.00021]",
               "unit": "USD",
               "value": 0.00020484800000000001
             },
             "cost_per_correct": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 0.0003456602479338843,
+              "ci_low": 0.00027771766156462586,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7366,15 +7593,17 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-haiku-5-5"
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_correct",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 133,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.00031",
-              "text": "$0.00031",
+              "shown": "$0.00031 [$0.00028, $0.00035]",
+              "text": "$0.00031 [$0.00028, $0.00035]",
               "unit": "USD",
               "value": 0.0003080421052631579
             },
@@ -7389,7 +7618,9 @@
               "heldout": false,
               "k": 0,
               "labels": {
-                "model": "claude-haiku-5-5"
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "error_rate",
               "n": 200,
@@ -7402,9 +7633,9 @@
               "value": 0.0
             },
             "latency_p50": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 1870.0,
+              "ci_low": 1682.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7412,19 +7643,71 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-haiku-5-5"
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "latency_p50",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "1,731 ms",
-              "text": "1,731 ms",
+              "shown": "1,731 ms [1,682 ms, 1,870 ms]",
+              "text": "1,731 ms [1,682 ms, 1,870 ms]",
               "unit": "ms",
               "value": 1731
             },
             "latency_p95": {
+              "ci_high": 3692.0,
+              "ci_low": 2838.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "3,070 ms [2,838 ms, 3,692 ms]",
+              "text": "3,070 ms [2,838 ms, 3,692 ms]",
+              "unit": "ms",
+              "value": 3070
+            },
+            "latency_p99": {
+              "ci_high": 4499.0,
+              "ci_low": 3184.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "4,383 ms [3,184 ms, 4,499 ms]",
+              "text": "4,383 ms [3,184 ms, 4,499 ms]",
+              "unit": "ms",
+              "value": 4383
+            },
+            "system_cost": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7435,23 +7718,125 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-haiku-5-5"
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
               },
-              "metric": "latency_p95",
-              "n": null,
-              "note": "from summary (no interval)",
+              "metric": "system_cost",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "3,070 ms",
-              "text": "3,070 ms",
-              "unit": "ms",
-              "value": 3070
+              "shown": "$0.041",
+              "text": "$0.041",
+              "unit": "USD",
+              "value": 0.0409696
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0",
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "1,004.8",
+              "text": "1,004.8",
+              "unit": "count",
+              "value": 1004.755
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "180.5",
+              "text": "180.5",
+              "unit": "count",
+              "value": 180.48
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-haiku-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "28.3",
+              "text": "28.3",
+              "unit": "count",
+              "value": 28.265
             }
           },
           "lowest_cost_per_correct": false,
-          "mode": null,
+          "mode": "live",
           "model": "claude-haiku-5-5",
-          "price_date": null,
+          "price_date": "2026-11-14",
           "quality": {
             "ci_high": 0.73,
             "ci_low": 0.6,
@@ -7475,12 +7860,12 @@
             "unit": "rate",
             "value": 0.665
           },
-          "source": "from summary (no interval)"
+          "source": "efficiency block"
         },
         {
           "cost_per_correct_rank": 3,
           "efficiency": {
-            "cost_per_case": {
+            "cache_hit_share": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7491,22 +7876,49 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6.1-sol"
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0%",
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.00238143025,
+              "ci_low": 0.002237708,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_case",
               "n": 200,
-              "note": "from summary (no interval)",
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.0023",
-              "text": "$0.0023",
+              "shown": "$0.0023 [$0.0022, $0.0024]",
+              "text": "$0.0023 [$0.0022, $0.0024]",
               "unit": "USD",
               "value": 0.00230815
             },
             "cost_per_correct": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 0.0040076634180790955,
+              "ci_low": 0.0031850987068965516,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7514,15 +7926,17 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6.1-sol"
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_correct",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 130,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.0036",
-              "text": "$0.0036",
+              "shown": "$0.0036 [$0.0032, $0.004]",
+              "text": "$0.0036 [$0.0032, $0.004]",
               "unit": "USD",
               "value": 0.003551
             },
@@ -7537,7 +7951,9 @@
               "heldout": false,
               "k": 0,
               "labels": {
-                "model": "gpt-6.1-sol"
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
               },
               "metric": "error_rate",
               "n": 200,
@@ -7550,9 +7966,9 @@
               "value": 0.0
             },
             "latency_p50": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 3420.0,
+              "ci_low": 3107.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7560,19 +7976,71 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6.1-sol"
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
               },
               "metric": "latency_p50",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "3,219 ms",
-              "text": "3,219 ms",
+              "shown": "3,219 ms [3,107 ms, 3,420 ms]",
+              "text": "3,219 ms [3,107 ms, 3,420 ms]",
               "unit": "ms",
               "value": 3219
             },
             "latency_p95": {
+              "ci_high": 7064.0,
+              "ci_low": 5939.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "6,559 ms [5,939 ms, 7,064 ms]",
+              "text": "6,559 ms [5,939 ms, 7,064 ms]",
+              "unit": "ms",
+              "value": 6559
+            },
+            "latency_p99": {
+              "ci_high": 7708.0,
+              "ci_low": 6700.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "7,615 ms [6,700 ms, 7,708 ms]",
+              "text": "7,615 ms [6,700 ms, 7,708 ms]",
+              "unit": "ms",
+              "value": 7615
+            },
+            "system_cost": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7583,23 +8051,125 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "gpt-6.1-sol"
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
               },
-              "metric": "latency_p95",
-              "n": null,
-              "note": "from summary (no interval)",
+              "metric": "system_cost",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "6,559 ms",
-              "text": "6,559 ms",
-              "unit": "ms",
-              "value": 6559
+              "shown": "$0.462",
+              "text": "$0.462",
+              "unit": "USD",
+              "value": 0.46163
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0",
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "518.7",
+              "text": "518.7",
+              "unit": "count",
+              "value": 518.725
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "96.0",
+              "text": "96.0",
+              "unit": "count",
+              "value": 95.97
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "gpt-6.1-sol",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "31.1",
+              "text": "31.1",
+              "unit": "count",
+              "value": 31.1
             }
           },
           "lowest_cost_per_correct": false,
-          "mode": null,
+          "mode": "live",
           "model": "gpt-6.1-sol",
-          "price_date": null,
+          "price_date": "2026-11-14",
           "quality": {
             "ci_high": 0.715,
             "ci_low": 0.585,
@@ -7623,12 +8193,12 @@
             "unit": "rate",
             "value": 0.65
           },
-          "source": "from summary (no interval)"
+          "source": "efficiency block"
         },
         {
           "cost_per_correct_rank": 4,
           "efficiency": {
-            "cost_per_case": {
+            "cache_hit_share": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7639,22 +8209,49 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-sonnet-5-5"
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "cache_hit_share",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0%",
+              "text": "0.0%",
+              "unit": "rate",
+              "value": 0.0
+            },
+            "cost_per_case": {
+              "ci_high": 0.003667331,
+              "ci_low": 0.003545137,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_case",
               "n": 200,
-              "note": "from summary (no interval)",
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.0036",
-              "text": "$0.0036",
+              "shown": "$0.0036 [$0.0035, $0.0037]",
+              "text": "$0.0036 [$0.0035, $0.0037]",
               "unit": "USD",
               "value": 0.0036059599999999996
             },
             "cost_per_correct": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 0.0050907147287983226,
+              "ci_low": 0.004348976175166297,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7662,15 +8259,17 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-sonnet-5-5"
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "cost_per_correct",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 154,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "$0.0047",
-              "text": "$0.0047",
+              "shown": "$0.0047 [$0.0043, $0.0051]",
+              "text": "$0.0047 [$0.0043, $0.0051]",
               "unit": "USD",
               "value": 0.004683064935064935
             },
@@ -7685,7 +8284,9 @@
               "heldout": false,
               "k": 0,
               "labels": {
-                "model": "claude-sonnet-5-5"
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "error_rate",
               "n": 200,
@@ -7698,9 +8299,9 @@
               "value": 0.0
             },
             "latency_p50": {
-              "ci_high": null,
-              "ci_low": null,
-              "ci_method": null,
+              "ci_high": 2348.0,
+              "ci_low": 2244.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
               "companion": null,
               "companion_label": null,
               "direction": null,
@@ -7708,19 +8309,71 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-sonnet-5-5"
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
               },
               "metric": "latency_p50",
-              "n": null,
-              "note": "from summary (no interval)",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "2,295 ms",
-              "text": "2,295 ms",
+              "shown": "2,295 ms [2,244 ms, 2,348 ms]",
+              "text": "2,295 ms [2,244 ms, 2,348 ms]",
               "unit": "ms",
               "value": 2295
             },
             "latency_p95": {
+              "ci_high": 3117.0,
+              "ci_low": 2783.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p95",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "2,891 ms [2,783 ms, 3,117 ms]",
+              "text": "2,891 ms [2,783 ms, 3,117 ms]",
+              "unit": "ms",
+              "value": 2891
+            },
+            "latency_p99": {
+              "ci_high": 4051.0,
+              "ci_low": 3003.0,
+              "ci_method": "percentile bootstrap over cases (seeded)",
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "latency_p99",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "3,642 ms [3,003 ms, 4,051 ms]",
+              "text": "3,642 ms [3,003 ms, 4,051 ms]",
+              "unit": "ms",
+              "value": 3642
+            },
+            "system_cost": {
               "ci_high": null,
               "ci_low": null,
               "ci_method": null,
@@ -7731,23 +8384,125 @@
               "heldout": false,
               "k": null,
               "labels": {
-                "model": "claude-sonnet-5-5"
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
               },
-              "metric": "latency_p95",
-              "n": null,
-              "note": "from summary (no interval)",
+              "metric": "system_cost",
+              "n": 200,
+              "note": "",
               "problem": null,
               "rows": [],
-              "shown": "2,891 ms",
-              "text": "2,891 ms",
-              "unit": "ms",
-              "value": 2891
+              "shown": "$0.721",
+              "text": "$0.721",
+              "unit": "USD",
+              "value": 0.7211919999999999
+            },
+            "tokens_cached_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_cached_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0",
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
+            },
+            "tokens_in_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_in_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "1,004.8",
+              "text": "1,004.8",
+              "unit": "count",
+              "value": 1004.755
+            },
+            "tokens_out_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_out_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "159.6",
+              "text": "159.6",
+              "unit": "count",
+              "value": 159.645
+            },
+            "tokens_reasoning_per_case": {
+              "ci_high": null,
+              "ci_low": null,
+              "ci_method": null,
+              "companion": null,
+              "companion_label": null,
+              "direction": null,
+              "direction_in_label": false,
+              "heldout": false,
+              "k": null,
+              "labels": {
+                "mode": "live",
+                "model": "claude-sonnet-5-5",
+                "price_date": "2026-11-14"
+              },
+              "metric": "tokens_reasoning_per_case",
+              "n": 200,
+              "note": "",
+              "problem": null,
+              "rows": [],
+              "shown": "0.0",
+              "text": "0.0",
+              "unit": "count",
+              "value": 0.0
             }
           },
           "lowest_cost_per_correct": false,
-          "mode": null,
+          "mode": "live",
           "model": "claude-sonnet-5-5",
-          "price_date": null,
+          "price_date": "2026-11-14",
           "quality": {
             "ci_high": 0.825,
             "ci_low": 0.71,
@@ -7771,7 +8526,7 @@
             "unit": "rate",
             "value": 0.77
           },
-          "source": "from summary (no interval)"
+          "source": "efficiency block"
         }
       ],
       "pin_note": "",
@@ -7785,9 +8540,7 @@
       "run_date": "2026-11-14",
       "run_id": "r-e8dac378d2d3",
       "simulated": null,
-      "stamps": [
-        "judge not calibrated for this task (see docs/calibrate-your-task.md)"
-      ],
+      "stamps": [],
       "status": "ok",
       "story": {
         "evals": [
@@ -7796,8 +8549,8 @@
             "method": "percentile bootstrap over cases (seeded)",
             "name": "Correct and fully grounded (PubMedQA)",
             "result": "57.5% [50.5%, 64.0%]",
-            "status": "provisional",
-            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
+            "status": "final",
+            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7805,7 +8558,7 @@
             "name": "passes_threshold (model=claude-sonnet-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7813,7 +8566,7 @@
             "name": "passes_threshold (model=claude-haiku-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7821,7 +8574,7 @@
             "name": "passes_threshold (model=gpt-6.1-sol)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -7829,20 +8582,20 @@
             "name": "passes_threshold (model=gpt-6-luna)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
           }
         ],
         "headline": {
           "label": "Correct and fully grounded (PubMedQA)",
-          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit ef1f1db; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
+          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit b8b4716; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
           "value": "57.5% [50.5%, 64.0%]"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "evalkit lessons log",
-            "now": "read the log at commit ef1f1db",
-            "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/lessons.md"
+            "now": "read the log at commit b8b4716",
+            "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/lessons.md"
           }
         ],
         "monitoring": [
@@ -7877,7 +8630,7 @@
         ]
       },
       "summary_path": "docs/results/summary.json",
-      "url": "https://github.com/biplob819/evalkit/blob/ef1f1dbfb5575f379a623c2d1d01eaf5ad54df66/docs/results/summary.json"
+      "url": "https://github.com/biplob819/evalkit/blob/b8b4716582d98d12bb43c65c21c19a5123c7f097/docs/results/summary.json"
     }
   ],
   "schema_version": "index-1"
