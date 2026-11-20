@@ -7,7 +7,7 @@ A repo that installs as `evalkit-harness`, runs `evalkit --version`, and enforce
 
 ## Inputs
 - EvalKit Tech Spec §11 (build harness), §1 (decisions), §10 (gates).
-- Kova reference: `~/kova-hrtech/scripts/verify-graph-eligibility.py`, `node-start.sh`, `node-converge.sh`.
+- Kova reference: Kova's harness (private), its graph-eligibility, node-start and node-converge scripts.
 
 ## Outputs
 - `pyproject.toml` (hatchling, src layout, Python ≥3.11), `src/evalkit/` skeleton with `evalkit --version`, MIT licence, README stub.

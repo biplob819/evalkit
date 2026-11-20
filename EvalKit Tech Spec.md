@@ -491,7 +491,7 @@ Prices come only from `prices.yaml`, checked against the provider pricing pages 
 
 ## 11. Build harness (lean Kova adaptation)
 
-EvalKit is built as a graph of **build nodes**. A node can start only when everything it depends on is green, and it turns green only when its proof passes every gate. This adapts the Kova harness (`~/kova-hrtech/docs/sdd/kova-graph/`, `scripts/node-start.sh`, `scripts/node-converge.sh`, `scripts/verify-graph-eligibility.py`) to a single-builder Python project.
+EvalKit is built as a graph of **build nodes**. A node can start only when everything it depends on is green, and it turns green only when its proof passes every gate. This adapts Kova's harness (private: its node runbook and its node-start, node-converge and graph-eligibility scripts) to a single-builder Python project.
 
 ### 11.1 Repo layout for the harness
 
@@ -1081,4 +1081,4 @@ Every gate runs and is reported even after an earlier one fails. Every gate ship
 - [Hamilton: caching](https://hamilton.apache.org/concepts/caching/)
 - [Dagster: asset versioning and caching](https://docs.dagster.io/guides/dagster/asset-versioning-and-caching)
 - [FActScore (atomic claim extraction)](https://arxiv.org/html/2305.14251)
-- Kova harness: `~/kova-hrtech/docs/sdd/kova-graph/NODE-RUNBOOK.md`, `scripts/verify-graph-eligibility.py`, `scripts/node-converge.sh`
+- Kova's harness (private): its node runbook and its graph-eligibility and node-converge scripts
