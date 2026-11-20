@@ -69,7 +69,7 @@ def test_page_states_judge_calibration_aim_rule_and_links():
     assert "v2-vs-v1 holds under both counts" in text
     page = _page()
     for url in (
-        "https://github.com/biplob819/gemma-grounded-health/blob/main/docs/measurements/"
+        "https://github.com/biplob819/gemma-grounded-health/blob/22579b3/docs/measurements/"
         "aim_rule_check.json",
         "https://huggingface.co/biplob123/gemma-4-e2b-grounded-health",
         "https://huggingface.co/biplob123/gemma-4-e2b-grounded-health-GGUF",

@@ -141,7 +141,7 @@
     "source": "docs/measurements/aim_rule_check.json",
     "text": "v2-vs-base citation results depend on how the judge applies the citation check's aim rule; a post-hoc count makes base better than v2 on citation precision and aim-citation rate, so v2 is not claimed to beat base on citations, while v2-vs-v1 holds under both counts (OWNER D-62, `docs/measurements/aim_rule_check.json`).",
     "text_source": "docs/README_release_draft.md",
-    "url": "https://github.com/biplob819/gemma-grounded-health/blob/main/docs/measurements/aim_rule_check.json"
+    "url": "https://github.com/biplob819/gemma-grounded-health/blob/22579b3/docs/measurements/aim_rule_check.json"
   },
   "calibration": {
     "judge": "gpt-6.1-sol",

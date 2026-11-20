@@ -115,7 +115,7 @@ def test_plugins_doc_serves_locally_and_sends_no_key():
     assert args[args.index("--host") + 1] == "127.0.0.1"
     cfg = load_run_config(EXAMPLE)
     assert all(u.startswith("http://127.0.0.1:") for u in cfg.endpoints.values())
-    assert "no API key is sent" in _section()
+    assert "no real API key is sent (a placeholder)" in _section()
 
 
 # ---- GEM-02: the example config ------------------------------------------------------------

@@ -1,6 +1,6 @@
 # DRAFT, not filed: citation rubric `be34ebe577bc96ae` — does the aim rule apply to a claim that only restates the aim?
 
-*Drafted in B5.17 from Gemma Grounded Health's evidence (GGH OWNER D-62, D-64). Not filed; the owner decides whether and where to file it. Every number below is from GGH's `docs/measurements/aim_rule_check.json` at its commit 22579b3 ([on GitHub](https://github.com/biplob819/gemma-grounded-health/blob/main/docs/measurements/aim_rule_check.json)).*
+*Drafted in B5.17 from Gemma Grounded Health's evidence (GGH OWNER D-62, D-64). Not filed; the owner decides whether and where to file it. Every number below is from GGH's `docs/measurements/aim_rule_check.json` at its commit 22579b3 ([on GitHub](https://github.com/biplob819/gemma-grounded-health/blob/22579b3/docs/measurements/aim_rule_check.json)).*
 
 ---
 

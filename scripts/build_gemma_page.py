@@ -107,6 +107,8 @@ def gemma_card(src: dict[str, Any]) -> str:
         f'<code>summary.json</code> and <code>run.json</code> (<a href="{_e(run_url)}">'
         f"<code>{_e(run['path'])}</code> at {_e(commit[:7])}</a>). Only aggregate figures are "
         "shown; the run's per-case records are not published here.</p><ul>"
+        "<li><strong>Decision ids.</strong> Ids such as OWNER D-60 in this card are Gemma "
+        "Grounded Health's decisions, not EvalKit's.</li>"
         f"<li><strong>Models.</strong> Gemma 4 E2B GGUFs (Q4_K_M) served by "
         f"{_code(src['models']['served_by'])}: {roles}. How to run one: "
         f'<a href="{PLUGINS_URL}">docs/plugins.md, “Gemma through llama-server”</a>.</li>'
@@ -114,7 +116,10 @@ def gemma_card(src: dict[str, Any]) -> str:
         f"{_e(j['extractor'])} extracting the claims (GGH: “{_code(j['text'])}”). One judge: "
         "self-preference is not measured.</li>"
         f"<li><strong>Calibration.</strong> The run's own EvalKit stamp reads "
-        f"“uncalibrated”, and GGH keeps it (“{_e(cal['run_stamp_note'])}”). GGH's release "
+        f"“uncalibrated”, and GGH keeps it (“{_e(cal['run_stamp_note'])}”). Both statements "
+        "below hold: EvalKit's stamp is per run folder and needs labels scored into that "
+        "folder, while GGH's release stamp is computed outside the run against a model "
+        f"reference labeller. GGH's release "
         f"stamp for {_e(cal['judge'])}, as its results bundle words it: “{_e(cal['wording'])}”. "
         f"The reference labeller is {_e(cal['reference_labeller'])}: a model's labels, not a "
         "human expert's.</li>"
