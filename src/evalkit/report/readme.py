@@ -10,6 +10,7 @@ from html import escape
 from evalkit.pipeline.aggregate import stamp_lines
 from evalkit.report.svg import bounded_rate, short
 from evalkit.schemas import Interval, RunSummary
+from evalkit.schemas.summary import JudgeAgreement
 
 START = "<!-- evalkit:headline:start -->"
 END = "<!-- evalkit:headline:end -->"
@@ -20,6 +21,9 @@ TOP = 64
 LEFT = 200
 RIGHT = 40
 SHAPES = ("circle", "square")
+# The lowest 95% CI lower bound of a judge's held-out kappa that certifies by default
+# (`evalkit.integrity.ConsistencyBar.min_judge_kappa_lo`): a judge below it is flagged (D-80).
+CERTIFY_KAPPA_LO = 0.4
 CSS = """
 .bg{fill:#ffffff}.fg{fill:#1d1d1b}.muted{fill:#5f5e58}.grid{stroke:#e3e0d8}
 .ci{stroke:#1d1d1b;stroke-width:1.5}.j0{fill:#2f5d50}.j1{fill:#8a4b0f}.warn{fill:#7a4f00}
@@ -47,6 +51,40 @@ def _mark(kind: str, cx: float, cy: float, cls: str) -> str:
     return f'<rect class="{cls}" x="{cx - 6:.2f}" y="{cy - 6:.2f}" width="12" height="12"/>'
 
 
+def _lean(a: JudgeAgreement) -> str:
+    """Which way a judge disagrees with the hand labels, from its confusion matrix
+    ([[TP, FN], [FP, TN]], "supported" positive), as the clause shown beside it."""
+    (tp, fn), (fp, tn) = a.confusion
+    fp_rate = fp / (fp + tn) if fp + tn else 0.0
+    fn_rate = fn / (tp + fn) if tp + fn else 0.0
+    if fp_rate >= fn_rate and fp + tn:
+        return (
+            f"it passed {fp} of {fp + tn} claims the hand labels marked unsupported, "
+            "so its figures likely overstate grounding"
+        )
+    if tp + fn:
+        return (
+            f"it rejected {fn} of {tp + fn} claims the hand labels marked supported, "
+            "so its figures likely understate grounding"
+        )
+    return "its figures are uncertain"
+
+
+def weak_judges(summary: RunSummary) -> list[JudgeAgreement]:
+    """Held-out agreements whose kappa CI lower bound is below the certify bar, by judge."""
+    return sorted(
+        (a for a in summary.judges if a.kappa.lo < CERTIFY_KAPPA_LO), key=lambda a: a.judge
+    )
+
+
+def _weak_lines(summary: RunSummary) -> list[str]:
+    return [
+        f"{a.judge}: held-out κ lower bound {a.kappa.lo:.2f} is below the "
+        f"{CERTIFY_KAPPA_LO} certify bar; {_lean(a)}"
+        for a in weak_judges(summary)
+    ]
+
+
 def readme_chart(summary: RunSummary) -> str:
     """Headline per model (rows) and judge (shape), with 95% CIs and the run's caveats."""
     judges = sorted({j for m in summary.models for j in m.headline})
@@ -54,7 +92,7 @@ def readme_chart(summary: RunSummary) -> str:
         summary.models,
         key=lambda m: -min((iv.point for iv in m.headline.values()), default=m.accuracy.point),
     )
-    stamps = stamp_lines(summary)
+    stamps = stamp_lines(summary) or _weak_lines(summary)
     h = TOP + ROW * len(models) + 54 + 18 * (len(stamps) + 1)
     title = f"{summary.task}: correct and fully grounded, by model and judge (95% CI)"
     desc = (
@@ -111,7 +149,7 @@ def readme_chart(summary: RunSummary) -> str:
         out.append(f'<text class="warn" x="20" y="{ly + 22 + 18 * n}">⚠ {escape(line)}</text>')
     if not stamps:
         out.append(
-            f'<text class="muted" x="20" y="{ly + 22}">Both judges calibrated on held-out labels '
+            f'<text class="muted" x="20" y="{ly + 22}">Judges calibrated on held-out labels '
             "for this task and rubric.</text>"
         )
     out.append("</svg>")
@@ -170,8 +208,14 @@ def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
     if stamps:
         s3 = "Caveats: " + "; ".join(stamps) + ". Treat these numbers as provisional."
     else:
-        kappas = ", ".join(f"{a.judge} κ={a.kappa.point:.2f}" for a in summary.judges)
-        s3 = f"Both judges were calibrated against held-out hand labels ({kappas})."
+        parts = []
+        for a in sorted(summary.judges, key=lambda a: (-a.kappa.point, a.judge)):
+            k = a.kappa
+            part = f"{a.judge} κ={k.point:.2f} (95% CI {k.lo:.2f}–{k.hi:.2f})"
+            if k.lo < CERTIFY_KAPPA_LO:
+                part += f", below the {CERTIFY_KAPPA_LO} certify bar: {_lean(a)}"
+            parts.append(part)
+        s3 = "Judges checked against held-out hand labels: " + "; ".join(parts) + "."
     return [s1, s2, s3]
 
 

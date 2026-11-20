@@ -6,7 +6,7 @@ import pytest
 
 from evalkit.pipeline.aggregate import stamp_lines
 from evalkit.report.readme import END, START, readme_block, readme_chart, readme_sentences, splice
-from evalkit.schemas import RunSummary
+from evalkit.schemas import Interval, RunSummary
 from tests.golden.test_golden_run import _run, reply
 from tests.pipeline.fakes import ScriptedBatchAdapter
 
@@ -51,6 +51,71 @@ def test_sentences_quote_the_summary(summary):
     for iv in best.headline.values():
         assert f"{iv.point:.1%} (95% CI {iv.lo:.1%}–{iv.hi:.1%})" in s2
     assert "provisional" in s3 and "not calibrated" in s3
+
+
+def _calibrated(summary, *agreements):
+    from evalkit.schemas.summary import JudgeAgreement
+
+    judges = sorted({j for m in summary.models for j in m.headline})
+    rows = [
+        JudgeAgreement(
+            judge=judges[i],
+            task=summary.task,
+            judge_prompt_hash="h",
+            n_claims=sum(map(sum, conf)),
+            coverage=1.0,
+            kappa=Interval(point=pt, lo=lo, hi=hi),
+            agreement=0.8,
+            confusion=conf,
+            by_family={},
+        )
+        for i, (pt, lo, hi, conf) in enumerate(agreements)
+    ]
+    return summary.model_copy(update={"calibration_status": "calibrated", "judges": rows})
+
+
+def test_a_judge_below_the_certify_bar_is_flagged_with_the_way_it_leans(summary):
+    from evalkit.integrity import ConsistencyBar
+    from evalkit.report.readme import CERTIFY_KAPPA_LO, weak_judges
+
+    assert ConsistencyBar().min_judge_kappa_lo == CERTIFY_KAPPA_LO
+    judges = sorted({j for m in summary.models for j in m.headline})
+    cal = _calibrated(
+        summary,
+        (0.40, 0.26, 0.51, ((151, 1), (52, 27))),  # lenient: passes unsupported claims
+        (0.60, 0.47, 0.71, ((148, 4), (34, 45))),
+    )
+    assert stamp_lines(cal) == []
+    s3 = readme_sentences(cal, 12)[2]
+    assert "provisional" not in s3 and "Both judges were calibrated" not in s3
+    assert s3.startswith("Judges checked against held-out hand labels: ")
+    # the stronger judge first; only the weak one is flagged, with its own counts
+    assert s3.index(f"{judges[1]} κ=0.60 (95% CI 0.47–0.71)") < s3.index(f"{judges[0]} κ=0.40")
+    assert (
+        f"{judges[0]} κ=0.40 (95% CI 0.26–0.51), below the 0.4 certify bar: it passed 52 of 79 "
+        "claims the hand labels marked unsupported, so its figures likely overstate grounding"
+    ) in s3
+    assert s3.count("certify bar") == 1
+    assert [a.judge for a in weak_judges(cal)] == [judges[0]]
+    svg = readme_chart(cal)
+    assert "is below the 0.4 certify bar" in svg and "Judges calibrated" not in svg
+    # a strict judge that rejects supported claims is said to understate, never overstate
+    strict = _calibrated(
+        summary,
+        (0.30, 0.10, 0.50, ((40, 60), (2, 98))),
+        (0.70, 0.55, 0.80, ((90, 10), (5, 95))),
+    )
+    s3 = readme_sentences(strict, 12)[2]
+    assert "rejected 60 of 100 claims the hand labels marked supported" in s3
+    assert "understate" in s3 and "overstate" not in s3
+    # every judge at or above the bar: no flag, and the chart says calibrated
+    good = _calibrated(
+        summary,
+        (0.70, 0.55, 0.80, ((90, 10), (5, 95))),
+        (0.65, 0.41, 0.80, ((90, 10), (5, 95))),
+    )
+    assert "certify bar" not in readme_sentences(good, 12)[2]
+    assert "Judges calibrated on held-out labels" in readme_chart(good)
 
 
 def test_pending_summary_says_so(summary):

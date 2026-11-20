@@ -9,8 +9,10 @@ correct and fully grounded on 57.5% <!-- docs/results/summary.json: models[2].he
 GPT-6.1 Sol judge (which was rating its own answers), and separated from every other model after a Holm correction under both <!-- docs/results/summary.json: comparisons[7,9,11,13,15,17].separated = true (metric headline) -->.
 Claude Sonnet 5.5 was the most accurate, 77.0% <!-- docs/results/summary.json: models[0].accuracy.point --> correct labels, yet correct and fully
 grounded on only 38.5% <!-- docs/results/summary.json: models[0].headline.claude-opus-5-5.point --> by the Claude judge. The benchmark cost $23.87 <!-- docs/results/run.json: spent_usd (23.8710259) -->, the whole
-project $31.56 <!-- docs/measurements/spend-ledger.jsonl: sum of spent_usd over the 22 legacy lines (31.557859); line 23 is the $0 seal (D-73) --> in API calls. The judges are not yet calibrated, so these numbers are
-provisional <!-- docs/results/summary.json: calibration_status = "uncalibrated"; README.md headline block: "Treat these numbers as provisional." -->. EvalKit is on PyPI (v0.1.0 and v0.2.0 <!-- docs/measurements/release-v0.1.0-2026-11-15.json; docs/measurements/release-v0.2.0-2026-11-16.json -->), with a public report, a live demo, and
+project $31.56 <!-- docs/measurements/spend-ledger.jsonl: sum of spent_usd over the 22 legacy lines (31.557859); line 23 is the $0 seal (D-73) --> in API calls. Both judges are calibrated against held-out hand labels <!-- docs/results/summary.json: calibration_status = "calibrated" -->: the Sol judge at
+κ=0.60 <!-- docs/results/summary.json: judges[gpt-6.1-sol].kappa.point (0.598) -->, the Opus judge at κ=0.40 <!-- docs/results/summary.json: judges[claude-opus-5-5].kappa (0.397, lower bound 0.263) -->, below the 0.4 certify bar on its lower bound
+and lenient (it passed 52 of 79 claims the hand labels marked unsupported <!-- docs/results/summary.json: judges[claude-opus-5-5].confusion = [[151, 1], [52, 27]] -->), so its 57.5% likely
+overstates. EvalKit is on PyPI (v0.1.0 and v0.2.0 <!-- docs/measurements/release-v0.1.0-2026-11-15.json; docs/measurements/release-v0.2.0-2026-11-16.json -->), with a public report, a live demo, and
 seven <!-- docs/downstream.tsv: 7 project rows --> projects that build on it.
 
 ## My role
@@ -51,8 +53,9 @@ builder per node in its own git worktree, with a lead agent merging one lane at 
    that resamples whole answers) comes from the held-out half only, and a run is stamped
    calibrated only when every judge has been scored that way for the task under the current
    rubric. Why: a kappa measured on the labels used to tune the rubric is training accuracy,
-   not an error rate. *Trade-off:* the published benchmark stays marked uncalibrated <!-- docs/results/summary.json: calibration_status = "uncalibrated" --> and
-   provisional until the hand labels are done; EvalKit will not call it anything else.
+   not an error rate. *Trade-off:* the published benchmark stayed marked uncalibrated and provisional until the
+   hand labels were done (2026-11-19); EvalKit would not call it anything else. The labels then
+   showed one judge below the certify bar, and the headline says so (D-80).
 3. **EvalKit grows with the projects built on it, behind a canary (OWNER D-61 to D-63).** Before
    a release, a canary runs each downstream project's own offline EvalKit tests against the
    current code; an internal name that two or more projects use joins the public API; and every

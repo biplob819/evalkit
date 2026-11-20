@@ -5,6 +5,7 @@ Format: `[TYPE] [NODE] — summary`. Types: FEAT, FIX, DOCS, HARNESS, RELEASE.
 ## Unreleased
 
 - [FEAT] [B5.5] — Index config key `headline_pending`: a project with no headline yet gives its own words on when one is designated, shown after "not designated" (course-assistant: "until E2.5", its request). `index.json` gains `headline_pending` per project (null when not given). The live index is rebuilt at the same project commits, except fraud-review-bedrock and respectful-offers, now read at the commits that moved them to 0.4.1 (same runs, headlines and gates).
+- [FEAT] [B2.3] — The README headline lists each judge's held-out kappa with its interval, strongest first, and flags a judge whose lower bound is under the 0.4 certify bar with the way it leans (D-80); the chart carries the same warning. The benchmark (r-e8dac378d2d3) is republished as calibrated from the owner's hand labels: gpt-6.1-sol κ=0.60 (0.47–0.71), claude-opus-5-5 κ=0.40 (0.26–0.51), flagged as lenient. Spend: $0.
 - [HARNESS] [—] — CI jobs get time limits (30 min for the test matrix, 15 for the rest), and a `ci retry` workflow re-runs a CI attempt's jobs, at most twice, only when every unsuccessful job was cancelled before a runner picked it up (no steps). It never checks out or runs the repository's code, and a job that started and failed is never retried. Four of the last five CI runs were red only because GitHub cancelled a queued macOS job.
 
 ## 0.4.1
