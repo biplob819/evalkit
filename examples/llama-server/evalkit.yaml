@@ -1,0 +1,17 @@
+# A GGUF served by llama-server, scored by EvalKit (docs/plugins.md, "Gemma through llama-server").
+# Gemma Grounded Health's v2 main run (r-715fc213a8a5), cut to its v2 model: its
+# configs/evalkit_v2.yaml listed base and v1 too, each on its own port (8080, 8081).
+# Anything under `endpoints` goes to the `openai_compatible` adapter; no API key is sent.
+models: [gemma-e2b-grounded-v2-q4]
+endpoints:
+  gemma-e2b-grounded-v2-q4: http://127.0.0.1:8083/v1
+judges: [gpt-6.1-sol]            # one judge: self-preference is not measured
+extractor: gpt-6-luna
+structured_output: true          # llama-server turns the JSON schema into a grammar
+max_output_tokens: 2048
+concurrency: {openai: 8, openai_compatible: 1}   # one llama-server slot: one request at a time
+seed: 7
+default_effort: medium           # not sent to the endpoint unless the model is under `efforts`
+judge_effort: medium
+extractor_effort: medium
+max_cost_usd: 16                 # judge and extractor calls; the local model costs $0

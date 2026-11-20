@@ -16,6 +16,83 @@ endpoints: {my-llama: http://localhost:8000/v1}
 An endpoint model with no price in `prices.yaml` is costed at $0 with a warning; any other
 model without a price is refused before the run starts.
 
+### Worked example: Gemma through llama-server (B5.17)
+
+[Gemma Grounded Health](https://github.com/biplob819/gemma-grounded-health) (GGH) fine-tuned
+Gemma 4 E2B to answer PubMedQA questions with citations, quantized it to a Q4_K_M GGUF, and
+scored it with EvalKit 0.4.0 on a laptop: llama.cpp's `llama-server` served each GGUF on its own
+port, and EvalKit reached it through `endpoints`, which routes a model to the `openai_compatible`
+adapter. Its v2 main run (`r-715fc213a8a5`, 1,000 cases, three GGUFs) is published at
+[/gemma/](https://biplob819.github.io/evalkit/gemma/). The model is
+[biplob123/gemma-4-e2b-grounded-health](https://huggingface.co/biplob123/gemma-4-e2b-grounded-health)
+and the GGUFs are in
+[biplob123/gemma-4-e2b-grounded-health-GGUF](https://huggingface.co/biplob123/gemma-4-e2b-grounded-health-GGUF)
+(`gemma-4-e2b-grounded-health-Q4_K_M.gguf` is the file GGH scored as `gemma-e2b-grounded-v2-q4`).
+
+**1. Serve the GGUF.** These are the flags GGH's `ggh serve` passed (its `src/ggh/serve/llama.py`,
+llama.cpp release `b12421`, Apple Metal); one server per model, each on its own port:
+
+```bash
+llama-server --model gemma-4-e2b-grounded-health-Q4_K_M.gguf \
+  --host 127.0.0.1 --port 8083 --n-gpu-layers 999 --parallel 1 --seed 7 --threads 8 \
+  --ctx-size 8192 --temp 0 --top-k 1 --jinja --reasoning off --reasoning-budget 0 --no-webui
+```
+
+**2. Point EvalKit at it.** `examples/llama-server/evalkit.yaml` is GGH's `configs/evalkit_v2.yaml`
+cut to the v2 model (GGH also listed its base and v1 GGUFs, on ports 8080 and 8081):
+
+```yaml
+# A GGUF served by llama-server, scored by EvalKit (docs/plugins.md, "Gemma through llama-server").
+# Gemma Grounded Health's v2 main run (r-715fc213a8a5), cut to its v2 model: its
+# configs/evalkit_v2.yaml listed base and v1 too, each on its own port (8080, 8081).
+# Anything under `endpoints` goes to the `openai_compatible` adapter; no API key is sent.
+models: [gemma-e2b-grounded-v2-q4]
+endpoints:
+  gemma-e2b-grounded-v2-q4: http://127.0.0.1:8083/v1
+judges: [gpt-6.1-sol]            # one judge: self-preference is not measured
+extractor: gpt-6-luna
+structured_output: true          # llama-server turns the JSON schema into a grammar
+max_output_tokens: 2048
+concurrency: {openai: 8, openai_compatible: 1}   # one llama-server slot: one request at a time
+seed: 7
+default_effort: medium           # not sent to the endpoint unless the model is under `efforts`
+judge_effort: medium
+extractor_effort: medium
+max_cost_usd: 16                 # judge and extractor calls; the local model costs $0
+```
+
+```bash
+evalkit run examples/llama-server/evalkit.yaml --dry-run   # the estimate; no API calls
+```
+
+The endpoint model has no price in `prices.yaml`, so it is costed at $0 with a warning; the
+judge and extractor are paid OpenAI calls and need `OPENAI_API_KEY`.
+
+**Gotchas GGH hit.**
+
+- **Turn Gemma 4's thinking channel off.** EvalKit sends chat completions with a JSON schema.
+  With `--reasoning off` alone, the b12421 Gemma 4 chat grammar still admitted a thought channel,
+  and the fine-tuned model opened it and answered after a long trace (on 16 smoke prompts Q4_K_M
+  agreed with bf16 on 8). `--reasoning-budget 0` closes the channel at once (15 of 16 agreed);
+  the base model never opened it (GGH D-41). Through Ollama, Gemma 4 thinks first unless run
+  with `--think=false` (`ollama run --think=false hf.co/biplob123/gemma-4-e2b-grounded-health-GGUF:Q4_K_M`),
+  and Ollama samples at its default temperature, so its answers can differ from llama-server's
+  greedy ones.
+- **Greedy decoding is the server's job.** EvalKit sends no sampling parameters, and sends an
+  endpoint model no reasoning effort unless the model is listed under `efforts`, so the server's
+  defaults decide: `--temp 0 --top-k 1 --seed 7` make every request greedy and repeatable.
+- **One slot means requests queue.** `--parallel 1` gives llama-server one slot; extra
+  concurrent requests wait in its queue and their latency includes the wait. Set
+  `concurrency: {openai_compatible: 1}` so EvalKit sends one request at a time and the latency
+  it records is the model's. The limit is per provider, so every endpoint model in the run
+  shares it, even on separate servers.
+- **Cache keys name the model, not the server.** An answer's cache key is the case, prompt,
+  model name and request settings; the endpoint URL and the GGUF behind it are not part of it.
+  Give every GGUF its own model name (GGH: `gemma-e2b-base-q4`, `gemma-e2b-grounded-q4`,
+  `gemma-e2b-grounded-v2-q4`): swapping the file behind a name returns the old answers from the
+  cache. The other side of this is useful: GGH re-scored base and v1 in its v2 run from the cache
+  with their servers stopped, so a missing answer failed loudly instead of being regenerated.
+
 ## Writing a scorer
 
 A scorer is a function of a case and a completion that returns a `ScoreResult` (a value plus
