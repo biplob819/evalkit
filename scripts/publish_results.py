@@ -3,7 +3,8 @@
 
     uv run python scripts/publish_results.py runs/r-XXXX
 
-Copies the run's summary, report and charts into docs/results/, draws docs/assets/headline.svg
+Copies the run's summary, report and charts (and the labeller record, when a model made the
+calibration labels) into docs/results/, draws docs/assets/headline.svg
 and regenerates the README headline block from the summary. The Pages workflow deploys
 docs/results/ to https://biplob819.github.io/evalkit/ when it lands on main.
 """
@@ -30,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root
 
     from evalkit.report.readme import readme_block, readme_chart, splice
+    from evalkit.run import read_labeller
     from evalkit.schemas import RunSummary
 
     run_dir = args.run_dir
@@ -38,16 +40,25 @@ def main(argv: list[str] | None = None) -> int:
         print("refusing to publish: judging is still pending", file=sys.stderr)
         return 2
     n = json.loads((run_dir / "run.json").read_text("utf-8"))["n"]
+    labeller = read_labeller(run_dir)  # who made the calibration labels (D-81)
     results = root / "docs" / "results"
     results.mkdir(parents=True, exist_ok=True)
     for name in ("summary.json", "report.html", "charts.vl.json", "run.json"):
         shutil.copyfile(run_dir / name, results / name)
+    # Who made the calibration labels travels with the results, so the README can be rebuilt
+    # from committed files alone (D-81); a stale one from an earlier run is removed.
+    published_labeller = results / "labeller.json"
+    if labeller is not None:
+        shutil.copyfile(run_dir / "calibration" / "labeller.json", published_labeller)
+    else:
+        published_labeller.unlink(missing_ok=True)
     assets = root / "docs" / "assets"
     assets.mkdir(parents=True, exist_ok=True)
-    (assets / "headline.svg").write_text(readme_chart(summary), encoding="utf-8")
+    (assets / "headline.svg").write_text(readme_chart(summary, labeller), encoding="utf-8")
     readme = root / "README.md"
     readme.write_text(
-        splice(readme.read_text("utf-8"), readme_block(summary, n, REPORT_URL)), encoding="utf-8"
+        splice(readme.read_text("utf-8"), readme_block(summary, n, REPORT_URL, labeller)),
+        encoding="utf-8",
     )
     print(f"published {summary.run_id} ({n} cases) to docs/results and README")
     return 0

@@ -72,7 +72,7 @@ from evalkit.runtime.canonical import sha256_hex
 from evalkit.sampling import stratified_sample
 from evalkit.schemas import Case, Record, RunConfig, RunSummary, TaskConfig
 from evalkit.schemas._base import SCHEMA_VERSION, Model, NonBlank, Timestamp
-from evalkit.schemas.calibration import CalibrationReport
+from evalkit.schemas.calibration import CalibrationReport, Labeller
 from evalkit.schemas.config import Threshold
 from evalkit.tasks import builtin_task
 
@@ -433,6 +433,26 @@ def read_calibration(run_dir: Path) -> CalibrationReport | None:
     return CalibrationReport.model_validate(data["current"]) if data.get("current") else None
 
 
+LABELLER_FILE = "labeller.json"
+
+
+def read_labeller(run_dir: Path) -> Labeller | None:
+    """Who made the run's calibration labels (`calibration/labeller.json`, D-81); None means a
+    person labelled them in the browser page."""
+    path = run_dir / "calibration" / LABELLER_FILE
+    if not path.is_file():
+        return None
+    return Labeller.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def write_labeller(run_dir: Path, labeller: Labeller) -> Path:
+    path = run_dir / "calibration" / LABELLER_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(labeller.model_dump(mode="json", exclude_none=True), indent=2, sort_keys=True)
+    path.write_text(text + "\n", encoding="utf-8")
+    return path
+
+
 def _previous_overhead(run_dir: Path) -> dict[str, float] | None:
     """The eval overhead per model from the run folder's summary.json, if it has one: a
     re-summary (after calibration) has no claim sets or judging results to recompute it."""
@@ -532,6 +552,7 @@ def render(run_dir: Path) -> Path:
         read_cases(run_dir),
         thresholds=manifest.thresholds,
         calibration=read_calibration(run_dir),
+        labeller=read_labeller(run_dir),
     )
 
 

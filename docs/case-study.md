@@ -9,10 +9,10 @@ correct and fully grounded on 57.5% <!-- docs/results/summary.json: models[2].he
 GPT-6.1 Sol judge (which was rating its own answers), and separated from every other model after a Holm correction under both <!-- docs/results/summary.json: comparisons[7,9,11,13,15,17].separated = true (metric headline) -->.
 Claude Sonnet 5.5 was the most accurate, 77.0% <!-- docs/results/summary.json: models[0].accuracy.point --> correct labels, yet correct and fully
 grounded on only 38.5% <!-- docs/results/summary.json: models[0].headline.claude-opus-5-5.point --> by the Claude judge. The benchmark cost $23.87 <!-- docs/results/run.json: spent_usd (23.8710259) -->, the whole
-project $31.56 <!-- docs/measurements/spend-ledger.jsonl: sum of spent_usd over the 22 legacy lines (31.557859); line 23 is the $0 seal (D-73) --> in API calls. Both judges are calibrated against held-out hand labels <!-- docs/results/summary.json: calibration_status = "calibrated" -->: the Sol judge at
+project $31.56 <!-- docs/measurements/spend-ledger.jsonl: sum of spent_usd over the 22 legacy lines (31.557859); line 23 is the $0 seal (D-73) --> in API calls. Both judges are calibrated against held-out reference labels that a model, Claude Opus 5.5, made from a fixed prompt (D-81) <!-- docs/results/summary.json: calibration_status = "calibrated" -->: the Sol judge at
 κ=0.60 <!-- docs/results/summary.json: judges[gpt-6.1-sol].kappa.point (0.598) -->, the Opus judge at κ=0.40 <!-- docs/results/summary.json: judges[claude-opus-5-5].kappa (0.397, lower bound 0.263) -->, below the 0.4 certify bar on its lower bound
-and lenient (it passed 52 of 79 claims the hand labels marked unsupported <!-- docs/results/summary.json: judges[claude-opus-5-5].confusion = [[151, 1], [52, 27]] -->), so its 57.5% likely
-overstates. EvalKit is on PyPI (v0.1.0 and v0.2.0 <!-- docs/measurements/release-v0.1.0-2026-11-15.json; docs/measurements/release-v0.2.0-2026-11-16.json -->), with a public report, a live demo, and
+and lenient (it passed 52 of 79 claims the labels marked unsupported <!-- docs/results/summary.json: judges[claude-opus-5-5].confusion = [[151, 1], [52, 27]] -->), so its 57.5% likely
+overstates. The Opus judge is also the model that made the labels, so its agreement is not independent; the Sol judge's is a check across model families. EvalKit is on PyPI (v0.1.0 and v0.2.0 <!-- docs/measurements/release-v0.1.0-2026-11-15.json; docs/measurements/release-v0.2.0-2026-11-16.json -->), with a public report, a live demo, and
 seven <!-- docs/downstream.tsv: 7 project rows --> projects that build on it.
 
 ## My role
@@ -26,7 +26,7 @@ extractor's guessed citations, not the sentences each answer actually cited (D-5
 on every live demo request (D-59); and Wave 5, which makes EvalKit the shared eval harness for
 my other projects (D-61 to D-63). I added the API keys, approved the spend from the $0.24 <!-- docs/measurements/spend-ledger.jsonl: line 1 (kind smoke).spent_usd (0.241784) -->
 smoke run (D-30) to the $8.48 <!-- docs/measurements/spend-ledger.jsonl: line 18 (kind benchmark_rejudge_200).spent_usd (8.482221) --> re-judge, and entered the passcode for the demo's live
-deployment check. The calibration hand labels are not done yet; that is the open item.
+deployment check. I chose to have a model make the calibration labels rather than label them myself, since I am not a domain expert (D-81). The 20-answer relabel that measures the labeller's consistency is the open item.
 
 Claude Code wrote the code, tests and docs under a lean adaptation of the Kova node harness
 (D-8). The build is a dependency graph of nodes, and a node starts only when everything it
@@ -48,14 +48,15 @@ builder per node in its own git worktree, with a lead agent merging one lane at 
    mean groundedness), so the ranking is not one judge favouring its own. *Trade-off:* every
    claim is paid for twice, and the report carries two headline numbers that disagree instead
    of one clean figure.
-2. **Report judge agreement only on held-out hand labels (D-5, D-41, D-43).** Hand labels are
+2. **Report judge agreement only on held-out labels (D-5, D-41, D-43).** Labels are
    split into a tuning half and a held-out half; agreement (Cohen's kappa, with an interval
    that resamples whole answers) comes from the held-out half only, and a run is stamped
    calibrated only when every judge has been scored that way for the task under the current
    rubric. Why: a kappa measured on the labels used to tune the rubric is training accuracy,
    not an error rate. *Trade-off:* the published benchmark stayed marked uncalibrated and provisional until the
-   hand labels were done (2026-11-19); EvalKit would not call it anything else. The labels then
-   showed one judge below the certify bar, and the headline says so (D-80).
+   labels were done (2026-11-19); EvalKit would not call it anything else. The labels then
+   showed one judge below the certify bar, and the headline says so (D-80). A model made them
+   (Claude Opus 5.5, D-81), so the reports name it and flag the Opus judge as not independent.
 3. **EvalKit grows with the projects built on it, behind a canary (OWNER D-61 to D-63).** Before
    a release, a canary runs each downstream project's own offline EvalKit tests against the
    current code; an internal name that two or more projects use joins the public API; and every

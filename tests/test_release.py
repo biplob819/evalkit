@@ -85,6 +85,8 @@ NOT_RUN_HERE = {
     "--criterion": "needs a judged criterion and a held-out manifest: "
     "tests/test_integrity_sheet.py test_cli_criterion_export_label_import_score_on_a_run_folder",
     "compare ": "needs two runs or metrics files: tests/test_compare.py",  # B5.6
+    "--labeller": "needs a filled sheet for a run folder: tests/cli/test_cli.py "
+    "test_export_force_refuses_while_labels_exist_and_import_refuses_overwrite",  # D-81
     "history ": "needs a run and a ledger: tests/test_ledger_history.py",  # B5.7
     "experiment ": "needs runs and a held-out manifest: tests/test_ledger_experiments.py",
     "drift ": "needs reference and new batches: tests/test_drift.py",  # B5.7

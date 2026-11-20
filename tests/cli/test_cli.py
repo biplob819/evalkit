@@ -416,8 +416,12 @@ def test_export_force_refuses_while_labels_exist_and_import_refuses_overwrite(en
     w.writerows(rows)
     filled = tmp / "filled.csv"
     filled.write_text(buf.getvalue(), encoding="utf-8")
-    assert cli.main(["calibrate", "import", str(run_dir), str(filled)]) == 0
-    assert cli.main(["calibrate", "import", str(run_dir), str(filled)]) == 2  # no overwrite
+    labeller_file = run_dir / "calibration" / "labeller.json"
+    assert cli.main(["calibrate", "import", str(run_dir), str(filled), "--labeller", "m-1"]) == 0
+    assert json.loads(labeller_file.read_text("utf-8")) == {"kind": "model", "model": "m-1"}
+    labeller_file.unlink()
+    assert cli.main(["calibrate", "import", str(run_dir), str(filled), "--labeller", "m-2"]) == 2
+    assert not labeller_file.exists()  # a refused import records no labeller
     assert cli.main(["calibrate", "export", str(run_dir), "--force"]) == 2  # labels exist
     assert "Move the calibration folder aside" in capsys.readouterr().err
 

@@ -156,9 +156,13 @@ def test_published_readme_has_no_drift():
     s = RunSummary.model_validate_json(results.read_text("utf-8"))
     n = json.loads((ROOT / "docs" / "results" / "run.json").read_text("utf-8"))["n"]
     readme = (ROOT / "README.md").read_text("utf-8")
-    block = readme_block(s, n, "https://biplob819.github.io/evalkit/")
+    from evalkit.schemas.calibration import Labeller
+
+    lab_file = ROOT / "docs" / "results" / "labeller.json"
+    lab = Labeller.model_validate_json(lab_file.read_text("utf-8")) if lab_file.is_file() else None
+    block = readme_block(s, n, "https://biplob819.github.io/evalkit/", lab)
     assert block in readme
-    assert (ROOT / "docs" / "assets" / "headline.svg").read_text("utf-8") == readme_chart(s)
+    assert (ROOT / "docs" / "assets" / "headline.svg").read_text("utf-8") == readme_chart(s, lab)
 
 
 def test_pages_workflow_deploys_the_published_report():
@@ -232,3 +236,80 @@ def test_publish_writes_the_run_and_regenerates_the_readme(tmp_path, summary):
     assert (root / "docs" / "results" / "report.html").read_text("utf-8") == "<html>report</html>"
     assert (root / "docs" / "assets" / "headline.svg").read_text("utf-8") == readme_chart(summary)
     assert "evalkit init" in readme and "PubMedQA" in readme and "Jin et al." in readme
+    assert not (root / "docs" / "results" / "labeller.json").exists()  # a person labelled
+
+    # D-81: a model labeller is published beside the results and named in the README
+    from evalkit.run import write_labeller
+    from evalkit.schemas.calibration import Labeller
+
+    lab = Labeller(kind="model", model="m-1")
+    write_labeller(run, lab)
+    assert mod.main([str(run), "--root", str(root)]) == 0
+    published = root / "docs" / "results" / "labeller.json"
+    assert Labeller.model_validate_json(published.read_text("utf-8")) == lab
+    assert readme_block(summary, 12, mod.REPORT_URL, lab) in (root / "README.md").read_text("utf-8")
+    (run / "calibration" / "labeller.json").unlink()
+    assert mod.main([str(run), "--root", str(root)]) == 0
+    assert not published.exists()  # no stale labeller from an earlier publish
+
+
+def test_a_model_labeller_is_named_and_a_judge_that_made_the_labels_is_flagged(summary):
+    """D-81: labels made by a model are named as such everywhere, and the judge that is that
+    model is flagged as not independent; without a labeller the wording stays "hand labels"."""
+    from evalkit.schemas.calibration import Labeller
+
+    judges = sorted({j for m in summary.models for j in m.headline})
+    cal = _calibrated(
+        summary,
+        (0.40, 0.26, 0.51, ((151, 1), (52, 27))),
+        (0.60, 0.47, 0.71, ((148, 4), (34, 45))),
+    )
+    lab = Labeller(kind="model", model=judges[0])
+    s3 = readme_sentences(cal, 12, lab)[2]
+    assert s3.startswith(
+        f"Judges checked against held-out reference labels from {judges[0]} "
+        "(a model, not a person): "
+    )
+    assert "hand labels" not in s3
+    assert "claims the reference labels marked unsupported" in s3
+    flag = "(the same model made the labels, so this agreement is not independent)"
+    assert s3.count(flag) == 1
+    assert s3.index(flag) > s3.index(f"{judges[0]} κ=0.40")  # on the labelling judge only
+    chart = readme_chart(cal, lab)
+    assert (
+        f"{judges[0]} made the labels it is checked against: its agreement is not independent"
+        in chart
+    )
+    assert (
+        f"judges checked against reference labels from {judges[0]} (a model, not a person)" in chart
+    )
+    # a person labeller, or none, keeps the old wording and flags nobody
+    for person in (None, Labeller(kind="person")):
+        s3p = readme_sentences(cal, 12, person)[2]
+        assert s3p.startswith("Judges checked against held-out hand labels: ")
+        assert "not independent" not in s3p and "not independent" not in readme_chart(cal, person)
+    # a labeller that is not a judge is named, with no independence flag
+    other = readme_sentences(cal, 12, Labeller(kind="model", model="some-other-model"))[2]
+    assert "reference labels from some-other-model" in other and "not independent" not in other
+
+
+def test_labeller_must_name_a_model_exactly_when_it_is_one():
+    from pydantic import ValidationError
+
+    from evalkit.schemas.calibration import Labeller
+
+    with pytest.raises(ValidationError):
+        Labeller(kind="model")
+    with pytest.raises(ValidationError):
+        Labeller(kind="person", model="claude-opus-5-5")
+
+
+def test_labeller_file_round_trips_and_its_absence_reads_as_none(tmp_path):
+    from evalkit.run import read_labeller, write_labeller
+    from evalkit.schemas.calibration import Labeller
+
+    assert read_labeller(tmp_path) is None
+    lab = Labeller(kind="model", model="claude-opus-5-5", note="fixed prompt")
+    path = write_labeller(tmp_path, lab)
+    assert path == tmp_path / "calibration" / "labeller.json"
+    assert read_labeller(tmp_path) == lab

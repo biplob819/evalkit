@@ -453,7 +453,15 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
                 server.server_close()
         elif args.action == "import":
             n = R.cal_import(run_dir, Path(args.csv))
-            _emit(args, {"imported": n}, f"imported {n} labels")
+            if args.labeller:  # D-81: a model made these labels; every report names it
+                from evalkit.schemas.calibration import Labeller
+
+                R.write_labeller(run_dir, Labeller(kind="model", model=args.labeller))
+            _emit(
+                args,
+                {"imported": n, "labeller": args.labeller},
+                f"imported {n} labels" + (f" made by {args.labeller}" if args.labeller else ""),
+            )
         else:
             report = R.cal_score(run_dir)
             kappas = {a.judge: a.kappa.point for a in report.agreements}
@@ -1022,6 +1030,12 @@ def build_parser() -> argparse.ArgumentParser:
             a.add_argument("--port", type=int, default=0, help="port (default: any free port)")
         if name == "import":
             a.add_argument("csv", help="the filled sheet.csv")
+            a.add_argument(
+                "--labeller",
+                default=None,
+                help="the model id that made these labels; reports name it and flag a judge "
+                "that is the same model",
+            )
         # B5.9: a calibration sheet for any declared criterion (evalkit.integrity)
         a.add_argument("--criterion", default=None, help="criterion YAML (B5.9 criterion sheet)")
         if name in ("export", "score"):

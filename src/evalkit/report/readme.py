@@ -10,6 +10,7 @@ from html import escape
 from evalkit.pipeline.aggregate import stamp_lines
 from evalkit.report.svg import bounded_rate, short
 from evalkit.schemas import Interval, RunSummary
+from evalkit.schemas.calibration import Labeller
 from evalkit.schemas.summary import JudgeAgreement
 
 START = "<!-- evalkit:headline:start -->"
@@ -51,20 +52,32 @@ def _mark(kind: str, cx: float, cy: float, cls: str) -> str:
     return f'<rect class="{cls}" x="{cx - 6:.2f}" y="{cy - 6:.2f}" width="12" height="12"/>'
 
 
-def _lean(a: JudgeAgreement) -> str:
-    """Which way a judge disagrees with the hand labels, from its confusion matrix
+def _labels(labeller: Labeller | None) -> str:
+    """How the labels are named: "hand labels" unless a model made them (D-81)."""
+    return labeller.labels() if labeller is not None else "hand labels"
+
+
+def _short_labels(labeller: Labeller | None) -> str:
+    return (
+        "reference labels" if labeller is not None and labeller.kind == "model" else "hand labels"
+    )
+
+
+def _lean(a: JudgeAgreement, labeller: Labeller | None = None) -> str:
+    """Which way a judge disagrees with the labels, from its confusion matrix
     ([[TP, FN], [FP, TN]], "supported" positive), as the clause shown beside it."""
+    labels = _short_labels(labeller)
     (tp, fn), (fp, tn) = a.confusion
     fp_rate = fp / (fp + tn) if fp + tn else 0.0
     fn_rate = fn / (tp + fn) if tp + fn else 0.0
     if fp_rate >= fn_rate and fp + tn:
         return (
-            f"it passed {fp} of {fp + tn} claims the hand labels marked unsupported, "
+            f"it passed {fp} of {fp + tn} claims the {labels} marked unsupported, "
             "so its figures likely overstate grounding"
         )
     if tp + fn:
         return (
-            f"it rejected {fn} of {tp + fn} claims the hand labels marked supported, "
+            f"it rejected {fn} of {tp + fn} claims the {labels} marked supported, "
             "so its figures likely understate grounding"
         )
     return "its figures are uncertain"
@@ -77,22 +90,30 @@ def weak_judges(summary: RunSummary) -> list[JudgeAgreement]:
     )
 
 
-def _weak_lines(summary: RunSummary) -> list[str]:
-    return [
+def _weak_lines(summary: RunSummary, labeller: Labeller | None = None) -> list[str]:
+    lines = [
         f"{a.judge}: held-out κ lower bound {a.kappa.lo:.2f} is below the "
-        f"{CERTIFY_KAPPA_LO} certify bar; {_lean(a)}"
+        f"{CERTIFY_KAPPA_LO} certify bar; {_lean(a, labeller)}"
         for a in weak_judges(summary)
     ]
+    if labeller is not None and labeller.kind == "model":
+        lines.append(f"judges checked against {labeller.labels()}")
+        lines += [
+            f"{a.judge} made the labels it is checked against: its agreement is not independent"
+            for a in sorted(summary.judges, key=lambda a: a.judge)
+            if labeller.same_as(a.judge)
+        ]
+    return lines
 
 
-def readme_chart(summary: RunSummary) -> str:
+def readme_chart(summary: RunSummary, labeller: Labeller | None = None) -> str:
     """Headline per model (rows) and judge (shape), with 95% CIs and the run's caveats."""
     judges = sorted({j for m in summary.models for j in m.headline})
     models = sorted(
         summary.models,
         key=lambda m: -min((iv.point for iv in m.headline.values()), default=m.accuracy.point),
     )
-    stamps = stamp_lines(summary) or _weak_lines(summary)
+    stamps = stamp_lines(summary) or _weak_lines(summary, labeller)
     h = TOP + ROW * len(models) + 54 + 18 * (len(stamps) + 1)
     title = f"{summary.task}: correct and fully grounded, by model and judge (95% CI)"
     desc = (
@@ -156,7 +177,9 @@ def readme_chart(summary: RunSummary) -> str:
     return "".join(out) + "\n"
 
 
-def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
+def readme_sentences(
+    summary: RunSummary, n_cases: int, labeller: Labeller | None = None
+) -> list[str]:
     """Three sentences: what was measured, the result with intervals, the caveats."""
     judges = sorted({j for m in summary.models for j in m.headline})
     models = [m.model for m in summary.models]
@@ -213,9 +236,11 @@ def readme_sentences(summary: RunSummary, n_cases: int) -> list[str]:
             k = a.kappa
             part = f"{a.judge} κ={k.point:.2f} (95% CI {k.lo:.2f}–{k.hi:.2f})"
             if k.lo < CERTIFY_KAPPA_LO:
-                part += f", below the {CERTIFY_KAPPA_LO} certify bar: {_lean(a)}"
+                part += f", below the {CERTIFY_KAPPA_LO} certify bar: {_lean(a, labeller)}"
+            if labeller is not None and labeller.same_as(a.judge):
+                part += " (the same model made the labels, so this agreement is not independent)"
             parts.append(part)
-        s3 = "Judges checked against held-out hand labels: " + "; ".join(parts) + "."
+        s3 = f"Judges checked against held-out {_labels(labeller)}: " + "; ".join(parts) + "."
     return [s1, s2, s3]
 
 
@@ -224,8 +249,10 @@ REPO = "https://github.com/biplob819/evalkit"
 REPO_RAW = "https://raw.githubusercontent.com/biplob819/evalkit/main"
 
 
-def readme_block(summary: RunSummary, n_cases: int, report_url: str) -> str:
-    sentences = " ".join(readme_sentences(summary, n_cases))
+def readme_block(
+    summary: RunSummary, n_cases: int, report_url: str, labeller: Labeller | None = None
+) -> str:
+    sentences = " ".join(readme_sentences(summary, n_cases, labeller))
     return (
         f"{START}\n"
         f'<p align="center"><img src="{REPO_RAW}/docs/assets/headline.svg" '

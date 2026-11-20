@@ -12,7 +12,7 @@ priorities:
     call: built
     why: A judge can favour its own family, and that only shows when both judge every answer.
     source: D-4
-  - item: Judges checked against held-out hand labels, with a weak judge flagged
+  - item: Judges checked against held-out reference labels, with a weak judge flagged
     call: built
     why: Agreement measured on the labels used to tune the rubric would be training accuracy, so only the held-out half counts.
     source: "D-5; D-80"
@@ -48,10 +48,10 @@ priorities:
     call: cut
     why: A capability with one user and no likely second stays in that project, keeping the shared library small.
     source: D-63
-  - item: My own blind relabel of 20 answers to measure labeller consistency
+  - item: A blind relabel of 20 answers to measure how consistent the labeller is
     call: later
-    why: The judges' agreement is published now, and the relabel adds how far the hand labels agree with themselves.
-    source: D-80
+    why: The judges' agreement is published now, and the relabel adds how far the labels agree with themselves.
+    source: "D-80; D-81"
   - item: Gemini models alongside Claude and OpenAI
     call: later
     why: The adapter interface makes it a small, separate addition once the two current families are settled.

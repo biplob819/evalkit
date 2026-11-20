@@ -18,7 +18,7 @@ from typing import Any
 from evalkit.pipeline.aggregate import stamp_lines
 from evalkit.report.svg import Point, bounded_rate, money, scatter, use_log_scale
 from evalkit.schemas import Case, Interval, ModelSummary, Record, RunSummary, SliceSummary
-from evalkit.schemas.calibration import CalibrationReport
+from evalkit.schemas.calibration import CalibrationReport, Labeller
 
 BANNER = (
     "Research benchmark, not medical advice. Scores describe how models answered PubMedQA-style "
@@ -328,7 +328,11 @@ def _pairs_table(summary: RunSummary) -> str:
     )
 
 
-def _calibration(summary: RunSummary, calibration: CalibrationReport | None) -> str:
+def _calibration(
+    summary: RunSummary,
+    calibration: CalibrationReport | None,
+    labeller: Labeller | None = None,
+) -> str:
     if summary.calibration_status != "calibrated":
         return (
             "<p><strong>Judges not calibrated for this task.</strong> Groundedness figures have "
@@ -339,21 +343,32 @@ def _calibration(summary: RunSummary, calibration: CalibrationReport | None) -> 
     for a in summary.judges:
         (tp, fn), (fp, tn) = a.confusion
         fams = ", ".join(f"{escape(f)} {_kappa(iv)}" for f, iv in sorted(a.by_family.items()))
+        same = (
+            "<br><small>same model as the labeller: not independent</small>"
+            if labeller is not None and labeller.same_as(a.judge)
+            else ""
+        )
         rows.append(
-            f"<tr><th scope=row>{escape(a.judge)}</th><td>{_kappa(a.kappa)}</td>"
+            f"<tr><th scope=row>{escape(a.judge)}{same}</th><td>{_kappa(a.kappa)}</td>"
             f"<td>{a.agreement:.1%}</td><td>{a.n_claims} ({a.coverage:.0%} covered)</td>"
             f"<td>TP {tp} · FN {fn} · FP {fp} · TN {tn}</td><td>{fams or '—'}</td></tr>"
         )
     extra = ""
     if calibration is not None:
         extra = (
-            f"<p>Extraction error rate {calibration.extraction_error_rate:.1%} · owner "
+            f"<p>Extraction error rate {calibration.extraction_error_rate:.1%} · "
+            f"{'labeller' if labeller is not None and labeller.kind == 'model' else 'owner'} "
             f"self-consistency kappa {_kappa(calibration.self_consistency)} · rubric "
             f"{escape(calibration.judge_prompt_hash)}</p>"
         )
     return (
-        "<table id=calibration><caption>Agreement with the owner's held-out labels "
-        "(“supported” is positive). Kappa is a coefficient from −1 to 1; its intervals "
+        "<table id=calibration><caption>Agreement with "
+        + (
+            f"the held-out {escape(labeller.labels())}"
+            if labeller is not None and labeller.kind == "model"
+            else "the owner's held-out labels"
+        )
+        + " (“supported” is positive). Kappa is a coefficient from −1 to 1; its intervals "
         "resample whole answers.</caption><thead><tr>"
         "<th scope=col>Judge</th><th scope=col>Kappa</th><th scope=col>Agreement</th>"
         "<th scope=col>Claims</th><th scope=col>Confusion</th><th scope=col>Kappa by family</th>"
@@ -471,6 +486,7 @@ def render_report(
     *,
     thresholds: Sequence[object] = (),
     calibration: CalibrationReport | None = None,
+    labeller: Labeller | None = None,
 ) -> str:
     stamps = stamp_lines(summary)
     stamp_html = (
@@ -527,7 +543,7 @@ def render_report(
         f"{_slices(summary)}"
         f"<h2 id=pairs-h>Pairwise comparisons</h2><div class=card>{_pairs_table(summary)}</div>"
         f"<h2 id=cal-h>Judge calibration</h2><div class=card>"
-        f"{_calibration(summary, calibration)}</div>"
+        f"{_calibration(summary, calibration, labeller)}</div>"
         f"<h2 id=sp-h>Self-preference</h2><div class=card>{_self_preference(summary)}</div>"
         f"<h2 id=fail-h>Failure explorer</h2>"
         f"<div class=card>{_failure_explorer(summary, records, cases)}</div>"
@@ -614,12 +630,18 @@ def write_report(
     *,
     thresholds: Sequence[object] = (),
     calibration: CalibrationReport | None = None,
+    labeller: Labeller | None = None,
 ) -> Path:
     """Write `report.html` and `charts.vl.json` atomically; return the report path."""
     out_dir.mkdir(parents=True, exist_ok=True)
     files = {
         "report.html": render_report(
-            summary, records, cases, thresholds=thresholds, calibration=calibration
+            summary,
+            records,
+            cases,
+            thresholds=thresholds,
+            calibration=calibration,
+            labeller=labeller,
         ),
         "charts.vl.json": json.dumps(vega_lite_specs(summary, thresholds), indent=2, sort_keys=True)
         + "\n",

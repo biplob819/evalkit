@@ -17,6 +17,31 @@ from evalkit.schemas._base import (
 from evalkit.schemas.summary import Interval, JudgeAgreement
 
 
+class Labeller(Model):
+    """Who made a run's calibration labels (`calibration/labeller.json`, D-81). Absent means a
+    person labelled in the browser page. A model labeller is named in every published sentence,
+    and a judge that is the same model is flagged: its agreement is not independent."""
+
+    kind: Literal["person", "model"]
+    model: NonBlank | None = None  # the labelling model's id, when kind is "model"
+    note: str | None = None  # how it labelled, e.g. the prompt file and its hash
+
+    @model_validator(mode="after")
+    def _named(self) -> Labeller:
+        if (self.kind == "model") != (self.model is not None):
+            raise ValueError("a model labeller names its model, and only a model labeller does")
+        return self
+
+    def labels(self) -> str:
+        """How published sentences name the labels."""
+        if self.kind == "model":
+            return f"reference labels from {self.model} (a model, not a person)"
+        return "hand labels"
+
+    def same_as(self, judge: str) -> bool:
+        return self.kind == "model" and self.model == judge
+
+
 class CalibrationLabel(Model):
     claim_id: NonBlank
     split: Literal["tuning", "heldout", "relabel"]

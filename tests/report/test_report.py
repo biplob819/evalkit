@@ -366,6 +366,20 @@ def test_calibration_report_details_are_shown(run_inputs):
     panel = html.split("<table id=calibration>")[1]
     assert "self-consistency kappa 0.91" in panel and "extraction error rate 4.0%" in panel.lower()
     assert "anthropic 0.58" in panel and "openai 0.69" in panel and "(98% covered)" in panel
+    assert "the owner's held-out labels" in panel and "not independent" not in panel
+
+    # D-81: a model labeller is named in the caption, and the judge that is that model is flagged
+    from evalkit.schemas.calibration import Labeller
+
+    lab = Labeller(kind="model", model=judges[0])
+    panel = render_report(cal, records, cases, calibration=report, labeller=lab).split(
+        "<table id=calibration>"
+    )[1]
+    assert f"held-out reference labels from {judges[0]} (a model, not a person)" in panel
+    assert "owner" not in panel and "labeller self-consistency kappa 0.91" in panel
+    assert panel.count("same model as the labeller: not independent") == 1
+    row = panel.split(f"<th scope=row>{judges[0]}")[1].split("</tr>")[0]
+    assert "same model as the labeller" in row
 
 
 @pytest.mark.safety
