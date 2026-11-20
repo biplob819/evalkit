@@ -22,7 +22,7 @@ projects:
     # and not that run's EvalKit summary headline. Single judge (its D-80). An own-format file has
     # no quality rows, so its quality words are the comparison row's caption.
     summary: docs/measurements/e2.5-heldout4-gates.json
-    own_format: {run_id: $.run}
+    own_format: {run_id: $.run, run_at: $.finished_at}
     headline:
       path: '$.gates[?name == "grounded"].value'
       unit: ratio

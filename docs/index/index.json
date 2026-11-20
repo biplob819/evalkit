@@ -16,7 +16,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -246,7 +246,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0 (git 218192132ad6))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -391,7 +391,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.3.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -1933,7 +1933,7 @@
         "status": "not stated",
         "text": "not stated in the project's own summary format"
       },
-      "commit": "6488adf586f7794f918e61d13ba582546f9bfdf9",
+      "commit": "0e99cf61d66e26704bd16f978942fd2d12bf52ac",
       "comparison_label": "Zero-tolerance gates on held-out",
       "cost_per_correct_comparison": "",
       "efficiency_note": "no per-model efficiency in this summary (the project's own format)",
@@ -1941,7 +1941,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.2.0)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -2090,7 +2090,7 @@
       "headline_pending": null,
       "improvements": [],
       "kind": "own-format",
-      "lessons_url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/course-assistant/blob/0e99cf61d66e26704bd16f978942fd2d12bf52ac/docs/lessons.md",
       "models": [],
       "pin_note": "",
       "pointer": null,
@@ -2099,8 +2099,8 @@
       "reason": "",
       "registry_pin": "evalkit-harness>=0.2,<0.3",
       "repo": "biplob819/course-assistant",
-      "run_at": null,
-      "run_date": null,
+      "run_at": "2026-11-19T18:27:06Z",
+      "run_date": "2026-11-19",
       "run_id": "course-ta-heldout-20261119T181359Z",
       "simulated": null,
       "stamps": [],
@@ -2113,7 +2113,7 @@
             "name": "Grounded answer rate, held-out (heldout-4, 215 cases, scored once)",
             "result": "0.880",
             "status": "provisional",
-            "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/measurements/e2.5-heldout4-gates.json"
+            "url": "https://github.com/biplob819/course-assistant/blob/0e99cf61d66e26704bd16f978942fd2d12bf52ac/docs/measurements/e2.5-heldout4-gates.json"
           },
           {
             "data": "n not stated",
@@ -2121,26 +2121,26 @@
             "name": "Zero-tolerance gates on held-out",
             "result": "integrity: 1.000; injection: 1.000; leak: 1.000; identity: 1.000",
             "status": "provisional",
-            "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/measurements/e2.5-heldout4-gates.json"
+            "url": "https://github.com/biplob819/course-assistant/blob/0e99cf61d66e26704bd16f978942fd2d12bf52ac/docs/measurements/e2.5-heldout4-gates.json"
           }
         ],
         "headline": {
           "label": "Grounded answer rate, held-out (heldout-4, 215 cases, scored once)",
-          "note": "higher is better; run course-ta-heldout-20261119T181359Z; commit 6488adf; EvalKit not recorded (pin evalkit-harness>=0.2,<0.3)",
+          "note": "higher is better; run course-ta-heldout-20261119T181359Z; commit 0e99cf6; EvalKit not recorded (pin evalkit-harness>=0.2,<0.3)",
           "value": "0.880"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "course-assistant lessons log",
-            "now": "read the log at commit 6488adf",
-            "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/lessons.md"
+            "now": "read the log at commit 0e99cf6",
+            "url": "https://github.com/biplob819/course-assistant/blob/0e99cf61d66e26704bd16f978942fd2d12bf52ac/docs/lessons.md"
           }
         ],
         "monitoring": []
       },
       "summary_path": "docs/measurements/e2.5-heldout4-gates.json",
-      "url": "https://github.com/biplob819/course-assistant/blob/6488adf586f7794f918e61d13ba582546f9bfdf9/docs/measurements/e2.5-heldout4-gates.json"
+      "url": "https://github.com/biplob819/course-assistant/blob/0e99cf61d66e26704bd16f978942fd2d12bf52ac/docs/measurements/e2.5-heldout4-gates.json"
     },
     {
       "calibration": {
@@ -2156,7 +2156,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": null,
@@ -2252,7 +2252,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.1.0 (git 06591f8de9b1))",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -2990,7 +2990,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit (uv.lock: 0.4.1)",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": 0,
@@ -7059,7 +7059,7 @@
         "status": "calibrated",
         "text": "calibrated: claude-opus-5-5 kappa 0.40 [0.26, 0.51] on 231 held-out claims; gpt-6.1-sol kappa 0.60 [0.47, 0.71] on 231 held-out claims"
       },
-      "commit": "1b98301a388480b3979d3324e509ba8de766c457",
+      "commit": "48bf0066b2294a83ed88f766cb13042bda73003c",
       "comparison_label": null,
       "cost_per_correct_comparison": "lowest cost per correct: gpt-6-luna (clear: its interval is below every other model's)",
       "efficiency_note": "",
@@ -7067,7 +7067,7 @@
       "evalkit_pin_source": "pyproject.toml at the commit",
       "evalkit_version": null,
       "evalkit_version_source": "not recorded",
-      "fetched_at": "2026-11-20T13:17:09Z",
+      "fetched_at": "2026-11-20T13:24:33Z",
       "gate": {
         "errors": [],
         "exit_code": 1,
@@ -7179,7 +7179,7 @@
       "headline_pending": null,
       "improvements": [],
       "kind": "evalkit-summary",
-      "lessons_url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/lessons.md",
+      "lessons_url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/lessons.md",
       "models": [
         {
           "cost_per_correct_rank": 1,
@@ -8535,7 +8535,7 @@
             "name": "Correct and fully grounded (PubMedQA)",
             "result": "57.5% [50.5%, 64.0%]",
             "status": "final",
-            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8543,7 +8543,7 @@
             "name": "passes_threshold (model=claude-sonnet-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8551,7 +8551,7 @@
             "name": "passes_threshold (model=claude-haiku-5-5)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8559,7 +8559,7 @@
             "name": "passes_threshold (model=gpt-6.1-sol)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/results/summary.json"
           },
           {
             "data": "gated row",
@@ -8567,20 +8567,20 @@
             "name": "passes_threshold (model=gpt-6-luna)",
             "result": "false",
             "status": "fail",
-            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
+            "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/results/summary.json"
           }
         ],
         "headline": {
           "label": "Correct and fully grounded (PubMedQA)",
-          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit 1b98301; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
+          "note": "interval 50.5% to 64.0% (percentile bootstrap over cases (seeded)); run r-e8dac378d2d3; commit 48bf006; EvalKit not recorded (pin evalkit-harness 0.4.1 (the repository at the commit))",
           "value": "57.5% [50.5%, 64.0%]"
         },
         "improvements": [],
         "learnings": [
           {
             "lesson": "evalkit lessons log",
-            "now": "read the log at commit 1b98301",
-            "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/lessons.md"
+            "now": "read the log at commit 48bf006",
+            "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/lessons.md"
           }
         ],
         "monitoring": [
@@ -8615,7 +8615,7 @@
         ]
       },
       "summary_path": "docs/results/summary.json",
-      "url": "https://github.com/biplob819/evalkit/blob/1b98301a388480b3979d3324e509ba8de766c457/docs/results/summary.json"
+      "url": "https://github.com/biplob819/evalkit/blob/48bf0066b2294a83ed88f766cb13042bda73003c/docs/results/summary.json"
     }
   ],
   "schema_version": "index-1"
